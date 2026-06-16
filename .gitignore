@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Data / local infra
+*.sqlite
+*.sqlite3
+postgres-data/
+minio-data/
+redis-data/
+meili-data/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+logs/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Prisma
+prisma/*.db
+
+# Turbo
+.turbo/
+
+# Reports (исходная аналитика — храним отдельно, не в гите)
+Отчет_*.xlsx
+Отчет_*.docx
