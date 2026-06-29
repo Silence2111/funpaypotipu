@@ -1,0 +1,27 @@
+{
+  "name": "gamemarket",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Маркетплейс цифровых игровых товаров (P2P-эскроу + пополнения)",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "db:generate": "pnpm --filter @gamemarket/db generate",
+    "db:migrate": "pnpm --filter @gamemarket/db migrate",
+    "db:seed": "pnpm --filter @gamemarket/db seed"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

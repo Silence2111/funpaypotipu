@@ -1,0 +1,24 @@
+{
+  "name": "@gamemarket/worker",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"(eslint TODO)\" && exit 0",
+    "test": "echo \"(tests TODO)\" && exit 0"
+  },
+  "dependencies": {
+    "@gamemarket/db": "workspace:*",
+    "@gamemarket/shared": "workspace:*",
+    "bullmq": "^5.34.5"
+  },
+  "devDependencies": {
+    "@gamemarket/config": "workspace:*",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
