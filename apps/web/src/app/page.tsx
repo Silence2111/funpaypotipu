@@ -1,51 +1,89 @@
-import { apiGet } from '@/lib/api';
-
-type Health = { status: string; db: string; ts: string };
-
-async function getHealth(): Promise<Health | null> {
-  try {
-    return await apiGet<Health>('/health');
-  } catch {
-    return null;
-  }
-}
+import Link from 'next/link';
+import { ShieldCheck, MessagesSquare, Zap } from 'lucide-react';
+import { getGames, browseListings } from '@/lib/api';
+import { GameCardView, ListingCardView } from '@/components/cards';
 
 export default async function HomePage() {
-  const health = await getHealth();
+  const [games, browse] = await Promise.all([getGames(), browseListings({ limit: 8, sort: 'new' })]);
+  const listings = browse?.items ?? [];
 
   return (
-    <main style={{ maxWidth: 880, margin: '0 auto', padding: '48px 24px' }}>
-      <h1 style={{ fontSize: 40, marginBottom: 8 }}>GameMarket</h1>
-      <p style={{ opacity: 0.8, fontSize: 18 }}>
-        Маркетплейс цифровых игровых товаров с эскроу-защитой сделки.
-      </p>
+    <div className="container stack-lg" style={{ paddingTop: 72 }}>
+      {/* Hero */}
+      <section style={{ textAlign: 'center', maxWidth: 720, margin: '0 auto' }}>
+        <h1 className="h1">Игровые товары. Безопасно.</h1>
+        <p className="lead">
+          Аккаунты, валюта, предметы, ключи и пополнения — с эскроу-защитой каждой сделки.
+        </p>
+        <div className="row" style={{ justifyContent: 'center', marginTop: 28, gap: 12 }}>
+          <Link href="#games" className="btn">
+            Выбрать игру
+          </Link>
+          <Link href="#how" className="btn ghost">
+            Как это работает
+          </Link>
+        </div>
+      </section>
 
-      <section
-        style={{
-          marginTop: 32,
-          padding: 16,
-          border: '1px solid #2a2f37',
-          borderRadius: 12,
-          background: '#161a20',
-        }}
-      >
-        <h2 style={{ fontSize: 18, marginTop: 0 }}>Статус системы</h2>
-        {health ? (
-          <ul style={{ lineHeight: 1.8 }}>
-            <li>API: <b style={{ color: '#5fd38d' }}>{health.status}</b></li>
-            <li>База данных: <b>{health.db}</b></li>
-          </ul>
+      {/* Trust */}
+      <section id="how" className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        {[
+          { icon: ShieldCheck, t: 'Эскроу-защита', d: 'Деньги у площадки, пока вы не подтвердите получение.' },
+          { icon: MessagesSquare, t: 'Чат со сделкой', d: 'Общение с продавцом и вся история в одном месте.' },
+          { icon: Zap, t: 'Быстрая выдача', d: 'Ключи и пополнения — автоматически после оплаты.' },
+        ].map(({ icon: Icon, t, d }) => (
+          <div key={t} className="card">
+            <Icon size={22} strokeWidth={1.5} />
+            <div style={{ fontWeight: 600, margin: '12px 0 6px' }}>{t}</div>
+            <div className="muted" style={{ fontSize: 14 }}>{d}</div>
+          </div>
+        ))}
+      </section>
+
+      {/* Games */}
+      <section id="games">
+        <div className="section-head">
+          <h2 className="h2">Игры</h2>
+        </div>
+        {games && games.length > 0 ? (
+          <div className="grid cols-auto">
+            {games.map((g) => (
+              <GameCardView key={g.id} game={g} />
+            ))}
+          </div>
         ) : (
-          <p style={{ color: '#ff7a7a' }}>
-            API недоступен — запустите <code>pnpm --filter @gamemarket/api dev</code>.
-          </p>
+          <EmptyHint />
         )}
       </section>
 
-      <p style={{ marginTop: 32, opacity: 0.6 }}>
-        Фаза 0 — фундамент. Каталог, лоты и сделки появятся в следующих фазах
-        (см. docs/11-roadmap.md).
+      {/* Recent listings */}
+      <section>
+        <div className="section-head">
+          <h2 className="h2">Новые лоты</h2>
+          <Link href="/" className="muted" style={{ fontSize: 14 }}>
+            Все →
+          </Link>
+        </div>
+        {listings.length > 0 ? (
+          <div className="grid cols-auto">
+            {listings.map((l) => (
+              <ListingCardView key={l.id} listing={l} />
+            ))}
+          </div>
+        ) : (
+          <EmptyHint />
+        )}
+      </section>
+    </div>
+  );
+}
+
+function EmptyHint() {
+  return (
+    <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
+      <p className="muted" style={{ margin: 0 }}>
+        Пока пусто. Запустите API и БД, затем выполните <code>pnpm db:seed</code>.
       </p>
-    </main>
+    </div>
   );
 }

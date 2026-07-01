@@ -6,6 +6,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "target": "ES2022",
+    "declaration": false,
     "outDir": "dist"
   }
 }

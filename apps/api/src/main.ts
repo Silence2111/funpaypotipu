@@ -1,4 +1,8 @@
 import 'reflect-metadata';
+// BigInt (деньги в минорных единицах) не сериализуется в JSON штатно — отдаём строкой.
+(BigInt.prototype as unknown as { toJSON: () => string }).toJSON = function () {
+  return this.toString();
+};
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import cookieParser from 'cookie-parser';

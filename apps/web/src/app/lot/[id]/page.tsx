@@ -1,0 +1,108 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { ShieldCheck, Star, User } from 'lucide-react';
+import { getListing } from '@/lib/api';
+import { formatPrice } from '@/lib/format';
+
+export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const listing = await getListing(id);
+  if (!listing) notFound();
+
+  const attrs = Object.entries(listing.attributes ?? {});
+  const cover = listing.images?.[0];
+
+  return (
+    <div className="container" style={{ paddingTop: 48 }}>
+      <div style={{ marginBottom: 20 }}>
+        <Link href={`/igra/${listing.game.slug}`} className="faint" style={{ fontSize: 14 }}>
+          ← {listing.game.title} · {listing.category.title}
+        </Link>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1.3fr) minmax(300px, 1fr)',
+          gap: 40,
+          alignItems: 'start',
+        }}
+      >
+        {/* Left: media + description */}
+        <div className="stack-lg">
+          <div className="thumb" style={{ aspectRatio: '16 / 9', marginBottom: 0 }}>
+            {cover ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={cover}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+              />
+            ) : (
+              <span className="faint">Нет изображения</span>
+            )}
+          </div>
+
+          <section>
+            <h2 className="h2" style={{ fontSize: 20, marginBottom: 12 }}>
+              Описание
+            </h2>
+            <p className="muted" style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
+              {listing.description}
+            </p>
+          </section>
+
+          {attrs.length > 0 && (
+            <section>
+              <h2 className="h2" style={{ fontSize: 20, marginBottom: 12 }}>
+                Характеристики
+              </h2>
+              <div className="grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                {attrs.map(([k, v]) => (
+                  <div key={k} className="row" style={{ justifyContent: 'space-between' }}>
+                    <span className="faint" style={{ fontSize: 14 }}>{k}</span>
+                    <span style={{ fontSize: 14 }}>{String(v)}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        {/* Right: purchase panel */}
+        <aside className="card" style={{ position: 'sticky', top: 72, padding: 24 }}>
+          <h1 className="h2" style={{ fontSize: 22, lineHeight: 1.25 }}>
+            {listing.title}
+          </h1>
+          <div className="price" style={{ fontSize: 28, margin: '16px 0' }}>
+            {formatPrice(listing.price, listing.currency)}
+          </div>
+
+          <button className="btn" style={{ width: '100%' }} type="button">
+            Купить
+          </button>
+
+          <div className="row faint" style={{ fontSize: 13, gap: 6, marginTop: 14 }}>
+            <ShieldCheck size={15} strokeWidth={1.75} />
+            Оплата защищена эскроу
+          </div>
+
+          <hr className="divider" style={{ margin: '20px 0' }} />
+
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <span className="row muted" style={{ gap: 8, fontSize: 14 }}>
+              <User size={16} strokeWidth={1.75} />
+              {listing.seller.profile?.username ?? 'продавец'}
+            </span>
+            {listing.seller.profile && (
+              <span className="row faint" style={{ gap: 4, fontSize: 13 }}>
+                <Star size={13} strokeWidth={1.75} />
+                {listing.seller.profile.ratingAvg.toFixed(1)}
+              </span>
+            )}
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
