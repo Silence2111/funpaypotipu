@@ -1,7 +1,23 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getGame, browseListings } from '@/lib/api';
 import { ListingCardView } from '@/components/cards';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const game = await getGame(slug);
+  if (!game) return { title: 'Игра не найдена' };
+  return {
+    title: `${game.title} — купить аккаунты, ключи, предметы`,
+    description: `Безопасная покупка товаров ${game.title} с эскроу-защитой: аккаунты, валюта, предметы, ключи.`,
+    alternates: { canonical: `/igra/${slug}` },
+  };
+}
 
 export default async function GamePage({
   params,

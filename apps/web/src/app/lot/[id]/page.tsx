@@ -1,20 +1,71 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ShieldCheck, Star, User } from 'lucide-react';
 import { getListing } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
 import { BuyButton } from '@/components/buy-button';
+import { JsonLd } from '@/components/json-ld';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const listing = await getListing(id);
+  if (!listing) return { title: 'Лот не найден' };
+  const desc = listing.description.slice(0, 160);
+  return {
+    title: listing.title,
+    description: desc,
+    openGraph: {
+      title: listing.title,
+      description: desc,
+      images: listing.images?.length ? listing.images : undefined,
+      type: 'website',
+    },
+    alternates: { canonical: `/lot/${id}` },
+  };
+}
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const listing = await getListing(id);
   if (!listing) notFound();
 
+  const priceMajor = (Number(BigInt(listing.price)) / 100).toFixed(2);
+  const productLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: listing.title,
+    description: listing.description.slice(0, 300),
+    image: listing.images ?? [],
+    category: listing.category.title,
+    offers: {
+      '@type': 'Offer',
+      price: priceMajor,
+      priceCurrency: listing.currency,
+      availability: 'https://schema.org/InStock',
+      seller: { '@type': 'Person', name: listing.seller.profile?.username ?? 'seller' },
+    },
+    ...(listing.seller.profile && listing.seller.profile.ratingAvg > 0
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: listing.seller.profile.ratingAvg.toFixed(1),
+            bestRating: '5',
+          },
+        }
+      : {}),
+  };
+
   const attrs = Object.entries(listing.attributes ?? {});
   const cover = listing.images?.[0];
 
   return (
     <div className="container" style={{ paddingTop: 48 }}>
+      <JsonLd data={productLd} />
       <div style={{ marginBottom: 20 }}>
         <Link href={`/igra/${listing.game.slug}`} className="faint" style={{ fontSize: 14 }}>
           ← {listing.game.title} · {listing.category.title}
