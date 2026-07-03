@@ -30,6 +30,11 @@ export class OrdersController {
     return this.orders.getForUser(id, user.userId);
   }
 
+  @Get(':id/key')
+  key(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.orders.revealKey(id, user.userId);
+  }
+
   @Post(':id/deliver')
   deliver(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.orders.markDelivered(id, user.userId);

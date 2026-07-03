@@ -3,11 +3,13 @@ import { AuthModule } from '../auth/auth.module';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { FeesService } from './fees.service';
+import { FulfillmentService } from './fulfillment.service';
+import { MockTopUpProvider } from './topup.provider';
 
 @Module({
   imports: [AuthModule],
   controllers: [OrdersController],
-  providers: [OrdersService, FeesService],
+  providers: [OrdersService, FeesService, FulfillmentService, MockTopUpProvider],
   exports: [OrdersService],
 })
 export class OrdersModule {}

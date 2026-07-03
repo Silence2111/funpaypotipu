@@ -16,7 +16,9 @@ import {
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
+import { EncryptionService } from '../crypto/encryption.service';
 import { FeesService } from './fees.service';
+import { FulfillmentService } from './fulfillment.service';
 
 const AUTO_CONFIRM_TTL_MS = 72 * 3600 * 1000; // 72ч (docs/03)
 
@@ -26,6 +28,8 @@ export class OrdersService {
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly ledger: LedgerService,
     private readonly fees: FeesService,
+    private readonly fulfillment: FulfillmentService,
+    private readonly encryption: EncryptionService,
   ) {}
 
   async create(buyerId: string, listingId: string) {
@@ -75,10 +79,32 @@ export class OrdersService {
       refId: order.id,
     });
 
-    return this.prisma.order.update({
+    const paid = await this.prisma.order.update({
       where: { id: order.id },
       data: { status: 'paid', paidAt: new Date() },
     });
+
+    // Авто-исполнение (ключ из склада / пополнение через провайдера).
+    if (paid.fulfillmentType !== 'manual') {
+      await this.fulfillment.autoFulfill(paid.id);
+      return this.get(paid.id);
+    }
+    return paid;
+  }
+
+  /** Покупатель получает выданный ключ (расшифровка). */
+  async revealKey(orderId: string, buyerId: string) {
+    const order = await this.get(orderId);
+    if (order.buyerId !== buyerId) throw new ForbiddenException('Это не ваш заказ');
+    if (order.status !== 'delivered' && order.status !== 'completed') {
+      throw new BadRequestException('Товар ещё не выдан');
+    }
+    const delivery = await this.prisma.delivery.findUnique({ where: { orderId } });
+    const goodId = (delivery?.payloadRef as { goodId?: string } | null)?.goodId;
+    if (!goodId) throw new NotFoundException('Для этого заказа нет авто-выданного ключа');
+    const good = await this.prisma.digitalGood.findUnique({ where: { id: goodId } });
+    if (!good) throw new NotFoundException('Ключ не найден');
+    return { key: this.encryption.decrypt(good.payloadEnc) };
   }
 
   async markDelivered(orderId: string, sellerId: string) {
