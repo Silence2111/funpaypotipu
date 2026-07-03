@@ -6,6 +6,7 @@ import { getListing } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
 import { BuyButton } from '@/components/buy-button';
 import { JsonLd } from '@/components/json-ld';
+import { KeysManager } from '@/components/keys-manager';
 
 export async function generateMetadata({
   params,
@@ -153,6 +154,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           </div>
         </aside>
       </div>
+
+      <KeysManager listingId={listing.id} />
     </div>
   );
 }

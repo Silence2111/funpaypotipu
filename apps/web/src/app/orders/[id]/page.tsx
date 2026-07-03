@@ -1,17 +1,17 @@
 'use client';
 
-import { useEffect, useState, useCallback, type FormEvent } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { ShieldCheck, KeyRound } from 'lucide-react';
 import { apiFetch, getToken, getUser } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
+import { OrderChat } from '@/components/order-chat';
 
 interface Order {
   id: string; publicNumber: string; status: string; amount: string; currency: string;
   buyerId: string; sellerId: string; fulfillmentType: string;
 }
 interface Conversation { id: string; orderId: string | null }
-interface Message { id: string; senderId: string | null; body: string; isFlagged: boolean }
 
 const STATUS_RU: Record<string, string> = {
   created: 'создан', paid: 'оплачен (в эскроу)', delivered: 'выдан', completed: 'завершён',
@@ -23,30 +23,25 @@ export default function OrderPage() {
   const id = params.id;
   const [order, setOrder] = useState<Order | null>(null);
   const [conv, setConv] = useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [draft, setDraft] = useState('');
   const [key, setKey] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const me = getUser();
 
   const loadOrder = useCallback(async () => {
-    const o = await apiFetch<Order>(`/orders/${id}`);
-    setOrder(o);
+    setOrder(await apiFetch<Order>(`/orders/${id}`));
   }, [id]);
 
-  const loadChat = useCallback(async () => {
+  const loadConv = useCallback(async () => {
     const convs = await apiFetch<Conversation[]>('/conversations').catch(() => []);
-    const c = convs.find((x) => x.orderId === id) ?? null;
-    setConv(c);
-    if (c) setMessages(await apiFetch<Message[]>(`/conversations/${c.id}/messages`).catch(() => []));
+    setConv(convs.find((x) => x.orderId === id) ?? null);
   }, [id]);
 
   useEffect(() => {
     if (!getToken()) return;
     loadOrder().catch(() => setErr('Заказ не найден'));
-    loadChat();
-  }, [loadOrder, loadChat]);
+    loadConv();
+  }, [loadOrder, loadConv]);
 
   async function act(path: string) {
     setErr(null);
@@ -67,18 +62,12 @@ export default function OrderPage() {
     }
   }
 
-  async function send(e: FormEvent) {
-    e.preventDefault();
-    if (!conv || !draft.trim()) return;
-    const msg = await apiFetch<Message>(`/conversations/${conv.id}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ body: draft }),
-    });
-    setMessages((m) => [...m, msg]);
-    setDraft('');
-  }
-
-  if (!getToken()) return <div className="container" style={{ padding: 48 }}><p className="muted">Войдите, чтобы увидеть заказ.</p></div>;
+  if (!getToken())
+    return (
+      <div className="container" style={{ padding: 48 }}>
+        <p className="muted">Войдите, чтобы увидеть заказ.</p>
+      </div>
+    );
   if (!order) return <div className="container" style={{ padding: 48 }}>{err ?? ''}</div>;
 
   const role = me?.id === order.buyerId ? 'buyer' : 'seller';
@@ -115,30 +104,13 @@ export default function OrderPage() {
         )}
       </div>
 
-      {key && (
-        <div className="card" style={{ marginTop: 16, fontFamily: 'monospace' }}>{key}</div>
-      )}
+      {key && <div className="card" style={{ marginTop: 16, fontFamily: 'monospace' }}>{key}</div>}
       {err && <p style={{ color: '#d33', fontSize: 14 }}>{err}</p>}
 
-      {/* Чат */}
       <section style={{ marginTop: 40 }}>
         <h2 className="h2" style={{ fontSize: 18, marginBottom: 16 }}>Чат по сделке</h2>
-        {conv ? (
-          <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-              {messages.map((m) => (
-                <div key={m.id} className={`bubble ${m.senderId === me?.id ? 'mine' : 'their'}`}>{m.body}</div>
-              ))}
-              {!messages.length && <p className="muted" style={{ fontSize: 14 }}>Сообщений пока нет.</p>}
-            </div>
-            <form onSubmit={send} className="row" style={{ gap: 8 }}>
-              <input className="input" placeholder="Сообщение…" value={draft} onChange={(e) => setDraft(e.target.value)} />
-              <button className="btn" type="submit">Отправить</button>
-            </form>
-            <p className="faint" style={{ fontSize: 12, marginTop: 8 }}>
-              Контакты (телефоны, ники, ссылки) скрываются автоматически.
-            </p>
-          </>
+        {conv && me ? (
+          <OrderChat conversationId={conv.id} meId={me.id} />
         ) : (
           <p className="muted" style={{ fontSize: 14 }}>Диалог появится после оформления заказа.</p>
         )}
