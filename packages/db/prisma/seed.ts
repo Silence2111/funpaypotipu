@@ -66,6 +66,17 @@ async function seedCatalog() {
       fulfillmentType: FulfillmentType.manual,
     },
   });
+  await prisma.category.upsert({
+    where: { gameId_slug: { gameId: cs2.id, slug: 'keys' } },
+    update: {},
+    create: {
+      gameId: cs2.id,
+      slug: 'keys',
+      title: 'Ключи (авто-выдача)',
+      segment: CategorySegment.key,
+      fulfillmentType: FulfillmentType.auto_key,
+    },
+  });
 }
 
 async function seedFees() {
