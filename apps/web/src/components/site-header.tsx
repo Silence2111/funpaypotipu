@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Gamepad2, Search } from 'lucide-react';
+import { Gamepad2 } from 'lucide-react';
+import { AuthNav } from './auth-nav';
 
 export function SiteHeader() {
   return (
@@ -15,10 +16,7 @@ export function SiteHeader() {
           <Link href="/#how">Как это работает</Link>
         </nav>
         <span className="spacer" />
-        <Link href="/" className="chip" aria-label="Поиск">
-          <Search size={16} strokeWidth={1.75} />
-          Поиск
-        </Link>
+        <AuthNav />
       </div>
     </header>
   );

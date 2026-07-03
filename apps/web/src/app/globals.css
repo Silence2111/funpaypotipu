@@ -206,3 +206,60 @@ a {
   justify-content: space-between;
   margin-bottom: 20px;
 }
+
+/* Forms */
+.input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--fg);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.input:focus {
+  border-color: var(--accent);
+}
+.stack-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Status badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--bg-subtle);
+  color: var(--fg-muted);
+}
+
+/* Chat */
+.bubble {
+  max-width: 75%;
+  padding: 9px 13px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.bubble.mine {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+}
+.bubble.their {
+  align-self: flex-start;
+  background: var(--bg-subtle);
+  color: var(--fg);
+}

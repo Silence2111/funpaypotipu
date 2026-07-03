@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { ShieldCheck, Star, User } from 'lucide-react';
 import { getListing } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
+import { BuyButton } from '@/components/buy-button';
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -78,9 +79,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             {formatPrice(listing.price, listing.currency)}
           </div>
 
-          <button className="btn" style={{ width: '100%' }} type="button">
-            Купить
-          </button>
+          <BuyButton listingId={listing.id} />
 
           <div className="row faint" style={{ fontSize: 13, gap: 6, marginTop: 14 }}>
             <ShieldCheck size={15} strokeWidth={1.75} />
