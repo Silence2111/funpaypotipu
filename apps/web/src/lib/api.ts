@@ -1,4 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+// SSR внутри контейнера ходит на внутренний адрес (api:4000), браузер — на публичный.
+const API_URL =
+  process.env.API_URL_INTERNAL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 /** Тонкий клиент к API. На сервере (RSC) и клиенте используется одинаково. */
 export async function apiGet<T>(path: string): Promise<T> {

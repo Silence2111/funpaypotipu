@@ -1,5 +1,24 @@
 name: gamemarket
 
+# Полный локальный/стейджинг-стек. Запуск из корня репо:
+#   docker compose -f infra/compose.yaml up -d --build
+# Приложения собираются из Dockerfile'ов (context — корень репо).
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DATABASE_URL: postgresql://gamemarket:gamemarket@postgres:5432/gamemarket?schema=public
+  REDIS_URL: redis://redis:6379
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-me-access}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh}
+  DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:-change-me-encryption}
+  S3_ENDPOINT: http://minio:9000
+  S3_ACCESS_KEY: minioadmin
+  S3_SECRET_KEY: minioadmin
+  S3_BUCKET: gamemarket
+  MEILI_URL: http://meilisearch:7700
+  SMTP_HOST: mailhog
+  SMTP_PORT: 1025
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -7,10 +26,8 @@ services:
       POSTGRES_USER: gamemarket
       POSTGRES_PASSWORD: gamemarket
       POSTGRES_DB: gamemarket
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
+    ports: ["5432:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U gamemarket"]
       interval: 5s
@@ -19,10 +36,8 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
+    ports: ["6379:6379"]
+    volumes: ["redis-data:/data"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -35,27 +50,74 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio-data:/data
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["minio-data:/data"]
 
   meilisearch:
     image: getmeili/meilisearch:v1.11
     environment:
-      MEILI_MASTER_KEY: change-me
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-change-me}
       MEILI_ENV: development
-    ports:
-      - "7700:7700"
-    volumes:
-      - meili-data:/meili_data
+    ports: ["7700:7700"]
+    volumes: ["meili-data:/meili_data"]
 
   mailhog:
     image: mailhog/mailhog:latest
-    ports:
-      - "1025:1025"  # SMTP
-      - "8025:8025"  # web UI
+    ports: ["1025:1025", "8025:8025"]
+
+  # Одноразовая миграция + сид, затем выходит. Остальные сервисы ждут её успех.
+  migrate:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    working_dir: /app
+    environment: *app-env
+    command: sh -c "pnpm --filter @gamemarket/db exec prisma migrate deploy && pnpm --filter @gamemarket/db seed"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    environment:
+      <<: *app-env
+      API_PORT: 4000
+    ports: ["4000:4000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
+    environment: *app-env
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    environment:
+      NODE_ENV: production
+      # SSR внутри контейнера ходит к api по внутреннему адресу
+      API_URL_INTERNAL: http://api:4000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    ports: ["3000:3000"]
+    depends_on: [api]
 
 volumes:
   postgres-data:
