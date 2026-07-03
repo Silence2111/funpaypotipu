@@ -168,6 +168,50 @@ export class OrdersService {
     throw new ConflictException(`Нельзя отменить заказ в статусе ${order.status}`);
   }
 
+  /** Перевод заказа в спор (вызывается disputes-модулем). */
+  async markDisputed(orderId: string, userId: string) {
+    const order = await this.get(orderId);
+    if (order.buyerId !== userId && order.sellerId !== userId) {
+      throw new ForbiddenException('Нет доступа к заказу');
+    }
+    this.assertTransition(order.status, 'disputed');
+    return this.prisma.order.update({ where: { id: order.id }, data: { status: 'disputed' } });
+  }
+
+  /** Разрешение спора арбитром: релиз продавцу или возврат покупателю. Идемпотентно. */
+  async applyDisputeResolution(orderId: string, outcome: 'seller' | 'buyer') {
+    const order = await this.get(orderId);
+    if (order.status !== 'disputed') {
+      throw new ConflictException('Заказ не в статусе спора');
+    }
+
+    if (outcome === 'seller') {
+      const revenue = order.amount - order.sellerPayoutAmount;
+      await this.ledger.post({
+        legs: releaseEscrow(order.sellerId, order.sellerPayoutAmount, revenue),
+        currency: order.currency,
+        idempotencyKey: `release:${order.id}`,
+        orderId: order.id,
+        refType: 'dispute_release',
+        refId: order.id,
+      });
+      return this.prisma.order.update({
+        where: { id: order.id },
+        data: { status: 'completed', completedAt: new Date() },
+      });
+    }
+
+    await this.ledger.post({
+      legs: refundToBalance(order.buyerId, order.amount),
+      currency: order.currency,
+      idempotencyKey: `refund:${order.id}`,
+      orderId: order.id,
+      refType: 'dispute_refund',
+      refId: order.id,
+    });
+    return this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
+  }
+
   listMine(userId: string) {
     return this.prisma.order.findMany({
       where: { OR: [{ buyerId: userId }, { sellerId: userId }] },
