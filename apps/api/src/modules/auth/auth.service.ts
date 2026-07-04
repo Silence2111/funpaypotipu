@@ -10,6 +10,7 @@ import { PrismaClient } from '@gamemarket/db';
 import type { LoginInput, RegisterInput } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { TokenService } from './token.service';
+import { TwoFactorService } from './twofactor.service';
 
 export interface RequestCtx {
   userAgent?: string;
@@ -30,6 +31,7 @@ export class AuthService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly tokens: TokenService,
+    private readonly twoFactor: TwoFactorService,
   ) {}
 
   async register(input: RegisterInput, ctx: RequestCtx): Promise<IssuedAuth> {
@@ -60,6 +62,10 @@ export class AuthService {
 
     const ok = await bcrypt.compare(input.password, user.passwordHash);
     if (!ok) throw new UnauthorizedException('Неверные данные');
+
+    if (!(await this.twoFactor.verify(user.id, input.code))) {
+      throw new UnauthorizedException('Требуется код двухфакторной аутентификации');
+    }
 
     return this.issue(user.id, user.email, user.profile.username, ctx);
   }
