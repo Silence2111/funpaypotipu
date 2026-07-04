@@ -37,3 +37,52 @@ jobs:
 
       - name: Test
         run: pnpm -r test
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gamemarket
+          POSTGRES_PASSWORD: gamemarket
+          POSTGRES_DB: gamemarket
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U gamemarket"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://gamemarket:gamemarket@localhost:5432/gamemarket?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
+      DATA_ENCRYPTION_KEY: ci-encryption-key
+      MOCK_WEBHOOK_SECRET: ci-webhook-secret
+      API_PORT: 4000
+      API_URL: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @gamemarket/db generate
+      - run: pnpm --filter @gamemarket/shared --filter @gamemarket/db build
+      - run: pnpm --filter @gamemarket/api build
+
+      - name: Migrate + seed
+        run: |
+          pnpm --filter @gamemarket/db exec prisma migrate deploy
+          pnpm --filter @gamemarket/db seed
+
+      - name: Start API
+        run: |
+          node apps/api/dist/main.js &
+          for i in $(seq 1 40); do curl -sf http://localhost:4000/api/health && break; sleep 1; done
+
+      - name: E2E (money paths)
+        run: node apps/api/test/e2e.mjs

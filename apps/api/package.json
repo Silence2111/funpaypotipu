@@ -8,7 +8,8 @@
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"(eslint TODO)\" && exit 0",
-    "test": "echo \"(tests TODO)\" && exit 0"
+    "test": "echo \"(unit tests TODO)\" && exit 0",
+    "test:e2e": "node test/e2e.mjs"
   },
   "dependencies": {
     "@gamemarket/db": "workspace:*",
