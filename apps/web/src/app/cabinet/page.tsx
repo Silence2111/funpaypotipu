@@ -83,6 +83,7 @@ export default function CabinetPage() {
       <section>
         <div className="section-head">
           <h2 className="h2" style={{ fontSize: 20 }}><Tag size={18} /> Мои лоты</h2>
+          <Link href="/cabinet/new" className="chip">+ Создать лот</Link>
         </div>
         {listings.length ? (
           <div className="grid" style={{ gap: 8 }}>
