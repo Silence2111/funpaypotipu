@@ -2,6 +2,7 @@ import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nest
 import { Prisma, PrismaClient } from '@gamemarket/db';
 import type { CreateListingInput, ListingQuery, UpdateListingInput } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
+import { SearchService } from '../search/search.service';
 
 const cardSelect = {
   id: true,
@@ -18,9 +19,37 @@ const cardSelect = {
 
 @Injectable()
 export class ListingsService {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaClient,
+    private readonly search: SearchService,
+  ) {}
 
   async browse(query: ListingQuery) {
+    // Текстовый запрос + доступный движок → релевантный поиск с typo-tolerance.
+    if (query.q && this.search.enabled) {
+      const found = await this.search.searchIds(
+        query.q,
+        {
+          gameSlug: query.gameSlug,
+          categorySlug: query.categorySlug,
+          minPrice: query.minPrice,
+          maxPrice: query.maxPrice,
+        },
+        query.limit,
+        (query.page - 1) * query.limit,
+      );
+      if (found) {
+        const rows = await this.prisma.listing.findMany({
+          where: { id: { in: found.ids } },
+          select: cardSelect,
+        });
+        const byId = new Map(rows.map((r) => [r.id, r]));
+        const items = found.ids.map((id) => byId.get(id)).filter((x): x is (typeof rows)[number] => !!x);
+        return { items, total: found.total, page: query.page, limit: query.limit };
+      }
+    }
+
+    // Fallback: Postgres.
     const where: Prisma.ListingWhereInput = { status: 'active' };
     if (query.gameSlug) where.game = { slug: query.gameSlug };
     if (query.categorySlug) where.category = { slug: query.categorySlug };
@@ -82,7 +111,7 @@ export class ListingsService {
     });
     if (!category) throw new NotFoundException('Категория не найдена для указанной игры');
 
-    return this.prisma.listing.create({
+    const created = await this.prisma.listing.create({
       data: {
         sellerId,
         gameId: input.gameId,
@@ -100,6 +129,8 @@ export class ListingsService {
       },
       select: cardSelect,
     });
+    await this.search.indexListing(created.id);
+    return created;
   }
 
   async update(sellerId: string, id: string, input: UpdateListingInput) {
@@ -114,12 +145,15 @@ export class ListingsService {
     if (input.stock !== undefined) data.stock = input.stock;
     if (input.status !== undefined) data.status = input.status;
 
-    return this.prisma.listing.update({ where: { id }, data, select: cardSelect });
+    const updated = await this.prisma.listing.update({ where: { id }, data, select: cardSelect });
+    await this.search.indexListing(id);
+    return updated;
   }
 
   async remove(sellerId: string, id: string) {
     await this.assertOwner(sellerId, id);
     await this.prisma.listing.delete({ where: { id } });
+    await this.search.removeListing(id);
     return { ok: true };
   }
 

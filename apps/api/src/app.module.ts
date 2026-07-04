@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AccessModule } from './modules/access/access.module';
 import { CryptoModule } from './modules/crypto/crypto.module';
+import { SearchModule } from './modules/search/search.module';
 import { LedgerModule } from './modules/ledger/ledger.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { TrustModule } from './modules/trust/trust.module';
@@ -26,6 +27,7 @@ import { AdminModule } from './modules/admin/admin.module';
     PrismaModule,
     AccessModule,
     CryptoModule,
+    SearchModule,
     LedgerModule,
     NotificationsModule,
     TrustModule,
