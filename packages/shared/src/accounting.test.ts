@@ -7,6 +7,9 @@ import {
   payToEscrowFromBalance,
   releaseEscrow,
   refundToBalance,
+  holdForPayout,
+  settlePayout,
+  reversePayoutHold,
   UnbalancedPostingError,
   type PostingLeg,
 } from './accounting';
@@ -36,6 +39,22 @@ describe('accounting: сбалансированность потоков', () =
   it('возврат покупателю сбалансирован', () => {
     const legs = refundToBalance('buyer-1', 100_00n);
     expect(() => assertBalanced(legs)).not.toThrow();
+  });
+
+  it('выплата: hold → settle сбалансированы и замкнуты', () => {
+    const hold = holdForPayout('seller-1', 90_00n);
+    const settle = settlePayout(90_00n);
+    expect(() => assertBalanced(hold)).not.toThrow();
+    expect(() => assertBalanced(settle)).not.toThrow();
+    // available -90 (hold), payout_payable 0 (hold +90, settle -90) → замкнуто
+    expect(sum([...hold, ...settle], 'debit')).toBe(sum([...hold, ...settle], 'credit'));
+  });
+
+  it('отклонённая выплата: hold → reverse возвращает на баланс', () => {
+    const legs = [...holdForPayout('seller-1', 50_00n), ...reversePayoutHold('seller-1', 50_00n)];
+    expect(() => assertBalanced(legs)).not.toThrow();
+    // net по available и payout_payable = 0
+    expect(legs.reduce((a, l) => a + balanceDelta(l), 0n)).toBe(0n);
   });
 });
 

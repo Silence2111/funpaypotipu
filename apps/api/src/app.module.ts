@@ -15,6 +15,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { WalletModule } from './modules/wallet/wallet.module';
+import { PayoutsModule } from './modules/payouts/payouts.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { DisputesModule } from './modules/disputes/disputes.module';
@@ -39,6 +40,7 @@ import { AdminModule } from './modules/admin/admin.module';
     OrdersModule,
     PaymentsModule,
     WalletModule,
+    PayoutsModule,
     ReviewsModule,
     ChatModule,
     DisputesModule,

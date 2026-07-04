@@ -77,6 +77,24 @@ export const refundToBalance = (buyerId: string, amount: Minor): PostingLeg[] =>
   credit(userAccount(buyerId, 'available'), amount),
 ];
 
+/** Заявка на вывод: резервируем сумму с баланса в обязательства к выплате. */
+export const holdForPayout = (userId: string, amount: Minor): PostingLeg[] => [
+  debit(userAccount(userId, 'available'), amount),
+  credit(platformAccount('payout_payable'), amount),
+];
+
+/** Выплата отправлена наружу: обязательство → шлюз. */
+export const settlePayout = (amount: Minor): PostingLeg[] => [
+  debit(platformAccount('payout_payable'), amount),
+  credit(gatewayClearing(), amount),
+];
+
+/** Заявка отклонена: возвращаем зарезервированное на баланс. */
+export const reversePayoutHold = (userId: string, amount: Minor): PostingLeg[] => [
+  debit(platformAccount('payout_payable'), amount),
+  credit(userAccount(userId, 'available'), amount),
+];
+
 // ── Инвариант ──
 export class UnbalancedPostingError extends Error {
   constructor(debitSum: Minor, creditSum: Minor) {
