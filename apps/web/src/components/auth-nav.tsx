@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { User, LogOut } from 'lucide-react';
 import { clearSession, getUser, type SessionUser } from '@/lib/session';
+import { NotificationsBell } from './notifications-bell';
 
 export function AuthNav() {
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -29,6 +30,7 @@ export function AuthNav() {
 
   return (
     <div className="row" style={{ gap: 8 }}>
+      <NotificationsBell />
       <Link href="/cabinet" className="chip">
         <User size={16} strokeWidth={1.75} />
         {user.username}

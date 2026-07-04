@@ -33,17 +33,57 @@ export function clearSession() {
   window.dispatchEvent(new Event('gm-auth'));
 }
 
-/** Клиентский запрос к API с access-токеном. */
-export async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const res = await fetch(`${API_URL}/api${path}`, {
+function rawFetch(path: string, opts: RequestInit, token: string | null) {
+  return fetch(`${API_URL}/api${path}`, {
     ...opts,
+    credentials: 'include', // отправляем httpOnly refresh-cookie
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...opts.headers,
     },
   });
+}
+
+let refreshing: Promise<string | null> | null = null;
+
+/** Обновление access-токена по refresh-cookie (single-flight). */
+async function tryRefresh(): Promise<string | null> {
+  if (!refreshing) {
+    refreshing = (async () => {
+      const res = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { user: SessionUser; accessToken: string };
+      if (data.accessToken && data.user) {
+        setSession(data.accessToken, data.user);
+        return data.accessToken;
+      }
+      return null;
+    })().finally(() => {
+      refreshing = null;
+    });
+  }
+  return refreshing;
+}
+
+/** Клиентский запрос к API с access-токеном и автоматическим refresh при 401. */
+export async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
+  const token = getToken();
+  let res = await rawFetch(path, opts, token);
+
+  if (res.status === 401 && token) {
+    const next = await tryRefresh();
+    if (next) {
+      res = await rawFetch(path, opts, next);
+    } else {
+      clearSession();
+    }
+  }
+
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `HTTP ${res.status}`);
