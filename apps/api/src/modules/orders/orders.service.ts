@@ -20,7 +20,7 @@ import { EncryptionService } from '../crypto/encryption.service';
 import { FeesService } from './fees.service';
 import { FulfillmentService } from './fulfillment.service';
 
-const AUTO_CONFIRM_TTL_MS = 72 * 3600 * 1000; // 72ч (docs/03)
+const AUTO_CONFIRM_TTL_MS = Number(process.env.ORDER_AUTO_CONFIRM_TTL_MS ?? 72 * 3600 * 1000); // docs/03
 
 @Injectable()
 export class OrdersService {
