@@ -1,8 +1,15 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@gamemarket/db';
 import { maskContacts } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../storage/storage.service';
+
+export interface ChatAttachmentDto {
+  url: string;
+  mime: string;
+}
 
 export interface ChatMessageDto {
   id: string;
@@ -10,6 +17,7 @@ export interface ChatMessageDto {
   senderId: string | null;
   body: string; // уже замаскированный для показа
   isFlagged: boolean;
+  attachments?: ChatAttachmentDto[];
   createdAt: Date;
 }
 
@@ -18,7 +26,54 @@ export class ChatService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly notifications: NotificationsService,
+    private readonly storage: StorageService,
   ) {}
+
+  /** Presigned PUT для прямой загрузки вложения клиентом. */
+  async requestUpload(conversationId: string, userId: string, mime: string) {
+    await this.assertParticipant(conversationId, userId);
+    if (!this.storage.enabled) throw new NotFoundException('Хранилище недоступно');
+    const ext = mime.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'bin';
+    const key = `chat/${conversationId}/${randomUUID()}.${ext}`;
+    return { key, uploadUrl: await this.storage.presignPut(key) };
+  }
+
+  /** Сообщение-вложение (после успешной загрузки по presigned-URL). */
+  async sendAttachment(
+    conversationId: string,
+    senderId: string,
+    key: string,
+    mime: string,
+    size: number,
+  ): Promise<ChatMessageDto> {
+    const conv = await this.assertParticipant(conversationId, senderId);
+    const message = await this.prisma.message.create({
+      data: {
+        conversationId,
+        senderId,
+        type: 'attachment',
+        body: '',
+        attachments: { create: { url: key, mime, size, scanStatus: 'clean' } },
+      },
+      include: { attachments: true },
+    });
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: { lastMessageAt: message.createdAt },
+    });
+    const recipientId = conv.buyerId === senderId ? conv.sellerId : conv.buyerId;
+    await this.notifications.notify(recipientId, 'new_message', { conversationId });
+
+    return {
+      id: message.id,
+      conversationId,
+      senderId,
+      body: '',
+      isFlagged: false,
+      attachments: [{ url: await this.storage.presignGet(key), mime }],
+      createdAt: message.createdAt,
+    };
+  }
 
   listConversations(userId: string) {
     return this.prisma.conversation.findMany({
@@ -42,15 +97,27 @@ export class ChatService {
       where: { conversationId },
       orderBy: { createdAt: 'asc' },
       take: limit,
+      include: { attachments: true },
     });
-    return rows.map((m) => ({
-      id: m.id,
-      conversationId: m.conversationId,
-      senderId: m.senderId,
-      body: m.bodyMasked ?? m.body,
-      isFlagged: m.isFlagged,
-      createdAt: m.createdAt,
-    }));
+    return Promise.all(
+      rows.map(async (m) => ({
+        id: m.id,
+        conversationId: m.conversationId,
+        senderId: m.senderId,
+        body: m.bodyMasked ?? m.body,
+        isFlagged: m.isFlagged,
+        attachments:
+          m.attachments.length && this.storage.enabled
+            ? await Promise.all(
+                m.attachments.map(async (a) => ({
+                  url: await this.storage.presignGet(a.url),
+                  mime: a.mime,
+                })),
+              )
+            : undefined,
+        createdAt: m.createdAt,
+      })),
+    );
   }
 
   /** Отправка: маскируем контакты, храним оригинал (для арбитража) и masked (для показа). */

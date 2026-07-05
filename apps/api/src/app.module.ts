@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { AccessModule } from './modules/access/access.module';
 import { CryptoModule } from './modules/crypto/crypto.module';
+import { StorageModule } from './modules/storage/storage.module';
 import { SearchModule } from './modules/search/search.module';
 import { LedgerModule } from './modules/ledger/ledger.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -32,6 +33,7 @@ import { AdminModule } from './modules/admin/admin.module';
     PrismaModule,
     AccessModule,
     CryptoModule,
+    StorageModule,
     SearchModule,
     LedgerModule,
     NotificationsModule,
