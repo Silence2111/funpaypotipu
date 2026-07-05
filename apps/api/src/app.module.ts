@@ -14,6 +14,7 @@ import { CatalogModule } from './modules/catalog/catalog.module';
 import { ListingsModule } from './modules/listings/listings.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
+import { PromoModule } from './modules/promo/promo.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { WalletModule } from './modules/wallet/wallet.module';
@@ -41,6 +42,7 @@ import { AdminModule } from './modules/admin/admin.module';
     ListingsModule,
     InventoryModule,
     FavoritesModule,
+    PromoModule,
     OrdersModule,
     PaymentsModule,
     WalletModule,

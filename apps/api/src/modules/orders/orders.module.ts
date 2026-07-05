@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { PromoModule } from '../promo/promo.module';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { FeesService } from './fees.service';
@@ -8,7 +9,7 @@ import { MockTopUpProvider } from './topup.provider';
 import { OrdersSweepService } from './orders-sweep.service';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, PromoModule],
   controllers: [OrdersController],
   providers: [OrdersService, FeesService, FulfillmentService, MockTopUpProvider, OrdersSweepService],
   exports: [OrdersService],

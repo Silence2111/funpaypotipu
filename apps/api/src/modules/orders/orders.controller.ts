@@ -5,7 +5,10 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { OrdersService } from './orders.service';
 
-const createOrderSchema = z.object({ listingId: z.string().uuid() });
+const createOrderSchema = z.object({
+  listingId: z.string().uuid(),
+  promoCode: z.string().min(3).max(32).optional(),
+});
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
@@ -15,9 +18,9 @@ export class OrdersController {
   @Post()
   create(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(createOrderSchema)) body: { listingId: string },
+    @Body(new ZodValidationPipe(createOrderSchema)) body: { listingId: string; promoCode?: string },
   ) {
-    return this.orders.create(user.userId, body.listingId);
+    return this.orders.create(user.userId, body.listingId, body.promoCode);
   }
 
   @Get('mine')

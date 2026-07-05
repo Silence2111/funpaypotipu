@@ -17,6 +17,7 @@ import {
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
 import { EncryptionService } from '../crypto/encryption.service';
+import { PromoService } from '../promo/promo.service';
 import { FeesService } from './fees.service';
 import { FulfillmentService } from './fulfillment.service';
 
@@ -30,15 +31,23 @@ export class OrdersService {
     private readonly fees: FeesService,
     private readonly fulfillment: FulfillmentService,
     private readonly encryption: EncryptionService,
+    private readonly promo: PromoService,
   ) {}
 
-  async create(buyerId: string, listingId: string) {
+  async create(buyerId: string, listingId: string, promoCode?: string) {
     const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing || listing.status !== 'active') throw new NotFoundException('Лот недоступен');
     if (listing.sellerId === buyerId) throw new BadRequestException('Нельзя купить собственный лот');
 
     const base = listing.price;
     const f = await this.fees.computeForCategory(base, listing.categoryId, listing.currency);
+
+    // Промокод: скидка снимается с комиссии площадки (не с выплаты продавцу).
+    let amount = f.amountToPay;
+    if (promoCode) {
+      const maxDiscount = f.amountToPay - f.sellerPayout; // = комиссия площадки
+      amount -= await this.promo.consume(promoCode, f.amountToPay, maxDiscount);
+    }
 
     return this.prisma.order.create({
       data: {
@@ -52,7 +61,7 @@ export class OrdersService {
           currency: listing.currency,
         } as Prisma.InputJsonValue,
         qty: 1,
-        amount: f.amountToPay,
+        amount,
         currency: listing.currency,
         feeBuyer: f.feeBuyer,
         feeSeller: f.feeSeller,
