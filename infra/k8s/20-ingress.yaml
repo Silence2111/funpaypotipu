@@ -1,0 +1,29 @@
+# Ingress: gamemarket.example → web, /api → api. Замените host и настройте TLS (cert-manager).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gamemarket
+  namespace: gamemarket
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [gamemarket.example]
+      secretName: gamemarket-tls
+  rules:
+    - host: gamemarket.example
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service: { name: api, port: { number: 4000 } }
+          - path: /socket.io
+            pathType: Prefix
+            backend:
+              service: { name: api, port: { number: 4000 } }
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: web, port: { number: 3000 } }
