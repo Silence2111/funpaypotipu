@@ -25,6 +25,7 @@ import { ChatModule } from './modules/chat/chat.module';
 import { DisputesModule } from './modules/disputes/disputes.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { KycModule } from './modules/kyc/kyc.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { AdminModule } from './modules/admin/admin.module';
     DisputesModule,
     ModerationModule,
     AdminModule,
+    KycModule,
   ],
 })
 export class AppModule {}

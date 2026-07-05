@@ -1,4 +1,10 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@gamemarket/db';
 import { maskContacts } from '@gamemarket/shared';
@@ -47,6 +53,7 @@ export class ChatService {
     size: number,
   ): Promise<ChatMessageDto> {
     const conv = await this.assertParticipant(conversationId, senderId);
+    await this.scan(key);
     const message = await this.prisma.message.create({
       data: {
         conversationId,
@@ -80,6 +87,25 @@ export class ChatService {
       where: { OR: [{ buyerId: userId }, { sellerId: userId }] },
       orderBy: { lastMessageAt: { sort: 'desc', nulls: 'last' } },
     });
+  }
+
+  private static readonly MAX_ATTACHMENT = 20 * 1024 * 1024; // 20 МБ
+  // EICAR-тест-строка собрана из частей, чтобы не триггерить AV на исходнике.
+  private static readonly EICAR =
+    'X5O!P%@AP[4\\PZX54(P^)7CC)7}' + '$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*';
+
+  /** Антивирус-скан вложения: лимит размера + сигнатура EICAR. Заражённое удаляется. */
+  private async scan(key: string): Promise<void> {
+    if (!this.storage.enabled) return;
+    const bytes = await this.storage.getBytes(key);
+    if (bytes.length > ChatService.MAX_ATTACHMENT) {
+      await this.storage.remove(key);
+      throw new BadRequestException('Файл превышает лимит 20 МБ');
+    }
+    if (bytes.includes(ChatService.EICAR)) {
+      await this.storage.remove(key);
+      throw new BadRequestException('Файл не прошёл антивирус-проверку');
+    }
   }
 
   async assertParticipant(conversationId: string, userId: string) {

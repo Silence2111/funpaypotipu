@@ -52,4 +52,17 @@ export class StorageService implements OnModuleInit {
     if (!this.client) throw new Error('storage disabled');
     return this.client.presignedGetObject(this.bucket, key, expirySec);
   }
+
+  /** Скачать объект в память (для антивирус-скана). */
+  async getBytes(key: string): Promise<Buffer> {
+    if (!this.client) throw new Error('storage disabled');
+    const stream = await this.client.getObject(this.bucket, key);
+    const chunks: Buffer[] = [];
+    for await (const c of stream) chunks.push(c as Buffer);
+    return Buffer.concat(chunks);
+  }
+
+  async remove(key: string): Promise<void> {
+    if (this.client) await this.client.removeObject(this.bucket, key).catch(() => undefined);
+  }
 }
