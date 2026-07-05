@@ -11,6 +11,7 @@ import { maskContacts } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StorageService } from '../storage/storage.service';
+import { ScanService } from '../antivirus/scan.service';
 
 export interface ChatAttachmentDto {
   url: string;
@@ -33,6 +34,7 @@ export class ChatService {
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
+    private readonly scanner: ScanService,
   ) {}
 
   /** Presigned PUT для прямой загрузки вложения клиентом. */
@@ -89,22 +91,13 @@ export class ChatService {
     });
   }
 
-  private static readonly MAX_ATTACHMENT = 20 * 1024 * 1024; // 20 МБ
-  // EICAR-тест-строка собрана из частей, чтобы не триггерить AV на исходнике.
-  private static readonly EICAR =
-    'X5O!P%@AP[4\\PZX54(P^)7CC)7}' + '$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*';
-
-  /** Антивирус-скан вложения: лимит размера + сигнатура EICAR. Заражённое удаляется. */
+  /** Антивирус-скан вложения через ScanService. Заражённое удаляется из хранилища. */
   private async scan(key: string): Promise<void> {
     if (!this.storage.enabled) return;
-    const bytes = await this.storage.getBytes(key);
-    if (bytes.length > ChatService.MAX_ATTACHMENT) {
+    const result = await this.scanner.scan(await this.storage.getBytes(key));
+    if (!result.clean) {
       await this.storage.remove(key);
-      throw new BadRequestException('Файл превышает лимит 20 МБ');
-    }
-    if (bytes.includes(ChatService.EICAR)) {
-      await this.storage.remove(key);
-      throw new BadRequestException('Файл не прошёл антивирус-проверку');
+      throw new BadRequestException(`Файл не прошёл антивирус-проверку: ${result.reason}`);
     }
   }
 

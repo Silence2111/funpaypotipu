@@ -5,6 +5,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AccessModule } from './modules/access/access.module';
 import { CryptoModule } from './modules/crypto/crypto.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { AntivirusModule } from './modules/antivirus/antivirus.module';
+import { MailModule } from './modules/mail/mail.module';
 import { SearchModule } from './modules/search/search.module';
 import { LedgerModule } from './modules/ledger/ledger.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -35,6 +37,8 @@ import { KycModule } from './modules/kyc/kyc.module';
     AccessModule,
     CryptoModule,
     StorageModule,
+    AntivirusModule,
+    MailModule,
     SearchModule,
     LedgerModule,
     NotificationsModule,

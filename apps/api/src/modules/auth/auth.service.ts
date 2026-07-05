@@ -9,6 +9,7 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaClient } from '@gamemarket/db';
 import type { LoginInput, RegisterInput } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
+import { MailService } from '../mail/mail.service';
 import { TokenService } from './token.service';
 import { TwoFactorService } from './twofactor.service';
 
@@ -32,6 +33,7 @@ export class AuthService {
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly tokens: TokenService,
     private readonly twoFactor: TwoFactorService,
+    private readonly mail: MailService,
   ) {}
 
   async register(input: RegisterInput, ctx: RequestCtx): Promise<IssuedAuth> {
@@ -49,6 +51,14 @@ export class AuthService {
       },
       include: { profile: true },
     });
+
+    if (user.email) {
+      await this.mail.send(
+        user.email,
+        'Добро пожаловать в GameMarket',
+        `Здравствуйте, ${user.profile!.username}! Ваш аккаунт создан. Покупки защищены эскроу.`,
+      );
+    }
 
     return this.issue(user.id, user.email, user.profile!.username, ctx);
   }
