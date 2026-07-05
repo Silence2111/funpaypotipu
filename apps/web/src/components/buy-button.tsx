@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 
-/** Оформление заказа: create → deposit → (mock) оплата → страница заказа. */
+/** Оформление заказа: create (+ промокод) → deposit → (mock) оплата → страница заказа. */
 export function BuyButton({ listingId }: { listingId: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [promo, setPromo] = useState('');
   const [err, setErr] = useState<string | null>(null);
 
   async function buy() {
@@ -20,13 +21,12 @@ export function BuyButton({ listingId }: { listingId: string }) {
     try {
       const order = await apiFetch<{ id: string }>('/orders', {
         method: 'POST',
-        body: JSON.stringify({ listingId }),
+        body: JSON.stringify({ listingId, ...(promo.trim() ? { promoCode: promo.trim() } : {}) }),
       });
       const dep = await apiFetch<{ providerRef: string }>('/payments/deposit', {
         method: 'POST',
         body: JSON.stringify({ orderId: order.id }),
       });
-      // Демо: имитируем подтверждение оплаты провайдером (в проде — редирект на оплату).
       await apiFetch(`/payments/mock/callback?providerRef=${dep.providerRef}`, { method: 'POST' });
       router.push(`/orders/${order.id}`);
     } catch {
@@ -37,6 +37,13 @@ export function BuyButton({ listingId }: { listingId: string }) {
 
   return (
     <>
+      <input
+        className="input"
+        placeholder="Промокод (необязательно)"
+        value={promo}
+        onChange={(e) => setPromo(e.target.value)}
+        style={{ marginBottom: 10 }}
+      />
       <button className="btn" style={{ width: '100%' }} onClick={buy} disabled={busy} type="button">
         {busy ? 'Оформляем…' : 'Купить'}
       </button>

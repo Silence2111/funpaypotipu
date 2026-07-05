@@ -48,6 +48,11 @@ export default function CabinetPage() {
       <div>
         <h1 className="h1" style={{ fontSize: 30 }}>Кабинет</h1>
         <p className="muted">{user?.username}</p>
+        <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+          <Link href="/cabinet/new" className="chip">+ Создать лот</Link>
+          <Link href="/cabinet/favorites" className="chip">Избранное</Link>
+          <Link href="/cabinet/security" className="chip">Безопасность</Link>
+        </div>
       </div>
 
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>

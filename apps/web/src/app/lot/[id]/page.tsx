@@ -5,6 +5,7 @@ import { ShieldCheck, Star, User } from 'lucide-react';
 import { getListing } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
 import { BuyButton } from '@/components/buy-button';
+import { FavoriteButton } from '@/components/favorite-button';
 import { JsonLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
 
@@ -132,6 +133,10 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           </div>
 
           <BuyButton listingId={listing.id} />
+
+          <div className="row" style={{ marginTop: 12 }}>
+            <FavoriteButton listingId={listing.id} />
+          </div>
 
           <div className="row faint" style={{ fontSize: 13, gap: 6, marginTop: 14 }}>
             <ShieldCheck size={15} strokeWidth={1.75} />
