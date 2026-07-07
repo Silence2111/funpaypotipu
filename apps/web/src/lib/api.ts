@@ -75,6 +75,7 @@ export function browseListings(params: {
   q?: string;
   sort?: string;
   limit?: number;
+  page?: number;
 }) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {

@@ -75,14 +75,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         </Link>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.3fr) minmax(300px, 1fr)',
-          gap: 40,
-          alignItems: 'start',
-        }}
-      >
+      <div className="lot-grid">
         {/* Left: media + description */}
         <div className="stack-lg">
           <div className="thumb" style={{ aspectRatio: '16 / 9', marginBottom: 0 }}>

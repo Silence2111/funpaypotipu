@@ -289,6 +289,34 @@ a {
   background: var(--bg-subtle);
 }
 
+/* Lot page layout */
+.lot-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+
+/* Responsive */
+@media (max-width: 720px) {
+  .lot-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .nav {
+    display: none;
+  }
+  .h1 {
+    font-size: 30px !important;
+  }
+  .grid.cols-auto {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+  .container {
+    padding: 0 16px;
+  }
+}
+
 /* Chat */
 .bubble {
   max-width: 75%;

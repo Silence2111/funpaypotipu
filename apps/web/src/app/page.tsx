@@ -60,7 +60,7 @@ export default async function HomePage() {
       <section>
         <div className="section-head">
           <h2 className="h2">Новые лоты</h2>
-          <Link href="/" className="muted" style={{ fontSize: 14 }}>
+          <Link href="/catalog" className="muted" style={{ fontSize: 14 }}>
             Все →
           </Link>
         </div>

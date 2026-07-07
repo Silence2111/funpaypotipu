@@ -7,6 +7,7 @@ import { Wallet, Package, Tag } from 'lucide-react';
 import { apiFetch, getToken, getUser } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
 import { TopUpForm } from '@/components/topup-form';
+import { PayoutForm } from '@/components/payout-form';
 
 interface WalletDto { currency: string; balance: string }
 interface OrderRow { id: string; publicNumber: string; status: string; amount: string; currency: string }
@@ -51,6 +52,7 @@ export default function CabinetPage() {
         <p className="muted">{user?.username}</p>
         <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <Link href="/cabinet/new" className="chip">+ Создать лот</Link>
+          <Link href="/cabinet/chats" className="chip">Диалоги</Link>
           <Link href="/cabinet/favorites" className="chip">Избранное</Link>
           <Link href="/cabinet/security" className="chip">Безопасность</Link>
         </div>
@@ -67,6 +69,9 @@ export default function CabinetPage() {
           </div>
         </div>
         <TopUpForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
+        <hr className="divider" style={{ margin: '16px 0' }} />
+        <div className="faint" style={{ fontSize: 13 }}>Вывод средств</div>
+        <PayoutForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
       </div>
 
       <section>
