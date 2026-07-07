@@ -8,6 +8,7 @@ import { apiFetch, getToken, getUser } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
 import { TopUpForm } from '@/components/topup-form';
 import { PayoutForm } from '@/components/payout-form';
+import { WalletTransactions } from '@/components/wallet-transactions';
 
 interface WalletDto { currency: string; balance: string }
 interface OrderRow { id: string; publicNumber: string; status: string; amount: string; currency: string }
@@ -72,6 +73,9 @@ export default function CabinetPage() {
         <hr className="divider" style={{ margin: '16px 0' }} />
         <div className="faint" style={{ fontSize: 13 }}>Вывод средств</div>
         <PayoutForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
+        <hr className="divider" style={{ margin: '16px 0' }} />
+        <div className="faint" style={{ fontSize: 13 }}>История операций</div>
+        <WalletTransactions />
       </div>
 
       <section>
