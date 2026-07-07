@@ -131,6 +131,12 @@ export class ListingsService {
         attributes: true,
         fulfillmentType: true,
         salesCount: true,
+        seller: {
+          select: {
+            id: true,
+            profile: { select: { username: true, ratingAvg: true, ratingCount: true } },
+          },
+        },
       },
     });
     if (!listing || listing.status !== 'active') throw new NotFoundException('Лот не найден');

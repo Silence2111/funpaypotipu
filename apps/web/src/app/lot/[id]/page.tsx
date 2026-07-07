@@ -9,6 +9,7 @@ import { FavoriteButton } from '@/components/favorite-button';
 import { MessageSellerButton } from '@/components/message-seller-button';
 import { JsonLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
+import { SellerReviews } from '@/components/seller-reviews';
 
 export async function generateMetadata({
   params,
@@ -145,10 +146,10 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               <User size={16} strokeWidth={1.75} />
               {listing.seller.profile?.username ?? 'продавец'}
             </span>
-            {listing.seller.profile && (
+            {listing.seller.profile && listing.seller.profile.ratingCount > 0 && (
               <span className="row faint" style={{ gap: 4, fontSize: 13 }}>
                 <Star size={13} strokeWidth={1.75} />
-                {listing.seller.profile.ratingAvg.toFixed(1)}
+                {listing.seller.profile.ratingAvg.toFixed(1)} · {listing.seller.profile.ratingCount}
               </span>
             )}
           </div>
@@ -156,6 +157,11 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       </div>
 
       <KeysManager listingId={listing.id} />
+
+      <section style={{ marginTop: 48 }}>
+        <h2 className="h2" style={{ fontSize: 20, marginBottom: 16 }}>Отзывы о продавце</h2>
+        <SellerReviews sellerId={listing.seller.id} />
+      </section>
     </div>
   );
 }

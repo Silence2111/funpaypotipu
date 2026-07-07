@@ -55,6 +55,7 @@ export type ListingDetail = ListingCard & {
   attributes: Record<string, unknown>;
   fulfillmentType: string;
   salesCount: number;
+  seller: { id: string; profile: { username: string; ratingAvg: number; ratingCount: number } | null };
 };
 
 export interface BrowseResult {
