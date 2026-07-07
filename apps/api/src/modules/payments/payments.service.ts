@@ -8,8 +8,10 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@gamemarket/db';
+import { depositToBalance } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { OrdersService } from '../orders/orders.service';
+import { LedgerService } from '../ledger/ledger.service';
 import { MockPaymentProvider } from './mock.provider';
 import { PaymentProviderRegistry } from './provider.registry';
 import type { WebhookPayload } from './payment.provider';
@@ -21,7 +23,20 @@ export class PaymentsService {
     private readonly registry: PaymentProviderRegistry,
     private readonly mock: MockPaymentProvider,
     private readonly orders: OrdersService,
+    private readonly ledger: LedgerService,
   ) {}
+
+  /** Пополнение баланса пользователя (не под заказ). */
+  async createBalanceDeposit(userId: string, amount: bigint, currency = 'RUB') {
+    if (amount <= 0n) throw new BadRequestException('Сумма должна быть положительной');
+    const provider = this.registry.get(this.registry.defaultKey);
+    const providerRef = randomUUID();
+    await this.prisma.payment.create({
+      data: { userId, provider: provider.key, providerRef, amount, currency, status: 'pending' },
+    });
+    const session = await provider.createDeposit({ amount, currency, orderId: '', providerRef });
+    return { providerRef, url: session.url };
+  }
 
   /** Создать депозит под оплату заказа через провайдера по умолчанию. */
   async createDeposit(orderId: string, userId: string) {
@@ -74,7 +89,18 @@ export class PaymentsService {
     }
 
     await this.prisma.payment.update({ where: { providerRef: event.providerRef }, data: { status: 'succeeded' } });
-    if (payment.orderId) await this.orders.markPaid(payment.orderId);
+    if (payment.orderId) {
+      await this.orders.markPaid(payment.orderId);
+    } else {
+      // Пополнение баланса: провайдер → баланс пользователя.
+      await this.ledger.post({
+        legs: depositToBalance(payment.userId, payment.amount),
+        currency: payment.currency,
+        idempotencyKey: `topup:${event.providerRef}`,
+        refType: 'balance_topup',
+        refId: payment.id,
+      });
+    }
     return { ok: true };
   }
 

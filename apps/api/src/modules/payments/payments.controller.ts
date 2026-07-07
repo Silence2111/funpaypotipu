@@ -6,6 +6,10 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { PaymentsService } from './payments.service';
 
 const depositSchema = z.object({ orderId: z.string().uuid() });
+const topupSchema = z.object({
+  amount: z.union([z.string(), z.number()]).transform((v) => String(v))
+    .refine((v) => /^\d+$/.test(v) && BigInt(v) > 0n, 'ожидается положительное число минорных единиц'),
+});
 const webhookSchema = z.object({
   providerRef: z.string().min(1),
   status: z.enum(['succeeded', 'failed']),
@@ -23,6 +27,16 @@ export class PaymentsController {
     @Body(new ZodValidationPipe(depositSchema)) body: { orderId: string },
   ) {
     return this.payments.createDeposit(body.orderId, user.userId);
+  }
+
+  /** Пополнение баланса пользователя. */
+  @Post('topup')
+  @UseGuards(JwtAuthGuard)
+  topup(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(topupSchema)) body: { amount: string },
+  ) {
+    return this.payments.createBalanceDeposit(user.userId, BigInt(body.amount));
   }
 
   /** Подписанный вебхук провайдера (production-путь). Подпись проверяется провайдером. */

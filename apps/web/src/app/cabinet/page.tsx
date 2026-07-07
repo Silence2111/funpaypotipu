@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Wallet, Package, Tag } from 'lucide-react';
 import { apiFetch, getToken, getUser } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
+import { TopUpForm } from '@/components/topup-form';
 
 interface WalletDto { currency: string; balance: string }
 interface OrderRow { id: string; publicNumber: string; status: string; amount: string; currency: string }
@@ -55,14 +56,17 @@ export default function CabinetPage() {
         </div>
       </div>
 
-      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <Wallet size={22} strokeWidth={1.5} />
-        <div>
-          <div className="faint" style={{ fontSize: 13 }}>Баланс</div>
-          <div className="price" style={{ fontSize: 24 }}>
-            {wallet ? formatPrice(wallet.balance, wallet.currency) : '—'}
+      <div className="card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Wallet size={22} strokeWidth={1.5} />
+          <div>
+            <div className="faint" style={{ fontSize: 13 }}>Баланс</div>
+            <div className="price" style={{ fontSize: 24 }}>
+              {wallet ? formatPrice(wallet.balance, wallet.currency) : '—'}
+            </div>
           </div>
         </div>
+        <TopUpForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
       </div>
 
       <section>

@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type OrderStatus } from '@gamemarket/db';
 import {
   canTransition,
+  payToEscrowFromBalance,
   payToEscrowFromGateway,
   refundToBalance,
   releaseEscrow,
@@ -80,7 +81,7 @@ export class OrdersService {
     return order;
   }
 
-  /** Оплата подтверждена (вызывается из payments после вебхука). Идемпотентно. */
+  /** Оплата подтверждена провайдером (вызывается из payments после вебхука). Идемпотентно. */
   async markPaid(orderId: string) {
     const order = await this.get(orderId);
     if (order.status === 'paid') return order;
@@ -94,14 +95,38 @@ export class OrdersService {
       refType: 'order_payment',
       refId: order.id,
     });
+    return this.finalizePaid(order.id);
+  }
 
+  /** Оплата заказа с баланса пользователя (без внешнего провайдера). */
+  async payFromBalance(orderId: string, buyerId: string) {
+    const order = await this.get(orderId);
+    if (order.buyerId !== buyerId) throw new ForbiddenException('Это не ваш заказ');
+    if (order.status === 'paid') return order;
+    this.assertTransition(order.status, 'paid');
+
+    const balance = await this.ledger.balanceOf(buyerId, order.currency);
+    if (balance < order.amount) throw new BadRequestException('Недостаточно средств на балансе');
+
+    await this.ledger.post({
+      legs: payToEscrowFromBalance(buyerId, order.amount),
+      currency: order.currency,
+      idempotencyKey: `pay:${order.id}`,
+      orderId: order.id,
+      refType: 'order_payment_balance',
+      refId: order.id,
+    });
+    return this.finalizePaid(order.id);
+  }
+
+  /** Общий пост-оплатный шаг: статус paid → уведомления → авто-исполнение. */
+  private async finalizePaid(orderId: string) {
     const paid = await this.prisma.order.update({
-      where: { id: order.id },
+      where: { id: orderId },
       data: { status: 'paid', paidAt: new Date() },
     });
     await this.notifications.notify(paid.sellerId, 'order_paid', { orderId: paid.id });
 
-    // Авто-исполнение (ключ из склада / пополнение через провайдера).
     if (paid.fulfillmentType !== 'manual') {
       await this.fulfillment.autoFulfill(paid.id);
       const fulfilled = await this.get(paid.id);

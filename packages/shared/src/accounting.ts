@@ -54,6 +54,12 @@ export const payToEscrowFromGateway = (amount: Minor): PostingLeg[] => [
   credit(escrowHolding(), amount),
 ];
 
+/** Пополнение баланса пользователя через провайдера: провайдер → баланс. */
+export const depositToBalance = (userId: string, amount: Minor): PostingLeg[] => [
+  debit(gatewayClearing(), amount),
+  credit(userAccount(userId, 'available'), amount),
+];
+
 /** Оплата заказа с баланса покупателя → эскроу. */
 export const payToEscrowFromBalance = (buyerId: string, amount: Minor): PostingLeg[] => [
   debit(userAccount(buyerId, 'available'), amount),
