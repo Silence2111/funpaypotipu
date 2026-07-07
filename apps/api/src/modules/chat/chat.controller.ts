@@ -23,6 +23,12 @@ export class ChatController {
     return this.chat.listConversations(user.userId);
   }
 
+  /** Начать/открыть предпродажный диалог с продавцом лота. */
+  @Post('for-listing/:listingId')
+  startWithSeller(@CurrentUser() user: AuthUser, @Param('listingId') listingId: string) {
+    return this.chat.startWithSeller(user.userId, listingId);
+  }
+
   @Get(':id/messages')
   messages(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.chat.getMessages(id, user.userId);

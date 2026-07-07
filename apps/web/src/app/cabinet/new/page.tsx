@@ -16,6 +16,8 @@ export default function NewListingPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
+  const [images, setImages] = useState<{ key: string; url: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -34,6 +36,25 @@ export default function NewListingPage() {
     if (!slug) return setCategories([]);
     const full = await apiFetch<Game & { categories: Category[] }>(`/catalog/games/${slug}`);
     setCategories(full.categories);
+  }
+
+  async function onImages(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    setUploading(true);
+    for (const f of files.slice(0, 12)) {
+      try {
+        const up = await apiFetch<{ key: string; uploadUrl: string }>('/listings/uploads', {
+          method: 'POST',
+          body: JSON.stringify({ mime: f.type || 'image/jpeg' }),
+        });
+        await fetch(up.uploadUrl, { method: 'PUT', body: f });
+        setImages((prev) => [...prev, { key: up.key, url: URL.createObjectURL(f) }]);
+      } catch {
+        /* пропускаем неудачные */
+      }
+    }
+    setUploading(false);
   }
 
   async function submit(e: FormEvent) {
@@ -55,6 +76,7 @@ export default function NewListingPage() {
           description,
           price: String(Math.round(rub * 100)),
           currency: 'RUB',
+          images: images.map((i) => i.key),
         }),
       });
       router.push(`/lot/${created.id}`);
@@ -85,6 +107,29 @@ export default function NewListingPage() {
         <input className="input" placeholder="Название" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />
         <textarea className="input" placeholder="Описание" style={{ minHeight: 120, resize: 'vertical' }} value={description} onChange={(e) => setDescription(e.target.value)} />
         <input className="input" placeholder="Цена, ₽" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+
+        <div>
+          <label className="chip" style={{ cursor: 'pointer' }}>
+            {uploading ? 'Загрузка…' : '+ Добавить фото'}
+            <input type="file" accept="image/*" multiple onChange={onImages} style={{ display: 'none' }} />
+          </label>
+          {images.length > 0 && (
+            <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              {images.map((im, i) => (
+                <span key={i} style={{ position: 'relative' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={im.url} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8 }} />
+                  <button
+                    type="button"
+                    onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
+                    style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: 999, border: 'none', background: '#ff3b30', color: '#fff', fontSize: 11, cursor: 'pointer', lineHeight: 1 }}
+                    aria-label="Удалить"
+                  >×</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
 
         {err && <p style={{ color: '#d33', fontSize: 14, margin: 0 }}>{err}</p>}
         <button className="btn" type="submit" disabled={busy}>{busy ? 'Публикуем…' : 'Опубликовать лот'}</button>

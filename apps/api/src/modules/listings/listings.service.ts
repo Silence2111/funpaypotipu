@@ -1,8 +1,12 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient } from '@gamemarket/db';
 import type { CreateListingInput, ListingQuery, UpdateListingInput } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { SearchService } from '../search/search.service';
+import { StorageService } from '../storage/storage.service';
+
+const ASSET_BASE = process.env.PUBLIC_ASSET_BASE ?? '';
 
 const cardSelect = {
   id: true,
@@ -22,7 +26,25 @@ export class ListingsService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly search: SearchService,
+    private readonly storage: StorageService,
   ) {}
+
+  /** Presigned PUT для загрузки изображения лота (ключ отдаётся публично через /assets). */
+  async requestImageUpload(sellerId: string, mime: string) {
+    if (!this.storage.enabled) throw new NotFoundException('Хранилище недоступно');
+    const ext = mime.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'jpg';
+    const key = `listings/${sellerId}/${randomUUID()}.${ext}`;
+    return { key, uploadUrl: await this.storage.presignPut(key) };
+  }
+
+  /** Ключи S3 → абсолютные URL для показа (или оставляем уже готовые http-ссылки). */
+  private resolveImages<T extends { images: unknown }>(row: T): T {
+    const imgs = Array.isArray(row.images) ? (row.images as string[]) : [];
+    const resolved = imgs.map((k) =>
+      /^https?:\/\//.test(k) ? k : `${ASSET_BASE}/api/assets?key=${encodeURIComponent(k)}`,
+    );
+    return { ...row, images: resolved };
+  }
 
   async browse(query: ListingQuery) {
     // Текстовый запрос + доступный движок → релевантный поиск с typo-tolerance.
@@ -44,7 +66,10 @@ export class ListingsService {
           select: cardSelect,
         });
         const byId = new Map(rows.map((r) => [r.id, r]));
-        const items = found.ids.map((id) => byId.get(id)).filter((x): x is (typeof rows)[number] => !!x);
+        const items = found.ids
+          .map((id) => byId.get(id))
+          .filter((x): x is (typeof rows)[number] => !!x)
+          .map((r) => this.resolveImages(r));
         return { items, total: found.total, page: query.page, limit: query.limit };
       }
     }
@@ -79,7 +104,12 @@ export class ListingsService {
       this.prisma.listing.count({ where }),
     ]);
 
-    return { items, total, page: query.page, limit: query.limit };
+    return {
+      items: items.map((r) => this.resolveImages(r)),
+      total,
+      page: query.page,
+      limit: query.limit,
+    };
   }
 
   async getById(id: string) {
@@ -94,15 +124,16 @@ export class ListingsService {
       },
     });
     if (!listing || listing.status !== 'active') throw new NotFoundException('Лот не найден');
-    return listing;
+    return this.resolveImages(listing);
   }
 
-  listMine(sellerId: string) {
-    return this.prisma.listing.findMany({
+  async listMine(sellerId: string) {
+    const rows = await this.prisma.listing.findMany({
       where: { sellerId },
       orderBy: { createdAt: 'desc' },
       select: cardSelect,
     });
+    return rows.map((r) => this.resolveImages(r));
   }
 
   async create(sellerId: string, input: CreateListingInput) {

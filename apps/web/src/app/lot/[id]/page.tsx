@@ -6,6 +6,7 @@ import { getListing } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
 import { BuyButton } from '@/components/buy-button';
 import { FavoriteButton } from '@/components/favorite-button';
+import { MessageSellerButton } from '@/components/message-seller-button';
 import { JsonLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
 
@@ -134,8 +135,9 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
 
           <BuyButton listingId={listing.id} />
 
-          <div className="row" style={{ marginTop: 12 }}>
+          <div className="row" style={{ marginTop: 12, gap: 8, flexWrap: 'wrap' }}>
             <FavoriteButton listingId={listing.id} />
+            <MessageSellerButton listingId={listing.id} />
           </div>
 
           <div className="row faint" style={{ fontSize: 13, gap: 6, marginTop: 14 }}>

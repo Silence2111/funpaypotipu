@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaClient, type Order } from '@gamemarket/db';
+import { refundToBalance } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
+import { LedgerService } from '../ledger/ledger.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { MockTopUpProvider } from './topup.provider';
 
 const AUTO_CONFIRM_TTL_MS = 24 * 3600 * 1000; // авто-товары подтверждаются быстрее
@@ -11,6 +14,8 @@ export class FulfillmentService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly topup: MockTopUpProvider,
+    private readonly ledger: LedgerService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async autoFulfill(orderId: string): Promise<void> {
@@ -22,7 +27,27 @@ export class FulfillmentService {
 
   private async deliverKey(order: Order): Promise<void> {
     const goodId = await this.reserveGood(order.listingId, order.id);
-    if (!goodId) return; // нет в наличии — заказ остаётся paid, разбирают продавец/саппорт
+    if (!goodId) {
+      // Нет в наличии — авто-возврат покупателю на баланс, чтобы деньги не зависли в эскроу.
+      await this.ledger.post({
+        legs: refundToBalance(order.buyerId, order.amount),
+        currency: order.currency,
+        idempotencyKey: `refund:${order.id}`,
+        orderId: order.id,
+        refType: 'oos_refund',
+        refId: order.id,
+      });
+      await this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
+      await this.notifications.notify(order.buyerId, 'order_refunded', {
+        orderId: order.id,
+        reason: 'out_of_stock',
+      });
+      await this.notifications.notify(order.sellerId, 'listing_out_of_stock', {
+        orderId: order.id,
+        listingId: order.listingId,
+      });
+      return;
+    }
 
     const autoConfirmAt = new Date(Date.now() + AUTO_CONFIRM_TTL_MS);
     await this.prisma.$transaction([

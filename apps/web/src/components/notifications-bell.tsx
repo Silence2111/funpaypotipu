@@ -13,6 +13,13 @@ interface Notif {
 }
 
 const LABELS: Record<string, string> = {
+  order_created: 'Новый заказ по вашему лоту',
+  order_paid: 'Заказ оплачен — выдайте товар',
+  order_delivered: 'Товар выдан — подтвердите получение',
+  order_completed: 'Сделка завершена, деньги зачислены',
+  order_cancelled: 'Заказ отменён',
+  order_refunded: 'Возврат по заказу',
+  listing_out_of_stock: 'Закончились ключи по лоту — заказ возвращён',
   review_received: 'Новый отзыв',
   new_message: 'Новое сообщение',
   dispute_opened: 'Открыт спор по сделке',

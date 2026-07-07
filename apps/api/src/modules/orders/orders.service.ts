@@ -18,6 +18,7 @@ import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
 import { EncryptionService } from '../crypto/encryption.service';
 import { PromoService } from '../promo/promo.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { FeesService } from './fees.service';
 import { FulfillmentService } from './fulfillment.service';
 
@@ -32,6 +33,7 @@ export class OrdersService {
     private readonly fulfillment: FulfillmentService,
     private readonly encryption: EncryptionService,
     private readonly promo: PromoService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(buyerId: string, listingId: string, promoCode?: string) {
@@ -49,7 +51,7 @@ export class OrdersService {
       amount -= await this.promo.consume(promoCode, f.amountToPay, maxDiscount);
     }
 
-    return this.prisma.order.create({
+    const order = await this.prisma.order.create({
       data: {
         publicNumber: `GM-${Date.now().toString(36).toUpperCase()}-${randomUUID().slice(0, 4)}`,
         buyerId,
@@ -71,6 +73,11 @@ export class OrdersService {
         conversation: { create: { buyerId, sellerId: listing.sellerId } },
       },
     });
+    await this.notifications.notify(listing.sellerId, 'order_created', {
+      orderId: order.id,
+      title: listing.title,
+    });
+    return order;
   }
 
   /** Оплата подтверждена (вызывается из payments после вебхука). Идемпотентно. */
@@ -92,11 +99,16 @@ export class OrdersService {
       where: { id: order.id },
       data: { status: 'paid', paidAt: new Date() },
     });
+    await this.notifications.notify(paid.sellerId, 'order_paid', { orderId: paid.id });
 
     // Авто-исполнение (ключ из склада / пополнение через провайдера).
     if (paid.fulfillmentType !== 'manual') {
       await this.fulfillment.autoFulfill(paid.id);
-      return this.get(paid.id);
+      const fulfilled = await this.get(paid.id);
+      if (fulfilled.status === 'delivered') {
+        await this.notifications.notify(fulfilled.buyerId, 'order_delivered', { orderId: fulfilled.id });
+      }
+      return fulfilled;
     }
     return paid;
   }
@@ -132,7 +144,7 @@ export class OrdersService {
       },
     });
 
-    return this.prisma.order.update({
+    const delivered = await this.prisma.order.update({
       where: { id: order.id },
       data: {
         status: 'delivered',
@@ -140,6 +152,8 @@ export class OrdersService {
         autoConfirmAt: new Date(Date.now() + AUTO_CONFIRM_TTL_MS),
       },
     });
+    await this.notifications.notify(delivered.buyerId, 'order_delivered', { orderId: delivered.id });
+    return delivered;
   }
 
   /** Покупатель подтверждает получение (или система по таймауту). Релиз эскроу. */
@@ -172,6 +186,7 @@ export class OrdersService {
         data: { salesCount: { increment: 1 } },
       }),
     ]);
+    await this.notifications.notify(order.sellerId, 'order_completed', { orderId: order.id });
     return updated;
   }
 
@@ -182,9 +197,16 @@ export class OrdersService {
       throw new ForbiddenException('Нет доступа к заказу');
     }
 
+    const counterparty = order.buyerId === userId ? order.sellerId : order.buyerId;
+
     if (order.status === 'created') {
       this.assertTransition(order.status, 'cancelled');
-      return this.prisma.order.update({ where: { id: order.id }, data: { status: 'cancelled' } });
+      const res = await this.prisma.order.update({
+        where: { id: order.id },
+        data: { status: 'cancelled' },
+      });
+      await this.notifications.notify(counterparty, 'order_cancelled', { orderId: order.id });
+      return res;
     }
 
     if (order.status === 'paid') {
@@ -197,7 +219,12 @@ export class OrdersService {
         refType: 'order_refund',
         refId: order.id,
       });
-      return this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
+      const res = await this.prisma.order.update({
+        where: { id: order.id },
+        data: { status: 'refunded' },
+      });
+      await this.notifications.notify(order.buyerId, 'order_refunded', { orderId: order.id });
+      return res;
     }
 
     throw new ConflictException(`Нельзя отменить заказ в статусе ${order.status}`);

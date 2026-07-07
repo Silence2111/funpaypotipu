@@ -16,7 +16,7 @@ export const createListingSchema = z.object({
   price: minorString, // копейки, напр. "150000" = 1500.00
   currency: z.string().length(3).default('RUB'),
   attributes: z.record(z.unknown()).default({}),
-  images: z.array(z.string().url()).max(12).default([]),
+  images: z.array(z.string().min(1)).max(12).default([]), // ключи S3 или абсолютные URL
   stock: z.number().int().nonnegative().nullable().default(null),
 });
 export type CreateListingInput = z.infer<typeof createListingSchema>;

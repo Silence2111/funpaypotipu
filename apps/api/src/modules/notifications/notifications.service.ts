@@ -5,6 +5,9 @@ import { MailService } from '../mail/mail.service';
 
 /** Тексты писем для e-mail-канала (важные события). */
 const EMAIL_SUBJECTS: Record<string, string> = {
+  order_paid: 'Новый оплаченный заказ',
+  order_delivered: 'Товар по заказу выдан',
+  order_refunded: 'Возврат по заказу',
   payout_paid: 'Выплата отправлена',
   payout_rejected: 'Заявка на вывод отклонена',
   dispute_opened: 'Открыт спор по вашей сделке',

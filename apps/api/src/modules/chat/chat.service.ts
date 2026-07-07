@@ -91,6 +91,26 @@ export class ChatService {
     });
   }
 
+  /** Начать (или открыть существующий) предпродажный диалог с продавцом лота. */
+  async startWithSeller(buyerId: string, listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { sellerId: true },
+    });
+    if (!listing) throw new NotFoundException('Лот не найден');
+    if (listing.sellerId === buyerId) throw new ForbiddenException('Это ваш лот');
+
+    const existing = await this.prisma.conversation.findFirst({
+      where: { buyerId, sellerId: listing.sellerId, orderId: null },
+    });
+    if (existing) return { id: existing.id };
+
+    const conv = await this.prisma.conversation.create({
+      data: { buyerId, sellerId: listing.sellerId },
+    });
+    return { id: conv.id };
+  }
+
   /** Антивирус-скан вложения через ScanService. Заражённое удаляется из хранилища. */
   private async scan(key: string): Promise<void> {
     if (!this.storage.enabled) return;
