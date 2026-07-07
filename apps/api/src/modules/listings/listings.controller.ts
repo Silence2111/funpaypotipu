@@ -7,8 +7,11 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   createListingSchema,
   listingQuerySchema,
@@ -17,13 +20,10 @@ import {
   type ListingQuery,
   type UpdateListingInput,
 } from '@gamemarket/shared';
-import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { ListingsService } from './listings.service';
-
-const uploadSchema = z.object({ mime: z.string().min(3).max(100) });
 
 @Controller('listings')
 export class ListingsController {
@@ -41,14 +41,15 @@ export class ListingsController {
     return this.listings.listMine(user.userId);
   }
 
-  /** Presigned PUT для загрузки изображения лота. */
+  /** Загрузка изображения лота (multipart через API; MinIO приватный). */
   @Post('uploads')
   @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
   upload(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(uploadSchema)) body: { mime: string },
+    @UploadedFile() file: { buffer: Buffer; mimetype: string; size: number },
   ) {
-    return this.listings.requestImageUpload(user.userId, body.mime);
+    return this.listings.uploadImage(user.userId, file);
   }
 
   @Get(':id')

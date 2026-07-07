@@ -53,6 +53,14 @@ export class StorageService implements OnModuleInit {
     return this.client.presignedGetObject(this.bucket, key, expirySec);
   }
 
+  /** Прямая загрузка объекта через API (MinIO остаётся приватным). */
+  async put(key: string, buffer: Buffer, contentType: string): Promise<void> {
+    if (!this.client) throw new Error('storage disabled');
+    await this.client.putObject(this.bucket, key, buffer, buffer.length, {
+      'Content-Type': contentType,
+    });
+  }
+
   /** Скачать объект в память (для антивирус-скана). */
   async getBytes(key: string): Promise<Buffer> {
     if (!this.client) throw new Error('storage disabled');

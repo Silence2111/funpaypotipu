@@ -4,6 +4,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+
 interface Game { id: string; slug: string; title: string }
 interface Category { id: string; slug: string; title: string; fulfillmentType: string }
 
@@ -42,14 +44,19 @@ export default function NewListingPage() {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
     setUploading(true);
+    const token = getToken();
     for (const f of files.slice(0, 12)) {
       try {
-        const up = await apiFetch<{ key: string; uploadUrl: string }>('/listings/uploads', {
+        const fd = new FormData();
+        fd.append('file', f);
+        const res = await fetch(`${API_URL}/api/listings/uploads`, {
           method: 'POST',
-          body: JSON.stringify({ mime: f.type || 'image/jpeg' }),
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: fd,
         });
-        await fetch(up.uploadUrl, { method: 'PUT', body: f });
-        setImages((prev) => [...prev, { key: up.key, url: URL.createObjectURL(f) }]);
+        if (!res.ok) continue;
+        const { key } = (await res.json()) as { key: string };
+        setImages((prev) => [...prev, { key, url: URL.createObjectURL(f) }]);
       } catch {
         /* пропускаем неудачные */
       }

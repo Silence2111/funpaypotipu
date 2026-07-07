@@ -56,9 +56,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
-    # S3 API (9000) публичен — нужен для presigned-загрузок из браузера (доступ по ключам/подписи).
-    # Консоль (9001) — только localhost.
-    ports: ["9000:9000", "127.0.0.1:9001:9001"]
+    # MinIO не открыт наружу: загрузка/отдача идут через API (proxy), объекты приватны.
+    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
     volumes: ["minio-data:/data"]
 
   meilisearch:

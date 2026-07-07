@@ -1,4 +1,10 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient } from '@gamemarket/db';
 import type { CreateListingInput, ListingQuery, UpdateListingInput } from '@gamemarket/shared';
@@ -29,12 +35,16 @@ export class ListingsService {
     private readonly storage: StorageService,
   ) {}
 
-  /** Presigned PUT для загрузки изображения лота (ключ отдаётся публично через /assets). */
-  async requestImageUpload(sellerId: string, mime: string) {
+  /** Загрузка изображения лота через API (MinIO приватный; отдача через /assets). */
+  async uploadImage(sellerId: string, file: { buffer: Buffer; mimetype: string; size: number }) {
     if (!this.storage.enabled) throw new NotFoundException('Хранилище недоступно');
-    const ext = mime.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'jpg';
+    if (!file?.buffer?.length) throw new BadRequestException('Пустой файл');
+    if (!/^image\//.test(file.mimetype)) throw new BadRequestException('Допустимы только изображения');
+    if (file.size > 8 * 1024 * 1024) throw new BadRequestException('Изображение больше 8 МБ');
+    const ext = file.mimetype.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'jpg';
     const key = `listings/${sellerId}/${randomUUID()}.${ext}`;
-    return { key, uploadUrl: await this.storage.presignPut(key) };
+    await this.storage.put(key, file.buffer, file.mimetype);
+    return { key };
   }
 
   /** Ключи S3 → абсолютные URL для показа (или оставляем уже готовые http-ссылки). */
