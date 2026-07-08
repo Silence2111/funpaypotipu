@@ -9,10 +9,11 @@ import { formatPrice } from '@/lib/format';
 import { TopUpForm } from '@/components/topup-form';
 import { PayoutForm } from '@/components/payout-form';
 import { WalletTransactions } from '@/components/wallet-transactions';
+import { BumpButton } from '@/components/bump-button';
 
 interface WalletDto { currency: string; balance: string }
 interface OrderRow { id: string; publicNumber: string; status: string; amount: string; currency: string }
-interface ListingRow { id: string; title: string; price: string; currency: string; status: string }
+interface ListingRow { id: string; title: string; price: string; currency: string; status: string; boostUntil?: string | null }
 
 const STATUS_RU: Record<string, string> = {
   created: 'создан', paid: 'оплачен', delivered: 'выдан', completed: 'завершён',
@@ -106,14 +107,15 @@ export default function CabinetPage() {
         {listings.length ? (
           <div className="grid" style={{ gap: 8 }}>
             {listings.map((l) => (
-              <Link key={l.id} href={`/lot/${l.id}`} className="card link row"
-                style={{ justifyContent: 'space-between', padding: 16 }}>
-                <span>{l.title}</span>
+              <div key={l.id} className="card row"
+                style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
+                <Link href={`/lot/${l.id}`} style={{ flex: 1, minWidth: 140 }}>{l.title}</Link>
                 <span className="row" style={{ gap: 12 }}>
                   <span className="price">{formatPrice(l.price, l.currency)}</span>
+                  {l.status === 'active' && <BumpButton listingId={l.id} boostUntil={l.boostUntil} />}
                   <span className="badge">{l.status}</span>
                 </span>
-              </Link>
+              </div>
             ))}
           </div>
         ) : <p className="muted">Лотов пока нет.</p>}

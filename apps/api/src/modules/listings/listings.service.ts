@@ -13,6 +13,8 @@ import { SearchService } from '../search/search.service';
 import { StorageService } from '../storage/storage.service';
 
 const ASSET_BASE = process.env.PUBLIC_ASSET_BASE ?? '';
+const BOOST_MS = 24 * 3600 * 1000; // лот держится в топе сутки
+const BOOST_COOLDOWN_MS = 4 * 3600 * 1000; // поднимать не чаще раза в 4 часа
 
 const cardSelect = {
   id: true,
@@ -22,6 +24,7 @@ const cardSelect = {
   images: true,
   status: true,
   createdAt: true,
+  boostUntil: true,
   seller: { select: { profile: { select: { username: true, ratingAvg: true } } } },
   category: { select: { slug: true, title: true } },
   game: { select: { slug: true, title: true } },
@@ -98,12 +101,13 @@ export class ListingsService {
       };
     }
 
-    const orderBy: Prisma.ListingOrderByWithRelationInput =
+    // По умолчанию поднятые лоты (boostUntil) держатся выше — как «поднятие» на FunPay.
+    const orderBy: Prisma.ListingOrderByWithRelationInput[] =
       query.sort === 'price_asc'
-        ? { price: 'asc' }
+        ? [{ price: 'asc' }]
         : query.sort === 'price_desc'
-          ? { price: 'desc' }
-          : { createdAt: 'desc' };
+          ? [{ price: 'desc' }]
+          : [{ boostUntil: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }];
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.listing.findMany({
@@ -152,6 +156,31 @@ export class ListingsService {
       select: cardSelect,
     });
     return rows.map((r) => this.resolveImages(r));
+  }
+
+  /** Поднять лот в топ (кулдаун 4 ч). */
+  async bump(sellerId: string, listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { sellerId: true, status: true, boostUntil: true },
+    });
+    if (!listing) throw new NotFoundException('Лот не найден');
+    if (listing.sellerId !== sellerId) throw new ForbiddenException('Это не ваш лот');
+    if (listing.status !== 'active') throw new BadRequestException('Поднять можно только активный лот');
+
+    const now = Date.now();
+    if (listing.boostUntil) {
+      const lastBump = listing.boostUntil.getTime() - BOOST_MS;
+      const wait = lastBump + BOOST_COOLDOWN_MS - now;
+      if (wait > 0) {
+        const mins = Math.ceil(wait / 60000);
+        throw new BadRequestException(`Поднять можно через ${mins} мин`);
+      }
+    }
+
+    const boostUntil = new Date(now + BOOST_MS);
+    await this.prisma.listing.update({ where: { id: listingId }, data: { boostUntil } });
+    return { boostUntil };
   }
 
   async create(sellerId: string, input: CreateListingInput) {

@@ -77,6 +77,12 @@ export class ListingsController {
     return this.listings.update(user.userId, id, body);
   }
 
+  @Post(':id/bump')
+  @UseGuards(JwtAuthGuard)
+  bump(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.listings.bump(user.userId, id);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {

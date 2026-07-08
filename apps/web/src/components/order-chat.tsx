@@ -106,7 +106,12 @@ export function OrderChat({ conversationId, meId }: { conversationId: string; me
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-        {messages.map((m) => (
+        {messages.map((m) =>
+          m.senderId === null ? (
+            <div key={m.id} className="faint" style={{ textAlign: 'center', fontSize: 12.5, padding: '2px 8px' }}>
+              {m.body}
+            </div>
+          ) : (
           <div key={m.id} className={`bubble ${m.senderId === meId ? 'mine' : 'their'}`}>
             {m.attachments?.length ? (
               m.attachments.map((a, i) =>
@@ -123,7 +128,8 @@ export function OrderChat({ conversationId, meId }: { conversationId: string; me
               m.body
             )}
           </div>
-        ))}
+          ),
+        )}
         {!messages.length && (
           <p className="muted" style={{ fontSize: 14 }}>
             Сообщений пока нет.

@@ -202,4 +202,20 @@ export class ChatService {
       createdAt: message.createdAt,
     };
   }
+
+  /** Системное сообщение о событии сделки в чат заказа (senderId = null). */
+  async postSystem(orderId: string, text: string): Promise<void> {
+    const conv = await this.prisma.conversation.findUnique({
+      where: { orderId },
+      select: { id: true },
+    });
+    if (!conv) return;
+    const message = await this.prisma.message.create({
+      data: { conversationId: conv.id, senderId: null, type: 'system', body: text },
+    });
+    await this.prisma.conversation.update({
+      where: { id: conv.id },
+      data: { lastMessageAt: message.createdAt },
+    });
+  }
 }

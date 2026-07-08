@@ -20,6 +20,7 @@ import { LedgerService } from '../ledger/ledger.service';
 import { EncryptionService } from '../crypto/encryption.service';
 import { PromoService } from '../promo/promo.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ChatService } from '../chat/chat.service';
 import { FeesService } from './fees.service';
 import { FulfillmentService } from './fulfillment.service';
 
@@ -35,7 +36,13 @@ export class OrdersService {
     private readonly encryption: EncryptionService,
     private readonly promo: PromoService,
     private readonly notifications: NotificationsService,
+    private readonly chat: ChatService,
   ) {}
+
+  /** Системное сообщение о событии сделки в чат (не роняет основной поток). */
+  private async sys(orderId: string, text: string) {
+    await this.chat.postSystem(orderId, text).catch(() => {});
+  }
 
   async create(buyerId: string, listingId: string, promoCode?: string) {
     const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
@@ -83,6 +90,7 @@ export class OrdersService {
       orderId: order.id,
       title: listing.title,
     });
+    await this.sys(order.id, 'Заказ создан. Обсудите детали и дождитесь оплаты.');
     return order;
   }
 
@@ -131,12 +139,14 @@ export class OrdersService {
       data: { status: 'paid', paidAt: new Date() },
     });
     await this.notifications.notify(paid.sellerId, 'order_paid', { orderId: paid.id });
+    await this.sys(paid.id, 'Оплата поступила — средства защищены эскроу.');
 
     if (paid.fulfillmentType !== 'manual') {
       await this.fulfillment.autoFulfill(paid.id);
       const fulfilled = await this.get(paid.id);
       if (fulfilled.status === 'delivered') {
         await this.notifications.notify(fulfilled.buyerId, 'order_delivered', { orderId: fulfilled.id });
+        await this.sys(fulfilled.id, 'Товар выдан автоматически. Заберите ключ на странице заказа.');
       }
       return fulfilled;
     }
@@ -186,6 +196,7 @@ export class OrdersService {
       },
     });
     await this.notifications.notify(delivered.buyerId, 'order_delivered', { orderId: delivered.id });
+    await this.sys(delivered.id, 'Продавец отметил выдачу. Проверьте товар и подтвердите получение.');
     return delivered;
   }
 
@@ -220,6 +231,12 @@ export class OrdersService {
       }),
     ]);
     await this.notifications.notify(order.sellerId, 'order_completed', { orderId: order.id });
+    await this.sys(
+      order.id,
+      opts.system
+        ? 'Срок проверки истёк — заказ подтверждён автоматически. Средства переданы продавцу.'
+        : 'Покупатель подтвердил получение. Сделка завершена, средства переданы продавцу.',
+    );
     return updated;
   }
 
@@ -239,6 +256,7 @@ export class OrdersService {
         data: { status: 'cancelled' },
       });
       await this.notifications.notify(counterparty, 'order_cancelled', { orderId: order.id });
+      await this.sys(order.id, 'Заказ отменён до оплаты.');
       return res;
     }
 
@@ -257,6 +275,7 @@ export class OrdersService {
         data: { status: 'refunded' },
       });
       await this.notifications.notify(order.buyerId, 'order_refunded', { orderId: order.id });
+      await this.sys(order.id, 'Заказ отменён, средства возвращены покупателю на баланс.');
       return res;
     }
 
@@ -270,7 +289,12 @@ export class OrdersService {
       throw new ForbiddenException('Нет доступа к заказу');
     }
     this.assertTransition(order.status, 'disputed');
-    return this.prisma.order.update({ where: { id: order.id }, data: { status: 'disputed' } });
+    const res = await this.prisma.order.update({
+      where: { id: order.id },
+      data: { status: 'disputed' },
+    });
+    await this.sys(order.id, 'Открыт спор. К обсуждению подключится арбитр площадки.');
+    return res;
   }
 
   /** Разрешение спора арбитром: релиз продавцу или возврат покупателю. Идемпотентно. */
@@ -290,10 +314,12 @@ export class OrdersService {
         refType: 'dispute_release',
         refId: order.id,
       });
-      return this.prisma.order.update({
+      const done = await this.prisma.order.update({
         where: { id: order.id },
         data: { status: 'completed', completedAt: new Date() },
       });
+      await this.sys(order.id, 'Спор решён в пользу продавца. Средства переданы продавцу.');
+      return done;
     }
 
     await this.ledger.post({
@@ -304,7 +330,12 @@ export class OrdersService {
       refType: 'dispute_refund',
       refId: order.id,
     });
-    return this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
+    const refunded = await this.prisma.order.update({
+      where: { id: order.id },
+      data: { status: 'refunded' },
+    });
+    await this.sys(order.id, 'Спор решён в пользу покупателя. Средства возвращены покупателю.');
+    return refunded;
   }
 
   listMine(userId: string) {
