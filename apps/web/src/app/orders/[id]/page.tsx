@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ShieldCheck, KeyRound, Star, AlertTriangle } from 'lucide-react';
 import { apiFetch, getToken, getUser } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
@@ -20,6 +21,7 @@ const STATUS_RU: Record<string, string> = {
 
 export default function OrderPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const id = params.id;
   const [order, setOrder] = useState<Order | null>(null);
   const [conv, setConv] = useState<Conversation | null>(null);
@@ -32,6 +34,7 @@ export default function OrderPage() {
   const [comment, setComment] = useState('');
   const [reviewDone, setReviewDone] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [disputeId, setDisputeId] = useState<string | null>(null);
 
   const me = getUser();
 
@@ -49,6 +52,14 @@ export default function OrderPage() {
     loadOrder().catch(() => setErr('Заказ не найден'));
     loadConv();
   }, [loadOrder, loadConv]);
+
+  useEffect(() => {
+    if (order?.status === 'disputed') {
+      apiFetch<{ id: string }>(`/disputes/by-order/${id}`)
+        .then((r) => setDisputeId(r.id))
+        .catch(() => {});
+    }
+  }, [order?.status, id]);
 
   async function act(path: string) {
     setErr(null);
@@ -71,13 +82,13 @@ export default function OrderPage() {
     setErr(null);
     setBusy(true);
     try {
-      await apiFetch('/disputes', {
+      const created = await apiFetch<{ id: string }>('/disputes', {
         method: 'POST',
         body: JSON.stringify({ orderId: id, reason: reason.trim() }),
       });
       setShowDispute(false);
       setReason('');
-      await loadOrder();
+      router.push(`/disputes/${created.id}`);
     } catch {
       setErr('Не удалось открыть спор');
     } finally {
@@ -185,8 +196,12 @@ export default function OrderPage() {
         <div className="card" style={{ marginTop: 16 }}>
           <div className="row" style={{ gap: 8, fontSize: 14 }}>
             <AlertTriangle size={16} strokeWidth={1.75} /> По заказу открыт спор — ожидайте решения арбитра.
-            Общайтесь в чате сделки ниже.
           </div>
+          {disputeId && (
+            <Link href={`/disputes/${disputeId}`} className="chip" style={{ marginTop: 10 }}>
+              Перейти к спору
+            </Link>
+          )}
         </div>
       )}
 
