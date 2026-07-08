@@ -45,7 +45,7 @@ export interface ListingCard {
   images: string[];
   status: string;
   createdAt: string;
-  seller: { profile: { username: string; ratingAvg: number } | null };
+  seller: { profile: { username: string; ratingAvg: number; onlineAt?: string | null } | null };
   category: { slug: string; title: string };
   game: { slug: string; title: string };
 }

@@ -25,7 +25,7 @@ const cardSelect = {
   status: true,
   createdAt: true,
   boostUntil: true,
-  seller: { select: { profile: { select: { username: true, ratingAvg: true } } } },
+  seller: { select: { profile: { select: { username: true, ratingAvg: true, onlineAt: true } } } },
   category: { select: { slug: true, title: true } },
   game: { select: { slug: true, title: true } },
 } satisfies Prisma.ListingSelect;

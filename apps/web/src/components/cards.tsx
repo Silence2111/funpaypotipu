@@ -5,6 +5,8 @@ import { formatPrice } from '@/lib/format';
 
 export function ListingCardView({ listing }: { listing: ListingCard }) {
   const cover = listing.images?.[0];
+  const onAt = listing.seller.profile?.onlineAt;
+  const online = onAt ? Date.now() - new Date(onAt).getTime() < 5 * 60 * 1000 : false;
   return (
     <Link href={`/lot/${listing.id}`} className="card link" style={{ display: 'block' }}>
       <div className="thumb">
@@ -24,6 +26,9 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
         <span className="price">{formatPrice(listing.price, listing.currency)}</span>
         {listing.seller.profile && (
           <span className="row faint" style={{ fontSize: 13, gap: 4 }}>
+            {online && (
+              <span title="продавец онлайн" style={{ width: 7, height: 7, borderRadius: 999, background: '#34c759' }} />
+            )}
             <Star size={13} strokeWidth={1.75} />
             {listing.seller.profile.ratingAvg.toFixed(1)}
           </span>
