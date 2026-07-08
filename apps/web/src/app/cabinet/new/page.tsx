@@ -8,6 +8,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 interface Game { id: string; slug: string; title: string }
 interface Category { id: string; slug: string; title: string; fulfillmentType: string }
+interface Attr { key: string; label: string; type: string; options?: string[] | null; isRequired: boolean }
 
 export default function NewListingPage() {
   const router = useRouter();
@@ -23,6 +24,8 @@ export default function NewListingPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [quote, setQuote] = useState<{ feeSeller: string; sellerPayout: string; level: { label: string } | null } | null>(null);
+  const [attrs, setAttrs] = useState<Attr[]>([]);
+  const [attrValues, setAttrValues] = useState<Record<string, string | boolean>>({});
 
   useEffect(() => {
     if (!getToken()) {
@@ -47,6 +50,16 @@ export default function NewListingPage() {
     }, 400);
     return () => clearTimeout(t);
   }, [categoryId, price]);
+
+  // Атрибуты выбранной категории (характеристики/фильтры как на FunPay).
+  useEffect(() => {
+    setAttrs([]);
+    setAttrValues({});
+    if (!categoryId) return;
+    apiFetch<Attr[]>(`/catalog/categories/${categoryId}/attributes`)
+      .then(setAttrs)
+      .catch(() => setAttrs([]));
+  }, [categoryId]);
 
   async function onGame(slug: string) {
     const g = games.find((x) => x.slug === slug);
@@ -89,6 +102,16 @@ export default function NewListingPage() {
       setErr('Заполните все поля, цена больше нуля');
       return;
     }
+    const missing = attrs.find((a) => a.isRequired && !attrValues[a.key]);
+    if (missing) {
+      setErr(`Укажите характеристику «${missing.label}»`);
+      return;
+    }
+    const cleanAttrs: Record<string, string | boolean> = {};
+    for (const a of attrs) {
+      const v = attrValues[a.key];
+      if (v !== undefined && v !== '' && v !== false) cleanAttrs[a.key] = v;
+    }
     setBusy(true);
     try {
       const created = await apiFetch<{ id: string }>('/listings', {
@@ -100,6 +123,7 @@ export default function NewListingPage() {
           description,
           price: String(Math.round(rub * 100)),
           currency: 'RUB',
+          attributes: cleanAttrs,
           images: images.map((i) => i.key),
         }),
       });
@@ -127,6 +151,33 @@ export default function NewListingPage() {
             <option key={c.id} value={c.id}>{c.title}</option>
           ))}
         </select>
+
+        {attrs.length > 0 && (
+          <div className="stack-form" style={{ gap: 10 }}>
+            {attrs.map((a) => (
+              <div key={a.key}>
+                <label className="faint" style={{ fontSize: 13, display: 'block', marginBottom: 4 }}>
+                  {a.label}{a.isRequired ? ' *' : ''}
+                </label>
+                {a.type === 'enum' && a.options ? (
+                  <select className="input" value={String(attrValues[a.key] ?? '')}
+                    onChange={(e) => setAttrValues((v) => ({ ...v, [a.key]: e.target.value }))}>
+                    <option value="">—</option>
+                    {a.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : a.type === 'bool' ? (
+                  <label className="row" style={{ gap: 8, fontSize: 14 }}>
+                    <input type="checkbox" checked={!!attrValues[a.key]}
+                      onChange={(e) => setAttrValues((v) => ({ ...v, [a.key]: e.target.checked }))} /> Да
+                  </label>
+                ) : (
+                  <input className="input" value={String(attrValues[a.key] ?? '')}
+                    onChange={(e) => setAttrValues((v) => ({ ...v, [a.key]: e.target.value }))} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         <input className="input" placeholder="Название" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />
         <textarea className="input" placeholder="Описание" style={{ minHeight: 120, resize: 'vertical' }} value={description} onChange={(e) => setDescription(e.target.value)} />

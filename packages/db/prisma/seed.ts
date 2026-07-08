@@ -79,6 +79,55 @@ async function seedCatalog() {
   });
 }
 
+async function seedAttributes() {
+  const cs2 = await prisma.game.findUnique({ where: { slug: 'cs2' } });
+  if (!cs2) return;
+  const bySlug = async (slug: string) =>
+    prisma.category.findUnique({ where: { gameId_slug: { gameId: cs2.id, slug } } });
+
+  const specs: Record<string, Array<{ key: string; label: string; type: string; options?: string[]; isRequired?: boolean; sortOrder: number }>> = {
+    accounts: [
+      { key: 'rank', label: 'Звание', type: 'enum', isRequired: true, sortOrder: 1,
+        options: ['Silver', 'Gold Nova', 'Master Guardian', 'Legendary Eagle', 'Supreme', 'Global Elite'] },
+      { key: 'region', label: 'Регион', type: 'enum', isRequired: true, sortOrder: 2,
+        options: ['EU', 'CIS', 'NA', 'Asia'] },
+      { key: 'prime', label: 'Prime-статус', type: 'bool', sortOrder: 3 },
+    ],
+    skins: [
+      { key: 'rarity', label: 'Редкость', type: 'enum', isRequired: true, sortOrder: 1,
+        options: ['Consumer', 'Industrial', 'Mil-Spec', 'Restricted', 'Classified', 'Covert', 'Нож/Перчатки'] },
+      { key: 'stattrak', label: 'StatTrak™', type: 'bool', sortOrder: 2 },
+    ],
+    keys: [
+      { key: 'region', label: 'Регион', type: 'enum', isRequired: true, sortOrder: 1,
+        options: ['Global', 'EU', 'CIS', 'NA'] },
+      { key: 'platform', label: 'Платформа', type: 'enum', sortOrder: 2,
+        options: ['Steam', 'Epic', 'Origin'] },
+    ],
+  };
+
+  for (const [slug, attrs] of Object.entries(specs)) {
+    const cat = await bySlug(slug);
+    if (!cat) continue;
+    for (const a of attrs) {
+      await prisma.attribute.upsert({
+        where: { categoryId_key: { categoryId: cat.id, key: a.key } },
+        update: { label: a.label, type: a.type, options: a.options ?? undefined, isRequired: a.isRequired ?? false, sortOrder: a.sortOrder },
+        create: {
+          categoryId: cat.id,
+          key: a.key,
+          label: a.label,
+          type: a.type,
+          options: a.options ?? undefined,
+          isFilter: true,
+          isRequired: a.isRequired ?? false,
+          sortOrder: a.sortOrder,
+        },
+      });
+    }
+  }
+}
+
 async function seedFees() {
   const existing = await prisma.feeRule.findFirst({ where: { scope: FeeScope.global } });
   if (!existing) {
@@ -97,6 +146,7 @@ async function seedFees() {
 async function main() {
   await seedRbac();
   await seedCatalog();
+  await seedAttributes();
   await seedFees();
   console.log('✅ Seed завершён');
 }

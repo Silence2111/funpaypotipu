@@ -189,6 +189,8 @@ export class ListingsService {
     });
     if (!category) throw new NotFoundException('Категория не найдена для указанной игры');
 
+    await this.validateAttributes(input.categoryId, input.attributes);
+
     const created = await this.prisma.listing.create({
       data: {
         sellerId,
@@ -209,6 +211,23 @@ export class ListingsService {
     });
     await this.search.indexListing(created.id);
     return created;
+  }
+
+  /** Проверка атрибутов лота против схемы категории (обязательные + enum-опции). */
+  private async validateAttributes(categoryId: string, attrs: Record<string, unknown>) {
+    const schema = await this.prisma.attribute.findMany({ where: { categoryId } });
+    for (const a of schema) {
+      const val = attrs?.[a.key];
+      const empty = val === undefined || val === null || val === '';
+      if (a.isRequired && empty) {
+        throw new BadRequestException(`Укажите характеристику «${a.label}»`);
+      }
+      if (!empty && a.type === 'enum' && Array.isArray(a.options)) {
+        if (!(a.options as unknown[]).map(String).includes(String(val))) {
+          throw new BadRequestException(`Недопустимое значение «${a.label}»`);
+        }
+      }
+    }
   }
 
   async update(sellerId: string, id: string, input: UpdateListingInput) {
