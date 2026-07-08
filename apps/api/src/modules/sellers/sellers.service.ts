@@ -44,6 +44,17 @@ export class SellersService {
     ];
     const online = !!profile.onlineAt && now - profile.onlineAt.getTime() < 5 * 60 * 1000;
 
+    // Гистограмма рейтинга (сколько отзывов на каждую звезду) — как у FunPay.
+    const grouped = await this.prisma.review.groupBy({
+      by: ['rating'],
+      where: { targetId: sellerId },
+      _count: { _all: true },
+    });
+    const ratingBreakdown = [5, 4, 3, 2, 1].map((star) => ({
+      star,
+      count: grouped.find((g) => g.rating === star)?._count._all ?? 0,
+    }));
+
     return {
       id: profile.userId,
       username: profile.username,
@@ -60,6 +71,7 @@ export class SellersService {
       online,
       verified,
       level: { key: level.key, label: level.label },
+      ratingBreakdown,
     };
   }
 

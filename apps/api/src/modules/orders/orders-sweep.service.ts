@@ -6,6 +6,8 @@ import { OrdersService } from './orders.service';
 
 const SWEEP_INTERVAL_MS = Number(process.env.ORDER_SWEEP_INTERVAL_MS ?? 60_000);
 const PAYMENT_TTL_MS = Number(process.env.ORDER_PAYMENT_TTL_MS ?? 30 * 60 * 1000);
+// Дедлайн выдачи для ручных заказов (как 24ч у Playerok) → авто-возврат.
+const FULFILL_DEADLINE_MS = Number(process.env.ORDER_FULFILL_DEADLINE_MS ?? 24 * 3600 * 1000);
 
 /**
  * Периодический прогон таймеров сделок (docs/03):
@@ -45,5 +47,20 @@ export class OrdersSweepService {
       data: { status: 'expired' },
     });
     if (toExpire.count) this.logger.log(`Просрочено неоплаченных заказов: ${toExpire.count}`);
+
+    // Оплаченные ручные заказы без выдачи дольше дедлайна → авто-возврат покупателю.
+    const overdueBefore = new Date(now.getTime() - FULFILL_DEADLINE_MS);
+    const overdue = await this.prisma.order.findMany({
+      where: { status: 'paid', fulfillmentType: 'manual', paidAt: { lte: overdueBefore } },
+      select: { id: true },
+    });
+    for (const o of overdue) {
+      try {
+        await this.orders.refundOverdue(o.id);
+        this.logger.log(`Авто-возврат просроченного заказа ${o.id}`);
+      } catch (e) {
+        this.logger.warn(`Авто-возврат ${o.id} не удался: ${(e as Error).message}`);
+      }
+    }
   }
 }

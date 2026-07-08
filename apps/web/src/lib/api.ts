@@ -86,6 +86,7 @@ export interface SellerProfile {
   online: boolean;
   verified: boolean;
   level: { key: string; label: string };
+  ratingBreakdown: { star: number; count: number }[];
 }
 
 export const getSeller = (id: string) => apiTry<SellerProfile>(`/sellers/${id}`);

@@ -282,6 +282,33 @@ export class OrdersService {
     throw new ConflictException(`Нельзя отменить заказ в статусе ${order.status}`);
   }
 
+  /** Продавец не выдал товар в срок → системный возврат покупателю (вызывается sweep). */
+  async refundOverdue(orderId: string) {
+    const order = await this.get(orderId);
+    if (order.status !== 'paid') return;
+    await this.ledger.post({
+      legs: refundToBalance(order.buyerId, order.amount),
+      currency: order.currency,
+      idempotencyKey: `refund:${order.id}`,
+      orderId: order.id,
+      refType: 'order_refund_overdue',
+      refId: order.id,
+    });
+    await this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
+    await this.notifications.notify(order.buyerId, 'order_refunded', {
+      orderId: order.id,
+      reason: 'seller_timeout',
+    });
+    await this.notifications.notify(order.sellerId, 'order_cancelled', {
+      orderId: order.id,
+      reason: 'seller_timeout',
+    });
+    await this.sys(
+      order.id,
+      'Продавец не выдал товар в срок — заказ отменён автоматически, средства возвращены покупателю.',
+    );
+  }
+
   /** Перевод заказа в спор (вызывается disputes-модулем). */
   async markDisputed(orderId: string, userId: string) {
     const order = await this.get(orderId);

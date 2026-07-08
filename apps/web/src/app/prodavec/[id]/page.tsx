@@ -92,6 +92,23 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
                 с {new Date(seller.memberSince).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' })}
               </span>
             </div>
+
+            {seller.ratingCount > 0 && (
+              <div style={{ marginTop: 16, maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {seller.ratingBreakdown.map(({ star, count }) => {
+                  const pct = seller.ratingCount ? Math.round((count / seller.ratingCount) * 100) : 0;
+                  return (
+                    <div key={star} className="row" style={{ gap: 8, fontSize: 12 }}>
+                      <span className="faint" style={{ width: 28 }}>{star}★</span>
+                      <span style={{ flex: 1, height: 6, background: 'var(--bg-subtle)', borderRadius: 999, overflow: 'hidden' }}>
+                        <span style={{ display: 'block', width: `${pct}%`, height: '100%', background: '#f5a623' }} />
+                      </span>
+                      <span className="faint" style={{ width: 24, textAlign: 'right' }}>{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
