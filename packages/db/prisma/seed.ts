@@ -92,6 +92,8 @@ async function seedAttributes() {
       { key: 'region', label: 'Регион', type: 'enum', isRequired: true, sortOrder: 2,
         options: ['EU', 'CIS', 'NA', 'Asia'] },
       { key: 'prime', label: 'Prime-статус', type: 'bool', sortOrder: 3 },
+      { key: 'delivery', label: 'Способ получения', type: 'enum', sortOrder: 4,
+        options: ['Со сменой почты', 'Данные без входа', 'Перепривязка'] },
     ],
     skins: [
       { key: 'rarity', label: 'Редкость', type: 'enum', isRequired: true, sortOrder: 1,
@@ -135,11 +137,37 @@ async function seedFees() {
       data: {
         scope: FeeScope.global,
         feeBuyerPct: 0,
-        feeSellerPct: 0.1, // 10% с продавца по умолчанию
+        feeSellerPct: 0.1, // 10% по умолчанию — уже дешевле 20% у конкурентов
         currency: 'RUB',
         priority: 0,
       },
     });
+  }
+
+  // Дифференцированная комиссия по категориям (как 10%/20% у Playerok):
+  // цифровые ключи/лицензии дешевле — 10%.
+  const cs2 = await prisma.game.findUnique({ where: { slug: 'cs2' } });
+  if (cs2) {
+    const keys = await prisma.category.findUnique({
+      where: { gameId_slug: { gameId: cs2.id, slug: 'keys' } },
+    });
+    if (keys) {
+      const has = await prisma.feeRule.findFirst({
+        where: { scope: FeeScope.category, scopeRef: keys.id, currency: 'RUB' },
+      });
+      if (!has) {
+        await prisma.feeRule.create({
+          data: {
+            scope: FeeScope.category,
+            scopeRef: keys.id,
+            feeBuyerPct: 0,
+            feeSellerPct: 0.07, // 7% на ключи/лицензии (ещё дешевле)
+            currency: 'RUB',
+            priority: 10,
+          },
+        });
+      }
+    }
   }
 }
 

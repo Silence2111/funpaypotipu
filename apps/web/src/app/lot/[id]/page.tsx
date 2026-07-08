@@ -134,9 +134,16 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             <MessageSellerButton listingId={listing.id} />
           </div>
 
-          <div className="row faint" style={{ fontSize: 13, gap: 6, marginTop: 14 }}>
-            <ShieldCheck size={15} strokeWidth={1.75} />
-            Оплата защищена эскроу
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {[
+              'Оплата защищена эскроу',
+              'Возврат, если товар не получен',
+              'Возврат, если товар не как в описании',
+            ].map((t) => (
+              <div key={t} className="row faint" style={{ fontSize: 13, gap: 6 }}>
+                <ShieldCheck size={15} strokeWidth={1.75} /> {t}
+              </div>
+            ))}
           </div>
 
           <hr className="divider" style={{ margin: '20px 0' }} />
