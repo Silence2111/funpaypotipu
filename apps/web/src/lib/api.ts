@@ -33,6 +33,7 @@ export interface Category {
   title: string;
   segment: string;
   fulfillmentType: string;
+  listingCount?: number;
 }
 
 export type GameWithCategories = Game & { categories: Category[] };

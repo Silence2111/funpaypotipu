@@ -24,7 +24,18 @@ export class CatalogService {
       },
     });
     if (!game || !game.isActive) throw new NotFoundException('Игра не найдена');
-    return game;
+
+    // Счётчики активных лотов по категориям (как «Аккаунты 8» на FunPay).
+    const counts = await this.prisma.listing.groupBy({
+      by: ['categoryId'],
+      where: { gameId: game.id, status: 'active' },
+      _count: { _all: true },
+    });
+    const countMap = new Map(counts.map((c) => [c.categoryId, c._count._all]));
+    return {
+      ...game,
+      categories: game.categories.map((c) => ({ ...c, listingCount: countMap.get(c.id) ?? 0 })),
+    };
   }
 
   async getCategoryAttributes(categoryId: string) {

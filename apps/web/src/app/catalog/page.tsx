@@ -89,6 +89,9 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             <Link key={c.id} href={qs({ category: c.slug, page: '1' })} className="chip"
               style={{ ...chip(sp.category === c.slug), fontSize: 13 }}>
               {c.title}
+              {typeof c.listingCount === 'number' && (
+                <span className="faint" style={{ marginLeft: 4 }}>{c.listingCount}</span>
+              )}
             </Link>
           ))}
         </div>
