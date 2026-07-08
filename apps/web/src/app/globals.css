@@ -7,9 +7,37 @@
   --border: rgba(0, 0, 0, 0.08);
   --border-strong: rgba(0, 0, 0, 0.14);
   --accent: #0071e3;
+  --header-bg: rgba(255, 255, 255, 0.8);
   --radius: 16px;
   --radius-sm: 10px;
   --maxw: 1040px;
+}
+
+/* Тёмная тема — рабочая (у FunPay нет вообще, у Playerok сломана). */
+:root[data-theme='dark'],
+:root[data-theme='dark'] body {
+  --bg: #0b0b0d;
+  --bg-subtle: #1c1c1e;
+  --fg: #f5f5f7;
+  --fg-muted: #a1a1a6;
+  --fg-faint: #8a8a8f;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --accent: #0a84ff;
+  --header-bg: rgba(20, 20, 22, 0.8);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0b0b0d;
+    --bg-subtle: #1c1c1e;
+    --fg: #f5f5f7;
+    --fg-muted: #a1a1a6;
+    --fg-faint: #8a8a8f;
+    --border: rgba(255, 255, 255, 0.1);
+    --border-strong: rgba(255, 255, 255, 0.2);
+    --accent: #0a84ff;
+    --header-bg: rgba(20, 20, 22, 0.8);
+  }
 }
 
 * {
@@ -53,7 +81,7 @@ a {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--header-bg);
   backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 1px solid var(--border);
 }

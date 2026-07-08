@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Gamepad2 } from 'lucide-react';
 import { AuthNav } from './auth-nav';
+import { ThemeToggle } from './theme-toggle';
 
 export function SiteHeader() {
   return (
@@ -16,6 +17,7 @@ export function SiteHeader() {
           <Link href="/#how">Как это работает</Link>
         </nav>
         <span className="spacer" />
+        <ThemeToggle />
         <AuthNav />
       </div>
     </header>

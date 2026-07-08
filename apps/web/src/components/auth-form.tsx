@@ -17,6 +17,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   const isRegister = mode === 'register';
 
@@ -51,8 +52,15 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         )}
         <input className="input" type="password" placeholder="Пароль" value={password} required minLength={8}
           onChange={(e) => setPassword(e.target.value)} />
+        {isRegister && (
+          <label className="row muted" style={{ gap: 8, fontSize: 13, alignItems: 'flex-start' }}>
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)}
+              style={{ marginTop: 3 }} />
+            <span>Мне есть 18 лет, я принимаю <Link href="/rules">правила площадки</Link></span>
+          </label>
+        )}
         {error && <p style={{ color: '#d33', fontSize: 14, margin: 0 }}>{error}</p>}
-        <button className="btn" type="submit" disabled={busy} style={{ width: '100%' }}>
+        <button className="btn" type="submit" disabled={busy || (isRegister && !agreed)} style={{ width: '100%' }}>
           {busy ? '…' : isRegister ? 'Зарегистрироваться' : 'Войти'}
         </button>
       </form>

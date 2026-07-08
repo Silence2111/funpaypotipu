@@ -25,12 +25,19 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru">
       <body>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}",
+          }}
+        />
         <SiteHeader />
         <main>{children}</main>
         <footer className="container" style={{ padding: '64px 24px 48px', marginTop: 64 }}>
           <hr className="divider" style={{ marginBottom: 24 }} />
           <p className="faint" style={{ fontSize: 13 }}>
-            © {new Date().getFullYear()} GameMarket · Фаза 1 · эскроу-защита сделки
+            © {new Date().getFullYear()} GameMarket · эскроу-защита сделки ·{' '}
+            <a href="/rules" style={{ textDecoration: 'underline' }}>Правила и гарантии</a>
           </p>
         </footer>
       </body>
