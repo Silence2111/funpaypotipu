@@ -43,7 +43,12 @@ export class OrdersService {
     if (listing.sellerId === buyerId) throw new BadRequestException('Нельзя купить собственный лот');
 
     const base = listing.price;
-    const f = await this.fees.computeForCategory(base, listing.categoryId, listing.currency);
+    const f = await this.fees.computeForCategory(
+      base,
+      listing.categoryId,
+      listing.currency,
+      listing.sellerId,
+    );
 
     // Промокод: скидка снимается с комиссии площадки (не с выплаты продавцу).
     let amount = f.amountToPay;
@@ -169,12 +174,15 @@ export class OrdersService {
       },
     });
 
+    // Холд короче для доверенных продавцов (уровень) — быстрее выплата.
+    const level = await this.fees.levelOf(order.sellerId);
+    const holdMs = Math.min(level.holdHours * 3600 * 1000, AUTO_CONFIRM_TTL_MS);
     const delivered = await this.prisma.order.update({
       where: { id: order.id },
       data: {
         status: 'delivered',
         deliveredAt: new Date(),
-        autoConfirmAt: new Date(Date.now() + AUTO_CONFIRM_TTL_MS),
+        autoConfirmAt: new Date(Date.now() + holdMs),
       },
     });
     await this.notifications.notify(delivered.buyerId, 'order_delivered', { orderId: delivered.id });

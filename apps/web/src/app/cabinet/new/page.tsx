@@ -22,6 +22,7 @@ export default function NewListingPage() {
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [quote, setQuote] = useState<{ feeSeller: string; sellerPayout: string; level: { label: string } | null } | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -30,6 +31,22 @@ export default function NewListingPage() {
     }
     apiFetch<Game[]>('/catalog/games').then(setGames).catch(() => {});
   }, [router]);
+
+  // Живое превью комиссии/выплаты с учётом уровня продавца.
+  useEffect(() => {
+    const rub = parseFloat(price.replace(',', '.'));
+    if (!categoryId || !(rub > 0)) {
+      setQuote(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      const p = new URLSearchParams({ categoryId, price: String(Math.round(rub * 100)), currency: 'RUB' });
+      apiFetch<{ feeSeller: string; sellerPayout: string; level: { label: string } | null }>(`/fees/quote?${p}`)
+        .then(setQuote)
+        .catch(() => setQuote(null));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [categoryId, price]);
 
   async function onGame(slug: string) {
     const g = games.find((x) => x.slug === slug);
@@ -114,6 +131,24 @@ export default function NewListingPage() {
         <input className="input" placeholder="Название" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />
         <textarea className="input" placeholder="Описание" style={{ minHeight: 120, resize: 'vertical' }} value={description} onChange={(e) => setDescription(e.target.value)} />
         <input className="input" placeholder="Цена, ₽" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+
+        {quote && (
+          <div className="card" style={{ padding: 14, background: 'var(--bg-subtle)', border: 'none' }}>
+            <div className="row" style={{ justifyContent: 'space-between', fontSize: 14 }}>
+              <span className="faint">Комиссия площадки</span>
+              <span>−{(Number(quote.feeSeller) / 100).toLocaleString('ru-RU')} ₽</span>
+            </div>
+            <div className="row" style={{ justifyContent: 'space-between', fontSize: 15, fontWeight: 600, marginTop: 6 }}>
+              <span>Вы получите</span>
+              <span style={{ color: '#1a7f37' }}>{(Number(quote.sellerPayout) / 100).toLocaleString('ru-RU')} ₽</span>
+            </div>
+            {quote.level && (
+              <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>
+                Ваш уровень: {quote.level.label}
+              </div>
+            )}
+          </div>
+        )}
 
         <div>
           <label className="chip" style={{ cursor: 'pointer' }}>
