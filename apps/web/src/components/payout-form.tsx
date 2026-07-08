@@ -31,8 +31,11 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
       setAmount('');
       setDest('');
       onDone();
-    } catch {
-      setMsg('Не удалось создать заявку (недостаточно средств?)');
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : '';
+      // Бэкенд отдаёт человекочитаемое сообщение (верификация/баланс) — покажем его.
+      const m = raw.match(/"message":"([^"]+)"/);
+      setMsg(m?.[1] ?? raw.slice(0, 120) ?? 'Не удалось создать заявку');
     } finally {
       setBusy(false);
     }

@@ -14,6 +14,8 @@ import { AuditService } from '../access/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 const NEWBIE_HOLD_DAYS = Number(process.env.PAYOUT_NEWBIE_HOLD_DAYS ?? 3);
+// Вывод свыше порога — только после верификации личности (минорные единицы).
+const KYC_REQUIRED_ABOVE = BigInt(process.env.PAYOUT_KYC_REQUIRED_ABOVE ?? 1_500_000);
 
 @Injectable()
 export class PayoutsService {
@@ -30,6 +32,19 @@ export class PayoutsService {
     if (amount <= 0n) throw new BadRequestException('Сумма должна быть положительной');
     const balance = await this.ledger.balanceOf(userId, currency);
     if (balance < amount) throw new BadRequestException('Недостаточно средств на балансе');
+
+    // Крупный вывод — только после верификации личности (как на Playerok/PlayerAuctions).
+    if (amount > KYC_REQUIRED_ABOVE) {
+      const kyc = await this.prisma.kycVerification.findFirst({
+        where: { userId, status: 'approved', level: 'document' },
+        select: { id: true },
+      });
+      if (!kyc) {
+        throw new BadRequestException(
+          'Для вывода свыше 15 000 ₽ подтвердите личность в разделе «Верификация»',
+        );
+      }
+    }
 
     const profile = await this.prisma.profile.findUnique({ where: { userId } });
     const holdDays = profile && profile.salesCount > 0 ? 0 : NEWBIE_HOLD_DAYS;
