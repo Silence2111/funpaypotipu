@@ -70,9 +70,30 @@ export const getGames = () => apiTry<Game[]>('/catalog/games');
 export const getGame = (slug: string) => apiTry<GameWithCategories>(`/catalog/games/${slug}`);
 export const getListing = (id: string) => apiTry<ListingDetail>(`/listings/${id}`);
 
+export interface SellerProfile {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  country: string | null;
+  ratingAvg: number;
+  ratingCount: number;
+  salesCount: number;
+  activeListings: number;
+  memberSince: string;
+  onlineAt: string | null;
+  online: boolean;
+  verified: boolean;
+  level: { key: string; label: string };
+}
+
+export const getSeller = (id: string) => apiTry<SellerProfile>(`/sellers/${id}`);
+
 export function browseListings(params: {
   gameSlug?: string;
   categorySlug?: string;
+  sellerId?: string;
   q?: string;
   sort?: string;
   limit?: number;

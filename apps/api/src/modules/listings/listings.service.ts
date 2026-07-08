@@ -58,7 +58,8 @@ export class ListingsService {
 
   async browse(query: ListingQuery) {
     // Текстовый запрос + доступный движок → релевантный поиск с typo-tolerance.
-    if (query.q && this.search.enabled) {
+    // При фильтре по продавцу идём в Postgres (sellerId не индексируется в Meili).
+    if (query.q && this.search.enabled && !query.sellerId) {
       const found = await this.search.searchIds(
         query.q,
         {
@@ -86,6 +87,7 @@ export class ListingsService {
 
     // Fallback: Postgres.
     const where: Prisma.ListingWhereInput = { status: 'active' };
+    if (query.sellerId) where.sellerId = query.sellerId;
     if (query.gameSlug) where.game = { slug: query.gameSlug };
     if (query.categorySlug) where.category = { slug: query.categorySlug };
     if (query.q) where.title = { contains: query.q, mode: 'insensitive' };

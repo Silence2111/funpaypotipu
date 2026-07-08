@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
+import { PresenceInterceptor } from './common/presence.interceptor';
+import { SellersModule } from './modules/sellers/sellers.module';
 import { AccessModule } from './modules/access/access.module';
 import { CryptoModule } from './modules/crypto/crypto.module';
 import { StorageModule } from './modules/storage/storage.module';
@@ -60,6 +63,8 @@ import { KycModule } from './modules/kyc/kyc.module';
     ModerationModule,
     AdminModule,
     KycModule,
+    SellersModule,
   ],
+  providers: [{ provide: APP_INTERCEPTOR, useClass: PresenceInterceptor }],
 })
 export class AppModule {}

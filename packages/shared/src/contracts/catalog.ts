@@ -32,6 +32,7 @@ export type UpdateListingInput = z.infer<typeof updateListingSchema>;
 export const listingQuerySchema = z.object({
   gameSlug: z.string().optional(),
   categorySlug: z.string().optional(),
+  sellerId: z.string().uuid().optional(),
   q: z.string().trim().max(100).optional(),
   minPrice: z.coerce.number().int().nonnegative().optional(),
   maxPrice: z.coerce.number().int().nonnegative().optional(),

@@ -142,10 +142,10 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           <hr className="divider" style={{ margin: '20px 0' }} />
 
           <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span className="row muted" style={{ gap: 8, fontSize: 14 }}>
+            <Link href={`/prodavec/${listing.seller.id}`} className="row muted" style={{ gap: 8, fontSize: 14 }}>
               <User size={16} strokeWidth={1.75} />
               {listing.seller.profile?.username ?? 'продавец'}
-            </span>
+            </Link>
             {listing.seller.profile && listing.seller.profile.ratingCount > 0 && (
               <span className="row faint" style={{ gap: 4, fontSize: 13 }}>
                 <Star size={13} strokeWidth={1.75} />
