@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { MessagesSquare } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
 
-interface Conv { id: string; orderId: string | null; lastMessageAt: string | null }
+interface Conv { id: string; orderId: string | null; lastMessageAt: string | null; unread?: number }
 
 export default function ChatsPage() {
   const router = useRouter();
@@ -40,6 +40,7 @@ export default function ChatsPage() {
               <span className="row" style={{ gap: 10 }}>
                 <MessagesSquare size={18} strokeWidth={1.75} />
                 {c.orderId ? 'Диалог по сделке' : 'Предпродажный диалог'}
+                {!!c.unread && <span className="notif-badge">{c.unread}</span>}
               </span>
               {c.lastMessageAt && (
                 <span className="faint" style={{ fontSize: 12 }}>

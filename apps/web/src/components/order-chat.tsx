@@ -27,8 +27,13 @@ export function OrderChat({ conversationId, meId }: { conversationId: string; me
 
   useEffect(() => {
     let active = true;
+    const markRead = () =>
+      apiFetch(`/conversations/${conversationId}/read`, { method: 'POST' }).catch(() => {});
     apiFetch<Msg[]>(`/conversations/${conversationId}/messages`)
-      .then((m) => active && setMessages(m))
+      .then((m) => {
+        if (active) setMessages(m);
+        markRead();
+      })
       .catch(() => {});
 
     const socket = io(`${API}/chat`, {
@@ -44,6 +49,7 @@ export function OrderChat({ conversationId, meId }: { conversationId: string; me
     socket.on('disconnect', () => setLive(false));
     socket.on('message:new', (msg: Msg) => {
       setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
+      if (msg.senderId && msg.senderId !== meId) markRead();
     });
 
     return () => {

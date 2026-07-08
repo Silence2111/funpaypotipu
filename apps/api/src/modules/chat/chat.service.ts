@@ -84,11 +84,33 @@ export class ChatService {
     };
   }
 
-  listConversations(userId: string) {
-    return this.prisma.conversation.findMany({
+  async listConversations(userId: string) {
+    const convs = await this.prisma.conversation.findMany({
       where: { OR: [{ buyerId: userId }, { sellerId: userId }] },
       orderBy: { lastMessageAt: { sort: 'desc', nulls: 'last' } },
     });
+    if (!convs.length) return [];
+    const grouped = await this.prisma.message.groupBy({
+      by: ['conversationId'],
+      where: {
+        conversationId: { in: convs.map((c) => c.id) },
+        senderId: { not: userId },
+        readAt: null,
+      },
+      _count: { _all: true },
+    });
+    const unread = new Map(grouped.map((g) => [g.conversationId, g._count._all]));
+    return convs.map((c) => ({ ...c, unread: unread.get(c.id) ?? 0 }));
+  }
+
+  /** Отметить входящие сообщения диалога прочитанными. */
+  async markRead(conversationId: string, userId: string) {
+    await this.assertParticipant(conversationId, userId);
+    await this.prisma.message.updateMany({
+      where: { conversationId, senderId: { not: userId }, readAt: null },
+      data: { readAt: new Date() },
+    });
+    return { ok: true };
   }
 
   /** Начать (или открыть существующий) предпродажный диалог с продавцом лота. */

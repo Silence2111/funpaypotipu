@@ -34,6 +34,11 @@ export class ChatController {
     return this.chat.getMessages(id, user.userId);
   }
 
+  @Post(':id/read')
+  read(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.chat.markRead(id, user.userId);
+  }
+
   @Post(':id/messages')
   send(
     @CurrentUser() user: AuthUser,
