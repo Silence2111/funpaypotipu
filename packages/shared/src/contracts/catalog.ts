@@ -37,6 +37,7 @@ export const listingQuerySchema = z.object({
   minPrice: z.coerce.number().int().nonnegative().optional(),
   maxPrice: z.coerce.number().int().nonnegative().optional(),
   sort: z.enum(['new', 'price_asc', 'price_desc', 'popular']).default('new'),
+  attrs: z.string().max(2000).optional(), // JSON вида {"rank":"Global Elite"}
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(60).default(24),
 });

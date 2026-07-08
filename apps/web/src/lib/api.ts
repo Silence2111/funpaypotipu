@@ -91,12 +91,27 @@ export interface SellerProfile {
 
 export const getSeller = (id: string) => apiTry<SellerProfile>(`/sellers/${id}`);
 
+export interface Attribute {
+  id: string;
+  key: string;
+  label: string;
+  type: string;
+  options: string[] | null;
+  isFilter: boolean;
+  isRequired: boolean;
+  sortOrder: number;
+}
+
+export const getCategoryAttributes = (categoryId: string) =>
+  apiTry<Attribute[]>(`/catalog/categories/${categoryId}/attributes`);
+
 export function browseListings(params: {
   gameSlug?: string;
   categorySlug?: string;
   sellerId?: string;
   q?: string;
   sort?: string;
+  attrs?: string;
   limit?: number;
   page?: number;
 }) {

@@ -59,10 +59,26 @@ export class ListingsService {
     return { ...row, images: resolved };
   }
 
+  private parseAttrs(raw?: string): Record<string, string> | undefined {
+    if (!raw) return undefined;
+    try {
+      const o: unknown = JSON.parse(raw);
+      if (!o || typeof o !== 'object') return undefined;
+      const out: Record<string, string> = {};
+      for (const [k, v] of Object.entries(o as Record<string, unknown>)) {
+        if (typeof v === 'string' && v) out[k] = v;
+      }
+      return Object.keys(out).length ? out : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   async browse(query: ListingQuery) {
+    const attrs = this.parseAttrs(query.attrs);
     // Текстовый запрос + доступный движок → релевантный поиск с typo-tolerance.
-    // При фильтре по продавцу идём в Postgres (sellerId не индексируется в Meili).
-    if (query.q && this.search.enabled && !query.sellerId) {
+    // При фильтре по продавцу/атрибутам идём в Postgres (в Meili они не индексируются).
+    if (query.q && this.search.enabled && !query.sellerId && !attrs) {
       const found = await this.search.searchIds(
         query.q,
         {
@@ -93,6 +109,12 @@ export class ListingsService {
     if (query.sellerId) where.sellerId = query.sellerId;
     if (query.gameSlug) where.game = { slug: query.gameSlug };
     if (query.categorySlug) where.category = { slug: query.categorySlug };
+    // Фасетные фильтры по атрибутам (JSON-путь в Postgres).
+    if (attrs) {
+      where.AND = Object.entries(attrs).map(([k, v]) => ({
+        attributes: { path: [k], equals: v },
+      }));
+    }
     if (query.q) where.title = { contains: query.q, mode: 'insensitive' };
     if (query.minPrice != null || query.maxPrice != null) {
       where.price = {
