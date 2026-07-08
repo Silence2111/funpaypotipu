@@ -107,7 +107,9 @@ export class ListingsService {
         ? [{ price: 'asc' }]
         : query.sort === 'price_desc'
           ? [{ price: 'desc' }]
-          : [{ boostUntil: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }];
+          : query.sort === 'popular'
+            ? [{ salesCount: 'desc' }, { createdAt: 'desc' }]
+            : [{ boostUntil: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }];
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.listing.findMany({

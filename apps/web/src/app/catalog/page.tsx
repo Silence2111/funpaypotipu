@@ -50,7 +50,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
           </Link>
         ))}
         <span className="spacer" />
-        {[['new', 'новые'], ['price_asc', 'дешевле'], ['price_desc', 'дороже']].map(([v, label]) => (
+        {[['new', 'новые'], ['popular', 'популярные'], ['price_asc', 'дешевле'], ['price_desc', 'дороже']].map(([v, label]) => (
           <Link key={v} href={qs({ sort: v, page: '1' })} className="chip"
             style={sort === v ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}>
             {label}
