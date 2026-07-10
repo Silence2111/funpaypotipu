@@ -37,4 +37,20 @@ export class TokenService {
   verifyRefresh(token: string): RefreshPayload {
     return this.jwt.verify<RefreshPayload>(token, { secret: process.env.JWT_REFRESH_SECRET });
   }
+
+  /** Одноразовый токен под конкретное действие (сброс пароля, верификация email). */
+  signPurpose(sub: string, purpose: string, ttlSec = 3600): string {
+    return this.jwt.sign({ sub, purpose }, {
+      secret: process.env.JWT_ACCESS_SECRET,
+      expiresIn: ttlSec,
+    });
+  }
+
+  verifyPurpose(token: string, purpose: string): string {
+    const p = this.jwt.verify<{ sub: string; purpose: string }>(token, {
+      secret: process.env.JWT_ACCESS_SECRET,
+    });
+    if (p.purpose !== purpose) throw new Error('Неверное назначение токена');
+    return p.sub;
+  }
 }

@@ -71,6 +71,11 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           <>Нет аккаунта? <Link href="/register">Создать</Link></>
         )}
       </p>
+      {!isRegister && (
+        <p className="faint" style={{ fontSize: 13, marginTop: 8, textAlign: 'center' }}>
+          <Link href="/forgot">Забыли пароль?</Link>
+        </p>
+      )}
     </div>
   );
 }

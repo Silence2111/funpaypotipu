@@ -57,6 +57,34 @@ export class AuthController {
     return this.complete(await this.auth.login(body, ctxOf(req)), res);
   }
 
+  @Post('forgot')
+  @HttpCode(200)
+  async forgot(
+    @Body(new ZodValidationPipe(z.object({ email: z.string().email() }))) body: { email: string },
+  ) {
+    await this.auth.requestPasswordReset(body.email);
+    return { ok: true };
+  }
+
+  @Post('reset')
+  @HttpCode(200)
+  async reset(
+    @Body(new ZodValidationPipe(z.object({ token: z.string().min(10), password: z.string().min(8).max(200) })))
+    body: { token: string; password: string },
+  ) {
+    await this.auth.resetPassword(body.token, body.password);
+    return { ok: true };
+  }
+
+  @Post('verify-email')
+  @HttpCode(200)
+  async verifyEmail(
+    @Body(new ZodValidationPipe(z.object({ token: z.string().min(10) }))) body: { token: string },
+  ) {
+    await this.auth.verifyEmail(body.token);
+    return { ok: true };
+  }
+
   @Post('refresh')
   @HttpCode(200)
   async refresh(

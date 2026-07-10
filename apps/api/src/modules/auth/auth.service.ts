@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -53,14 +54,60 @@ export class AuthService {
     });
 
     if (user.email) {
-      await this.mail.send(
-        user.email,
-        'Добро пожаловать в GameMarket',
-        `Здравствуйте, ${user.profile!.username}! Ваш аккаунт создан. Покупки защищены эскроу.`,
-      );
+      await this.sendVerification(user.id, user.email, user.profile!.username);
     }
 
     return this.issue(user.id, user.email, user.profile!.username, ctx);
+  }
+
+  private webUrl() {
+    return process.env.WEB_URL ?? 'http://localhost:3000';
+  }
+
+  private async sendVerification(userId: string, email: string, username: string) {
+    const token = this.tokens.signPurpose(userId, 'email_verify', 3 * 24 * 3600);
+    const link = `${this.webUrl()}/verify-email?token=${encodeURIComponent(token)}`;
+    await this.mail.send(
+      email,
+      'Подтвердите e-mail — GameMarket',
+      `Здравствуйте, ${username}! Подтвердите e-mail: ${link}\nПокупки защищены эскроу.`,
+    );
+  }
+
+  async verifyEmail(token: string): Promise<void> {
+    let userId: string;
+    try {
+      userId = this.tokens.verifyPurpose(token, 'email_verify');
+    } catch {
+      throw new BadRequestException('Ссылка недействительна или истекла');
+    }
+    await this.prisma.user.update({ where: { id: userId }, data: { emailVerified: new Date() } });
+  }
+
+  /** Запрос сброса пароля. Всегда «успех» — без утечки существования e-mail. */
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email }, include: { profile: true } });
+    if (user?.email) {
+      const token = this.tokens.signPurpose(user.id, 'pwd_reset', 3600);
+      const link = `${this.webUrl()}/reset?token=${encodeURIComponent(token)}`;
+      await this.mail.send(
+        user.email,
+        'Восстановление пароля — GameMarket',
+        `Сброс пароля (ссылка действует 1 час): ${link}\nЕсли вы не запрашивали — проигнорируйте письмо.`,
+      );
+    }
+  }
+
+  async resetPassword(token: string, password: string): Promise<void> {
+    let userId: string;
+    try {
+      userId = this.tokens.verifyPurpose(token, 'pwd_reset');
+    } catch {
+      throw new BadRequestException('Ссылка недействительна или истекла');
+    }
+    const passwordHash = await bcrypt.hash(password, 12);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    await this.prisma.authSession.deleteMany({ where: { userId } });
   }
 
   async login(input: LoginInput, ctx: RequestCtx): Promise<IssuedAuth> {
