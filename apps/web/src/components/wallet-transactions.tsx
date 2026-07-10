@@ -19,6 +19,7 @@ const REF_RU: Record<string, string> = {
   order_payment_balance: 'Оплата заказа с баланса',
   order_payment: 'Оплата заказа',
   escrow_release: 'Зачисление за продажу',
+  cashback: 'Кэшбэк за покупку',
   refund: 'Возврат',
   payout: 'Вывод средств',
   payout_hold: 'Заявка на вывод',

@@ -21,6 +21,7 @@ const LABELS: Record<string, string> = {
   order_refunded: 'Возврат по заказу',
   listing_out_of_stock: 'Закончились ключи по лоту — заказ возвращён',
   review_received: 'Новый отзыв',
+  cashback: 'Кэшбэк за покупку зачислен на баланс',
   new_message: 'Новое сообщение',
   dispute_opened: 'Открыт спор по сделке',
   dispute_resolved: 'Спор разрешён',

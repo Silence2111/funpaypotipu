@@ -83,6 +83,12 @@ export const refundToBalance = (buyerId: string, amount: Minor): PostingLeg[] =>
   credit(userAccount(buyerId, 'available'), amount),
 ];
 
+/** Кэшбэк покупателю на баланс за завершённую покупку (за счёт дохода площадки). */
+export const cashbackToBalance = (buyerId: string, amount: Minor): PostingLeg[] => [
+  debit(platformRevenue(), amount),
+  credit(userAccount(buyerId, 'available'), amount),
+];
+
 /** Заявка на вывод: резервируем сумму с баланса в обязательства к выплате. */
 export const holdForPayout = (userId: string, amount: Minor): PostingLeg[] => [
   debit(userAccount(userId, 'available'), amount),

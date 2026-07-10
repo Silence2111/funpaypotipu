@@ -14,6 +14,7 @@ import {
   payToEscrowFromGateway,
   refundToBalance,
   releaseEscrow,
+  cashbackToBalance,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
@@ -25,6 +26,7 @@ import { FeesService } from './fees.service';
 import { FulfillmentService } from './fulfillment.service';
 
 const AUTO_CONFIRM_TTL_MS = Number(process.env.ORDER_AUTO_CONFIRM_TTL_MS ?? 72 * 3600 * 1000); // docs/03
+const CASHBACK_PCT = Number(process.env.LOYALTY_CASHBACK_PCT ?? 0.02); // 2% кэшбэка на баланс покупателю
 
 @Injectable()
 export class OrdersService {
@@ -237,6 +239,22 @@ export class OrdersService {
         ? 'Срок проверки истёк — заказ подтверждён автоматически. Средства переданы продавцу.'
         : 'Покупатель подтвердил получение. Сделка завершена, средства переданы продавцу.',
     );
+
+    // Кэшбэк покупателю на баланс — наш ответ на «токены P» конкурентов (живые деньги).
+    const cashback = BigInt(Math.floor(Number(order.amount) * CASHBACK_PCT));
+    if (cashback > 0n) {
+      await this.ledger.post({
+        legs: cashbackToBalance(order.buyerId, cashback),
+        currency: order.currency,
+        idempotencyKey: `cashback:${order.id}`,
+        refType: 'cashback',
+        refId: order.id,
+      });
+      await this.notifications.notify(order.buyerId, 'cashback', {
+        orderId: order.id,
+        amount: cashback.toString(),
+      });
+    }
     return updated;
   }
 

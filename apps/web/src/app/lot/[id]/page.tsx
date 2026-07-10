@@ -134,6 +134,10 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             <MessageSellerButton listingId={listing.id} />
           </div>
 
+          <div className="badge" style={{ marginTop: 10, background: 'rgba(52,199,89,0.12)', color: '#1a7f37' }}>
+            +2% кэшбэк на баланс с этой покупки
+          </div>
+
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 7 }}>
             {[
               'Оплата защищена эскроу',
