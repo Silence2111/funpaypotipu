@@ -12,11 +12,12 @@ export interface WithdrawalMethod {
   maxAmount: bigint;
 }
 
+// Ставки ниже обоих конкурентов: FunPay 3% (мин 30₽), Playerok 6% (мин 60₽).
 export const WITHDRAWAL_METHODS: WithdrawalMethod[] = [
-  { key: 'sbp', label: 'СБП', feePct: 0.04, minFee: 4000n, minAmount: 30000n, maxAmount: 7_900_000n },
-  { key: 'card', label: 'Банковская карта', feePct: 0.04, minFee: 4000n, minAmount: 30000n, maxAmount: 7_900_000n },
-  { key: 'usdt', label: 'USDT (TRC20)', feePct: 0.02, minFee: 0n, minAmount: 50000n, maxAmount: 50_000_000n },
-  { key: 'yoomoney', label: 'ЮMoney', feePct: 0.04, minFee: 4000n, minAmount: 30000n, maxAmount: 7_900_000n },
+  { key: 'sbp', label: 'СБП', feePct: 0.025, minFee: 2500n, minAmount: 30000n, maxAmount: 7_900_000n },
+  { key: 'card', label: 'Банковская карта', feePct: 0.025, minFee: 2500n, minAmount: 30000n, maxAmount: 7_900_000n },
+  { key: 'usdt', label: 'USDT (TRC20)', feePct: 0.015, minFee: 0n, minAmount: 50000n, maxAmount: 50_000_000n },
+  { key: 'yoomoney', label: 'ЮMoney', feePct: 0.025, minFee: 2500n, minAmount: 30000n, maxAmount: 7_900_000n },
 ];
 
 export const WITHDRAWAL_METHOD_KEYS = WITHDRAWAL_METHODS.map((m) => m.key) as [string, ...string[]];

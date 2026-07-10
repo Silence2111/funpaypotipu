@@ -14,7 +14,6 @@ import { StorageService } from '../storage/storage.service';
 
 const ASSET_BASE = process.env.PUBLIC_ASSET_BASE ?? '';
 const BOOST_MS = 24 * 3600 * 1000; // лот держится в топе сутки
-const BOOST_COOLDOWN_MS = 4 * 3600 * 1000; // поднимать не чаще раза в 4 часа
 
 const cardSelect = {
   id: true,
@@ -182,7 +181,7 @@ export class ListingsService {
     return rows.map((r) => this.resolveImages(r));
   }
 
-  /** Поднять лот в топ (кулдаун 4 ч). */
+  /** Поднять лот в топ. Кулдаун merit-based: чем больше продаж — тем чаще (как на FunPay). */
   async bump(sellerId: string, listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
@@ -192,10 +191,17 @@ export class ListingsService {
     if (listing.sellerId !== sellerId) throw new ForbiddenException('Это не ваш лот');
     if (listing.status !== 'active') throw new BadRequestException('Поднять можно только активный лот');
 
+    const profile = await this.prisma.profile.findUnique({
+      where: { userId: sellerId },
+      select: { salesCount: true },
+    });
+    const sales = profile?.salesCount ?? 0;
+    const cooldownMs = (sales >= 50 ? 1 : sales >= 10 ? 2 : 4) * 3600 * 1000;
+
     const now = Date.now();
     if (listing.boostUntil) {
       const lastBump = listing.boostUntil.getTime() - BOOST_MS;
-      const wait = lastBump + BOOST_COOLDOWN_MS - now;
+      const wait = lastBump + cooldownMs - now;
       if (wait > 0) {
         const mins = Math.ceil(wait / 60000);
         throw new BadRequestException(`Поднять можно через ${mins} мин`);
