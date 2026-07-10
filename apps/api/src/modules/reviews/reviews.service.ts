@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaClient } from '@gamemarket/db';
+import { Prisma, PrismaClient } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -31,21 +31,28 @@ export class ReviewsService {
       const created = await tx.review.create({
         data: { orderId, authorId, targetId: order.sellerId, rating, comment },
       });
-      // Инкрементальный пересчёт агрегата рейтинга продавца.
-      const profile = await tx.profile.findUnique({ where: { userId: order.sellerId } });
-      if (profile) {
-        const count = profile.ratingCount + 1;
-        const avg = (profile.ratingAvg * profile.ratingCount + rating) / count;
-        await tx.profile.update({
-          where: { userId: order.sellerId },
-          data: { ratingCount: count, ratingAvg: avg },
-        });
-      }
+      await this.recomputeRating(tx, order.sellerId);
       return created;
     });
 
     await this.notifications.notify(order.sellerId, 'review_received', { orderId, rating });
     return review;
+  }
+
+  /** Взвешенный рейтинг: негативные оценки весят больше (как на FunPay). */
+  private async recomputeRating(tx: Prisma.TransactionClient, targetId: string) {
+    const rows = await tx.review.findMany({ where: { targetId }, select: { rating: true } });
+    let wsum = 0;
+    let rsum = 0;
+    for (const r of rows) {
+      const w = r.rating <= 2 ? 3 : r.rating === 3 ? 2 : 1;
+      wsum += w;
+      rsum += r.rating * w;
+    }
+    await tx.profile.update({
+      where: { userId: targetId },
+      data: { ratingAvg: wsum ? rsum / wsum : 0, ratingCount: rows.length },
+    });
   }
 
   async reply(reviewId: string, sellerId: string, text: string) {
