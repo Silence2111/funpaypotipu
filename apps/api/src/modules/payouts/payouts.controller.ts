@@ -5,12 +5,13 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
+import { WITHDRAWAL_METHOD_KEYS } from '@gamemarket/shared';
 import { PayoutsService } from './payouts.service';
 
 const requestSchema = z.object({
   amount: z.union([z.string(), z.number()]).transform((v) => String(v))
     .refine((v) => /^\d+$/.test(v), 'ожидается целое число минорных единиц'),
-  method: z.enum(['card', 'sbp', 'crypto']),
+  method: z.enum(WITHDRAWAL_METHOD_KEYS),
   destination: z.string().min(4).max(200),
 });
 const rejectSchema = z.object({ reason: z.string().max(500).optional() });
@@ -32,6 +33,11 @@ export class PayoutsController {
   @Get('mine')
   mine(@CurrentUser() user: AuthUser) {
     return this.payouts.listMine(user.userId);
+  }
+
+  @Get('methods')
+  methods() {
+    return this.payouts.listMethods();
   }
 
   // ── Финансовый оператор ──

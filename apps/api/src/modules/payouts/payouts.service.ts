@@ -6,7 +6,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaClient } from '@gamemarket/db';
-import { holdForPayout, reversePayoutHold, settlePayout } from '@gamemarket/shared';
+import {
+  holdForPayout,
+  reversePayoutHold,
+  settlePayout,
+  WITHDRAWAL_METHODS,
+  getWithdrawalMethod,
+  computeWithdrawalFee,
+} from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
 import { EncryptionService } from '../crypto/encryption.service';
@@ -30,6 +37,16 @@ export class PayoutsService {
   /** Заявка на вывод: резерв суммы с баланса + холд для новичков (антифрод, docs/06). */
   async request(userId: string, amount: bigint, method: string, destination: string, currency = 'RUB') {
     if (amount <= 0n) throw new BadRequestException('Сумма должна быть положительной');
+
+    const wm = getWithdrawalMethod(method);
+    if (!wm) throw new BadRequestException('Неизвестный способ вывода');
+    if (amount < wm.minAmount) {
+      throw new BadRequestException(`Минимальная сумма вывода для «${wm.label}» — ${Number(wm.minAmount) / 100} ₽`);
+    }
+    if (amount > wm.maxAmount) {
+      throw new BadRequestException(`Максимум для «${wm.label}» — ${Number(wm.maxAmount) / 100} ₽`);
+    }
+
     const balance = await this.ledger.balanceOf(userId, currency);
     if (balance < amount) throw new BadRequestException('Недостаточно средств на балансе');
 
@@ -86,6 +103,18 @@ export class PayoutsService {
   }
 
   /** Одобрение выплаты (finance): проверка холда → отправка → баланс покидает площадку. */
+  /** Способы вывода с комиссиями/лимитами (для UI и превью «на руки»). */
+  listMethods() {
+    return WITHDRAWAL_METHODS.map((m) => ({
+      key: m.key,
+      label: m.label,
+      feePct: m.feePct,
+      minFee: m.minFee.toString(),
+      minAmount: m.minAmount.toString(),
+      maxAmount: m.maxAmount.toString(),
+    }));
+  }
+
   async approve(payoutId: string, actorId: string) {
     const payout = await this.get(payoutId);
     if (payout.status !== 'requested') throw new ConflictException('Заявка уже обработана');
@@ -93,8 +122,11 @@ export class PayoutsService {
       throw new BadRequestException(`На холде до ${payout.holdUntil.toISOString()}`);
     }
 
+    // Комиссия за вывод удерживается на выплате и идёт в доход площадки.
+    const wm = getWithdrawalMethod(payout.method);
+    const fee = wm ? computeWithdrawalFee(payout.amount, wm) : 0n;
     await this.ledger.post({
-      legs: settlePayout(payout.amount),
+      legs: settlePayout(payout.amount, fee),
       currency: payout.currency,
       idempotencyKey: `payout_settle:${payout.id}`,
       refType: 'payout_settle',

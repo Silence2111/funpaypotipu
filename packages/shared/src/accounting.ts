@@ -89,10 +89,11 @@ export const holdForPayout = (userId: string, amount: Minor): PostingLeg[] => [
   credit(platformAccount('payout_payable'), amount),
 ];
 
-/** Выплата отправлена наружу: обязательство → шлюз. */
-export const settlePayout = (amount: Minor): PostingLeg[] => [
+/** Выплата отправлена наружу: обязательство → шлюз (нетто) + комиссия в доход. */
+export const settlePayout = (amount: Minor, fee: Minor = 0n): PostingLeg[] => [
   debit(platformAccount('payout_payable'), amount),
-  credit(gatewayClearing(), amount),
+  credit(gatewayClearing(), amount - fee),
+  ...(fee > 0n ? [credit(platformRevenue(), fee)] : []),
 ];
 
 /** Заявка отклонена: возвращаем зарезервированное на баланс. */

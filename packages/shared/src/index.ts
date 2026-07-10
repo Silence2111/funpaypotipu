@@ -3,5 +3,6 @@ export * from './accounting';
 export * from './masking';
 export * from './enums';
 export * from './seller-level';
+export * from './withdrawal';
 export * from './contracts/auth';
 export * from './contracts/catalog';
