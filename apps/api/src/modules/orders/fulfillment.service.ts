@@ -78,10 +78,12 @@ export class FulfillmentService {
   }
 
   private async deliverTopUp(order: Order): Promise<void> {
+    const account = (order.listingSnapshot as { account?: string } | null)?.account;
     const res = await this.topup.topUp({
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
+      account,
     });
     if (!res.ok) return;
 

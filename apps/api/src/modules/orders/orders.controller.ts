@@ -8,6 +8,7 @@ import { OrdersService } from './orders.service';
 const createOrderSchema = z.object({
   listingId: z.string().uuid(),
   promoCode: z.string().min(3).max(32).optional(),
+  account: z.string().max(120).optional(), // игровой UID/логин для пополнений (provider)
 });
 
 @Controller('orders')
@@ -18,9 +19,10 @@ export class OrdersController {
   @Post()
   create(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(createOrderSchema)) body: { listingId: string; promoCode?: string },
+    @Body(new ZodValidationPipe(createOrderSchema))
+    body: { listingId: string; promoCode?: string; account?: string },
   ) {
-    return this.orders.create(user.userId, body.listingId, body.promoCode);
+    return this.orders.create(user.userId, body.listingId, body.promoCode, body.account);
   }
 
   @Get('mine')

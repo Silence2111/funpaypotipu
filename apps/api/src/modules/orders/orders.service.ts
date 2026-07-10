@@ -46,10 +46,13 @@ export class OrdersService {
     await this.chat.postSystem(orderId, text).catch(() => {});
   }
 
-  async create(buyerId: string, listingId: string, promoCode?: string) {
+  async create(buyerId: string, listingId: string, promoCode?: string, account?: string) {
     const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing || listing.status !== 'active') throw new NotFoundException('Лот недоступен');
     if (listing.sellerId === buyerId) throw new BadRequestException('Нельзя купить собственный лот');
+    if (listing.fulfillmentType === 'provider' && !account?.trim()) {
+      throw new BadRequestException('Укажите игровой ID/логин для пополнения');
+    }
 
     const base = listing.price;
     const f = await this.fees.computeForCategory(
@@ -76,6 +79,7 @@ export class OrdersService {
           title: listing.title,
           basePrice: base.toString(),
           currency: listing.currency,
+          ...(account?.trim() ? { account: account.trim() } : {}),
         } as Prisma.InputJsonValue,
         qty: 1,
         amount,

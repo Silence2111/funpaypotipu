@@ -124,6 +124,13 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           <h1 className="h2" style={{ fontSize: 22, lineHeight: 1.25 }}>
             {listing.title}
           </h1>
+          <span className="badge" style={{ marginTop: 8 }}>
+            {listing.fulfillmentType === 'auto_key'
+              ? 'Автовыдача · мгновенно'
+              : listing.fulfillmentType === 'provider'
+                ? 'Пополнение по игровому ID'
+                : 'Выдача продавцом'}
+          </span>
           <div className="price" style={{ fontSize: 28, margin: '16px 0' }}>
             {formatPrice(listing.price, listing.currency)}
           </div>
@@ -154,7 +161,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             );
           })()}
 
-          <BuyButton listingId={listing.id} />
+          <BuyButton listingId={listing.id} fulfillmentType={listing.fulfillmentType} />
 
           <div className="row" style={{ marginTop: 12, gap: 8, flexWrap: 'wrap' }}>
             <FavoriteButton listingId={listing.id} />
