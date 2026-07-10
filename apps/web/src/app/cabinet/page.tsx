@@ -10,6 +10,7 @@ import { TopUpForm } from '@/components/topup-form';
 import { PayoutForm } from '@/components/payout-form';
 import { WalletTransactions } from '@/components/wallet-transactions';
 import { BumpButton } from '@/components/bump-button';
+import { SellerDashboard } from '@/components/seller-dashboard';
 
 interface WalletDto { currency: string; balance: string }
 interface OrderRow { id: string; publicNumber: string; status: string; amount: string; currency: string }
@@ -78,6 +79,8 @@ export default function CabinetPage() {
         <div className="faint" style={{ fontSize: 13 }}>История операций</div>
         <WalletTransactions />
       </div>
+
+      <SellerDashboard />
 
       <section>
         <div className="section-head">

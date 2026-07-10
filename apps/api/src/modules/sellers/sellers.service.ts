@@ -75,6 +75,65 @@ export class SellersService {
     };
   }
 
+  /** Аналитика для кабинета продавца (у FunPay/Playerok такого дашборда нет). */
+  async dashboard(sellerId: string) {
+    const [profile, activeListings, inProgress, completed] = await Promise.all([
+      this.prisma.profile.findUnique({
+        where: { userId: sellerId },
+        select: { ratingAvg: true, ratingCount: true, salesCount: true },
+      }),
+      this.prisma.listing.count({ where: { sellerId, status: 'active' } }),
+      this.prisma.order.count({ where: { sellerId, status: { in: ['paid', 'delivered'] } } }),
+      this.prisma.order.findMany({
+        where: { sellerId, status: 'completed' },
+        select: { sellerPayoutAmount: true, completedAt: true },
+      }),
+    ]);
+
+    const revenueTotal = completed.reduce((s, o) => s + o.sellerPayoutAmount, 0n);
+    const dayMs = 86400 * 1000;
+    const now = Date.now();
+    const since30 = now - 30 * dayMs;
+    let revenue30 = 0n;
+    let sales30 = 0;
+
+    // Выручка по дням за 14 дней (для мини-графика).
+    const series = Array.from({ length: 14 }, () => 0);
+    for (const o of completed) {
+      if (!o.completedAt) continue;
+      const t = o.completedAt.getTime();
+      if (t >= since30) {
+        revenue30 += o.sellerPayoutAmount;
+        sales30 += 1;
+      }
+      const daysAgo = Math.floor((now - t) / dayMs);
+      if (daysAgo >= 0 && daysAgo < 14) {
+        series[13 - daysAgo] += Number(o.sellerPayoutAmount);
+      }
+    }
+
+    const verified = await this.isVerified(sellerId);
+    const level = sellerLevel({
+      salesCount: profile?.salesCount ?? 0,
+      ratingAvg: profile?.ratingAvg ?? 0,
+      ratingCount: profile?.ratingCount ?? 0,
+      verified,
+    });
+
+    return {
+      salesCount: profile?.salesCount ?? 0,
+      revenueTotal: revenueTotal.toString(),
+      sales30,
+      revenue30: revenue30.toString(),
+      activeListings,
+      inProgress,
+      ratingAvg: profile?.ratingAvg ?? 0,
+      ratingCount: profile?.ratingCount ?? 0,
+      level: { key: level.key, label: level.label },
+      revenueSeries: series, // 14 дней, минорные единицы
+    };
+  }
+
   private async isVerified(sellerId: string) {
     const kyc = await this.prisma.kycVerification.findFirst({
       where: { userId: sellerId, status: 'approved', level: 'document' },

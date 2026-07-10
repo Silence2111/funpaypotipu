@@ -92,6 +92,19 @@ export interface SellerProfile {
 
 export const getSeller = (id: string) => apiTry<SellerProfile>(`/sellers/${id}`);
 
+export interface SellerDashboard {
+  salesCount: number;
+  revenueTotal: string;
+  sales30: number;
+  revenue30: string;
+  activeListings: number;
+  inProgress: number;
+  ratingAvg: number;
+  ratingCount: number;
+  level: { key: string; label: string };
+  revenueSeries: number[];
+}
+
 export interface Attribute {
   id: string;
   key: string;
