@@ -24,6 +24,7 @@ const cardSelect = {
   status: true,
   createdAt: true,
   boostUntil: true,
+  fulfillmentType: true,
   seller: { select: { profile: { select: { username: true, ratingAvg: true, onlineAt: true } } } },
   category: { select: { slug: true, title: true } },
   game: { select: { slug: true, title: true } },
@@ -77,7 +78,7 @@ export class ListingsService {
     const attrs = this.parseAttrs(query.attrs);
     // Текстовый запрос + доступный движок → релевантный поиск с typo-tolerance.
     // При фильтре по продавцу/атрибутам идём в Postgres (в Meili они не индексируются).
-    if (query.q && this.search.enabled && !query.sellerId && !attrs) {
+    if (query.q && this.search.enabled && !query.sellerId && !attrs && !query.instant) {
       const found = await this.search.searchIds(
         query.q,
         {
@@ -106,6 +107,7 @@ export class ListingsService {
     // Fallback: Postgres.
     const where: Prisma.ListingWhereInput = { status: 'active' };
     if (query.sellerId) where.sellerId = query.sellerId;
+    if (query.instant) where.fulfillmentType = { in: ['auto_key', 'provider'] };
     if (query.gameSlug) where.game = { slug: query.gameSlug };
     if (query.categorySlug) where.category = { slug: query.categorySlug };
     // Фасетные фильтры по атрибутам (JSON-путь в Postgres).

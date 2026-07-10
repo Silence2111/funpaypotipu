@@ -46,6 +46,7 @@ export interface ListingCard {
   images: string[];
   status: string;
   createdAt: string;
+  fulfillmentType?: string;
   seller: { profile: { username: string; ratingAvg: number; onlineAt?: string | null } | null };
   category: { slug: string; title: string };
   game: { slug: string; title: string };
@@ -126,6 +127,7 @@ export function browseListings(params: {
   q?: string;
   sort?: string;
   attrs?: string;
+  instant?: boolean;
   limit?: number;
   page?: number;
 }) {

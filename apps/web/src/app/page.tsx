@@ -4,8 +4,13 @@ import { getGames, browseListings } from '@/lib/api';
 import { GameCardView, ListingCardView } from '@/components/cards';
 
 export default async function HomePage() {
-  const [games, browse] = await Promise.all([getGames(), browseListings({ limit: 8, sort: 'new' })]);
+  const [games, browse, instantBrowse] = await Promise.all([
+    getGames(),
+    browseListings({ limit: 8, sort: 'new' }),
+    browseListings({ limit: 8, instant: true, sort: 'popular' }),
+  ]);
   const listings = browse?.items ?? [];
+  const instant = instantBrowse?.items ?? [];
 
   return (
     <div className="container stack-lg" style={{ paddingTop: 72 }}>
@@ -39,6 +44,26 @@ export default async function HomePage() {
           </div>
         ))}
       </section>
+
+      {/* Instant delivery */}
+      {instant.length > 0 && (
+        <section>
+          <div className="section-head">
+            <h2 className="h2" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Zap size={20} strokeWidth={1.75} /> Мгновенная выдача
+            </h2>
+            <Link href="/catalog" className="muted" style={{ fontSize: 14 }}>Все →</Link>
+          </div>
+          <p className="muted" style={{ fontSize: 14, marginTop: -8, marginBottom: 16 }}>
+            Ключи и пополнения приходят автоматически сразу после оплаты · +2% кэшбэк на баланс
+          </p>
+          <div className="grid cols-auto">
+            {instant.map((l) => (
+              <ListingCardView key={l.id} listing={l} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Games */}
       <section id="games">
