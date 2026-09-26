@@ -38,7 +38,7 @@ function ResetInner() {
         <form onSubmit={submit} className="stack-form">
           <input className="input" type="password" placeholder="Новый пароль" value={password} required
             minLength={8} onChange={(e) => setPassword(e.target.value)} />
-          {err && <p style={{ color: '#d33', fontSize: 14, margin: 0 }}>{err}</p>}
+          {err && <p style={{ color: 'var(--danger)', fontSize: 14, margin: 0 }}>{err}</p>}
           <button className="btn" type="submit" disabled={busy} style={{ width: '100%' }}>
             {busy ? '…' : 'Сохранить пароль'}
           </button>

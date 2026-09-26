@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ShieldCheck, Star, Package, Calendar } from 'lucide-react';
+import { isDemoSeller } from '@gamemarket/shared';
 import { getSeller, browseListings } from '@/lib/api';
 import { ListingCardView } from '@/components/cards';
 import { SellerReviews } from '@/components/seller-reviews';
@@ -62,18 +63,19 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
             <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
               <h1 className="h1" style={{ fontSize: 26 }}>{seller.displayName}</h1>
               {seller.verified && (
-                <span className="row" style={{ gap: 4, fontSize: 13, color: '#0071e3' }}>
+                <span className="row" style={{ gap: 4, fontSize: 13, color: 'var(--accent)' }}>
                   <ShieldCheck size={16} strokeWidth={2} /> Проверенный
                 </span>
               )}
               <span className="badge">{seller.level.label}</span>
+              {isDemoSeller(seller.username) && <span className="demo-mark">Пример</span>}
             </div>
             <p className="faint" style={{ margin: '4px 0 0', fontSize: 14 }}>
               @{seller.username}
               {seen && (
                 <>
                   {' · '}
-                  <span style={{ color: seller.online ? '#1a7f37' : 'var(--fg-faint)' }}>{seen}</span>
+                  <span style={{ color: seller.online ? 'var(--success)' : 'var(--fg-faint)' }}>{seen}</span>
                 </>
               )}
             </p>
@@ -81,8 +83,8 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
 
             <div className="row" style={{ gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
               <span className="row" style={{ gap: 6, fontSize: 14 }}>
-                <Star size={15} strokeWidth={1.75} fill="#f5a623" color="#f5a623" />
-                {seller.ratingCount > 0 ? `${seller.ratingAvg.toFixed(1)} · ${seller.ratingCount} отз.` : 'нет оценок'}
+                <Star size={15} strokeWidth={1.75} fill={seller.ratingCount > 0 ? '#E8A317' : 'none'} color={seller.ratingCount > 0 ? '#E8A317' : 'currentColor'} />
+                {seller.ratingCount > 0 ? `${seller.ratingAvg.toFixed(1)} · ${seller.ratingCount} отз.` : 'отзывов пока нет'}
               </span>
               <span className="row faint" style={{ gap: 6, fontSize: 14 }}>
                 <Package size={15} strokeWidth={1.75} /> продаж: {seller.salesCount}

@@ -28,7 +28,7 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
       <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
         {instant && (
           <span className="badge success">
-            <Zap size={12} strokeWidth={2} /> сразу после оплаты
+            <Zap size={12} strokeWidth={2} /> выдача сразу
           </span>
         )}
         {isDemoSeller(listing.seller.profile?.username) && (
@@ -48,9 +48,7 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
                 <Star size={13} strokeWidth={1.75} />
                 {listing.seller.profile.ratingAvg.toFixed(1)}
               </>
-            ) : (
-              <span>без отзывов</span>
-            )}
+            ) : null}
           </span>
         )}
       </div>

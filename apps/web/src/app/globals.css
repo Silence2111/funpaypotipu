@@ -568,6 +568,10 @@ summary:focus-visible {
   }
   .grid.cols-auto {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .grid.cols-auto > .card {
+    padding: 14px;
   }
   .container {
     padding: 0 16px;

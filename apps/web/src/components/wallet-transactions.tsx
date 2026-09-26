@@ -51,7 +51,7 @@ export function WalletTransactions() {
                 {new Date(t.createdAt).toLocaleDateString('ru-RU')}
               </span>
             </span>
-            <span style={{ fontSize: 14, fontWeight: 500, color: positive ? '#1a7f37' : 'var(--fg)' }}>
+            <span style={{ fontSize: 14, fontWeight: 500, color: positive ? 'var(--success)' : 'var(--fg)' }}>
               {positive ? '+' : '−'}{formatPrice(t.amount, t.currency)}
             </span>
           </div>

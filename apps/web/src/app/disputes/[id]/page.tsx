@@ -113,7 +113,7 @@ export default function DisputePage() {
         {!messages.length && <p className="muted" style={{ fontSize: 14 }}>Сообщений пока нет. Опишите ситуацию и приложите доказательства.</p>}
       </div>
 
-      {err && <p style={{ color: '#d33', fontSize: 13 }}>{err}</p>}
+      {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
 
       {(dispute.status === 'open' || dispute.status === 'in_review') && (
         <form onSubmit={send} className="row" style={{ gap: 8 }}>

@@ -100,7 +100,7 @@ export function OrderChat({ conversationId, meId }: { conversationId: string; me
             width: 8,
             height: 8,
             borderRadius: 999,
-            background: live ? '#34c759' : '#c7c7cc',
+            background: live ? 'var(--success)' : '#c7c7cc',
           }}
         />
         <span className="faint" style={{ fontSize: 12 }}>
