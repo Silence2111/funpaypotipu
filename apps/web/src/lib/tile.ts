@@ -33,14 +33,16 @@ export interface Tile {
 
 export function tileFor(title: string): Tile {
   const h = hash(title || '?');
-  // Тон свободный, насыщенность и светлота зажаты: пёстрой мозаики не выйдет,
-  // а плитки останутся различимыми и в светлой, и в тёмной теме.
+  // Пастель вместо насыщенных плиток: жёлто-зелёные 50% светлоты кричали
+  // громче цены и названия. Светлый фон + тёмная буква того же тона —
+  // как плитки в референсе (threadsai-panel, rollypay): цвет различает игры,
+  // но не спорит с единственным акцентом страницы.
   // Золотой угол разносит соседние хеши по кругу: без него половина каталога
   // оказывается в одном зелёном секторе, как вышло на первой сборке.
   const hue = (h * 137) % 360;
-  const sat = 52 + (h % 3) * 7; // 52/59/66 — чуть разной насыщенности
-  const light = 42 + ((h >> 3) % 3) * 5; // 42/47/52 — соседи одного тона различимы
-  const background = `hsl(${hue} ${sat}% ${light}%)`;
+  const light = 91 + (h % 3) * 2; // 91/93/95 — соседи одного тона различимы
+  const background = `hsl(${hue} 70% ${light}%)`;
+  const color = `hsl(${hue} 45% 30%)`;
   const initials = title
     .split(/\s+/)
     .filter(Boolean)
@@ -49,5 +51,5 @@ export function tileFor(title: string): Tile {
     .join('')
     .toUpperCase()
     .slice(0, 2);
-  return { background, color: 'rgba(255,255,255,0.92)', initials: initials || '?' };
+  return { background, color, initials: initials || '?' };
 }

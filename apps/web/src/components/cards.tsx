@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Star, Zap } from 'lucide-react';
+import { isDemoSeller } from '@gamemarket/shared';
 import type { Game, ListingCard } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
 import { tileFor } from '@/lib/tile';
@@ -23,21 +24,33 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
           <GameTile title={listing.game?.title || listing.title} size={20} />
         )}
       </div>
-      <div style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.35 }}>{listing.title}</div>
-      {instant && (
-        <div className="row" style={{ gap: 4, marginTop: 6, fontSize: 12, color: '#1a7f37' }}>
-          <Zap size={12} strokeWidth={2} /> мгновенная выдача
-        </div>
-      )}
-      <div className="row" style={{ justifyContent: 'space-between', marginTop: 10 }}>
+      <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.35 }}>{listing.title}</div>
+      <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+        {instant && (
+          <span className="badge success">
+            <Zap size={12} strokeWidth={2} /> сразу после оплаты
+          </span>
+        )}
+        {isDemoSeller(listing.seller.profile?.username) && (
+          <span className="demo-mark" title="Демонстрационный лот: показывает, как устроена сделка">Пример</span>
+        )}
+      </div>
+      <div className="row" style={{ justifyContent: 'space-between', marginTop: 12 }}>
         <span className="price">{formatPrice(listing.price, listing.currency)}</span>
         {listing.seller.profile && (
           <span className="row faint" style={{ fontSize: 13, gap: 4 }}>
             {online && (
-              <span title="продавец онлайн" style={{ width: 7, height: 7, borderRadius: 999, background: '#34c759' }} />
+              <span title="продавец онлайн" style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--success)' }} />
             )}
-            <Star size={13} strokeWidth={1.75} />
-            {listing.seller.profile.ratingAvg.toFixed(1)}
+            {/* Рейтинг показываем только если он из настоящих отзывов */}
+            {listing.seller.profile.ratingAvg > 0 ? (
+              <>
+                <Star size={13} strokeWidth={1.75} />
+                {listing.seller.profile.ratingAvg.toFixed(1)}
+              </>
+            ) : (
+              <span>без отзывов</span>
+            )}
           </span>
         )}
       </div>
@@ -46,21 +59,19 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
 }
 
 export function GameCardView({ game }: { game: Game }) {
+  // Компактная строка вместо квадрата на всю ширину колонки: восемь больших
+  // цветных квадратов перетягивали внимание с лотов и цен.
   return (
-    <Link href={`/igra/${game.slug}`} className="card link" style={{ display: 'block' }}>
-      <div className="thumb" style={{ aspectRatio: '1 / 1' }}>
+    <Link href={`/igra/${game.slug}`} className="card link row" style={{ gap: 12, padding: 12 }}>
+      <div style={{ width: 44, height: 44, borderRadius: 10, flex: 'none', overflow: 'hidden' }}>
         {game.iconUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={game.iconUrl}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
-          />
+          <img src={game.iconUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <GameTile title={game.title} size={26} />
+          <GameTile title={game.title} size={15} />
         )}
       </div>
-      <div style={{ fontSize: 15, fontWeight: 500 }}>{game.title}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3 }}>{game.title}</div>
     </Link>
   );
 }
@@ -87,7 +98,7 @@ function GameTile({ title, size }: { title: string; size: number }) {
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: size,
-        fontWeight: 700,
+        fontWeight: 800,
         letterSpacing: '-0.02em',
       }}
     >

@@ -13,8 +13,8 @@ export function SiteHeader() {
         </Link>
         <nav className="nav">
           <Link href="/catalog">Каталог</Link>
-          <Link href="/#games">Игры</Link>
-          <Link href="/#how">Как это работает</Link>
+          <Link href="/cabinet/new" className="hide-mobile">Продать</Link>
+          <Link href="/rules" className="hide-mobile">Гарантии</Link>
         </nav>
         <span className="spacer" />
         <ThemeToggle />

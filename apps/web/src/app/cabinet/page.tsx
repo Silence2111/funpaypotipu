@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Wallet, Package, Tag } from 'lucide-react';
-import { apiFetch, getToken, getUser } from '@/lib/session';
+import { apiFetch, clearSession, getToken, getUser } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
 import { TopUpForm } from '@/components/topup-form';
 import { PayoutForm } from '@/components/payout-form';
@@ -17,8 +17,11 @@ interface OrderRow { id: string; publicNumber: string; status: string; amount: s
 interface ListingRow { id: string; title: string; price: string; currency: string; status: string; boostUntil?: string | null }
 
 const STATUS_RU: Record<string, string> = {
-  created: 'создан', paid: 'оплачен', delivered: 'выдан', completed: 'завершён',
+  created: 'ждёт оплаты', paid: 'оплачен', delivered: 'выдан', completed: 'завершён',
   disputed: 'спор', refunded: 'возврат', cancelled: 'отменён', expired: 'истёк',
+};
+const LISTING_RU: Record<string, string> = {
+  active: 'в продаже', draft: 'черновик', paused: 'снят', sold_out: 'распродан', blocked: 'заблокирован',
 };
 
 export default function CabinetPage() {
@@ -30,7 +33,7 @@ export default function CabinetPage() {
 
   useEffect(() => {
     if (!getToken()) {
-      router.replace('/login');
+      router.replace('/login?next=/cabinet');
       return;
     }
     Promise.all([
@@ -46,83 +49,108 @@ export default function CabinetPage() {
   }, [router]);
 
   const user = getUser();
-  if (loading) return <div className="container" style={{ padding: 48 }} />;
+  if (loading)
+    return (
+      <div className="container" style={{ paddingTop: 48 }} aria-busy="true" aria-label="Загружаем кабинет">
+        <div className="skeleton" style={{ height: 34, width: 200 }} />
+        <div className="skeleton" style={{ height: 96, marginTop: 28 }} />
+        <div className="skeleton" style={{ height: 160, marginTop: 20 }} />
+      </div>
+    );
 
   return (
-    <div className="container stack-lg" style={{ paddingTop: 48 }}>
-      <div>
-        <h1 className="h1" style={{ fontSize: 30 }}>Кабинет</h1>
-        <p className="muted">{user?.username}</p>
-        <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          <Link href="/cabinet/new" className="chip">+ Создать лот</Link>
-          <Link href="/cabinet/chats" className="chip">Диалоги</Link>
-          <Link href="/cabinet/favorites" className="chip">Избранное</Link>
-          <Link href="/cabinet/security" className="chip">Безопасность</Link>
+    <div className="container stack-lg" style={{ paddingTop: 40 }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <p className="faint" style={{ margin: 0, fontSize: 14 }}>{user?.username}</p>
+          <h1 className="h1" style={{ fontSize: 32 }}>Кабинет</h1>
         </div>
+        <Link href="/cabinet/new" className="btn">Продать лот</Link>
       </div>
-
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <Wallet size={22} strokeWidth={1.5} />
-          <div>
-            <div className="faint" style={{ fontSize: 13 }}>Баланс</div>
-            <div className="price" style={{ fontSize: 24 }}>
-              {wallet ? formatPrice(wallet.balance, wallet.currency) : '—'}
-            </div>
-          </div>
-        </div>
-        <TopUpForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
-        <hr className="divider" style={{ margin: '16px 0' }} />
-        <div className="faint" style={{ fontSize: 13 }}>Вывод средств</div>
-        <PayoutForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
-        <hr className="divider" style={{ margin: '16px 0' }} />
-        <div className="faint" style={{ fontSize: 13 }}>История операций</div>
-        <WalletTransactions />
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
+        <Link href="/cabinet/chats" className="chip">Диалоги</Link>
+        <Link href="/cabinet/favorites" className="chip">Избранное</Link>
+        <Link href="/cabinet/security" className="chip">Безопасность</Link>
       </div>
-
-      <SellerDashboard />
 
       <section>
         <div className="section-head">
-          <h2 className="h2" style={{ fontSize: 20 }}><Package size={18} /> Мои заказы</h2>
+          <h2 className="h2 row" style={{ fontSize: 20, gap: 8 }}><Package size={18} strokeWidth={1.75} /> Мои заказы</h2>
         </div>
         {orders.length ? (
           <div className="grid" style={{ gap: 8 }}>
             {orders.map((o) => (
               <Link key={o.id} href={`/orders/${o.id}`} className="card link row"
-                style={{ justifyContent: 'space-between', padding: 16 }}>
-                <span>#{o.publicNumber}</span>
+                style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
+                <span className="muted" style={{ fontSize: 14 }}>{o.publicNumber}</span>
                 <span className="row" style={{ gap: 12 }}>
                   <span className="price">{formatPrice(o.amount, o.currency)}</span>
-                  <span className="badge">{STATUS_RU[o.status] ?? o.status}</span>
+                  <span className={o.status === 'completed' ? 'badge success' : o.status === 'paid' || o.status === 'delivered' ? 'badge accent' : 'badge'}>
+                    {STATUS_RU[o.status] ?? o.status}
+                  </span>
                 </span>
               </Link>
             ))}
           </div>
-        ) : <p className="muted">Заказов пока нет.</p>}
+        ) : (
+          <div className="card flat row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <span className="muted">Заказов пока нет. Оплата хранится у площадки, пока вы не подтвердите получение.</span>
+            <Link href="/catalog" className="btn secondary">В каталог</Link>
+          </div>
+        )}
       </section>
 
       <section>
         <div className="section-head">
-          <h2 className="h2" style={{ fontSize: 20 }}><Tag size={18} /> Мои лоты</h2>
-          <Link href="/cabinet/new" className="chip">+ Создать лот</Link>
+          <h2 className="h2 row" style={{ fontSize: 20, gap: 8 }}><Tag size={18} strokeWidth={1.75} /> Мои лоты</h2>
         </div>
         {listings.length ? (
           <div className="grid" style={{ gap: 8 }}>
             {listings.map((l) => (
               <div key={l.id} className="card row"
                 style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
-                <Link href={`/lot/${l.id}`} style={{ flex: 1, minWidth: 140 }}>{l.title}</Link>
-                <span className="row" style={{ gap: 12 }}>
+                <Link href={`/lot/${l.id}`} style={{ flex: 1, minWidth: 140, fontWeight: 600 }}>{l.title}</Link>
+                <span className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
                   <span className="price">{formatPrice(l.price, l.currency)}</span>
+                  <span className={l.status === 'active' ? 'badge success' : 'badge'}>{LISTING_RU[l.status] ?? l.status}</span>
                   {l.status === 'active' && <BumpButton listingId={l.id} boostUntil={l.boostUntil} />}
-                  <span className="badge">{l.status}</span>
                 </span>
               </div>
             ))}
           </div>
-        ) : <p className="muted">Лотов пока нет.</p>}
+        ) : (
+          <div className="card flat row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <span className="muted">Лотов пока нет. Выставить первый — пара минут.</span>
+            <Link href="/cabinet/new" className="btn secondary">Создать лот</Link>
+          </div>
+        )}
       </section>
+
+      <SellerDashboard />
+
+      <section className="card" style={{ padding: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Wallet size={22} strokeWidth={1.75} color="var(--accent)" />
+          <div>
+            <div className="faint" style={{ fontSize: 13 }}>Баланс</div>
+            <div className="price" style={{ fontSize: 26 }}>
+              {wallet ? formatPrice(wallet.balance, wallet.currency) : '—'}
+            </div>
+          </div>
+        </div>
+        <TopUpForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
+        <p className="hint" style={{ marginTop: 6 }}>На демо-стенде пополнение проходит без списания денег.</p>
+        <hr className="divider" style={{ margin: '20px 0' }} />
+        <div className="label">Вывод средств</div>
+        <PayoutForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
+        <hr className="divider" style={{ margin: '20px 0' }} />
+        <div className="label">История операций</div>
+        <WalletTransactions />
+      </section>
+
+      <button className="btn ghost" type="button" onClick={() => { clearSession(); router.push('/'); }}>
+        Выйти из аккаунта
+      </button>
     </div>
   );
 }

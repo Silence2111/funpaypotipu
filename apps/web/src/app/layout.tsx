@@ -24,6 +24,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>
         <script
           dangerouslySetInnerHTML={{
@@ -33,13 +42,20 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
         <SiteHeader />
         <main>{children}</main>
-        <footer className="container" style={{ padding: '64px 24px 48px', marginTop: 64 }}>
-          <hr className="divider" style={{ marginBottom: 24 }} />
-          <p className="faint" style={{ fontSize: 13 }}>
-            © {new Date().getFullYear()} GameMarket · эскроу-защита сделки ·{' '}
-            <a href="/rules" style={{ textDecoration: 'underline' }}>Правила и гарантии</a> ·{' '}
-            <a href="/podbor" style={{ textDecoration: 'underline' }}>Как мы меряем выдачу</a>
-          </p>
+        <footer className="container" style={{ padding: '48px 24px 40px', marginTop: 64 }}>
+          <hr className="divider" style={{ marginBottom: 20 }} />
+          <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <p className="faint" style={{ fontSize: 13, margin: 0 }}>
+              © {new Date().getFullYear()} GameMarket · лоты с пометкой «Пример» — демонстрационные
+            </p>
+            <nav className="row faint" style={{ gap: 16, fontSize: 13, flexWrap: 'wrap' }} aria-label="Документы">
+              <a href="/rules" className="footer-link">Правила и гарантии</a>
+              <a href="/oferta" className="footer-link">Оферта</a>
+              <a href="/privacy" className="footer-link">Персональные данные</a>
+              <a href="/contacts" className="footer-link">Контакты</a>
+              <a href="/podbor" className="footer-link">Как мы меряем выдачу</a>
+            </nav>
+          </div>
         </footer>
       </body>
     </html>

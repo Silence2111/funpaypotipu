@@ -152,6 +152,12 @@ export interface PublicPricing {
   sellerFeeMaxPct: number;
   levelDiscountMaxPp: number;
   cashbackPct: number;
+  /** Часов на проверку после выдачи, потом заказ подтверждается сам. */
+  autoConfirmHours?: number;
+  /** Часов у продавца на ручную выдачу, потом деньги возвращаются сами. */
+  fulfillHours?: number;
+  /** Платёжка — заглушка: оплата на стенде демонстрационная. */
+  paymentsDemo?: boolean;
   withdrawal: Array<{ key: string; label: string; feePct: number; minFeeMinor: string }>;
 }
 

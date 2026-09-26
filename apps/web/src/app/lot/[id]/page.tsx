@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ShieldCheck, Star, User } from 'lucide-react';
-import { getListing } from '@/lib/api';
+import { Info, ShieldCheck, Star, User } from 'lucide-react';
+import { getListing, getPublicPricing } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
 import { tileFor } from '@/lib/tile';
 import { BuyButton } from '@/components/buy-button';
 import { FavoriteButton } from '@/components/favorite-button';
 import { MessageSellerButton } from '@/components/message-seller-button';
-import { priceWithAcquiring, PAYMENT_METHODS } from '@gamemarket/shared';
+import { priceWithAcquiring, PAYMENT_METHODS, isDemoSeller } from '@gamemarket/shared';
 import { JsonLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
 import { SellerReviews } from '@/components/seller-reviews';
@@ -35,10 +35,21 @@ export async function generateMetadata({
   };
 }
 
-export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ListingPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ created?: string }>;
+}) {
   const { id } = await params;
-  const listing = await getListing(id);
+  const { created } = await searchParams;
+  const [listing, pricing] = await Promise.all([getListing(id), getPublicPricing()]);
   if (!listing) notFound();
+  const demo = isDemoSeller(listing.seller.profile?.username);
+  const auto = listing.fulfillmentType === 'auto_key';
+  const confirmH = pricing?.autoConfirmHours ?? 72;
+  const fulfillH = pricing?.fulfillHours ?? 24;
 
   const priceMajor = (Number(BigInt(listing.price)) / 100).toFixed(2);
   const productLd = {
@@ -72,6 +83,15 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   return (
     <div className="container" style={{ paddingTop: 48 }}>
       <JsonLd data={productLd} />
+      {created && (
+        <div className="alert success" role="status" style={{ marginBottom: 20 }}>
+          <ShieldCheck size={18} strokeWidth={1.75} />
+          <span>
+            Лот опубликован и уже виден в каталоге.
+            {auto ? ' Загрузите ключи на склад ниже — без них покупка вернёт деньги покупателю.' : ''}
+          </span>
+        </div>
+      )}
       <div style={{ marginBottom: 20 }}>
         <Link href={`/igra/${listing.game.slug}`} className="faint" style={{ fontSize: 14 }}>
           ← {listing.game.title} · {listing.category.title}
@@ -79,8 +99,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="lot-grid">
-        {/* Left: media + description */}
-        <div className="stack-lg">
+        {/* Медиа, панель покупки, описание: на телефоне панель сразу под картинкой */}
+        <div style={{ gridArea: 'media' }}>
           <div className="thumb" style={{ aspectRatio: '16 / 9', marginBottom: 0 }}>
             {cover ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -105,7 +125,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: 44,
-                  fontWeight: 700,
+                  fontWeight: 800,
                   letterSpacing: '-0.02em',
                 }}
               >
@@ -113,7 +133,18 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               </div>
             )}
           </div>
+        </div>
 
+        <div className="stack-lg" style={{ gridArea: 'desc' }}>
+          {demo && (
+            <div className="alert" role="note">
+              <Info size={18} strokeWidth={1.75} />
+              <span>
+                Это пример лота: по нему видно, как устроена сделка. Купить можно — оплата на стенде
+                демонстрационная{auto ? ', а ключ придёт с пометкой «ПРИМЕР» и в игре не активируется' : ''}.
+              </span>
+            </div>
+          )}
           <section>
             <h2 className="h2" style={{ fontSize: 20, marginBottom: 12 }}>
               Описание
@@ -140,18 +171,20 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           )}
         </div>
 
-        {/* Right: purchase panel */}
-        <aside className="card" style={{ position: 'sticky', top: 72, padding: 24 }}>
+        <aside className="card lot-aside" style={{ gridArea: 'aside', padding: 24 }}>
           <h1 className="h2" style={{ fontSize: 22, lineHeight: 1.25 }}>
             {listing.title}
           </h1>
-          <span className="badge" style={{ marginTop: 8 }}>
-            {listing.fulfillmentType === 'auto_key'
-              ? 'Автовыдача · мгновенно'
-              : listing.fulfillmentType === 'provider'
-                ? 'Пополнение по игровому ID'
-                : 'Выдача продавцом'}
-          </span>
+          <div className="row" style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+            <span className={auto ? 'badge success' : 'badge'}>
+              {auto
+                ? 'Ключ сразу после оплаты'
+                : listing.fulfillmentType === 'provider'
+                  ? 'Пополнение по игровому ID'
+                  : 'Выдаёт продавец'}
+            </span>
+            {demo && <span className="demo-mark">Пример</span>}
+          </div>
           <div className="price" style={{ fontSize: 28, margin: '16px 0' }}>
             {formatPrice(listing.price, listing.currency)}
           </div>
@@ -183,26 +216,35 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           })()}
 
           <BuyButton listingId={listing.id} fulfillmentType={listing.fulfillmentType} />
+          {pricing?.paymentsDemo && (
+            <p className="hint" style={{ marginTop: 10, textAlign: 'center' }}>
+              Демо-оплата: платёжка не подключена, деньги не списываются.
+            </p>
+          )}
 
           <div className="row" style={{ marginTop: 12, gap: 8, flexWrap: 'wrap' }}>
             <FavoriteButton listingId={listing.id} />
             <MessageSellerButton listingId={listing.id} />
           </div>
 
-          <div className="badge" style={{ marginTop: 10, background: 'rgba(52,199,89,0.12)', color: '#1a7f37' }}>
-            +2% кэшбэк на баланс с этой покупки
-          </div>
-
-          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {[
-              'Оплата защищена эскроу',
-              'Возврат, если товар не получен',
-              'Возврат, если товар не как в описании',
-            ].map((t) => (
-              <div key={t} className="row faint" style={{ fontSize: 13, gap: 6 }}>
-                <ShieldCheck size={15} strokeWidth={1.75} /> {t}
-              </div>
-            ))}
+          <div className="card flat" style={{ marginTop: 16, padding: 16, background: 'var(--page)' }}>
+            <div className="row" style={{ gap: 8, fontWeight: 700, fontSize: 14 }}>
+              <ShieldCheck size={18} strokeWidth={1.75} color="var(--accent)" /> Как защищена покупка
+            </div>
+            <ul style={{ margin: '10px 0 0', paddingLeft: 18, display: 'grid', gap: 6, fontSize: 13 }} className="muted">
+              <li>Деньги лежат у площадки. Продавец получит их, только когда вы подтвердите получение.</li>
+              <li>
+                {auto
+                  ? 'Ключ выдаётся сразу. Не выдался — деньги вернутся на баланс автоматически.'
+                  : `Продавец не выдал товар за ${fulfillH} ч — деньги вернутся на баланс автоматически.`}
+              </li>
+              <li>После выдачи у вас {confirmH} ч на проверку: подтвердить или открыть спор с арбитром.</li>
+            </ul>
+            {pricing && (
+              <p className="hint" style={{ marginTop: 10 }}>
+                +{Math.round(pricing.cashbackPct * 100)}% кэшбэк на баланс после подтверждения
+              </p>
+            )}
           </div>
 
           <hr className="divider" style={{ margin: '20px 0' }} />
@@ -212,17 +254,19 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               <User size={16} strokeWidth={1.75} />
               {listing.seller.profile?.username ?? 'продавец'}
             </Link>
-            {listing.seller.profile && listing.seller.profile.ratingCount > 0 && (
+            {listing.seller.profile && listing.seller.profile.ratingCount > 0 ? (
               <span className="row faint" style={{ gap: 4, fontSize: 13 }}>
                 <Star size={13} strokeWidth={1.75} />
                 {listing.seller.profile.ratingAvg.toFixed(1)} · {listing.seller.profile.ratingCount}
               </span>
+            ) : (
+              <span className="faint" style={{ fontSize: 13 }}>отзывов пока нет</span>
             )}
           </div>
         </aside>
       </div>
 
-      <KeysManager listingId={listing.id} />
+      <KeysManager listingId={listing.id} sellerId={listing.seller.id} auto={auto} />
 
       <section style={{ marginTop: 48 }}>
         <h2 className="h2" style={{ fontSize: 20, marginBottom: 16 }}>Отзывы о продавце</h2>

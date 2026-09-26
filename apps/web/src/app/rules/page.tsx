@@ -22,7 +22,7 @@ export default function RulesPage() {
     <div className="container stack-lg" style={{ paddingTop: 48, maxWidth: 760 }}>
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>Правила и гарантии</h1>
-        <p className="lead">Прозрачные условия для покупателей и продавцов — коротко и по делу.</p>
+        <p className="lead">Условия для покупателей и продавцов — коротко.</p>
       </div>
 
       <div className="grid" style={{ gap: 16 }}>
@@ -38,7 +38,7 @@ export default function RulesPage() {
 
         <Section icon={<Percent size={20} strokeWidth={1.75} />} title="Комиссии">
           <ul className="muted" style={{ margin: 0, paddingLeft: 18, fontSize: 15, lineHeight: 1.7 }}>
-            <li>Базовая комиссия площадки — <b>10%</b> (уже ниже, чем у большинства конкурентов).</li>
+            <li>Базовая комиссия площадки — <b>10%</b>.</li>
             <li>Ключи и лицензии — <b>7%</b>.</li>
             <li>Проверенным и Pro-продавцам комиссия дополнительно снижается, а холд выплат сокращается.</li>
             <li>Покупатель видит итоговую цену сразу — скрытых сборов нет.</li>
@@ -58,7 +58,7 @@ export default function RulesPage() {
             <li>Обмен контактами и увод сделки в обход площадки (контакты в чате маскируются).</li>
             <li>Повторная продажа уже проданного аккаунта.</li>
             <li>Фиктивные сделки и накрутка отзывов.</li>
-            <li>Фишинг, вредоносные вложения (все файлы проходят антивирус-проверку).</li>
+            <li>Фишинг и вредоносные вложения.</li>
           </ul>
         </Section>
       </div>

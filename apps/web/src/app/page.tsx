@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ShieldCheck, MessagesSquare, Zap } from 'lucide-react';
+import { ShieldCheck, MessagesSquare, Zap, Info } from 'lucide-react';
 import { getGames, browseListings, getPublicPricing } from '@/lib/api';
 import { GameCardView, ListingCardView } from '@/components/cards';
 
@@ -14,7 +14,8 @@ export default async function HomePage() {
   const instant = instantBrowse?.items ?? [];
 
   // Проценты берём из API, а не пишем в разметке. Не ответил — не обещаем.
-  const pct = (v: number) => `${(v * 100).toFixed(0)}%`;
+  // 2,5% — не «3%»: округление до целого на витрине завышало ставку вывода
+  const pct = (v: number) => `${String(+(v * 100).toFixed(1)).replace('.', ',')}%`;
   const feeRange =
     pricing && pricing.sellerFeeMinPct > 0
       ? pricing.sellerFeeMinPct === pricing.sellerFeeMaxPct
@@ -32,22 +33,30 @@ export default async function HomePage() {
           Аккаунты, валюта, предметы, ключи и пополнения. Деньги лежат у площадки,
           пока вы не подтвердите, что получили товар.
         </p>
-        <div className="row" style={{ justifyContent: 'center', marginTop: 28, gap: 12 }}>
-          <Link href="/catalog" className="btn">
+        <div className="row" style={{ justifyContent: 'center', marginTop: 28, gap: 12, flexWrap: 'wrap' }}>
+          <Link href="/catalog" className="btn lg">
             Смотреть лоты
           </Link>
-          <Link href="#pricing" className="btn ghost">
-            Комиссия и выплаты
+          <Link href="/cabinet/new" className="btn ghost lg">
+            Продать свой лот
           </Link>
         </div>
 
-        {feeRange && (
-          <p className="muted" style={{ fontSize: 14, marginTop: 24 }}>
-            Комиссия продавца {feeRange}, вывод от {payoutFee != null ? pct(payoutFee) : '—'}.
-            Для сравнения: у Playerok 20% с большинства товаров плюс вывод.
-          </p>
-        )}
+        <p className="muted" style={{ fontSize: 14, marginTop: 20 }}>
+          Покупателю — без комиссии.
+          {feeRange && <> Продавцу — {feeRange}, вывод от {payoutFee != null ? pct(payoutFee) : '—'}.</>}
+        </p>
       </section>
+
+      {pricing?.paymentsDemo && (
+        <div className="alert" role="note" style={{ maxWidth: 760, margin: '32px auto 0' }}>
+          <Info size={18} strokeWidth={1.75} />
+          <span>
+            Это демо-стенд. Лоты с пометкой «Пример» — демонстрационные, а оплата
+            проходит без списания денег: платёжный провайдер ещё не подключён.
+          </span>
+        </div>
+      )}
 
       {/* Trust */}
       {/* auto-fit, а не repeat(3, 1fr): на телефоне три колонки не сжимаются
@@ -56,23 +65,23 @@ export default async function HomePage() {
         {[
           {
             icon: ShieldCheck,
-            t: 'Эскроу-защита',
-            d: 'Деньги у площадки, пока вы не подтвердите получение.',
+            t: 'Деньги у площадки',
+            d: `Продавец получит оплату, только когда вы подтвердите получение${pricing?.autoConfirmHours ? ` или пройдёт ${pricing.autoConfirmHours} ч без спора` : ''}.`,
           },
           {
             icon: MessagesSquare,
-            t: 'Чат со сделкой',
-            d: 'Общение с продавцом и вся история в одном месте.',
+            t: 'Спор с арбитром',
+            d: 'Не получили или товар не как в описании — открываете спор, деньги замораживаются до решения.',
           },
           {
             icon: Zap,
-            t: 'Быстрая выдача',
-            d: 'Ключи и пополнения — автоматически после оплаты.',
+            t: 'Ключи сразу',
+            d: 'Ключи выдаются автоматически после оплаты, продавца ждать не нужно.',
           },
         ].map(({ icon: Icon, t, d }) => (
           <div key={t} className="card">
-            <Icon size={22} strokeWidth={1.5} />
-            <div style={{ fontWeight: 600, margin: '12px 0 6px' }}>{t}</div>
+            <Icon size={22} strokeWidth={1.75} color="var(--accent)" />
+            <div style={{ fontWeight: 700, margin: '12px 0 6px' }}>{t}</div>
             <div className="muted" style={{ fontSize: 14 }}>
               {d}
             </div>
@@ -92,7 +101,7 @@ export default async function HomePage() {
             </Link>
           </div>
           <p className="muted" style={{ fontSize: 14, marginTop: -8, marginBottom: 16 }}>
-            Ключи и пополнения приходят автоматически сразу после оплаты
+            Ключи и пополнения — автоматически после оплаты
             {pricing ? ` · ${pct(pricing.cashbackPct)} кэшбэка на баланс` : ''}
           </p>
           <div className="grid cols-auto">
@@ -112,7 +121,7 @@ export default async function HomePage() {
           </Link>
         </div>
         {games && games.length > 0 ? (
-          <div className="grid cols-auto">
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
             {games.map((g) => (
               <GameCardView key={g.id} game={g} />
             ))}
@@ -176,12 +185,12 @@ export default async function HomePage() {
           {[
             ['01', 'Оплата', 'Деньги уходят не продавцу, а на эскроу-счёт площадки.'],
             ['02', 'Передача', 'Продавец передаёт товар. Ключи и пополнения — автоматически.'],
-            ['03', 'Проверка', 'У вас есть время проверить. Не подошло — открываете спор.'],
+            ['03', 'Проверка', `У вас ${pricing?.autoConfirmHours ?? 72} ч, чтобы проверить. Не подошло — открываете спор.`],
             ['04', 'Подтверждение', 'Подтвердили — продавец получает деньги, вы кэшбэк.'],
           ].map(([n, t, d]) => (
             <li key={n} className="card">
-              <div className="faint" style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{n}</div>
-              <div style={{ fontWeight: 600, margin: '8px 0 6px' }}>{t}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{n}</div>
+              <div style={{ fontWeight: 700, margin: '8px 0 6px' }}>{t}</div>
               <div className="muted" style={{ fontSize: 14 }}>{d}</div>
             </li>
           ))}
@@ -196,7 +205,7 @@ function PricingTable({
 }: {
   pricing: NonNullable<Awaited<ReturnType<typeof getPublicPricing>>>;
 }) {
-  const pct = (v: number) => `${(v * 100).toFixed(1).replace(/\.0$/, '')}%`;
+  const pct = (v: number) => `${String(+(v * 100).toFixed(1)).replace('.', ',')}%`;
   const range =
     pricing.sellerFeeMinPct === pricing.sellerFeeMaxPct
       ? pct(pricing.sellerFeeMinPct)

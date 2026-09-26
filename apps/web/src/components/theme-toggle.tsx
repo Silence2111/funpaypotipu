@@ -21,8 +21,8 @@ export function ThemeToggle() {
   }
 
   return (
-    <button onClick={toggle} className="chip" type="button" aria-label="Переключить тему"
-      style={{ padding: '6px 10px' }}>
+    <button onClick={toggle} className="chip hide-mobile" type="button" aria-label="Переключить тему"
+      style={{ padding: '6px 12px' }}>
       {theme === 'dark' ? <Sun size={16} strokeWidth={1.75} /> : <Moon size={16} strokeWidth={1.75} />}
     </button>
   );

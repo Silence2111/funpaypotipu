@@ -7,14 +7,21 @@
  * написаны и покрыты тестами — но показать их нельзя: до них не дойти.
  *
  * Здесь данные, на которых продукт видно. Они **демонстрационные** и помечены
- * так явно: у продавцов адреса на `@demo.gamemarket.local`, а профили несут
- * пометку в биографии. Рейтинги и число продаж выставлены не случайными
- * цифрами, а значениями, на которых видно работу уровней продавца
- * (`sellerLevel`): новичок, проверенный, Pro.
+ * так явно: у продавцов адреса на `@demo.gamemarket.local`, профили несут
+ * пометку в биографии, а витрина подписывает их лоты «Пример»
+ * (`isDemoSeller` в shared).
+ *
+ * Рейтингов, отзывов и продаж у демо-продавцов нет — ноль. Раньше здесь
+ * стояли 4.9 и 187 продаж «для наглядности уровней», и витрина показывала
+ * выдуманную репутацию рядом с надписью «Отзывов пока нет».
+ *
+ * Авто-лоты получают демо-ключи на склад: без них покупка ключа сразу
+ * уходила в возврат, и самый короткий путь покупки на показе ломался.
  *
  * Запуск: `pnpm --filter @gamemarket/db seed:demo`
  * Идемпотентен: повторный запуск ничего не дублирует.
  */
+import { createCipheriv, createHash, randomBytes } from 'node:crypto';
 import {
   CategorySegment,
   FulfillmentType,
@@ -24,7 +31,7 @@ import {
 
 const prisma = new PrismaClient();
 
-const DEMO_DOMAIN = '@demo.gamemarket.local';
+import { DEMO_EMAIL_DOMAIN as DEMO_DOMAIN, DEMO_SELLER_USERNAMES } from '../../shared/src/demo';
 const DEMO_NOTE = 'Демонстрационный профиль витрины.';
 
 interface DemoGame {
@@ -97,10 +104,28 @@ interface DemoSeller {
 
 /** Три уровня продавца: на них видно, как работает скидка с комиссии. */
 const SELLERS: DemoSeller[] = [
-  { username: 'novichok', displayName: 'Первый лот', salesCount: 2, ratingAvg: 5, ratingCount: 2 },
-  { username: 'stabilno', displayName: 'Стабильный', salesCount: 34, ratingAvg: 4.8, ratingCount: 29 },
-  { username: 'keystore', displayName: 'KeyStore', salesCount: 187, ratingAvg: 4.9, ratingCount: 121 },
+  { username: 'novichok', displayName: 'Первый лот', salesCount: 0, ratingAvg: 0, ratingCount: 0 },
+  { username: 'stabilno', displayName: 'Стабильный', salesCount: 0, ratingAvg: 0, ratingCount: 0 },
+  { username: 'keystore', displayName: 'Склад ключей', salesCount: 0, ratingAvg: 0, ratingCount: 0 },
 ];
+// Список продавцов витрины и пометка «Пример» должны совпадать.
+if (SELLERS.some((s) => !(DEMO_SELLER_USERNAMES as readonly string[]).includes(s.username))) {
+  throw new Error('Продавец сида не внесён в DEMO_SELLER_USERNAMES (packages/shared/src/demo.ts)');
+}
+
+/** Сколько демо-ключей держать на складе авто-лота. */
+const DEMO_KEYS_PER_LOT = 5;
+
+/** То же шифрование, что в EncryptionService API: ключи лежат только зашифрованными. */
+function encrypt(plain: string): string {
+  const key = createHash('sha256')
+    .update(process.env.DATA_ENCRYPTION_KEY ?? 'dev-insecure-key')
+    .digest();
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  const enc = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
+  return [iv, cipher.getAuthTag(), enc].map((b) => b.toString('base64')).join(':');
+}
 
 interface DemoListing {
   game: string;
@@ -140,7 +165,6 @@ const LISTINGS: DemoListing[] = [
     title: 'Ключ от кейса Dreams & Nightmares',
     description: 'Выдача сразу после оплаты, из склада. Ключ не активирован.',
     priceRub: 219,
-    stock: 40,
     auto: true,
   },
   {
@@ -177,7 +201,6 @@ const LISTINGS: DemoListing[] = [
     title: 'Ключ Baldur’s Gate 3, регион РФ',
     description: 'Активация в Steam. Выдача автоматическая после оплаты.',
     priceRub: 2790,
-    stock: 12,
     auto: true,
   },
   {
@@ -275,6 +298,8 @@ async function upsertSellers() {
     await prisma.profile.upsert({
       where: { userId: user.id },
       update: {
+        displayName: s.displayName,
+        bio: DEMO_NOTE,
         salesCount: s.salesCount,
         ratingAvg: s.ratingAvg,
         ratingCount: s.ratingCount,
@@ -309,9 +334,12 @@ async function upsertListings() {
       where: { sellerId: seller.id, title: l.title },
       select: { id: true },
     });
-    if (exists) continue;
+    if (exists) {
+      if (category.fulfillmentType === FulfillmentType.auto_key) await refillDemoKeys(exists.id);
+      continue;
+    }
 
-    await prisma.listing.create({
+    const created = await prisma.listing.create({
       data: {
         sellerId: seller.id,
         gameId: game.id,
@@ -326,7 +354,26 @@ async function upsertListings() {
         autoDelivery: l.auto ?? false,
       },
     });
+    if (category.fulfillmentType === FulfillmentType.auto_key) await refillDemoKeys(created.id);
   }
+}
+
+/** Держит на складе авто-лота DEMO_KEYS_PER_LOT свободных демо-ключей; stock = их число. */
+async function refillDemoKeys(listingId: string) {
+  const available = await prisma.digitalGood.count({ where: { listingId, status: 'available' } });
+  const missing = DEMO_KEYS_PER_LOT - available;
+  if (missing > 0) {
+    await prisma.digitalGood.createMany({
+      data: Array.from({ length: missing }, () => {
+        const code = randomBytes(6).toString('hex').toUpperCase().match(/.{4}/g)!.join('-');
+        return { listingId, payloadEnc: encrypt(`ПРИМЕР-${code} (демо-ключ, в игре не активируется)`) };
+      }),
+    });
+  }
+  await prisma.listing.update({
+    where: { id: listingId },
+    data: { stock: Math.max(available, DEMO_KEYS_PER_LOT) },
+  });
 }
 
 async function main() {

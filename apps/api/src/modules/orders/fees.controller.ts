@@ -41,6 +41,18 @@ export class FeesController {
       // Скидка уровня — в процентных ПУНКТАХ со ставки, а не доля от неё.
       levelDiscountMaxPp: Math.max(...LEVEL_DISCOUNTS) / 100,
       cashbackPct: cashbackPct(),
+      // Сколько часов у покупателя на проверку после выдачи: этот срок витрина
+      // называет в гарантии сделки. Берём тот же env, что таймер заказов.
+      autoConfirmHours: Math.round(
+        Number(process.env.ORDER_AUTO_CONFIRM_TTL_MS ?? 72 * 3600 * 1000) / 3600_000,
+      ),
+      // Сколько часов у продавца на ручную выдачу, потом — авто-возврат (orders-sweep).
+      fulfillHours: Math.round(
+        Number(process.env.ORDER_FULFILL_DEADLINE_MS ?? 24 * 3600 * 1000) / 3600_000,
+      ),
+      // Заглушка платежей подтверждает оплату, не приняв денег. Витрина
+      // обязана сказать об этом у кнопки «Купить», а не молча «продать».
+      paymentsDemo: (process.env.PAYMENT_PROVIDER ?? 'mock') === 'mock',
       withdrawal: WITHDRAWAL_METHODS.map((m) => ({
         key: m.key,
         label: m.label,

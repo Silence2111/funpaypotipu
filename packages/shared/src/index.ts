@@ -9,3 +9,4 @@ export * from './unit-economics';
 export * from './contracts/auth';
 export * from './contracts/catalog';
 export * from './ranking';
+export * from './demo';

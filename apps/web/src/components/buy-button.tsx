@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
+import { apiErrorMessage } from '@/lib/errors';
 
 /** Оформление заказа: create (+ промокод, +UID для пополнений) → deposit → оплата → заказ. */
 export function BuyButton({ listingId, fulfillmentType }: { listingId: string; fulfillmentType?: string }) {
@@ -29,8 +30,8 @@ export function BuyButton({ listingId, fulfillmentType }: { listingId: string; f
   }
 
   async function buy() {
-    if (!getToken()) return router.push('/login');
-    if (!canBuy) { setErr('Укажите игровой ID/логин и подтвердите'); return; }
+    if (!getToken()) return router.push(`/register?next=${encodeURIComponent(`/lot/${listingId}`)}`);
+    if (!canBuy) { setErr('Укажите игровой ID и отметьте, что он верный'); return; }
     setBusy(true);
     setErr(null);
     try {
@@ -41,23 +42,23 @@ export function BuyButton({ listingId, fulfillmentType }: { listingId: string; f
       });
       await apiFetch(`/payments/mock/callback?providerRef=${dep.providerRef}`, { method: 'POST' });
       router.push(`/orders/${orderId}`);
-    } catch {
-      setErr('Не удалось оформить заказ');
+    } catch (e) {
+      setErr(apiErrorMessage(e, 'Не удалось оформить заказ. Обновите страницу и попробуйте ещё раз.'));
       setBusy(false);
     }
   }
 
   async function buyFromBalance() {
-    if (!getToken()) return router.push('/login');
-    if (!canBuy) { setErr('Укажите игровой ID/логин и подтвердите'); return; }
+    if (!getToken()) return router.push(`/login?next=${encodeURIComponent(`/lot/${listingId}`)}`);
+    if (!canBuy) { setErr('Укажите игровой ID и отметьте, что он верный'); return; }
     setBusy(true);
     setErr(null);
     try {
       const orderId = await createOrder();
       await apiFetch(`/orders/${orderId}/pay-from-balance`, { method: 'POST' });
       router.push(`/orders/${orderId}`);
-    } catch {
-      setErr('Недостаточно средств на балансе или ошибка');
+    } catch (e) {
+      setErr(apiErrorMessage(e, 'На балансе не хватает денег. Оплатите заказ обычным способом.'));
       setBusy(false);
     }
   }
@@ -65,28 +66,37 @@ export function BuyButton({ listingId, fulfillmentType }: { listingId: string; f
   return (
     <>
       {isTopUp && (
-        <div style={{ marginBottom: 10 }}>
-          <input className="input" placeholder="Игровой ID / логин" value={account}
+        <div className="field" style={{ marginBottom: 12 }}>
+          <label className="label" htmlFor="topup-account">Игровой ID или логин</label>
+          <input id="topup-account" className="input" placeholder="Например, 812345678" value={account}
             onChange={(e) => setAccount(e.target.value)} />
-          <label className="row muted" style={{ gap: 8, fontSize: 12.5, marginTop: 8, alignItems: 'flex-start' }}>
+          <label className="row muted" style={{ gap: 10, fontSize: 13, marginTop: 6, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>
             <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}
-              style={{ marginTop: 2 }} />
-            <span>Я указал верный ID — пополнение придёт на этот аккаунт, возврат при ошибке в ID невозможен</span>
+              style={{ marginTop: 2, width: 18, height: 18, accentColor: 'var(--accent)' }} />
+            <span>ID верный. Пополнение придёт на этот аккаунт, при ошибке в ID вернуть его нельзя</span>
           </label>
         </div>
       )}
 
-      <input className="input" placeholder="Промокод (необязательно)" value={promo}
-        onChange={(e) => setPromo(e.target.value)} style={{ marginBottom: 10 }} />
+      <details style={{ marginBottom: 12 }}>
+        <summary className="faint" style={{ fontSize: 13, cursor: 'pointer', minHeight: 32 }}>Есть промокод?</summary>
+        <div className="field" style={{ marginTop: 8 }}>
+          <label className="label" htmlFor="promo" style={{ fontSize: 13 }}>Промокод</label>
+          <input id="promo" className="input" placeholder="Например, START10" value={promo}
+            onChange={(e) => setPromo(e.target.value)} />
+        </div>
+      </details>
 
-      <button className="btn" style={{ width: '100%' }} onClick={buy} disabled={busy || !canBuy} type="button">
-        {busy ? 'Оформляем…' : 'Купить'}
+      <button className="btn block lg" onClick={buy} disabled={busy || !canBuy} type="button">
+        {busy ? 'Оформляем заказ…' : 'Купить'}
       </button>
-      <button className="btn ghost" style={{ width: '100%', marginTop: 8 }} onClick={buyFromBalance}
+      <button className="btn ghost block" style={{ marginTop: 8 }} onClick={buyFromBalance}
         disabled={busy || !canBuy} type="button">
         Оплатить с баланса
       </button>
-      {err && <p style={{ color: '#d33', fontSize: 13, marginTop: 8 }}>{err}</p>}
+      {err && (
+        <p className="field-error" role="alert" style={{ marginTop: 10, textAlign: 'center' }}>{err}</p>
+      )}
     </>
   );
 }

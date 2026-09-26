@@ -59,4 +59,24 @@ describe('публичный прайс площадки', () => {
     // 300 bps у Pro-продавца = 3 процентных пункта
     expect(r.levelDiscountMaxPp).toBe(3);
   });
+
+  it('на заглушке платежей витрина знает, что оплата демонстрационная', async () => {
+    const prev = process.env.PAYMENT_PROVIDER;
+    process.env.PAYMENT_PROVIDER = 'mock';
+    const c = new FeesController(feesStub([]));
+    expect((await c.publicPricing()).paymentsDemo).toBe(true);
+    process.env.PAYMENT_PROVIDER = 'sbp';
+    expect((await c.publicPricing()).paymentsDemo).toBe(false);
+    if (prev === undefined) delete process.env.PAYMENT_PROVIDER;
+    else process.env.PAYMENT_PROVIDER = prev;
+  });
+
+  it('срок проверки после выдачи — из того же env, что таймер заказов', async () => {
+    const prev = process.env.ORDER_AUTO_CONFIRM_TTL_MS;
+    process.env.ORDER_AUTO_CONFIRM_TTL_MS = String(48 * 3600 * 1000);
+    const c = new FeesController(feesStub([]));
+    expect((await c.publicPricing()).autoConfirmHours).toBe(48);
+    if (prev === undefined) delete process.env.ORDER_AUTO_CONFIRM_TTL_MS;
+    else process.env.ORDER_AUTO_CONFIRM_TTL_MS = prev;
+  });
 });

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { KeyRound } from 'lucide-react';
-import { apiFetch, getToken } from '@/lib/session';
+import { apiFetch, getToken, getUser } from '@/lib/session';
 
 interface Stock {
   available: number;
@@ -12,7 +12,15 @@ interface Stock {
 }
 
 /** Панель склада ключей — видна только владельцу авто-лота (эндпоинт вернёт 403/400 иначе). */
-export function KeysManager({ listingId }: { listingId: string }) {
+export function KeysManager({
+  listingId,
+  sellerId,
+  auto,
+}: {
+  listingId: string;
+  sellerId: string;
+  auto: boolean;
+}) {
   const [stock, setStock] = useState<Stock | null>(null);
   const [visible, setVisible] = useState(false);
   const [text, setText] = useState('');
@@ -28,8 +36,10 @@ export function KeysManager({ listingId }: { listingId: string }) {
   }, [listingId]);
 
   useEffect(() => {
-    if (getToken()) load();
-  }, [load]);
+    // Склад спрашиваем только у владельца авто-лота: иначе каждый покупатель
+    // получал 403/400 в консоль на странице лота.
+    if (auto && getToken() && getUser()?.id === sellerId) load();
+  }, [load, auto, sellerId]);
 
   if (!visible) return null;
 

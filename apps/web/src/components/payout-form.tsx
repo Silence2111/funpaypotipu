@@ -57,23 +57,23 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
   return (
     <div style={{ marginTop: 12 }}>
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-        <select className="input" value={methodKey} onChange={(e) => setMethodKey(e.target.value)}
+        <select className="input" aria-label="Способ вывода" value={methodKey} onChange={(e) => setMethodKey(e.target.value)}
           style={{ maxWidth: 170 }}>
           {methods.map((m) => (
-            <option key={m.key} value={m.key}>{m.label} · {Math.round(m.feePct * 100)}%</option>
+            <option key={m.key} value={m.key}>{m.label} · {String(+(m.feePct * 100).toFixed(1)).replace('.', ',')}%</option>
           ))}
         </select>
-        <input className="input" placeholder="Сумма, ₽" inputMode="decimal" value={amount}
+        <input className="input" aria-label="Сумма вывода, ₽" placeholder="Сумма, ₽" inputMode="decimal" value={amount}
           onChange={(e) => setAmount(e.target.value)} style={{ maxWidth: 130 }} />
-        <input className="input" placeholder="Карта / реквизиты" value={dest}
+        <input className="input" aria-label="Куда вывести" placeholder="Номер карты или телефон СБП" value={dest}
           onChange={(e) => setDest(e.target.value)} style={{ maxWidth: 180 }} />
-        <button className="chip" onClick={go} disabled={busy} type="button">Вывести</button>
+        <button className="btn secondary" onClick={go} disabled={busy} type="button">Вывести</button>
       </div>
 
       {method && grossMinor > 0 && !belowMin && (
         <div className="row" style={{ justifyContent: 'space-between', fontSize: 13, marginTop: 8, maxWidth: 300 }}>
           <span className="faint">Комиссия {(fee / 100).toLocaleString('ru-RU')} ₽</span>
-          <span style={{ fontWeight: 600, color: '#1a7f37' }}>на руки {(net / 100).toLocaleString('ru-RU')} ₽</span>
+          <span style={{ fontWeight: 600, color: 'var(--success)' }}>на руки {(net / 100).toLocaleString('ru-RU')} ₽</span>
         </div>
       )}
       {msg && <p className="faint" style={{ fontSize: 13, marginTop: 8 }}>{msg}</p>}
