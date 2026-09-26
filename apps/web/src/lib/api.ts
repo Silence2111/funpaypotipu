@@ -156,3 +156,21 @@ export interface PublicPricing {
 }
 
 export const getPublicPricing = () => apiTry<PublicPricing>('/fees/public');
+
+/**
+ * Замер выдачи против тривиального правила. Печатается на витрине как есть,
+ * включая «замер невозможен»: обещать «надёжные лоты сверху» без замера нельзя.
+ */
+export interface RankingBenchmark {
+  measured: boolean;
+  reason: string;
+  total: number;
+  clean: number;
+  problem: number;
+  results: Record<string, { share: number; pairs: number }>;
+  caveats: string[];
+  verdict: string;
+  thresholds: { talk: number; claim: number };
+}
+
+export const getRankingBenchmark = () => apiTry<RankingBenchmark>('/ranking/benchmark');

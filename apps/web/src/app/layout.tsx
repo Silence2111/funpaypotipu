@@ -37,7 +37,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <hr className="divider" style={{ marginBottom: 24 }} />
           <p className="faint" style={{ fontSize: 13 }}>
             © {new Date().getFullYear()} GameMarket · эскроу-защита сделки ·{' '}
-            <a href="/rules" style={{ textDecoration: 'underline' }}>Правила и гарантии</a>
+            <a href="/rules" style={{ textDecoration: 'underline' }}>Правила и гарантии</a> ·{' '}
+            <a href="/podbor" style={{ textDecoration: 'underline' }}>Как мы меряем выдачу</a>
           </p>
         </footer>
       </body>

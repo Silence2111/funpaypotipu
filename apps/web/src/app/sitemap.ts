@@ -6,6 +6,7 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base: MetadataRoute.Sitemap = [
     { url: SITE, changeFrequency: 'daily', priority: 1 },
+    { url: `${SITE}/podbor`, changeFrequency: 'weekly', priority: 0.3 },
   ];
   try {
     const games = (await getGames()) ?? [];
