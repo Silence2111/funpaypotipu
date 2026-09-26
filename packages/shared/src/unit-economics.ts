@@ -73,8 +73,20 @@ export const acquiringCostPct = (methodKey: string): number => {
   }
 };
 
-/** Доля кэшбэка покупателю. Должна совпадать с `LOYALTY_CASHBACK_PCT` в API. */
+/**
+ * Доля кэшбэка покупателю — единственный источник. `OrdersService` раньше
+ * держал свою копию `Number(process.env.LOYALTY_CASHBACK_PCT ?? 0.02)` без
+ * проверки: при опечатке в переменной витрина показывала 2%, а начисление
+ * получало NaN и падало на `BigInt(NaN)` в момент завершения заказа.
+ */
 export const cashbackPct = (): number => num(envOf('LOYALTY_CASHBACK_PCT'), 0.02);
+
+/**
+ * Сумма кэшбэка по заказу. Округление вниз — как при реальном начислении:
+ * расчёт экономики и выплата должны давать одну и ту же копейку.
+ */
+export const cashbackFor = (amount: Minor): Minor =>
+  BigInt(Math.floor(Number(amount) * cashbackPct()));
 
 /**
  * Минимальная доля от суммы заказа, которая должна остаться площадке.
@@ -120,7 +132,7 @@ export function dealEconomics(input: DealInput): DealEconomics {
   // Покупатель платит меньше на скидку — кэшбэк и эквайринг считаются
   // от того, что он заплатил на самом деле.
   const charged = amountToPay - promoDiscount;
-  const cashback = pctOf(charged, cashbackPct());
+  const cashback = cashbackFor(charged);
   const acquiringCost = pctOf(charged, acquiringCostPct(input.paymentMethod ?? 'balance'));
 
   const net = grossRevenue - promoDiscount - cashback - acquiringCost;

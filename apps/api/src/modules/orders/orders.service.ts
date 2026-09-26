@@ -19,6 +19,7 @@ import {
   maxPromoDiscount,
   dealEconomics,
   explainDeal,
+  cashbackFor,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
@@ -30,7 +31,6 @@ import { FeesService } from './fees.service';
 import { FulfillmentService } from './fulfillment.service';
 
 const AUTO_CONFIRM_TTL_MS = Number(process.env.ORDER_AUTO_CONFIRM_TTL_MS ?? 72 * 3600 * 1000); // docs/03
-const CASHBACK_PCT = Number(process.env.LOYALTY_CASHBACK_PCT ?? 0.02); // 2% кэшбэка на баланс покупателю
 
 @Injectable()
 export class OrdersService {
@@ -275,7 +275,7 @@ export class OrdersService {
     );
 
     // Кэшбэк покупателю на баланс — наш ответ на «токены P» конкурентов (живые деньги).
-    const cashback = BigInt(Math.floor(Number(order.amount) * CASHBACK_PCT));
+    const cashback = cashbackFor(order.amount);
     if (cashback > 0n) {
       await this.ledger.post({
         legs: cashbackToBalance(order.buyerId, cashback),

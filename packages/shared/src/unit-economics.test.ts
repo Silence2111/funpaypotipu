@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeFees } from './money';
+import { SELLER_LEVELS, effectiveSellerPct } from './seller-level';
 import {
   acquiringCostPct,
   cashbackPct,
@@ -14,8 +15,12 @@ import {
  * по отдельности и ни разу вместе. Здесь проверяется именно сумма.
  */
 
-// Заказ 1 000 ₽ в категории ключей (7%) у Pro-продавца (скидка 3 п.п.).
-const KEYS_PRO = computeFees(100_000n, 0, 0.04);
+// Заказ 1 000 ₽ в категории ключей у Pro-продавца. Ставка категории — входные
+// данные (FeeRule из сида), а скидка уровня берётся из кода: раньше здесь
+// стояло готовое 0.04, и тест не заметил, что в бою скидка обнуляла комиссию.
+const KEYS_RULE_PCT = 0.07;
+const KEYS_PRO_PCT = effectiveSellerPct(KEYS_RULE_PCT, SELLER_LEVELS.pro);
+const KEYS_PRO = computeFees(100_000n, 0, KEYS_PRO_PCT);
 
 describe('арифметика сделки для площадки', () => {
   it('без скидки и при оплате с баланса сделка в плюсе', () => {
@@ -24,7 +29,8 @@ describe('арифметика сделки для площадки', () => {
       sellerPayout: KEYS_PRO.sellerPayout,
       paymentMethod: 'balance',
     });
-    expect(e.grossRevenue).toBe(4000n);
+    expect(e.grossRevenue).toBe(BigInt(Math.round(100_000 * KEYS_PRO_PCT)));
+    expect(e.grossRevenue).toBeGreaterThan(0n);
     expect(e.net).toBeGreaterThan(0n);
   });
 
@@ -34,7 +40,7 @@ describe('арифметика сделки для площадки', () => {
       sellerPayout: KEYS_PRO.sellerPayout,
       paymentMethod: 'balance',
     });
-    expect(e.cashback).toBe(BigInt(Math.round(100_000 * cashbackPct())));
+    expect(e.cashback).toBe(BigInt(Math.floor(100_000 * cashbackPct())));
     expect(e.net).toBe(e.grossRevenue - e.cashback - e.acquiringCost);
   });
 
@@ -64,8 +70,8 @@ describe('арифметика сделки для площадки', () => {
   });
 
   it('убыток растёт вместе с чеком, а не исчезает на крупных заказах', () => {
-    const мелкий = computeFees(50_000n, 0, 0.04);
-    const крупный = computeFees(500_000n, 0, 0.04);
+    const мелкий = computeFees(50_000n, 0, KEYS_PRO_PCT);
+    const крупный = computeFees(500_000n, 0, KEYS_PRO_PCT);
     const a = dealEconomics({
       amountToPay: мелкий.amountToPay,
       sellerPayout: мелкий.sellerPayout,
@@ -124,8 +130,9 @@ describe('потолок промокода', () => {
   });
 
   it('тонкой комиссии не хватает даже на кэшбэк — скидка ноль', () => {
-    // 1% комиссии против 2% кэшбэка: скидывать нечего.
-    const thin = computeFees(100_000n, 0, 0.01);
+    // Комиссия вдвое меньше кэшбэка: скидывать нечего. Ставка выводится из
+    // cashbackPct(), чтобы тест не сломался «не по той причине» при смене кэшбэка.
+    const thin = computeFees(100_000n, 0, cashbackPct() / 2);
     expect(
       maxPromoDiscount({
         amountToPay: thin.amountToPay,

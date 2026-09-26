@@ -1,6 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaClient } from '@gamemarket/db';
-import { computeFees, sellerLevel, type FeeBreakdown, type SellerLevel } from '@gamemarket/shared';
+import {
+  computeFees,
+  effectiveSellerPct,
+  sellerLevel,
+  type FeeBreakdown,
+  type SellerLevel,
+} from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 
 /** Резолв правила комиссии (category → global), скидка по уровню продавца, расчёт разбивки. */
@@ -33,11 +39,10 @@ export class FeesService {
     const sellerPct = rule?.feeSellerPct ?? 0;
 
     let level: SellerLevel | undefined;
-    let effSellerPct = sellerPct;
-    if (sellerId) {
-      level = await this.levelOf(sellerId);
-      effSellerPct = Math.max(0, sellerPct - level.feeDiscountBps / 100);
-    }
+    if (sellerId) level = await this.levelOf(sellerId);
+    // Перевод bps → доля — только через shared: здесь раньше вычитали
+    // процентные пункты из доли, и комиссия уровней обнулялась.
+    const effSellerPct = effectiveSellerPct(sellerPct, level);
 
     return { ...computeFees(base, buyerPct, effSellerPct), level };
   }
