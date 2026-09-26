@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { Paperclip } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
+import { uploadViaPresignedUrl } from '@/lib/upload';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -80,14 +81,10 @@ export function OrderChat({ conversationId, meId }: { conversationId: string; me
     e.target.value = '';
     if (!file) return;
     try {
-      const up = await apiFetch<{ key: string; uploadUrl: string }>(
-        `/conversations/${conversationId}/uploads`,
-        { method: 'POST', body: JSON.stringify({ mime: file.type || 'application/octet-stream' }) },
-      );
-      await fetch(up.uploadUrl, { method: 'PUT', body: file });
+      const att = await uploadViaPresignedUrl(`/conversations/${conversationId}/uploads`, file);
       const msg = await apiFetch<Msg>(`/conversations/${conversationId}/attachments`, {
         method: 'POST',
-        body: JSON.stringify({ key: up.key, mime: file.type || 'application/octet-stream', size: file.size }),
+        body: JSON.stringify(att),
       });
       setMessages((prev) => [...prev, msg]);
     } catch {

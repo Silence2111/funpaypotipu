@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Paperclip, ShieldAlert } from 'lucide-react';
 import { apiFetch, getToken, getUser } from '@/lib/session';
+import { uploadViaPresignedUrl } from '@/lib/upload';
 
 interface Attach { url: string; mime: string }
 interface DMsg { id: string; senderId: string | null; body: string; createdAt: string; attachments?: Attach[] }
@@ -60,15 +61,10 @@ export default function DisputePage() {
     setBusy(true);
     setErr(null);
     try {
-      const mime = file.type || 'application/octet-stream';
-      const up = await apiFetch<{ key: string; uploadUrl: string }>(`/disputes/${id}/uploads`, {
-        method: 'POST',
-        body: JSON.stringify({ mime }),
-      });
-      await fetch(up.uploadUrl, { method: 'PUT', body: file });
+      const att = await uploadViaPresignedUrl(`/disputes/${id}/uploads`, file);
       await apiFetch(`/disputes/${id}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ body: '', attachments: [{ key: up.key, mime, size: file.size }] }),
+        body: JSON.stringify({ body: '', attachments: [att] }),
       });
       await load();
     } catch {
