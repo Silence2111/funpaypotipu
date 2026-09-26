@@ -138,3 +138,21 @@ export function browseListings(params: {
   const s = qs.toString();
   return apiTry<BrowseResult>(`/listings${s ? `?${s}` : ''}`);
 }
+
+/**
+ * Публичный прайс площадки.
+ *
+ * Цифры на витрине берутся из тех же правил, по которым считается реальная
+ * сделка. Иначе комиссия на лендинге и комиссия в кошельке разъезжаются
+ * при первой же правке в админке, и покупатель узнаёт об этом после оплаты.
+ */
+export interface PublicPricing {
+  currency: string;
+  sellerFeeMinPct: number;
+  sellerFeeMaxPct: number;
+  levelDiscountMaxPp: number;
+  cashbackPct: number;
+  withdrawal: Array<{ key: string; label: string; feePct: number; minFeeMinor: string }>;
+}
+
+export const getPublicPricing = () => apiTry<PublicPricing>('/fees/public');

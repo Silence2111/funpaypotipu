@@ -24,6 +24,7 @@
     "@nestjs/websockets": "^10.4.15",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.5",
     "meilisearch": "^0.45.0",
     "minio": "^8.0.2",
     "nodemailer": "^6.9.16",

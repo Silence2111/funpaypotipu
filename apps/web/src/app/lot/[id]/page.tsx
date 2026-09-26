@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { ShieldCheck, Star, User } from 'lucide-react';
 import { getListing } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
+import { tileFor } from '@/lib/tile';
 import { BuyButton } from '@/components/buy-button';
 import { FavoriteButton } from '@/components/favorite-button';
 import { MessageSellerButton } from '@/components/message-seller-button';
@@ -89,7 +90,27 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                 style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
               />
             ) : (
-              <span className="faint">Нет изображения</span>
+              // Раньше здесь стояло «Нет изображения» посреди пустого блока
+              // 16:9 — страница выглядела сломанной. Плитка игры честнее:
+              // она не выдаёт себя за фотографию товара и не оставляет дыру.
+              <div
+                aria-hidden
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: 'inherit',
+                  background: tileFor(listing.game.title).background,
+                  color: tileFor(listing.game.title).color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 44,
+                  fontWeight: 700,
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {tileFor(listing.game.title).initials}
+              </div>
             )}
           </div>
 

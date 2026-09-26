@@ -17,7 +17,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "db:generate": "pnpm --filter @gamemarket/db generate",
     "db:migrate": "pnpm --filter @gamemarket/db migrate",
-    "db:seed": "pnpm --filter @gamemarket/db seed"
+    "db:seed": "pnpm --filter @gamemarket/db seed",
+    "db:seed:demo": "pnpm --filter @gamemarket/db seed:demo"
   },
   "devDependencies": {
     "prettier": "^3.4.2",

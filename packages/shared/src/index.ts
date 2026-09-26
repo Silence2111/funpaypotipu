@@ -5,5 +5,6 @@ export * from './enums';
 export * from './seller-level';
 export * from './withdrawal';
 export * from './payment';
+export * from './unit-economics';
 export * from './contracts/auth';
 export * from './contracts/catalog';

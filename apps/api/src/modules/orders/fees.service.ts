@@ -42,6 +42,15 @@ export class FeesService {
     return { ...computeFees(base, buyerPct, effSellerPct), level };
   }
 
+  /** Активные правила комиссии по валюте — для публичного прайса. */
+  activeRules(currency: string) {
+    return this.prisma.feeRule.findMany({
+      where: { active: true, currency },
+      select: { scope: true, feeBuyerPct: true, feeSellerPct: true },
+      orderBy: { priority: 'desc' },
+    });
+  }
+
   /** Уровень продавца из продаж + рейтинга + верификации. */
   async levelOf(sellerId: string): Promise<SellerLevel> {
     const [profile, kyc] = await Promise.all([

@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { ImageIcon, Star, Zap } from 'lucide-react';
+import { Star, Zap } from 'lucide-react';
 import type { Game, ListingCard } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
+import { tileFor } from '@/lib/tile';
 
 export function ListingCardView({ listing }: { listing: ListingCard }) {
   const cover = listing.images?.[0];
@@ -19,7 +20,7 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
             style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
           />
         ) : (
-          <ImageIcon size={22} strokeWidth={1.5} />
+          <GameTile title={listing.game?.title || listing.title} size={20} />
         )}
       </div>
       <div style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.35 }}>{listing.title}</div>
@@ -56,10 +57,41 @@ export function GameCardView({ game }: { game: Game }) {
             style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
           />
         ) : (
-          <span style={{ fontSize: 24, fontWeight: 600 }}>{game.title.slice(0, 1)}</span>
+          <GameTile title={game.title} size={26} />
         )}
       </div>
       <div style={{ fontSize: 15, fontWeight: 500 }}>{game.title}</div>
     </Link>
+  );
+}
+
+/**
+ * Заглушка обложки: цветная плитка с буквами названия.
+ *
+ * Серый прямоугольник с иконкой «нет изображения» на каждой карточке читается
+ * как сломанная страница, а чужие обложки игр брать нельзя. Цвет выводится
+ * из названия, поэтому у одной игры он всегда одинаковый.
+ */
+function GameTile({ title, size }: { title: string; size: number }) {
+  const t = tileFor(title);
+  return (
+    <div
+      aria-hidden
+      style={{
+        width: '100%',
+        height: '100%',
+        borderRadius: 'inherit',
+        background: t.background,
+        color: t.color,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: size,
+        fontWeight: 700,
+        letterSpacing: '-0.02em',
+      }}
+    >
+      {t.initials}
+    </div>
   );
 }

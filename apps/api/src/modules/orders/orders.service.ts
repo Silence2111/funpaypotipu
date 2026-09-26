@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -15,6 +16,9 @@ import {
   refundToBalance,
   releaseEscrow,
   cashbackToBalance,
+  maxPromoDiscount,
+  dealEconomics,
+  explainDeal,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
@@ -30,6 +34,8 @@ const CASHBACK_PCT = Number(process.env.LOYALTY_CASHBACK_PCT ?? 0.02); // 2% к�
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly ledger: LedgerService,
@@ -63,10 +69,34 @@ export class OrdersService {
     );
 
     // Промокод: скидка снимается с комиссии площадки (не с выплаты продавцу).
+    //
+    // Потолком была вся валовая комиссия — то есть скидку разрешалось доводить
+    // ровно до нуля. После этого кэшбэк покупателю и приём платежа платились
+    // уже из своего кармана, и чем удачнее промоакция, тем больше убыток.
+    // Теперь потолок считает `maxPromoDiscount`: из комиссии сначала
+    // вычитается то, что площадка по этой сделке заплатит в любом случае.
     let amount = f.amountToPay;
+    let discount = 0n;
     if (promoCode) {
-      const maxDiscount = f.amountToPay - f.sellerPayout; // = комиссия площадки
-      amount -= await this.promo.consume(promoCode, f.amountToPay, maxDiscount);
+      const maxDiscount = maxPromoDiscount({
+        amountToPay: f.amountToPay,
+        sellerPayout: f.sellerPayout,
+        paymentMethod: 'sbp',
+      });
+      discount = await this.promo.consume(promoCode, f.amountToPay, maxDiscount);
+      amount -= discount;
+    }
+
+    // Если сделка всё равно не сходится — это не повод её запрещать
+    // (покупатель ни при чём), но знать об этом надо.
+    const econ = dealEconomics({
+      amountToPay: f.amountToPay,
+      sellerPayout: f.sellerPayout,
+      promoDiscount: discount,
+      paymentMethod: 'sbp',
+    });
+    if (!econ.ok) {
+      this.logger.warn(`Заказ по лоту ${listingId}: ${explainDeal(econ)}`);
     }
 
     const order = await this.prisma.order.create({
