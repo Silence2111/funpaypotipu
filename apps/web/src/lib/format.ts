@@ -1,9 +1,16 @@
 const SYMBOLS: Record<string, string> = { RUB: '₽', USD: '$', EUR: '€' };
 
-/** "150000" (копейки), RUB → "1 500 ₽". Разделяет тысячи узким пробелом. */
+/**
+ * "150000" (копейки), RUB → "1 500 ₽", "73080" → "730,80 ₽". Разделяет тысячи
+ * узким пробелом; копейки — двумя знаками или никак, а не «730,8».
+ */
 export function formatPrice(minor: string, currency = 'RUB'): string {
-  const major = Number(BigInt(minor)) / 100;
-  const num = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(major);
+  const value = BigInt(minor);
+  const kopecks = value % 100n !== 0n;
+  const num = new Intl.NumberFormat('ru-RU', {
+    minimumFractionDigits: kopecks ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(Number(value) / 100);
   return `${num} ${SYMBOLS[currency] ?? currency}`;
 }
 

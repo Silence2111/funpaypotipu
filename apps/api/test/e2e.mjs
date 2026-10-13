@@ -3,7 +3,8 @@
  * Запуск: API_URL=http://localhost:4090 DATABASE_URL=... node apps/api/test/e2e.mjs
  * Покрывает: эскроу-покупка, авто-выдача ключей, пополнение на сумму покупателя,
  * продажа поштучно (наличие, перепродажа последней штуки), способы оплаты (надбавка карты,
- * второй платёж по заказу), выплаты (с холдом и ролью finance).
+ * второй платёж по заказу), модерация (жалобы, бан, заморозка, спор у арбитра),
+ * выплаты (с холдом и ролью finance).
  * Выход 0 — все проверки пройдены, иначе 1.
  */
 import db from '../../../packages/db/dist/index.js';
@@ -231,6 +232,79 @@ async function scenarioPaymentMethods(rnd) {
   check('Пополнение картой: списано 522 ₽, на баланс 500 ₽', top.body.amount === '52200' && w3.body.balance === '150000', `${top.body.amount} / ${w3.body.balance}`);
 }
 
+async function grant(userId, roleKey) {
+  const role = await prisma.role.findUnique({ where: { key: roleKey } });
+  await prisma.userRole.upsert({
+    where: { userId_roleId: { userId, roleId: role.id } },
+    update: {},
+    create: { userId, roleId: role.id },
+  });
+}
+
+async function scenarioModeration(rnd) {
+  console.log('\n— Модерация и споры —');
+  const seller = await register('mds', rnd);
+  const buyer = await register('mdb', rnd);
+  const mod = await register('mdm', rnd);
+  const agent = await register('mda', rnd);
+  await grant(mod.id, 'moderator');
+  await grant(agent.id, 'agent');
+  const bad = await createListing(seller.token, 'accounts', '200000');
+  const other = await createListing(seller.token, 'accounts', '90000');
+
+  const report = (body) => j('/reports', { method: 'POST', token: buyer.token, body: JSON.stringify(body) });
+  const r1 = await report({ targetType: 'listing', targetId: bad, reason: 'Мошенничество', details: 'просит оплату на карту' });
+  const r2 = await report({ targetType: 'listing', targetId: bad, reason: 'Мошенничество' });
+  check('Жалоба принята, повтор не плодит дубль', r1.status === 201 && r2.body.id === r1.body.id);
+  check('Жалоба на несуществующее → 400/404', [400, 404].includes((await report({ targetType: 'listing', targetId: 'nope', reason: 'Другое' })).status));
+  check('Покупатель не видит очередь модератора', (await j('/moderation/reports', { token: buyer.token })).status === 403);
+  const queue = await j('/moderation/reports', { token: mod.token });
+  const item = queue.body.find?.((r) => r.id === r1.body.id);
+  check('В очереди видно, на что жалоба', item?.target?.title === 'E2E accounts' && item?.target?.user?.id === seller.id);
+
+  await j(`/moderation/reports/${r1.body.id}/handle`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'resolved', action: 'block_listing' }) });
+  check('Лот заблокирован и пропал с витрины', (await j(`/listings/${bad}`)).status === 404);
+  const relist = await j(`/listings/${bad}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'active' }) });
+  check('Продавец сам блокировку не снимает', relist.status === 403);
+
+  // Заказ до бана: потом по нему будет спор
+  const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: other }) });
+  await pay(buyer.token, order.body.id);
+
+  const ban = await j(`/moderation/users/${seller.id}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'banned', reason: 'мошенничество' }) });
+  check('Бан применён', ban.body.status === 'banned');
+  check('Выданный до бана токен не работает', (await j('/wallet', { token: seller.token })).status === 401);
+  const login = await j('/auth/login', { method: 'POST', body: JSON.stringify({ email: `mds${rnd}@e2e.local`, password: 'password123' }) });
+  check('Забаненный не входит', login.status === 403);
+  const otherAfterBan = await prisma.listing.findUnique({ where: { id: other }, select: { status: true } });
+  check('Лоты забаненного ушли из каталога', otherAfterBan.status === 'paused', otherAfterBan.status);
+
+  await j(`/moderation/users/${seller.id}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'active' }) });
+  const restored = await prisma.listing.findMany({ where: { id: { in: [bad, other] } }, select: { id: true, status: true } });
+  const st = Object.fromEntries(restored.map((l) => [l.id, l.status]));
+  check('Разбан вернул лоты, снятые баном; заблокированный остался', st[other] === 'active' && st[bad] === 'blocked', JSON.stringify(st));
+
+  const touchStaff = await j(`/moderation/users/${agent.id}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'banned' }) });
+  check('Модератор не банит арбитра', touchStaff.status === 403);
+
+  await j(`/moderation/users/${buyer.id}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'frozen' }) });
+  const frozenBuy = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: other }) });
+  check('Замороженный не покупает, но входит', frozenBuy.status === 403 && (await j('/wallet', { token: buyer.token })).status === 200);
+  await j(`/moderation/users/${buyer.id}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'active' }) });
+
+  const dispute = await j('/disputes', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: order.body.id, reason: 'Продавец пропал после оплаты' }) });
+  const dq = await j('/disputes/queue', { token: agent.token });
+  const inQueue = dq.body.find?.((d) => d.id === dispute.body.id);
+  check('Спор в очереди арбитра с суммой и сторонами', inQueue?.order?.amount === '90000' && inQueue?.buyer === `mdb${rnd}`);
+  const view = await j(`/disputes/${dispute.body.id}`, { token: agent.token });
+  check('Арбитр видит стороны и может решать', view.body.canResolve === true && view.body.parties?.seller?.id === seller.id);
+  await j(`/disputes/${dispute.body.id}/take`, { method: 'POST', token: agent.token });
+  await j(`/disputes/${dispute.body.id}/resolve`, { method: 'POST', token: agent.token, body: JSON.stringify({ outcome: 'buyer', note: 'Товар не передан' }) });
+  const refunded = await j(`/orders/${order.body.id}`, { token: buyer.token });
+  const wb = await j('/wallet', { token: buyer.token });
+  check('Решение в пользу покупателя: деньги на балансе', refunded.body.status === 'refunded' && wb.body.balance === '90000', `${refunded.body.status} / ${wb.body.balance}`);
+}
+
 async function scenarioPayout(rnd) {
   console.log('\n— Выплаты (finance) —');
   const seller = await register('pys', rnd);
@@ -270,6 +344,7 @@ async function scenarioPayout(rnd) {
   await scenarioSteamTopup(rnd);
   await scenarioQuantity(rnd);
   await scenarioPaymentMethods(rnd);
+  await scenarioModeration(rnd);
   await scenarioPayout(rnd);
 
   const passed = results.filter(Boolean).length;

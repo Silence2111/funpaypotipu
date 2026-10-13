@@ -6,7 +6,7 @@ import { markupLabel, topupQuote, topupTermsError } from '@gamemarket/shared/top
 import { PRICE_PER_UNITS, qtyTermsError } from '@gamemarket/shared/quantity';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
-import { formatQty } from '@/lib/format';
+import { formatPrice, formatQty } from '@/lib/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -498,17 +498,17 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
           <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
             {variable && example && terms && (
               <p className="muted" style={{ margin: '0 0 8px', fontSize: 14 }}>
-                Покупатель пополняет {(Number(example.nominal) / 100).toLocaleString('ru-RU')} ₽ и платит{' '}
-                {(Number(example.price) / 100).toLocaleString('ru-RU')} ₽ с наценкой {markupLabel(terms.markupBps)}
+                Покупатель пополняет {formatPrice(example.nominal.toString())} и платит{' '}
+                {formatPrice(example.price.toString())} с наценкой {markupLabel(terms.markupBps)}
               </p>
             )}
             <div className="row" style={{ justifyContent: 'space-between', fontSize: 14 }}>
               <span className="muted">Комиссия площадки</span>
-              <span>−{(Number(quote.feeSeller) / 100).toLocaleString('ru-RU')} ₽</span>
+              <span>−{formatPrice(quote.feeSeller)}</span>
             </div>
             <div className="row" style={{ justifyContent: 'space-between', fontSize: 15, fontWeight: 700, marginTop: 6 }}>
               <span>{perPiece ? `Вы получите за ${unitLabel(perUnits)}` : 'Вы получите'}</span>
-              <span style={{ color: 'var(--success)' }}>{(Number(quote.sellerPayout) / 100).toLocaleString('ru-RU')} ₽</span>
+              <span style={{ color: 'var(--success)' }}>{formatPrice(quote.sellerPayout)}</span>
             </div>
             {quote.level && <p className="hint" style={{ marginTop: 6 }}>Ваш уровень: {quote.level.label}</p>}
           </div>

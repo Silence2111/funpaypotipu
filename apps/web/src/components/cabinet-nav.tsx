@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { isStaff, useSession } from '@/lib/session';
 
 /** Разделы кабинета — как у FunPay: продажи, лоты, финансы и настройки отдельно. */
 const LINKS = [
@@ -15,9 +16,12 @@ const LINKS = [
 
 export function CabinetNav() {
   const path = usePathname();
+  const { user } = useSession();
+  // Сотруднику — вход в консоль: на телефоне в шапке для него нет места.
+  const links = isStaff(user) ? [...LINKS, { href: '/admin', label: 'Консоль' }] : LINKS;
   return (
     <nav aria-label="Разделы кабинета" className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-      {LINKS.map((l) => (
+      {links.map((l) => (
         <Link
           key={l.href}
           href={l.href}

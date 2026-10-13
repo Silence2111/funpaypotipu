@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { User, LogOut } from 'lucide-react';
-import { clearSession, getUser, type SessionUser } from '@/lib/session';
+import { User, LogOut, ShieldCheck } from 'lucide-react';
+import { clearSession, getUser, isStaff, type SessionUser } from '@/lib/session';
 import { NotificationsBell } from './notifications-bell';
 
 export function AuthNav() {
@@ -30,6 +30,13 @@ export function AuthNav() {
 
   return (
     <div className="row" style={{ gap: 8 }}>
+      {isStaff(user) && (
+        // На телефоне шапка и так впритык — там консоль открывается из кабинета.
+        <Link href="/admin" className="chip hide-mobile" aria-label="Консоль сотрудника" title="Консоль сотрудника">
+          <ShieldCheck size={16} strokeWidth={1.75} />
+          <span>Консоль</span>
+        </Link>
+      )}
       <NotificationsBell />
       <Link href="/cabinet" className="chip" aria-label="Кабинет">
         <User size={16} strokeWidth={1.75} />

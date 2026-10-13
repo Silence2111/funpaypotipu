@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   UnauthorizedException,
@@ -21,12 +22,15 @@ export interface RequestCtx {
 }
 
 export interface IssuedAuth {
-  user: { id: string; email: string | null; username: string };
+  /** roles — для ссылки на консоль сотрудника; доступ проверяет RolesGuard. */
+  user: { id: string; email: string | null; username: string; roles: string[] };
   accessToken: string;
   refreshToken: string;
 }
 
 const sha256 = (v: string): string => createHash('sha256').update(v).digest('hex');
+
+const BANNED = 'Аккаунт заблокирован. Если это ошибка — напишите в поддержку.';
 
 @Injectable()
 export class AuthService {
@@ -119,6 +123,7 @@ export class AuthService {
 
     const ok = await bcrypt.compare(input.password, user.passwordHash);
     if (!ok) throw new UnauthorizedException('Неверные данные');
+    if (user.status === 'banned') throw new ForbiddenException(BANNED);
 
     if (!(await this.twoFactor.verify(user.id, input.code))) {
       throw new UnauthorizedException('Требуется код двухфакторной аутентификации');
@@ -162,6 +167,7 @@ export class AuthService {
       include: { profile: true },
     });
     if (!user?.profile) throw new UnauthorizedException('Пользователь не найден');
+    if (user.status === 'banned') throw new ForbiddenException(BANNED);
 
     return this.issue(user.id, user.email, user.profile.username, ctx);
   }
@@ -202,6 +208,13 @@ export class AuthService {
       },
     });
 
-    return { user: { id: userId, email, username }, accessToken, refreshToken };
+    const roles = await this.rolesOf(userId);
+    return { user: { id: userId, email, username, roles }, accessToken, refreshToken };
+  }
+
+  /** Ключи ролей пользователя: «admin», «moderator»… */
+  async rolesOf(userId: string): Promise<string[]> {
+    const rows = await this.prisma.userRole.findMany({ where: { userId }, select: { role: { select: { key: true } } } });
+    return rows.map((r) => r.role.key);
   }
 }

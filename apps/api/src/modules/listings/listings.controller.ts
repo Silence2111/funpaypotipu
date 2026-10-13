@@ -25,13 +25,17 @@ import {
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
+import { AccountStatusService } from '../access/account-status.service';
 import { ListingsService } from './listings.service';
 
 const bumpAllSchema = z.object({ categoryId: z.string().uuid().optional() });
 
 @Controller('listings')
 export class ListingsController {
-  constructor(private readonly listings: ListingsService) {}
+  constructor(
+    private readonly listings: ListingsService,
+    private readonly account: AccountStatusService,
+  ) {}
 
   // ── Публичное ──
   @Get()
@@ -81,20 +85,23 @@ export class ListingsController {
   // ── Продавец (защищено) ──
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(
+  async create(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createListingSchema)) body: CreateListingInput,
   ) {
+    await this.account.assertCanTrade(user.userId);
     return this.listings.create(user.userId, body);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  update(
+  async update(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateListingSchema)) body: UpdateListingInput,
   ) {
+    // Снять с продажи и поправить текст можно и в заморозке, вернуть в продажу — нет.
+    if (body.status === 'active') await this.account.assertCanTrade(user.userId);
     return this.listings.update(user.userId, id, body);
   }
 

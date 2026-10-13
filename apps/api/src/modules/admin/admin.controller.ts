@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -28,6 +28,16 @@ export class AdminController {
   @Get('users')
   users() {
     return this.admin.listUsers();
+  }
+
+  @Get('roles')
+  roles() {
+    return this.admin.listRoles();
+  }
+
+  @Get('audit')
+  audit(@Query('limit') limit?: string) {
+    return this.admin.auditLog(Number(limit) || 100);
   }
 
   @Get('fee-rules')

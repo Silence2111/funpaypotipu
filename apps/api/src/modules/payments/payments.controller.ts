@@ -4,6 +4,7 @@ import { GATEWAY_METHOD_KEYS, type GatewayMethodKey } from '@gamemarket/shared';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
+import { AccountStatusService } from '../access/account-status.service';
 import { PaymentsService } from './payments.service';
 
 // Способ оплаты через шлюз; без него — СБП, как платили до выбора способа.
@@ -22,7 +23,10 @@ const webhookSchema = z.object({
 
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly payments: PaymentsService) {}
+  constructor(
+    private readonly payments: PaymentsService,
+    private readonly account: AccountStatusService,
+  ) {}
 
   @Post('deposit')
   @UseGuards(JwtAuthGuard)
@@ -36,10 +40,11 @@ export class PaymentsController {
   /** Пополнение баланса пользователя. */
   @Post('topup')
   @UseGuards(JwtAuthGuard)
-  topup(
+  async topup(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(topupSchema)) body: { amount: string; method: GatewayMethodKey },
   ) {
+    await this.account.assertCanTrade(user.userId);
     return this.payments.createBalanceDeposit(user.userId, BigInt(body.amount), body.method);
   }
 

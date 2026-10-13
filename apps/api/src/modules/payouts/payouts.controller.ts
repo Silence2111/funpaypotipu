@@ -6,6 +6,7 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { WITHDRAWAL_METHOD_KEYS } from '@gamemarket/shared';
+import { AccountStatusService } from '../access/account-status.service';
 import { PayoutsService } from './payouts.service';
 
 const requestSchema = z.object({
@@ -19,14 +20,18 @@ const rejectSchema = z.object({ reason: z.string().max(500).optional() });
 @Controller('payouts')
 @UseGuards(JwtAuthGuard)
 export class PayoutsController {
-  constructor(private readonly payouts: PayoutsService) {}
+  constructor(
+    private readonly payouts: PayoutsService,
+    private readonly account: AccountStatusService,
+  ) {}
 
   @Post()
-  request(
+  async request(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(requestSchema))
     body: { amount: string; method: 'card' | 'sbp' | 'crypto'; destination: string },
   ) {
+    await this.account.assertCanTrade(user.userId);
     return this.payouts.request(user.userId, BigInt(body.amount), body.method, body.destination);
   }
 

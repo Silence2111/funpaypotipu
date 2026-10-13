@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
+import { AccountStatusService } from '../access/account-status.service';
 import { OrdersService } from './orders.service';
 
 const createOrderSchema = z.object({
@@ -32,13 +33,17 @@ const refundSchema = z.object({ reason: z.string().max(300).optional() });
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrdersController {
-  constructor(private readonly orders: OrdersService) {}
+  constructor(
+    private readonly orders: OrdersService,
+    private readonly account: AccountStatusService,
+  ) {}
 
   @Post()
-  create(
+  async create(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createOrderSchema)) body: CreateOrderBody,
   ) {
+    await this.account.assertCanTrade(user.userId);
     const { listingId, ...opts } = body;
     return this.orders.create(user.userId, listingId, opts);
   }

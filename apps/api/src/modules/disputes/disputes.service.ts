@@ -151,8 +151,13 @@ export class DisputesService {
     return updated;
   }
 
+  /**
+   * Спор с перепиской и сторонами. Арбитру нужно видеть, кто есть кто и о
+   * какой сумме спор: раньше страница спора отдавала одни сообщения без
+   * подписей, и арбитр решал вслепую.
+   */
   async getForUser(disputeId: string, userId: string) {
-    const { dispute, isStaff } = await this.accessible(disputeId, userId);
+    const { dispute, order, isStaff } = await this.accessible(disputeId, userId);
     const rows = await this.prisma.disputeMessage.findMany({
       where: { disputeId, ...(isStaff ? {} : { isInternal: false }) },
       orderBy: { createdAt: 'asc' },
@@ -167,7 +172,41 @@ export class DisputesService {
         attachments: await this.presignAttachments(m.attachments),
       })),
     );
-    return { dispute, messages };
+    const names = await this.usernames([order?.buyerId, order?.sellerId, dispute.arbiterId]);
+    // Решает спор арбитр или администратор; модератор видит переписку, но денег не двигает.
+    const canResolve =
+      isStaff &&
+      (await this.prisma.userRole.count({ where: { userId, role: { key: { in: ['agent', 'admin'] } } } })) > 0;
+    return {
+      dispute,
+      messages,
+      isStaff,
+      canResolve,
+      order: order
+        ? {
+            id: order.id,
+            publicNumber: order.publicNumber,
+            amount: order.amount,
+            currency: order.currency,
+            status: order.status,
+            title: (order.listingSnapshot as { title?: string } | null)?.title ?? null,
+          }
+        : null,
+      parties: {
+        buyer: order ? { id: order.buyerId, username: names.get(order.buyerId) ?? null } : null,
+        seller: order ? { id: order.sellerId, username: names.get(order.sellerId) ?? null } : null,
+        arbiter: dispute.arbiterId ? { id: dispute.arbiterId, username: names.get(dispute.arbiterId) ?? null } : null,
+      },
+    };
+  }
+
+  private async usernames(ids: Array<string | null | undefined>) {
+    const list = [...new Set(ids.filter((v): v is string => !!v))];
+    const rows = await this.prisma.profile.findMany({
+      where: { userId: { in: list } },
+      select: { userId: true, username: true },
+    });
+    return new Map(rows.map((r) => [r.userId, r.username]));
   }
 
   /** Найти спор пользователя по заказу (для перехода со страницы заказа). */
@@ -186,11 +225,36 @@ export class DisputesService {
     );
   }
 
-  queue() {
-    return this.prisma.dispute.findMany({
+  /** Очередь арбитра: сумма, стороны, кто взял, сколько ждёт. */
+  async queue() {
+    const disputes = await this.prisma.dispute.findMany({
       where: { status: { in: ['open', 'in_review'] } },
       orderBy: { createdAt: 'asc' },
+      include: {
+        order: {
+          select: { publicNumber: true, amount: true, currency: true, buyerId: true, sellerId: true, listingSnapshot: true },
+        },
+        _count: { select: { messages: true } },
+      },
     });
+    const names = await this.usernames(
+      disputes.flatMap((d) => [d.order?.buyerId, d.order?.sellerId, d.arbiterId]),
+    );
+    return disputes.map(({ order, _count, ...d }) => ({
+      ...d,
+      messages: _count.messages,
+      order: order
+        ? {
+            publicNumber: order.publicNumber,
+            amount: order.amount,
+            currency: order.currency,
+            title: (order.listingSnapshot as { title?: string } | null)?.title ?? null,
+          }
+        : null,
+      buyer: order ? names.get(order.buyerId) ?? null : null,
+      seller: order ? names.get(order.sellerId) ?? null : null,
+      arbiter: d.arbiterId ? names.get(d.arbiterId) ?? null : null,
+    }));
   }
 
   private async get(disputeId: string) {

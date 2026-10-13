@@ -103,10 +103,11 @@ export class AuthController {
     res.clearCookie(REFRESH_COOKIE, { path: REFRESH_PATH });
   }
 
+  /** Кто я и мои роли — консоль сотрудника показывает только свои разделы. */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@CurrentUser() user: AuthUser): AuthUser {
-    return user;
+  async me(@CurrentUser() user: AuthUser) {
+    return { ...user, roles: await this.auth.rolesOf(user.userId) };
   }
 
   // ── Двухфакторная аутентификация ──

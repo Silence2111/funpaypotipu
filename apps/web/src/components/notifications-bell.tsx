@@ -27,6 +27,10 @@ const LABELS: Record<string, string> = {
   new_message: 'Новое сообщение',
   dispute_opened: 'Открыт спор по сделке',
   dispute_resolved: 'Спор разрешён',
+  report_handled: 'Ваша жалоба рассмотрена',
+  listing_blocked: 'Лот заблокирован модератором',
+  listing_unblocked: 'Блокировка лота снята',
+  account_status: 'Статус аккаунта изменён',
   payout_paid: 'Выплата отправлена',
   payout_rejected: 'Выплата отклонена',
 };

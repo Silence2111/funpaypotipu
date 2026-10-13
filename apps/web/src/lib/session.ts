@@ -10,7 +10,13 @@ export interface SessionUser {
   id: string;
   username: string;
   email: string | null;
+  /** Роли из ответа входа — чтобы показать ссылку на консоль. Доступ проверяет API. */
+  roles?: string[];
 }
+
+/** Роли сотрудников площадки: у них есть консоль. */
+export const STAFF_ROLES = ['admin', 'moderator', 'agent', 'finance'];
+export const isStaff = (u: SessionUser | null) => !!u?.roles?.some((r) => STAFF_ROLES.includes(r));
 
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;

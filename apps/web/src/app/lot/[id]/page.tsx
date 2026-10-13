@@ -14,6 +14,7 @@ import { JsonLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
 import { SellerReviews } from '@/components/seller-reviews';
 import { OwnerLotActions } from '@/components/owner-lot-actions';
+import { ReportButton } from '@/components/report-button';
 
 export async function generateMetadata({
   params,
@@ -294,6 +295,9 @@ export default async function ListingPage({
             <MessageSellerButton listingId={listing.id} />
           </div>
           <OwnerLotActions listingId={listing.id} sellerId={listing.seller.id} />
+          <div style={{ marginTop: 8 }}>
+            <ReportButton targetType="listing" targetId={listing.id} ownerId={listing.seller.id} />
+          </div>
 
           <div className="card flat" style={{ marginTop: 16, padding: 16, background: 'var(--page)' }}>
             <div className="row" style={{ gap: 8, fontWeight: 700, fontSize: 14 }}>

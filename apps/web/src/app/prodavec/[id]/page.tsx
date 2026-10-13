@@ -5,6 +5,7 @@ import { isDemoSeller } from '@gamemarket/shared';
 import { getSeller, browseListings } from '@/lib/api';
 import { ListingCardView } from '@/components/cards';
 import { SellerReviews } from '@/components/seller-reviews';
+import { ReportButton } from '@/components/report-button';
 
 export async function generateMetadata({
   params,
@@ -80,6 +81,9 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
               )}
             </p>
             {seller.bio && <p className="muted" style={{ margin: '12px 0 0', fontSize: 14 }}>{seller.bio}</p>}
+            <div style={{ marginTop: 12 }}>
+              <ReportButton targetType="user" targetId={seller.id} ownerId={seller.id} />
+            </div>
 
             <div className="row" style={{ gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
               <span className="row" style={{ gap: 6, fontSize: 14 }}>
