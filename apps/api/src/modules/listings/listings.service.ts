@@ -23,6 +23,13 @@ import { StorageService } from '../storage/storage.service';
 const ASSET_BASE = process.env.PUBLIC_ASSET_BASE ?? '';
 const BOOST_MS = 24 * 3600 * 1000; // лот держится в топе сутки
 
+/** Кулдаун поднятия по заслугам: чем больше продаж, тем чаще (как на FunPay). */
+const bumpCooldownMs = (sales: number) => (sales >= 50 ? 1 : sales >= 10 ? 2 : 4) * 3600 * 1000;
+
+/** Сколько ждать до следующего поднятия лота; 0 — можно сейчас. */
+const bumpWaitMs = (boostUntil: Date | null, cooldownMs: number, now: number) =>
+  boostUntil ? Math.max(0, boostUntil.getTime() - BOOST_MS + cooldownMs - now) : 0;
+
 const cardSelect = {
   id: true,
   title: true,
@@ -188,11 +195,37 @@ export class ListingsService {
 
   async listMine(sellerId: string) {
     const rows = await this.prisma.listing.findMany({
-      where: { sellerId },
+      where: { sellerId, status: { not: 'archived' } },
       orderBy: { createdAt: 'desc' },
-      select: cardSelect,
+      select: { ...cardSelect, categoryId: true },
     });
     return rows.map((r) => this.resolveImages(r));
+  }
+
+  /**
+   * Свой лот для формы изменения: в любом статусе, кроме архива. Публичный
+   * `getById` отдаёт только активные лоты — снятый с продажи лот продавец
+   * иначе не мог бы даже открыть. Ключи фото отдаются как сохранены, чтобы
+   * форма вернула их без изменений.
+   */
+  async getMine(sellerId: string, id: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id },
+      select: {
+        ...cardSelect,
+        sellerId: true,
+        gameId: true,
+        categoryId: true,
+        description: true,
+        attributes: true,
+        stock: true,
+        category: { select: { slug: true, title: true, fulfillmentType: true } },
+      },
+    });
+    if (!listing || listing.status === 'archived') throw new NotFoundException('Лот не найден');
+    if (listing.sellerId !== sellerId) throw new ForbiddenException('Это не ваш лот');
+    const imageKeys = Array.isArray(listing.images) ? (listing.images as string[]) : [];
+    return { ...this.resolveImages(listing), imageKeys };
   }
 
   /** Поднять лот в топ. Кулдаун merit-based: чем больше продаж — тем чаще (как на FunPay). */
@@ -209,22 +242,48 @@ export class ListingsService {
       where: { userId: sellerId },
       select: { salesCount: true },
     });
-    const sales = profile?.salesCount ?? 0;
-    const cooldownMs = (sales >= 50 ? 1 : sales >= 10 ? 2 : 4) * 3600 * 1000;
-
     const now = Date.now();
-    if (listing.boostUntil) {
-      const lastBump = listing.boostUntil.getTime() - BOOST_MS;
-      const wait = lastBump + cooldownMs - now;
-      if (wait > 0) {
-        const mins = Math.ceil(wait / 60000);
-        throw new BadRequestException(`Поднять можно через ${mins} мин`);
-      }
-    }
+    const wait = bumpWaitMs(listing.boostUntil, bumpCooldownMs(profile?.salesCount ?? 0), now);
+    if (wait > 0) throw new BadRequestException(`Поднять можно через ${Math.ceil(wait / 60000)} мин`);
 
     const boostUntil = new Date(now + BOOST_MS);
     await this.prisma.listing.update({ where: { id: listingId }, data: { boostUntil } });
     return { boostUntil };
+  }
+
+  /**
+   * Поднять все активные лоты раздела разом — как «Поднять предложения» на
+   * FunPay. У каждого лота свой кулдаун: поднимаются те, чей срок прошёл,
+   * остальные ждут, и ответ говорит, через сколько можно следующим.
+   */
+  async bumpAll(sellerId: string, categoryId?: string) {
+    const [listings, profile] = await Promise.all([
+      this.prisma.listing.findMany({
+        where: { sellerId, status: 'active', ...(categoryId ? { categoryId } : {}) },
+        select: { id: true, boostUntil: true },
+      }),
+      this.prisma.profile.findUnique({ where: { userId: sellerId }, select: { salesCount: true } }),
+    ]);
+    const cooldownMs = bumpCooldownMs(profile?.salesCount ?? 0);
+    const now = Date.now();
+    const ready: string[] = [];
+    const waits: number[] = [];
+    for (const l of listings) {
+      const wait = bumpWaitMs(l.boostUntil, cooldownMs, now);
+      if (wait > 0) waits.push(wait);
+      else ready.push(l.id);
+    }
+    if (ready.length) {
+      await this.prisma.listing.updateMany({
+        where: { id: { in: ready } },
+        data: { boostUntil: new Date(now + BOOST_MS) },
+      });
+    }
+    return {
+      bumped: ready.length,
+      waiting: waits.length,
+      nextInMinutes: waits.length ? Math.ceil(Math.min(...waits) / 60000) : null,
+    };
   }
 
   async create(sellerId: string, input: CreateListingInput) {
@@ -294,6 +353,15 @@ export class ListingsService {
 
   async update(sellerId: string, id: string, input: UpdateListingInput) {
     const current = await this.assertOwner(sellerId, id);
+    // Заблокированный модератором лот продавец сам в продажу не возвращает:
+    // раньше хватало PATCH со status=active, и блокировка ничего не значила.
+    if (current.status === 'blocked') {
+      throw new ForbiddenException('Лот заблокирован модератором. Напишите в поддержку.');
+    }
+    if (current.status === 'archived') throw new NotFoundException('Лот не найден');
+    // Характеристики проверялись только при создании: правкой можно было
+    // убрать обязательное «Звание» или вписать значение не из списка.
+    if (input.attributes !== undefined) await this.validateAttributes(current.categoryId, input.attributes);
     const data: Prisma.ListingUpdateInput = {};
     if (input.title !== undefined) data.title = input.title;
     if (input.description !== undefined) data.description = input.description;
@@ -322,11 +390,26 @@ export class ListingsService {
     return updated;
   }
 
+  /**
+   * Удаление лота. Заказы ссылаются на лот внешним ключом, и удаление лота
+   * с продажами падало с ошибкой базы. Такой лот уходит в архив: из каталога
+   * и кабинета пропадает, а история сделок и споров остаётся целой.
+   */
   async remove(sellerId: string, id: string) {
-    await this.assertOwner(sellerId, id);
-    await this.prisma.listing.delete({ where: { id } });
+    const current = await this.assertOwner(sellerId, id);
+    if (current.status === 'blocked') {
+      throw new ForbiddenException('Лот заблокирован модератором. Напишите в поддержку.');
+    }
+    if (current.status === 'archived') throw new NotFoundException('Лот не найден');
+    const orders = await this.prisma.order.count({ where: { listingId: id } });
+    if (orders > 0) {
+      await this.prisma.listing.update({ where: { id }, data: { status: 'archived' } });
+    } else {
+      await this.prisma.favorite.deleteMany({ where: { listingId: id } });
+      await this.prisma.listing.delete({ where: { id } });
+    }
     await this.search.removeListing(id);
-    return { ok: true };
+    return { ok: true, archived: orders > 0 };
   }
 
   private async assertOwner(sellerId: string, id: string) {
@@ -334,6 +417,8 @@ export class ListingsService {
       where: { id },
       select: {
         sellerId: true,
+        status: true,
+        categoryId: true,
         topupMarkupBps: true,
         category: { select: { fulfillmentType: true } },
       },

@@ -13,6 +13,7 @@ import { priceWithAcquiring, PAYMENT_METHODS, isDemoSeller, markupLabel, topupQu
 import { JsonLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
 import { SellerReviews } from '@/components/seller-reviews';
+import { OwnerLotActions } from '@/components/owner-lot-actions';
 
 export async function generateMetadata({
   params,
@@ -41,10 +42,10 @@ export default async function ListingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string; account?: string; amount?: string }>;
+  searchParams: Promise<{ created?: string; updated?: string; account?: string; amount?: string }>;
 }) {
   const { id } = await params;
-  const { created, account, amount } = await searchParams;
+  const { created, updated, account, amount } = await searchParams;
   const [listing, pricing] = await Promise.all([getListing(id), getPublicPricing()]);
   if (!listing) notFound();
   const demo = isDemoSeller(listing.seller.profile?.username);
@@ -116,6 +117,12 @@ export default async function ListingPage({
             Лот опубликован и уже виден в каталоге.
             {auto ? ' Загрузите ключи на склад ниже — без них покупка вернёт деньги покупателю.' : ''}
           </span>
+        </div>
+      )}
+      {updated && (
+        <div className="alert success" role="status" style={{ marginBottom: 20 }}>
+          <ShieldCheck size={18} strokeWidth={1.75} />
+          <span>Изменения сохранены и уже видны в каталоге.</span>
         </div>
       )}
       <div style={{ marginBottom: 20 }}>
@@ -270,6 +277,7 @@ export default async function ListingPage({
             <FavoriteButton listingId={listing.id} />
             <MessageSellerButton listingId={listing.id} />
           </div>
+          <OwnerLotActions listingId={listing.id} sellerId={listing.seller.id} />
 
           <div className="card flat" style={{ marginTop: 16, padding: 16, background: 'var(--page)' }}>
             <div className="row" style={{ gap: 8, fontWeight: 700, fontSize: 14 }}>

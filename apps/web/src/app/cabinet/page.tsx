@@ -11,6 +11,7 @@ import { PayoutForm } from '@/components/payout-form';
 import { WalletTransactions } from '@/components/wallet-transactions';
 import { BumpButton } from '@/components/bump-button';
 import { SellerDashboard } from '@/components/seller-dashboard';
+import { CabinetNav } from '@/components/cabinet-nav';
 
 interface WalletDto { currency: string; balance: string }
 interface OrderRow { id: string; publicNumber: string; status: string; amount: string; currency: string }
@@ -67,11 +68,7 @@ export default function CabinetPage() {
         </div>
         <Link href="/cabinet/new" className="btn">Продать лот</Link>
       </div>
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
-        <Link href="/cabinet/chats" className="chip">Диалоги</Link>
-        <Link href="/cabinet/favorites" className="chip">Избранное</Link>
-        <Link href="/cabinet/security" className="chip">Безопасность</Link>
-      </div>
+      <CabinetNav />
 
       <section>
         <div className="section-head">
@@ -106,10 +103,10 @@ export default function CabinetPage() {
         </div>
         {listings.length ? (
           <div className="grid" style={{ gap: 8 }}>
-            {listings.map((l) => (
+            {listings.slice(0, 5).map((l) => (
               <div key={l.id} className="card row"
                 style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
-                <Link href={`/lot/${l.id}`} style={{ flex: 1, minWidth: 140, fontWeight: 600 }}>{l.title}</Link>
+                <Link href={`/cabinet/lot/${l.id}`} style={{ flex: 1, minWidth: 140, fontWeight: 600 }}>{l.title}</Link>
                 <span className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
                   <span className="price">{formatListingPrice(l)}</span>
                   <span className={l.status === 'active' ? 'badge success' : 'badge'}>{LISTING_RU[l.status] ?? l.status}</span>
@@ -117,6 +114,9 @@ export default function CabinetPage() {
                 </span>
               </div>
             ))}
+            <Link href="/cabinet/lots" className="muted" style={{ fontSize: 14, minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
+              {listings.length > 5 ? `Все лоты (${listings.length}) →` : 'Управлять лотами →'}
+            </Link>
           </div>
         ) : (
           <div className="card flat row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>

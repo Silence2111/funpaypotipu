@@ -54,6 +54,9 @@ enum ListingStatus {
   paused
   sold_out
   blocked
+  // Удалён продавцом, но на него ссылаются заказы: история сделок и споров
+  // остаётся, из каталога и кабинета лот пропадает.
+  archived
 }
 
 enum DigitalGoodStatus {

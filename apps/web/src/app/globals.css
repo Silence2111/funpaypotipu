@@ -718,7 +718,8 @@ summary:focus-visible {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.chip[aria-pressed='true'] {
+.chip[aria-pressed='true'],
+.chip[aria-current='page'] {
   border-color: var(--accent);
   background: var(--accent-tint);
   color: var(--accent);
@@ -770,4 +771,9 @@ summary:focus-visible {
   .topup-card {
     padding: 20px 16px;
   }
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
