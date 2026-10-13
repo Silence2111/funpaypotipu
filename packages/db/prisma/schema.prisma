@@ -356,6 +356,12 @@ model Listing {
   viewsCount      Int             @default(0) @map("views_count")
   salesCount      Int             @default(0) @map("sales_count")
   boostUntil      DateTime?       @map("boost_until")
+  // Пополнение на сумму покупателя (packages/shared/src/topup.ts): покупатель
+  // вводит, сколько зачислить, и платит номинал плюс наценку. Все три поля
+  // заданы или все null; у такого лота price — цена минимальной суммы («от»).
+  topupMarkupBps  Int?            @map("topup_markup_bps")
+  topupMin        BigInt?         @map("topup_min")
+  topupMax        BigInt?         @map("topup_max")
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
 

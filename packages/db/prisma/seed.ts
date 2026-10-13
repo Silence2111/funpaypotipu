@@ -77,6 +77,25 @@ async function seedCatalog() {
       fulfillmentType: FulfillmentType.auto_key,
     },
   });
+
+  // Пополнение Steam — вход с главной (виджет в первом экране), поэтому
+  // категория есть в базовом каталоге, а не только на демо-витрине.
+  const steam = await prisma.game.upsert({
+    where: { slug: 'steam' },
+    update: {},
+    create: { slug: 'steam', title: 'Steam', sortOrder: 3 },
+  });
+  await prisma.category.upsert({
+    where: { gameId_slug: { gameId: steam.id, slug: 'topup' } },
+    update: {},
+    create: {
+      gameId: steam.id,
+      slug: 'topup',
+      title: 'Пополнение',
+      segment: CategorySegment.topup,
+      fulfillmentType: FulfillmentType.provider,
+    },
+  });
 }
 
 async function seedAttributes() {

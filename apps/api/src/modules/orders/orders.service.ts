@@ -20,6 +20,9 @@ import {
   dealEconomics,
   explainDeal,
   cashbackFor,
+  topupAccountError,
+  topupAmountError,
+  topupQuote,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
@@ -52,15 +55,42 @@ export class OrdersService {
     await this.chat.postSystem(orderId, text).catch(() => {});
   }
 
-  async create(buyerId: string, listingId: string, promoCode?: string, account?: string) {
-    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+  async create(
+    buyerId: string,
+    listingId: string,
+    opts: { promoCode?: string; account?: string; topupAmount?: string } = {},
+  ) {
+    const { promoCode } = opts;
+    const account = opts.account?.trim() || undefined;
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      include: { game: { select: { slug: true } } },
+    });
     if (!listing || listing.status !== 'active') throw new NotFoundException('Лот недоступен');
     if (listing.sellerId === buyerId) throw new BadRequestException('Нельзя купить собственный лот');
-    if (listing.fulfillmentType === 'provider' && !account?.trim()) {
-      throw new BadRequestException('Укажите игровой ID/логин для пополнения');
+    if (listing.fulfillmentType === 'provider') {
+      const accountError = topupAccountError(listing.game.slug, account);
+      if (accountError) throw new BadRequestException(accountError);
     }
 
-    const base = listing.price;
+    // Лот «на сумму покупателя»: цена — номинал плюс наценка продавца, та же
+    // функция считает её в виджете. Номинал уходит в снимок заказа: провайдер
+    // должен зачислить именно его, а не сумму оплаты.
+    let base = listing.price;
+    let topupNominal: bigint | null = null;
+    if (listing.topupMarkupBps != null && listing.topupMin != null && listing.topupMax != null) {
+      if (!opts.topupAmount) throw new BadRequestException('Укажите сумму пополнения');
+      topupNominal = BigInt(opts.topupAmount);
+      const amountError = topupAmountError(topupNominal, {
+        min: listing.topupMin,
+        max: listing.topupMax,
+      });
+      if (amountError) throw new BadRequestException(amountError);
+      base = topupQuote(topupNominal, listing.topupMarkupBps).price;
+    } else if (opts.topupAmount) {
+      throw new BadRequestException('У этого лота фиксированная цена — сумму выбирает продавец');
+    }
+
     const f = await this.fees.computeForCategory(
       base,
       listing.categoryId,
@@ -109,7 +139,8 @@ export class OrdersService {
           title: listing.title,
           basePrice: base.toString(),
           currency: listing.currency,
-          ...(account?.trim() ? { account: account.trim() } : {}),
+          ...(account ? { account } : {}),
+          ...(topupNominal != null ? { topupAmount: topupNominal.toString() } : {}),
         } as Prisma.InputJsonValue,
         qty: 1,
         amount,
@@ -180,9 +211,22 @@ export class OrdersService {
     if (paid.fulfillmentType !== 'manual') {
       await this.fulfillment.autoFulfill(paid.id);
       const fulfilled = await this.get(paid.id);
+      const topup = fulfilled.fulfillmentType === 'provider';
       if (fulfilled.status === 'delivered') {
         await this.notifications.notify(fulfilled.buyerId, 'order_delivered', { orderId: fulfilled.id });
-        await this.sys(fulfilled.id, 'Товар выдан автоматически. Заберите ключ на странице заказа.');
+        await this.sys(
+          fulfilled.id,
+          topup
+            ? 'Пополнение отправлено. Проверьте баланс и подтвердите получение.'
+            : 'Товар выдан автоматически. Заберите ключ на странице заказа.',
+        );
+      } else if (fulfilled.status === 'refunded') {
+        await this.sys(
+          fulfilled.id,
+          topup
+            ? 'Провайдер не принял пополнение — деньги вернулись на баланс покупателя.'
+            : 'Товара не оказалось на складе — деньги вернулись на баланс покупателя.',
+        );
       }
       return fulfilled;
     }

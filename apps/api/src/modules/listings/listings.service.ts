@@ -6,8 +6,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { Prisma, PrismaClient } from '@gamemarket/db';
-import type { CreateListingInput, ListingQuery, UpdateListingInput } from '@gamemarket/shared';
+import { Prisma, PrismaClient, type FulfillmentType } from '@gamemarket/db';
+import {
+  topupQuote,
+  topupTermsError,
+  type CreateListingInput,
+  type ListingQuery,
+  type TopupTerms,
+  type TopupTermsInput,
+  type UpdateListingInput,
+} from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { SearchService } from '../search/search.service';
 import { StorageService } from '../storage/storage.service';
@@ -25,6 +33,10 @@ const cardSelect = {
   createdAt: true,
   boostUntil: true,
   fulfillmentType: true,
+  // Лот «на сумму покупателя»: карточка пишет «от», страница лота — форму суммы.
+  topupMarkupBps: true,
+  topupMin: true,
+  topupMax: true,
   seller: { select: { profile: { select: { username: true, ratingAvg: true, onlineAt: true } } } },
   category: { select: { slug: true, title: true } },
   game: { select: { slug: true, title: true } },
@@ -222,6 +234,7 @@ export class ListingsService {
     if (!category) throw new NotFoundException('Категория не найдена для указанной игры');
 
     await this.validateAttributes(input.categoryId, input.attributes);
+    const terms = input.topup ? this.topupTerms(category.fulfillmentType, input.topup) : null;
 
     const created = await this.prisma.listing.create({
       data: {
@@ -230,7 +243,10 @@ export class ListingsService {
         categoryId: input.categoryId,
         title: input.title,
         description: input.description,
-        price: BigInt(input.price),
+        price: terms ? topupQuote(terms.min, terms.markupBps).price : BigInt(input.price),
+        topupMarkupBps: terms?.markupBps ?? null,
+        topupMin: terms?.min ?? null,
+        topupMax: terms?.max ?? null,
         currency: input.currency,
         attributes: input.attributes as Prisma.InputJsonValue,
         images: input.images as Prisma.InputJsonValue,
@@ -243,6 +259,20 @@ export class ListingsService {
     });
     await this.search.indexListing(created.id);
     return created;
+  }
+
+  /**
+   * Условия лота «на сумму покупателя». Только у пополнений через провайдера:
+   * у аккаунта или ключа «сумма на выбор» не имеет смысла.
+   */
+  private topupTerms(fulfillmentType: FulfillmentType, raw: TopupTermsInput): TopupTerms {
+    if (fulfillmentType !== 'provider') {
+      throw new BadRequestException('Сумму на выбор покупателя можно задать только у пополнений');
+    }
+    const terms = { markupBps: raw.markupBps, min: BigInt(raw.min), max: BigInt(raw.max) };
+    const error = topupTermsError(terms);
+    if (error) throw new BadRequestException(error);
+    return terms;
   }
 
   /** Проверка атрибутов лота против схемы категории (обязательные + enum-опции). */
@@ -263,11 +293,24 @@ export class ListingsService {
   }
 
   async update(sellerId: string, id: string, input: UpdateListingInput) {
-    await this.assertOwner(sellerId, id);
+    const current = await this.assertOwner(sellerId, id);
     const data: Prisma.ListingUpdateInput = {};
     if (input.title !== undefined) data.title = input.title;
     if (input.description !== undefined) data.description = input.description;
-    if (input.price !== undefined) data.price = BigInt(input.price);
+    // У лота «на сумму покупателя» цена не задаётся, а следует из условий.
+    if (input.topup) {
+      const terms = this.topupTerms(current.category.fulfillmentType, input.topup);
+      data.topupMarkupBps = terms.markupBps;
+      data.topupMin = terms.min;
+      data.topupMax = terms.max;
+      data.price = topupQuote(terms.min, terms.markupBps).price;
+    } else if (input.topup === null) {
+      data.topupMarkupBps = null;
+      data.topupMin = null;
+      data.topupMax = null;
+    }
+    const variable = input.topup !== undefined ? input.topup !== null : current.topupMarkupBps != null;
+    if (input.price !== undefined && !variable) data.price = BigInt(input.price);
     if (input.currency !== undefined) data.currency = input.currency;
     if (input.attributes !== undefined) data.attributes = input.attributes as Prisma.InputJsonValue;
     if (input.images !== undefined) data.images = input.images as Prisma.InputJsonValue;
@@ -289,9 +332,14 @@ export class ListingsService {
   private async assertOwner(sellerId: string, id: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
-      select: { sellerId: true },
+      select: {
+        sellerId: true,
+        topupMarkupBps: true,
+        category: { select: { fulfillmentType: true } },
+      },
     });
     if (!listing) throw new NotFoundException('Лот не найден');
     if (listing.sellerId !== sellerId) throw new ForbiddenException('Это не ваш лот');
+    return listing;
   }
 }

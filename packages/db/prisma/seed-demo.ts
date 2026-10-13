@@ -32,6 +32,7 @@ import {
 const prisma = new PrismaClient();
 
 import { DEMO_EMAIL_DOMAIN as DEMO_DOMAIN, DEMO_SELLER_USERNAMES } from '../../shared/src/demo';
+import { topupQuote, topupTermsError } from '../../shared/src/topup';
 const DEMO_NOTE = 'Демонстрационный профиль витрины.';
 
 interface DemoGame {
@@ -137,6 +138,10 @@ interface DemoListing {
   priceRub: number;
   stock?: number;
   auto?: boolean;
+  /** Пополнение на сумму покупателя: цена лота считается из условий («от»). */
+  topup?: { markupBps: number; minRub: number; maxRub: number };
+  /** Прежнее название лота: стенды, поднятые до смены, получают его обновлённым. */
+  legacyTitle?: string;
 }
 
 const LISTINGS: DemoListing[] = [
@@ -189,10 +194,14 @@ const LISTINGS: DemoListing[] = [
     game: 'steam',
     category: 'topup',
     seller: 'keystore',
-    title: 'Пополнение кошелька Steam, 1000 ₽',
-    description: 'Зачисление в течение 15 минут. Нужен только логин Steam.',
-    priceRub: 1080,
+    title: 'Пополнение кошелька Steam',
+    description:
+      'Любая сумма от 100 до 15 000 ₽. Нужен только логин Steam, пароль не нужен. ' +
+      'Зачисление за несколько минут после оплаты.',
+    priceRub: 0, // считается из условий: цена 100 ₽ с наценкой
     auto: true,
+    topup: { markupBps: 800, minRub: 100, maxRub: 15_000 },
+    legacyTitle: 'Пополнение кошелька Steam, 1000 ₽',
   },
   {
     game: 'steam',
@@ -330,12 +339,30 @@ async function upsertListings() {
     });
     if (!seller) continue;
 
+    const terms = topupTermsOf(l);
+    const price = terms ? topupQuote(terms.min, terms.markupBps).price : BigInt(Math.round(l.priceRub * 100));
+
     const exists = await prisma.listing.findFirst({
-      where: { sellerId: seller.id, title: l.title },
+      where: { sellerId: seller.id, title: { in: [l.title, ...(l.legacyTitle ? [l.legacyTitle] : [])] } },
       select: { id: true },
     });
     if (exists) {
       if (category.fulfillmentType === FulfillmentType.auto_key) await refillDemoKeys(exists.id);
+      if (terms) {
+        // Условия пополнения держим в согласии с сидом: стенд, поднятый до
+        // смены, получает лот «на любую сумму» вместо фиксированного.
+        await prisma.listing.update({
+          where: { id: exists.id },
+          data: {
+            title: l.title,
+            description: l.description,
+            price,
+            topupMarkupBps: terms.markupBps,
+            topupMin: terms.min,
+            topupMax: terms.max,
+          },
+        });
+      }
       continue;
     }
 
@@ -346,16 +373,32 @@ async function upsertListings() {
         categoryId: category.id,
         title: l.title,
         description: l.description,
-        price: BigInt(Math.round(l.priceRub * 100)),
+        price,
         currency: 'RUB',
         stock: l.stock ?? null,
         status: ListingStatus.active,
         fulfillmentType: category.fulfillmentType,
         autoDelivery: l.auto ?? false,
+        topupMarkupBps: terms?.markupBps ?? null,
+        topupMin: terms?.min ?? null,
+        topupMax: terms?.max ?? null,
       },
     });
     if (category.fulfillmentType === FulfillmentType.auto_key) await refillDemoKeys(created.id);
   }
+}
+
+/** Условия пополнения из описания лота — с той же проверкой, что у API. */
+function topupTermsOf(l: DemoListing) {
+  if (!l.topup) return null;
+  const terms = {
+    markupBps: l.topup.markupBps,
+    min: BigInt(l.topup.minRub * 100),
+    max: BigInt(l.topup.maxRub * 100),
+  };
+  const err = topupTermsError(terms);
+  if (err) throw new Error(`Условия пополнения «${l.title}»: ${err}`);
+  return terms;
 }
 
 /** Держит на складе авто-лота DEMO_KEYS_PER_LOT свободных демо-ключей; stock = их число. */

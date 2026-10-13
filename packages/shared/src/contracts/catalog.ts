@@ -8,6 +8,18 @@ const minorString = z
   .transform((v) => String(v))
   .refine((v) => /^\d+$/.test(v), 'ожидается целое число минорных единиц');
 
+/**
+ * Условия лота «на сумму покупателя» (topup.ts): наценка в базисных пунктах,
+ * границы номинала — минорные единицы. Проверяет их `topupTermsError`, цену
+ * такого лота («от») сервер считает сам — переданная `price` не используется.
+ */
+export const topupTermsInputSchema = z.object({
+  markupBps: z.number().int(),
+  min: minorString,
+  max: minorString,
+});
+export type TopupTermsInput = z.infer<typeof topupTermsInputSchema>;
+
 export const createListingSchema = z.object({
   gameId: z.string().uuid(),
   categoryId: z.string().uuid(),
@@ -18,6 +30,7 @@ export const createListingSchema = z.object({
   attributes: z.record(z.unknown()).default({}),
   images: z.array(z.string().min(1)).max(12).default([]), // ключи S3 или абсолютные URL
   stock: z.number().int().nonnegative().nullable().default(null),
+  topup: topupTermsInputSchema.nullable().default(null),
 });
 export type CreateListingInput = z.infer<typeof createListingSchema>;
 

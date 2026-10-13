@@ -1,7 +1,8 @@
 /**
  * Сквозные e2e-тесты денежных путей против запущенного API + БД.
  * Запуск: API_URL=http://localhost:4090 DATABASE_URL=... node apps/api/test/e2e.mjs
- * Покрывает: эскроу-покупка, авто-выдача ключей, выплаты (с холдом и ролью finance).
+ * Покрывает: эскроу-покупка, авто-выдача ключей, пополнение на сумму покупателя,
+ * выплаты (с холдом и ролью finance).
  * Выход 0 — все проверки пройдены, иначе 1.
  */
 import db from '../../../packages/db/dist/index.js';
@@ -96,6 +97,52 @@ async function scenarioAutoKey(rnd) {
   check('Ключ расшифрован покупателю', /^STEAM-/.test(key.body.key || ''));
 }
 
+async function scenarioSteamTopup(rnd) {
+  console.log('\n— Пополнение Steam на сумму покупателя —');
+  const seller = await register('tps', rnd);
+  const buyer = await register('tpb', rnd);
+  const steam = await j('/catalog/games/steam');
+  const cat = steam.body.categories?.find((c) => c.slug === 'topup');
+  const lot = await j('/listings', {
+    method: 'POST', token: seller.token,
+    body: JSON.stringify({
+      gameId: steam.body.id, categoryId: cat?.id, title: `E2E Steam ${rnd}`, description: 'test',
+      price: '1', currency: 'RUB', topup: { markupBps: 800, min: '10000', max: '1500000' },
+    }),
+  });
+  // Переданная цена игнорируется: у такого лота она следует из условий («от 108 ₽»).
+  check('Лот на сумму покупателя: цена «от» считается сервером', lot.status === 201 && lot.body.price === '10800', lot.body.price);
+  const offers = await j('/topup/offers?game=steam');
+  check('Лот виден виджету пополнения', offers.body.offers?.some((o) => o.listingId === lot.body.id));
+
+  const tooSmall = await j('/orders', {
+    method: 'POST', token: buyer.token,
+    body: JSON.stringify({ listingId: lot.body.id, account: 'e2e_login', topupAmount: '5000' }),
+  });
+  check('Сумма ниже минимума → 400', tooSmall.status === 400);
+  const email = await j('/orders', {
+    method: 'POST', token: buyer.token,
+    body: JSON.stringify({ listingId: lot.body.id, account: 'buyer@mail.ru', topupAmount: '100000' }),
+  });
+  check('Почта вместо логина Steam → 400 до оплаты', email.status === 400);
+
+  const order = await j('/orders', {
+    method: 'POST', token: buyer.token,
+    body: JSON.stringify({ listingId: lot.body.id, account: 'e2e_login', topupAmount: '100000' }),
+  });
+  check('1 000 ₽ на Steam стоят 1 080 ₽', order.body.amount === '108000', order.body.amount);
+  await pay(buyer.token, order.body.id);
+  const o = await j(`/orders/${order.body.id}`, { token: buyer.token });
+  check('Пополнение выдано сразу после оплаты', o.body.status === 'delivered', o.body.status);
+  check('В заказе номинал 1 000 ₽ — его зачисляет провайдер', o.body.listingSnapshot?.topupAmount === '100000');
+  const delivery = await prisma.delivery.findUnique({ where: { orderId: order.body.id } });
+  check('Провайдер вернул номер операции', !!delivery?.providerRef);
+
+  await j(`/orders/${order.body.id}/confirm`, { method: 'POST', token: buyer.token });
+  const w = await j('/wallet', { token: seller.token });
+  check('Продавец получил цену минус 10%: 972 ₽', w.body.balance === '97200', w.body.balance);
+}
+
 async function scenarioPayout(rnd) {
   console.log('\n— Выплаты (finance) —');
   const seller = await register('pys', rnd);
@@ -132,6 +179,7 @@ async function scenarioPayout(rnd) {
   }
   await scenarioEscrow(rnd);
   await scenarioAutoKey(rnd);
+  await scenarioSteamTopup(rnd);
   await scenarioPayout(rnd);
 
   const passed = results.filter(Boolean).length;

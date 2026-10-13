@@ -203,17 +203,57 @@ describe('склад закончился', () => {
 });
 
 describe('пополнение через провайдера', () => {
+  const TOPUP_ORDER = { ...ORDER, fulfillmentType: 'provider', listingSnapshot: { account: 'gamer_2007' } };
+
   it('успешное пополнение помечает заказ доставленным', async () => {
-    const { prisma, state } = makeDb([], { ...ORDER, fulfillmentType: 'provider' });
+    const { prisma, state } = makeDb([], TOPUP_ORDER);
     await service(prisma).autoFulfill('o1');
     expect(state.order.status).toBe('delivered');
+    expect(ledger.post).not.toHaveBeenCalled();
   });
 
-  it('неудача провайдера не помечает заказ доставленным', async () => {
-    // Иначе покупатель без пополнения потеряет право на возврат
-    topup.topUp.mockResolvedValueOnce({ ok: false, providerRef: '' } as never);
-    const { prisma, state } = makeDb([], { ...ORDER, fulfillmentType: 'provider' });
+  it('провайдеру уходит номинал из заказа, а не сумма оплаты с наценкой', async () => {
+    // Заказ «1 000 ₽ на Steam» оплачен 1 080 ₽: зачислить надо 1 000, не 1 080
+    const { prisma } = makeDb([], {
+      ...TOPUP_ORDER,
+      amount: 108_000n,
+      listingSnapshot: { account: 'gamer_2007', topupAmount: '100000' },
+    });
     await service(prisma).autoFulfill('o1');
+    expect(topup.topUp).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 100_000n, account: 'gamer_2007', orderId: 'o1' }),
+    );
+  });
+
+  it('у лота с фиксированной ценой номинала нет — уходит сумма заказа, как раньше', async () => {
+    const { prisma } = makeDb([], { ...TOPUP_ORDER, amount: 108_000n });
+    await service(prisma).autoFulfill('o1');
+    expect(topup.topUp).toHaveBeenCalledWith(expect.objectContaining({ amount: 108_000n }));
+  });
+
+  it('отказ провайдера сразу возвращает деньги, а не держит их в эскроу', async () => {
+    // Раньше заказ оставался «оплачен» навсегда: авто-возврат по таймеру
+    // касается только ручной выдачи, а пополнение — не ручная.
+    topup.topUp.mockResolvedValueOnce({ ok: false, providerRef: '' } as never);
+    const { prisma, state } = makeDb([], TOPUP_ORDER);
+    await service(prisma).autoFulfill('o1');
+
+    expect(state.order.status).toBe('refunded');
+    expect(ledger.post).toHaveBeenCalledTimes(1);
+    const arg = ledger.post.mock.calls[0][0] as { idempotencyKey: string; refType: string };
+    expect(arg.idempotencyKey).toBe('refund:o1');
+    expect(arg.refType).toBe('topup_rejected_refund');
+    const events = notifications.notify.mock.calls.map((c) => c[1]);
+    expect(events).toContain('order_refunded');
+    expect(events).toContain('order_cancelled');
+  });
+
+  it('провайдер не ответил — ни выдачи, ни возврата вслепую', async () => {
+    // Исход неизвестен: провайдер мог зачислить. Возврат отдал бы и пополнение, и деньги.
+    topup.topUp.mockRejectedValueOnce(new Error('timeout') as never);
+    const { prisma, state } = makeDb([], TOPUP_ORDER);
+    await expect(service(prisma).autoFulfill('o1')).resolves.toBeUndefined();
     expect(state.order.status).toBe('paid');
+    expect(ledger.post).not.toHaveBeenCalled();
   });
 });

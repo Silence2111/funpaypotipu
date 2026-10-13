@@ -9,7 +9,10 @@ const createOrderSchema = z.object({
   listingId: z.string().uuid(),
   promoCode: z.string().min(3).max(32).optional(),
   account: z.string().max(120).optional(), // игровой UID/логин для пополнений (provider)
+  // Сколько зачислить — у лота «на сумму покупателя»; минорные единицы строкой.
+  topupAmount: z.string().regex(/^\d{1,12}$/).optional(),
 });
+type CreateOrderBody = z.infer<typeof createOrderSchema>;
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
@@ -19,10 +22,10 @@ export class OrdersController {
   @Post()
   create(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(createOrderSchema))
-    body: { listingId: string; promoCode?: string; account?: string },
+    @Body(new ZodValidationPipe(createOrderSchema)) body: CreateOrderBody,
   ) {
-    return this.orders.create(user.userId, body.listingId, body.promoCode, body.account);
+    const { listingId, ...opts } = body;
+    return this.orders.create(user.userId, listingId, opts);
   }
 
   @Get('mine')

@@ -10,3 +10,4 @@ export * from './contracts/auth';
 export * from './contracts/catalog';
 export * from './ranking';
 export * from './demo';
+export * from './topup';

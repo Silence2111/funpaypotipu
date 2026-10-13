@@ -1,16 +1,18 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaClient, type Order } from '@gamemarket/db';
 import { refundToBalance } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { MockTopUpProvider } from './topup.provider';
+import { MockTopUpProvider, type TopUpResult } from './topup.provider';
 
 const AUTO_CONFIRM_TTL_MS = 24 * 3600 * 1000; // авто-товары подтверждаются быстрее
 
 /** Авто-исполнение заказа после оплаты: выдача ключа из склада или пополнение. */
 @Injectable()
 export class FulfillmentService {
+  private readonly logger = new Logger(FulfillmentService.name);
+
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly topup: MockTopUpProvider,
@@ -29,19 +31,7 @@ export class FulfillmentService {
     const goodId = await this.reserveGood(order.listingId, order.id);
     if (!goodId) {
       // Нет в наличии — авто-возврат покупателю на баланс, чтобы деньги не зависли в эскроу.
-      await this.ledger.post({
-        legs: refundToBalance(order.buyerId, order.amount),
-        currency: order.currency,
-        idempotencyKey: `refund:${order.id}`,
-        orderId: order.id,
-        refType: 'oos_refund',
-        refId: order.id,
-      });
-      await this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
-      await this.notifications.notify(order.buyerId, 'order_refunded', {
-        orderId: order.id,
-        reason: 'out_of_stock',
-      });
+      await this.refundToBuyer(order, 'oos_refund', 'out_of_stock');
       await this.notifications.notify(order.sellerId, 'listing_out_of_stock', {
         orderId: order.id,
         listingId: order.listingId,
@@ -78,14 +68,39 @@ export class FulfillmentService {
   }
 
   private async deliverTopUp(order: Order): Promise<void> {
-    const account = (order.listingSnapshot as { account?: string } | null)?.account;
-    const res = await this.topup.topUp({
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      account,
-    });
-    if (!res.ok) return;
+    const snapshot = order.listingSnapshot as { account?: string; topupAmount?: string } | null;
+    // Провайдер зачисляет номинал, а не сумму оплаты: в сумме оплаты наценка
+    // продавца, а промокод её уменьшает. У лота «на сумму покупателя» номинал
+    // записан в заказе; у лотов с фиксированной ценой его нет — им, как и
+    // раньше, уходит сумма заказа.
+    const amount = snapshot?.topupAmount ? BigInt(snapshot.topupAmount) : order.amount;
+
+    let res: TopUpResult;
+    try {
+      res = await this.topup.topUp({
+        orderId: order.id,
+        amount,
+        currency: order.currency,
+        account: snapshot?.account,
+      });
+    } catch (e) {
+      // Исход неизвестен: провайдер мог и зачислить. Вернуть деньги вслепую —
+      // значит отдать и пополнение, и деньги. Заказ остаётся «оплачен» до
+      // выяснения, а подтверждение оплаты не падает вместе с провайдером.
+      this.logger.error(`Пополнение по заказу ${order.id}: провайдер не ответил — ${(e as Error).message}`);
+      return;
+    }
+    if (!res.ok) {
+      // Провайдер отказал (нет такого аккаунта, не тот регион) — денег он не
+      // взял, держать их в эскроу незачем. Раньше заказ оставался «оплачен»
+      // навсегда: авто-возврат по таймеру касается только ручной выдачи.
+      await this.refundToBuyer(order, 'topup_rejected_refund', 'topup_rejected');
+      await this.notifications.notify(order.sellerId, 'order_cancelled', {
+        orderId: order.id,
+        reason: 'topup_rejected',
+      });
+      return;
+    }
 
     const autoConfirmAt = new Date(Date.now() + AUTO_CONFIRM_TTL_MS);
     await this.prisma.$transaction([
@@ -105,6 +120,20 @@ export class FulfillmentService {
         data: { status: 'delivered', deliveredAt: new Date(), autoConfirmAt },
       }),
     ]);
+  }
+
+  /** Возврат всей суммы заказа на баланс покупателя. Идемпотентен по ключу заказа. */
+  private async refundToBuyer(order: Order, refType: string, reason: string): Promise<void> {
+    await this.ledger.post({
+      legs: refundToBalance(order.buyerId, order.amount),
+      currency: order.currency,
+      idempotencyKey: `refund:${order.id}`,
+      orderId: order.id,
+      refType,
+      refId: order.id,
+    });
+    await this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
+    await this.notifications.notify(order.buyerId, 'order_refunded', { orderId: order.id, reason });
   }
 
   /** Compare-and-set резерв одного доступного ключа (защита от двойной выдачи). */

@@ -32,6 +32,7 @@ import { ModerationModule } from './modules/moderation/moderation.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { KycModule } from './modules/kyc/kyc.module';
 import { RankingModule } from './modules/ranking/ranking.module';
+import { TopupModule } from './modules/topup/topup.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { RankingModule } from './modules/ranking/ranking.module';
     AdminModule,
     KycModule,
     RankingModule,
+    TopupModule,
     SellersModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useClass: PresenceInterceptor }],
