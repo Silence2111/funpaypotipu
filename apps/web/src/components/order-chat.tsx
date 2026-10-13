@@ -57,7 +57,7 @@ export function OrderChat({ conversationId, meId }: { conversationId: string; me
       active = false;
       socket.disconnect();
     };
-  }, [conversationId]);
+  }, [conversationId, meId]);
 
   async function send(e: FormEvent) {
     e.preventDefault();

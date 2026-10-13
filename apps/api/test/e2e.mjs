@@ -34,13 +34,24 @@ async function register(prefix, rnd) {
   return { token: r.body.accessToken, id: r.body.user?.id, status: r.status };
 }
 
+// Обязательные характеристики категорий из сида: без них API отвечает 400
+// «Укажите характеристику …», и все проверки после создания лота краснеют.
+const REQUIRED_ATTRS = {
+  accounts: { rank: 'Global Elite', region: 'EU' },
+  keys: { region: 'Global' },
+};
+
 async function createListing(token, categorySlug, price) {
   const game = await j('/catalog/games/cs2');
   const cat = game.body.categories.find((c) => c.slug === categorySlug);
   const l = await j('/listings', {
     method: 'POST', token,
-    body: JSON.stringify({ gameId: game.body.id, categoryId: cat.id, title: `E2E ${categorySlug}`, description: 'test', price, currency: 'RUB' }),
+    body: JSON.stringify({
+      gameId: game.body.id, categoryId: cat.id, title: `E2E ${categorySlug}`, description: 'test', price, currency: 'RUB',
+      attributes: REQUIRED_ATTRS[categorySlug] ?? {},
+    }),
   });
+  if (l.status !== 201) throw new Error(`Лот не создан (${l.status}): ${JSON.stringify(l.body)}`);
   return l.body.id;
 }
 
