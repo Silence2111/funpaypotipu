@@ -13,6 +13,7 @@ const LINKS = [
   { href: '/cabinet/favorites', label: 'Избранное' },
   { href: '/cabinet/settings', label: 'Профиль' },
   { href: '/cabinet/security', label: 'Безопасность' },
+  { href: '/cabinet/support', label: 'Поддержка' },
 ];
 
 export function CabinetNav() {

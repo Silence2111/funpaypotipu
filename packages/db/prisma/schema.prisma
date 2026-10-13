@@ -200,6 +200,7 @@ model User {
   deletedAt     DateTime?  @map("deleted_at")
 
   profile        Profile?
+  supportTickets SupportTicket[]    @relation("SupportTickets")
   blocksMade     UserBlock[]        @relation("BlocksMade")
   blocksReceived UserBlock[]        @relation("BlocksReceived")
   kyc            KycVerification[]
@@ -694,6 +695,44 @@ model ModerationAction {
 
   @@index([targetType, targetId])
   @@map("moderation_actions")
+}
+
+/// Обращение в поддержку: тема, раздел, связанный заказ и переписка.
+model SupportTicket {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  subject       String
+  /// order | payment | account | selling | other
+  category      String
+  orderId       String?  @map("order_id") @db.Uuid
+  /// open — ждёт поддержку, answered — ждёт пользователя, closed — закрыто
+  status        String   @default("open")
+  assigneeId    String?  @map("assignee_id") @db.Uuid
+  lastMessageAt DateTime @default(now()) @map("last_message_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user     User             @relation("SupportTickets", fields: [userId], references: [id], onDelete: Cascade)
+  messages SupportMessage[]
+
+  @@index([userId])
+  @@index([status, lastMessageAt])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  /// Ответ сотрудника — подписывается «Поддержка», а не ником.
+  fromStaff Boolean  @default(false) @map("from_staff")
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("support_messages")
 }
 
 model AuditLog {

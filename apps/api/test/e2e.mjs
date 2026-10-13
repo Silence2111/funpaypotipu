@@ -4,7 +4,7 @@
  * Покрывает: эскроу-покупка, авто-выдача ключей, пополнение на сумму покупателя,
  * продажа поштучно (наличие, перепродажа последней штуки), способы оплаты (надбавка карты,
  * второй платёж по заказу), модерация (жалобы, бан, заморозка, спор у арбитра),
- * аккаунт (чёрный список, профиль, пароль, сеансы), выплаты (с холдом и ролью finance).
+ * аккаунт (чёрный список, профиль, пароль, сеансы), поддержка, выплаты (с холдом и ролью finance).
  * Выход 0 — все проверки пройдены, иначе 1.
  */
 import db from '../../../packages/db/dist/index.js';
@@ -363,6 +363,40 @@ async function scenarioAccount(rnd) {
   check('Завершить сеанс другого устройства', (await j('/auth/sessions', { token: seller.token })).body.length === 1);
 }
 
+async function scenarioSupport(rnd) {
+  console.log('\n— Поддержка —');
+  const user = await register('spu', rnd);
+  const stranger = await register('spx', rnd);
+  const agent = await register('spa', rnd);
+  await grant(agent.id, 'agent');
+  const seller = await register('sps', rnd);
+  const lot = await createListing(seller.token, 'accounts', '30000');
+  const order = await j('/orders', { method: 'POST', token: user.token, body: JSON.stringify({ listingId: lot }) });
+
+  const t = await j('/support/tickets', {
+    method: 'POST', token: user.token,
+    body: JSON.stringify({ category: 'order', orderId: order.body.id, subject: 'Не могу оплатить', body: 'Оплата картой зависает на шаге подтверждения' }),
+  });
+  check('Обращение создано с заказом', t.status === 201 && t.body.orderId === order.body.id);
+  const foreign = await j('/support/tickets', {
+    method: 'POST', token: stranger.token,
+    body: JSON.stringify({ category: 'order', orderId: order.body.id, subject: 'Чужой заказ', body: 'Пробую прикрепить чужой заказ' }),
+  });
+  check('Чужой заказ к обращению не прикрепить', foreign.status === 404);
+  check('Чужое обращение не открыть', (await j(`/support/tickets/${t.body.id}`, { token: stranger.token })).status === 403);
+  const queue = await j('/support/queue', { token: agent.token });
+  check('Обращение в очереди поддержки', queue.body.some?.((q) => q.id === t.body.id && q.user === `spu${rnd}`));
+  check('Пользователь очередь не видит', (await j('/support/queue', { token: user.token })).status === 403);
+  await j(`/support/tickets/${t.body.id}/messages`, { method: 'POST', token: agent.token, body: JSON.stringify({ body: 'Попробуйте оплатить по СБП, проверим карту.' }) });
+  const view = await j(`/support/tickets/${t.body.id}`, { token: user.token });
+  check('Ответ поддержки виден автору, ход за ним', view.body.ticket.status === 'answered' && view.body.messages.at(-1).fromStaff === true);
+  const notif = await j('/notifications', { token: user.token });
+  check('Автору пришло уведомление об ответе', notif.body.some?.((n) => n.type === 'support_reply'));
+  await j(`/support/tickets/${t.body.id}/close`, { method: 'POST', token: user.token });
+  await j(`/support/tickets/${t.body.id}/messages`, { method: 'POST', token: user.token, body: JSON.stringify({ body: 'Снова не проходит' }) });
+  check('Сообщение в закрытое обращение открывает его снова', (await j(`/support/tickets/${t.body.id}`, { token: user.token })).body.ticket.status === 'open');
+}
+
 async function scenarioPayout(rnd) {
   console.log('\n— Выплаты (finance) —');
   const seller = await register('pys', rnd);
@@ -404,6 +438,7 @@ async function scenarioPayout(rnd) {
   await scenarioPaymentMethods(rnd);
   await scenarioModeration(rnd);
   await scenarioAccount(rnd);
+  await scenarioSupport(rnd);
   await scenarioPayout(rnd);
 
   const passed = results.filter(Boolean).length;

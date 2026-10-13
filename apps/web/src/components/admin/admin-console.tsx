@@ -11,11 +11,13 @@ import { UsersSection } from './users-section';
 import { KycSection, PayoutsSection } from './finance-sections';
 import { FeesSection } from './fees-section';
 import { AuditSection } from './audit-section';
+import { SupportSection } from './support-section';
 
 /** Разделы консоли и роли, которым они открыты. Администратору открыто всё. */
 const TABS = [
   { key: 'reports', label: 'Жалобы', roles: ['moderator'] },
   { key: 'disputes', label: 'Споры', roles: ['agent'] },
+  { key: 'support', label: 'Поддержка', roles: ['agent', 'moderator'] },
   { key: 'listings', label: 'Лоты', roles: ['moderator'] },
   { key: 'users', label: 'Пользователи', roles: ['moderator'] },
   { key: 'payouts', label: 'Выплаты', roles: ['finance'] },
@@ -74,6 +76,8 @@ export function AdminConsole() {
         <ReportsSection />
       ) : tab.key === 'disputes' ? (
         <DisputesSection />
+      ) : tab.key === 'support' ? (
+        <SupportSection />
       ) : tab.key === 'listings' ? (
         <ListingsSection />
       ) : tab.key === 'users' ? (

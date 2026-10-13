@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { LegalPage, Fill } from '@/components/legal-page';
 
 export const metadata: Metadata = { title: 'Контакты' };
@@ -14,6 +15,10 @@ export default function ContactsPage() {
         <dt>Юрлицо и реквизиты</dt>
         <dd><Fill what="наименование, ИНН, ОГРН, адрес" /></dd>
       </dl>
+      <p>
+        Вопрос к площадке — <Link href="/cabinet/support">обращение в поддержку</Link> из кабинета: ответ придёт
+        на сайт, на почту и в Telegram, если он подключён.
+      </p>
       <p>Проблема с заказом — быстрее всего открыть спор на странице заказа: арбитр видит переписку и статус оплаты.</p>
     </LegalPage>
   );

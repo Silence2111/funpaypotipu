@@ -396,6 +396,11 @@ export default function OrderPage() {
 
       {err && <div className="alert error" role="alert" style={{ marginTop: 16 }}>{err}</div>}
 
+      <p className="hint" style={{ marginTop: 16 }}>
+        Вопрос не к продавцу, а к площадке?{' '}
+        <Link href={`/cabinet/support?order=${order.id}`}>Написать в поддержку</Link>
+      </p>
+
       <section style={{ marginTop: 40 }}>
         <h2 className="h2" style={{ fontSize: 18, marginBottom: 12 }}>Чат по сделке</h2>
         {conv && me ? (

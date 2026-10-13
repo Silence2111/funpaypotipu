@@ -27,6 +27,7 @@ export const NOTIFY_GROUPS = [
   { key: 'disputes', label: 'Споры', hint: 'открыт спор, решение арбитра', types: ['dispute_opened', 'dispute_resolved'] },
   { key: 'reviews', label: 'Отзывы', hint: 'новый отзыв, ответ продавца', types: ['review_received', 'review_reply'] },
   { key: 'finance', label: 'Деньги', hint: 'кэшбэк и выплаты', types: ['cashback', 'payout_paid', 'payout_rejected'] },
+  { key: 'support', label: 'Поддержка', hint: 'ответы на ваши обращения', types: ['support_reply'] },
   {
     key: 'moderation',
     label: 'Решения модерации',
@@ -43,8 +44,8 @@ export type NotifyPrefs = Partial<Record<NotifyChannel, Partial<Record<NotifyGro
  * подключают ради быстрых уведомлений о заказах и сообщениях.
  */
 export const DEFAULT_NOTIFY: Record<NotifyChannel, Record<NotifyGroup, boolean>> = {
-  email: { orders: true, messages: false, disputes: true, reviews: false, finance: true, moderation: true },
-  telegram: { orders: true, messages: true, disputes: true, reviews: true, finance: true, moderation: true },
+  email: { orders: true, messages: false, disputes: true, reviews: false, finance: true, support: true, moderation: true },
+  telegram: { orders: true, messages: true, disputes: true, reviews: true, finance: true, support: true, moderation: true },
 };
 
 /** Решения модерации доходят письмом всегда: человек должен знать, почему его ограничили. */
@@ -71,6 +72,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   account_status: 'Статус аккаунта изменён',
   payout_paid: 'Выплата отправлена',
   payout_rejected: 'Выплата отклонена',
+  support_reply: 'Поддержка ответила на обращение',
 };
 
 export function notifyGroupOf(type: string): NotifyGroup | null {
@@ -98,6 +100,7 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
   const p = payload ?? {};
   const id = (k: string) => (typeof p[k] === 'string' ? (p[k] as string) : null);
   if (id('disputeId')) return `/disputes/${id('disputeId')}`;
+  if (id('ticketId')) return `/cabinet/support/${id('ticketId')}`;
   if (type === 'new_message' && id('conversationId')) return `/chat/${id('conversationId')}`;
   if (id('orderId')) return `/orders/${id('orderId')}`;
   if (id('listingId')) return type === 'listing_blocked' ? '/cabinet/lots' : `/lot/${id('listingId')}`;

@@ -34,6 +34,7 @@ import { KycModule } from './modules/kyc/kyc.module';
 import { RankingModule } from './modules/ranking/ranking.module';
 import { TopupModule } from './modules/topup/topup.module';
 import { AccountModule } from './modules/account/account.module';
+import { SupportModule } from './modules/support/support.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { AccountModule } from './modules/account/account.module';
     TopupModule,
     SellersModule,
     AccountModule,
+    SupportModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useClass: PresenceInterceptor }],
 })
