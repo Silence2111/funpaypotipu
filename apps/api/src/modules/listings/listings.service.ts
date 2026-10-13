@@ -8,6 +8,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type FulfillmentType } from '@gamemarket/db';
 import {
+  qtyTermsError,
   topupQuote,
   topupTermsError,
   type CreateListingInput,
@@ -44,6 +45,11 @@ const cardSelect = {
   topupMarkupBps: true,
   topupMin: true,
   topupMax: true,
+  // Поштучно: карточка пишет «15 ₽ за 1000 золота» и наличие.
+  unitName: true,
+  pricePerUnits: true,
+  minQty: true,
+  stock: true,
   seller: { select: { profile: { select: { username: true, ratingAvg: true, onlineAt: true } } } },
   category: { select: { slug: true, title: true } },
   game: { select: { slug: true, title: true } },
@@ -110,8 +116,10 @@ export class ListingsService {
         (query.page - 1) * query.limit,
       );
       if (found) {
+        // Индекс может отставать от статуса: распроданный при оплате лот
+        // ещё лежит в нём как активный. Статус проверяем по базе.
         const rows = await this.prisma.listing.findMany({
-          where: { id: { in: found.ids } },
+          where: { id: { in: found.ids }, status: 'active' },
           select: cardSelect,
         });
         const byId = new Map(rows.map((r) => [r.id, r]));
@@ -189,7 +197,11 @@ export class ListingsService {
         },
       },
     });
-    if (!listing || listing.status !== 'active') throw new NotFoundException('Лот не найден');
+    // Распроданный лот открывается по ссылке из избранного и заказов с
+    // пометкой «закончился»: 404 выглядел бы как удалённый лот.
+    if (!listing || (listing.status !== 'active' && listing.status !== 'sold_out')) {
+      throw new NotFoundException('Лот не найден');
+    }
     return this.resolveImages(listing);
   }
 
@@ -294,6 +306,12 @@ export class ListingsService {
 
     await this.validateAttributes(input.categoryId, input.attributes);
     const terms = input.topup ? this.topupTerms(category.fulfillmentType, input.topup) : null;
+    const qty = this.qtyTerms(category.fulfillmentType, {
+      unitName: input.unitName ?? null,
+      pricePerUnits: input.pricePerUnits ?? 1,
+      minQty: input.minQty ?? 1,
+      stock: input.stock,
+    });
 
     const created = await this.prisma.listing.create({
       data: {
@@ -306,11 +324,15 @@ export class ListingsService {
         topupMarkupBps: terms?.markupBps ?? null,
         topupMin: terms?.min ?? null,
         topupMax: terms?.max ?? null,
+        ...qty,
         currency: input.currency,
         attributes: input.attributes as Prisma.InputJsonValue,
         images: input.images as Prisma.InputJsonValue,
-        stock: input.stock,
-        status: 'active',
+        // Наличие авто-лота — это склад ключей: его ведёт InventoryService.
+        // Без ключей лот в каталог не выходит: купить его всё равно нельзя.
+        // Первая загрузка ключей переводит его в продажу (addKeys).
+        stock: category.fulfillmentType === 'auto_key' ? 0 : qty.stock,
+        status: category.fulfillmentType === 'auto_key' || qty.stock === 0 ? 'sold_out' : 'active',
         fulfillmentType: category.fulfillmentType,
         autoDelivery: category.fulfillmentType !== 'manual',
       },
@@ -332,6 +354,32 @@ export class ListingsService {
     const error = topupTermsError(terms);
     if (error) throw new BadRequestException(error);
     return terms;
+  }
+
+  /**
+   * Условия продажи поштучно. Без единицы лот продаётся целиком: пачка и
+   * минимум сбрасываются, наличие — как задал продавец. У пополнений
+   * «количества» нет — у них сумма на выбор покупателя.
+   */
+  private qtyTerms(
+    fulfillmentType: FulfillmentType,
+    raw: { unitName: string | null; pricePerUnits: number; minQty: number; stock: number | null },
+  ) {
+    const unitName = raw.unitName?.trim() || null;
+    if (!unitName) return { unitName: null, pricePerUnits: 1, minQty: 1, stock: raw.stock };
+    if (fulfillmentType === 'provider') {
+      throw new BadRequestException('У пополнений количество не задаётся — выберите сумму на выбор покупателя');
+    }
+    const terms = {
+      unitName,
+      pricePerUnits: raw.pricePerUnits,
+      minQty: raw.minQty,
+      // Наличие ключей считает склад, проверять ввод продавца незачем.
+      stock: fulfillmentType === 'auto_key' ? 0 : raw.stock,
+    };
+    const error = qtyTermsError(terms);
+    if (error) throw new BadRequestException(error);
+    return { ...terms, stock: raw.stock };
   }
 
   /** Проверка атрибутов лота против схемы категории (обязательные + enum-опции). */
@@ -379,11 +427,49 @@ export class ListingsService {
     }
     const variable = input.topup !== undefined ? input.topup !== null : current.topupMarkupBps != null;
     if (input.price !== undefined && !variable) data.price = BigInt(input.price);
+
+    // Поштучно: проверяем итоговые условия — старые значения плюс изменённые.
+    const auto = current.category.fulfillmentType === 'auto_key';
+    if (
+      input.unitName !== undefined ||
+      input.pricePerUnits !== undefined ||
+      input.minQty !== undefined ||
+      (input.stock !== undefined && !auto)
+    ) {
+      const q = this.qtyTerms(current.category.fulfillmentType, {
+        unitName: input.unitName !== undefined ? input.unitName : current.unitName,
+        pricePerUnits: input.pricePerUnits ?? current.pricePerUnits,
+        minQty: input.minQty ?? current.minQty,
+        stock: auto ? current.stock : input.stock !== undefined ? input.stock : current.stock,
+      });
+      data.unitName = q.unitName;
+      data.pricePerUnits = q.pricePerUnits;
+      data.minQty = q.minQty;
+      if (!auto) data.stock = q.stock;
+    }
+    // Распроданный лот с пополненным наличием возвращается в продажу сам —
+    // как «восстановление лота» у продавцов FunPay.
+    if (current.status === 'sold_out' && input.status === undefined && !auto) {
+      const stock = data.stock !== undefined ? (data.stock as number | null) : current.stock;
+      if (stock == null || stock > 0) data.status = 'active';
+    }
+    // Наличие обнулили правкой — лот уходит из каталога, как после продажи последней штуки.
+    if (data.stock === 0 && current.status === 'active' && input.status === undefined) data.status = 'sold_out';
     if (input.currency !== undefined) data.currency = input.currency;
     if (input.attributes !== undefined) data.attributes = input.attributes as Prisma.InputJsonValue;
     if (input.images !== undefined) data.images = input.images as Prisma.InputJsonValue;
-    if (input.stock !== undefined) data.stock = input.stock;
+    // Наличие обычного лота — выше, вместе с условиями поштучной продажи;
+    // наличие авто-лота меняет только склад ключей.
     if (input.status !== undefined) data.status = input.status;
+    // Вернуть в продажу лот без наличия нельзя: заказ на него сразу упадёт.
+    if (input.status === 'active') {
+      const stock = data.stock !== undefined ? (data.stock as number | null) : current.stock;
+      if (stock === 0) {
+        throw new BadRequestException(
+          auto ? 'На складе нет ключей — загрузите их, и лот вернётся в продажу' : 'Лот закончился — укажите наличие',
+        );
+      }
+    }
 
     const updated = await this.prisma.listing.update({ where: { id }, data, select: cardSelect });
     await this.search.indexListing(id);
@@ -420,6 +506,10 @@ export class ListingsService {
         status: true,
         categoryId: true,
         topupMarkupBps: true,
+        unitName: true,
+        pricePerUnits: true,
+        minQty: true,
+        stock: true,
         category: { select: { fulfillmentType: true } },
       },
     });

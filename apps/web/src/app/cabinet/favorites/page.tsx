@@ -13,7 +13,10 @@ interface FavListing {
   price: string;
   currency: string;
   images: string[];
+  status?: string;
   topupMarkupBps?: number | null;
+  unitName?: string | null;
+  pricePerUnits?: number;
 }
 
 export default function FavoritesPage() {
@@ -53,7 +56,10 @@ export default function FavoritesPage() {
                 )}
               </div>
               <div style={{ fontSize: 15, fontWeight: 500 }}>{l.title}</div>
-              <div className="price" style={{ marginTop: 8 }}>{formatListingPrice(l)}</div>
+              <div className="row" style={{ marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
+                <span className="price">{formatListingPrice(l)}</span>
+                {l.status === 'sold_out' && <span className="badge">закончился</span>}
+              </div>
             </Link>
           ))}
         </div>

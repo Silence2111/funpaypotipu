@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldCheck, KeyRound, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { apiFetch, getToken, useSession } from '@/lib/session';
-import { formatPrice } from '@/lib/format';
+import { formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { apiErrorMessage } from '@/lib/errors';
 import { OrderChat } from '@/components/order-chat';
 import { OrderReview } from '@/components/order-review';
@@ -13,8 +13,12 @@ import { OrderReview } from '@/components/order-review';
 interface Order {
   id: string; publicNumber: string; status: string; amount: string; currency: string;
   buyerId: string; sellerId: string; fulfillmentType: string;
-  listingId?: string;
-  listingSnapshot?: { title?: string; account?: string; topupAmount?: string } | null;
+  listingId?: string; qty?: number;
+  listingSnapshot?: {
+    title?: string; account?: string; topupAmount?: string;
+    /** Поштучно: единица и цена пачки на момент заказа. */
+    unitName?: string; unitPrice?: string; pricePerUnits?: number;
+  } | null;
   autoConfirmAt?: string | null; sellerPayoutAmount?: string;
 }
 interface Conversation { id: string; orderId: string | null }
@@ -68,7 +72,7 @@ export default function OrderPage() {
   const id = params.id;
   const [order, setOrder] = useState<Order | null>(null);
   const [conv, setConv] = useState<Conversation | null>(null);
-  const [key, setKey] = useState<string | null>(null);
+  const [keys, setKeys] = useState<string[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showDispute, setShowDispute] = useState(false);
@@ -159,8 +163,8 @@ export default function OrderPage() {
 
   async function revealKey() {
     try {
-      const r = await apiFetch<{ key: string }>(`/orders/${id}/key`);
-      setKey(r.key);
+      const r = await apiFetch<{ key: string; keys?: string[] }>(`/orders/${id}/key`);
+      setKeys(r.keys ?? [r.key]);
     } catch {
       setErr('Ключ ещё не выдан');
     }
@@ -209,6 +213,9 @@ export default function OrderPage() {
   const title = order.listingSnapshot?.title;
   const topupAccount = order.listingSnapshot?.account;
   const topupAmount = order.listingSnapshot?.topupAmount;
+  const unit = order.listingSnapshot?.unitName;
+  const unitPrice = order.listingSnapshot?.unitPrice;
+  const pack = unit ? perPackLabel({ unitName: unit, pricePerUnits: order.listingSnapshot?.pricePerUnits }) : null;
 
   return (
     <div className="container" style={{ paddingTop: 40, maxWidth: 720 }}>
@@ -243,6 +250,15 @@ export default function OrderPage() {
             ))}
           </ol>
         )}
+        {/* «1 шт.» у обычного ключа — шум; количество важно у валюты и нескольких штук */}
+        {unit && order.qty != null && (order.qty > 1 || unit !== 'шт.') && (
+          <p style={{ margin: '14px 0 0', fontSize: 15 }}>
+            <strong>{formatQty(order.qty, unit)}</strong>
+            {unitPrice && pack && (
+              <span className="faint"> · {formatPrice(unitPrice, order.currency)} {pack}</span>
+            )}
+          </p>
+        )}
         {kind === 'topup' && topupAccount && (
           <p style={{ margin: '14px 0 0', fontSize: 15 }}>
             {topupAmount ? <>Зачисление {formatPrice(topupAmount, order.currency)} на аккаунт </> : <>Пополнение на аккаунт </>}
@@ -260,9 +276,9 @@ export default function OrderPage() {
           {role === 'seller' && order.status === 'paid' && (
             <button className="btn" onClick={() => act('deliver')} disabled={busy} type="button">Отметить выдачу</button>
           )}
-          {role === 'buyer' && auto && (order.status === 'delivered' || order.status === 'completed') && !key && (
+          {role === 'buyer' && auto && (order.status === 'delivered' || order.status === 'completed') && !keys && (
             <button className={order.status === 'delivered' ? 'btn secondary' : 'btn'} onClick={revealKey} type="button">
-              <KeyRound size={16} /> Показать ключ
+              <KeyRound size={16} /> {(order.qty ?? 1) > 1 ? 'Показать ключи' : 'Показать ключ'}
             </button>
           )}
           {role === 'buyer' && order.status === 'delivered' && (
@@ -290,10 +306,18 @@ export default function OrderPage() {
           )}
         </div>
 
-        {key && (
+        {keys && (
           <div className="card flat" style={{ marginTop: 16, padding: 16, background: 'var(--page)' }}>
-            <p className="hint" style={{ marginBottom: 6 }}>Ваш ключ</p>
-            <code style={{ fontSize: 16, fontWeight: 600, wordBreak: 'break-all' }}>{key}</code>
+            <p className="hint" style={{ marginBottom: 6 }}>
+              {keys.length > 1 ? `Ваши ключи · ${keys.length}` : 'Ваш ключ'}
+            </p>
+            <ol style={{ margin: 0, paddingLeft: keys.length > 1 ? 22 : 0, listStyle: keys.length > 1 ? 'decimal' : 'none', display: 'grid', gap: 6 }}>
+              {keys.map((k, i) => (
+                <li key={i}>
+                  <code style={{ fontSize: 16, fontWeight: 600, wordBreak: 'break-all' }}>{k}</code>
+                </li>
+              ))}
+            </ol>
           </div>
         )}
       </div>

@@ -3,8 +3,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { markupLabel, topupQuote, topupTermsError } from '@gamemarket/shared/topup';
+import { PRICE_PER_UNITS, qtyTermsError } from '@gamemarket/shared/quantity';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { formatQty } from '@/lib/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -27,11 +29,21 @@ export interface EditableListing {
   topupMarkupBps: number | null;
   topupMin: string | null;
   topupMax: string | null;
+  unitName: string | null;
+  pricePerUnits: number;
+  minQty: number;
+  stock: number | null;
   game: { slug: string; title: string };
   category: { slug: string; title: string; fulfillmentType: string };
 }
 
 const rubOf = (minor: string | null | undefined) => (minor ? String(Number(BigInt(minor)) / 100) : '');
+
+/** Целое из поля ввода: «250 000» → 250000; пусто или не число — NaN. */
+const intOf = (v: string) => {
+  const t = v.replace(/[\s\u00a0\u202f]/g, '');
+  return /^\d+$/.test(t) ? Number(t) : NaN;
+};
 
 /**
  * Форма лота: новый лот или изменение своего. Одна форма на оба случая —
@@ -82,6 +94,12 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
   );
   const [minRub, setMinRub] = useState(initial?.topupMin ? rubOf(initial.topupMin) : '100');
   const [maxRub, setMaxRub] = useState(initial?.topupMax ? rubOf(initial.topupMax) : '15000');
+  // Поштучно, как валюта на FunPay: цена за пачку единиц, наличие, минимум.
+  const [byQty, setByQty] = useState(initial?.unitName != null);
+  const [unitName, setUnitName] = useState(initial?.unitName ?? '');
+  const [perUnits, setPerUnits] = useState<number>(initial?.pricePerUnits ?? 1);
+  const [minQty, setMinQty] = useState(initial ? String(initial.minQty) : '1');
+  const [stock, setStock] = useState(initial?.unitName != null && initial.stock != null ? String(initial.stock) : '');
 
   useEffect(() => {
     if (editing) return; // страница изменения сама проверяет вход и грузит лот
@@ -94,6 +112,14 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
 
   const selected = categories.find((c) => c.id === categoryId);
   const variable = byAmount && selected?.fulfillmentType === 'provider';
+  const perPiece = byQty && selected?.fulfillmentType === 'manual';
+  const qtyTerms = {
+    unitName: unitName.trim() || null,
+    pricePerUnits: perUnits,
+    minQty: intOf(minQty),
+    stock: stock.trim() ? intOf(stock) : null,
+  };
+  const unitLabel = (n: number) => formatQty(n, unitName.trim() || 'ед.');
   const markupPct = parseFloat(markup.replace(',', '.'));
   const terms =
     /^\d{1,6}$/.test(minRub) && /^\d{1,6}$/.test(maxRub) && Number.isFinite(markupPct)
@@ -189,13 +215,14 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
     description: description.trim() ? null : 'Опишите, что получит покупатель и как передаёте',
     price: variable ? null : rubValue > 0 ? null : 'Цена в рублях, например 490',
     topup: variable ? termsError : null,
+    qty: perPiece ? qtyTermsError(qtyTerms) : null,
   };
   const showErr = (k: string) => (touched[k] ? fieldErrors[k] : null);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setErr(null);
-    setTouched({ game: true, category: true, title: true, description: true, price: true, topup: true });
+    setTouched({ game: true, category: true, title: true, description: true, price: true, topup: true, qty: true });
     if (Object.values(fieldErrors).some(Boolean)) {
       setErr(editing ? 'Изменения не сохранены — поправьте отмеченные поля.' : 'Лот не опубликован — поправьте отмеченные поля.');
       return;
@@ -222,6 +249,12 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
                 price: String(Math.round(rubValue * 100)),
                 ...(initial.topupMarkupBps != null ? { topup: null } : {}),
               };
+        // Поштучно → целиком: единица и наличие снимаются вместе.
+        const quantity = perPiece
+          ? qtyTerms
+          : initial.unitName != null && initial.category.fulfillmentType === 'manual'
+            ? { unitName: null, stock: null }
+            : {};
         await apiFetch(`/listings/${initial.id}`, {
           method: 'PATCH',
           body: JSON.stringify({
@@ -230,6 +263,7 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
             attributes: cleanAttrs,
             images: images.map((i) => i.key),
             ...pricing,
+            ...quantity,
           }),
         });
         router.push(initial.status === 'active' ? `/lot/${initial.id}?updated=1` : '/cabinet/lots?updated=1');
@@ -255,6 +289,7 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
           ...(variable && terms
             ? { topup: { markupBps: terms.markupBps, min: terms.min.toString(), max: terms.max.toString() } }
             : {}),
+          ...(perPiece ? qtyTerms : {}),
         }),
       });
       router.push(`/lot/${created.id}?created=1`);
@@ -301,7 +336,10 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
           ) : editing ? (
             <p className="hint">Игру и раздел у выставленного лота не меняют: к ним привязаны характеристики и заказы.</p>
           ) : selectedCategory?.fulfillmentType === 'auto_key' ? (
-            <p className="hint">Ключи загрузите на склад после публикации — покупатель получит ключ сразу после оплаты.</p>
+            <p className="hint">
+              Ключи загрузите на склад после публикации: с первым ключом лот появится в каталоге. Покупатель получит
+              ключи сразу после оплаты, можно несколько в одном заказе.
+            </p>
           ) : null}
         </div>
 
@@ -368,6 +406,63 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
           </fieldset>
         )}
 
+        {selectedCategory?.fulfillmentType === 'manual' && (
+          <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+            <legend className="label" style={{ marginBottom: 6, padding: 0 }}>Как продаёте</legend>
+            {[
+              { v: false, t: 'Целиком', d: 'Один товар или услуга за одну цену: аккаунт, буст, предмет' },
+              { v: true, t: 'Поштучно', d: 'Валюта или одинаковые предметы: цена за пачку, количество выбирает покупатель' },
+            ].map((o) => (
+              <label key={o.t} className="row" style={{ gap: 10, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>
+                <input type="radio" name="selling" checked={byQty === o.v} onChange={() => setByQty(o.v)}
+                  style={{ marginTop: 3, width: 18, height: 18, accentColor: 'var(--accent)' }} />
+                <span>
+                  <span style={{ fontWeight: 600, fontSize: 15 }}>{o.t}</span>
+                  <span className="hint" style={{ display: 'block' }}>{o.d}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+
+        {perPiece && (
+          <div className="field">
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+              <div className="field">
+                <label className="label" htmlFor="qty-unit">Единица</label>
+                <input id="qty-unit" className="input" placeholder="золота" maxLength={24} value={unitName}
+                  onChange={(e) => setUnitName(e.target.value)} onBlur={() => touch('qty')} />
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="qty-per">Цена за</label>
+                <select id="qty-per" className="input" value={perUnits} onChange={(e) => setPerUnits(Number(e.target.value))}>
+                  {PRICE_PER_UNITS.map((n) => (
+                    <option key={n} value={n}>{unitLabel(n)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="qty-stock">В наличии</label>
+                <input id="qty-stock" className="input" inputMode="numeric" placeholder="250000" value={stock}
+                  onChange={(e) => setStock(e.target.value)} onBlur={() => touch('qty')} />
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="qty-min">Минимум за заказ</label>
+                <input id="qty-min" className="input" inputMode="numeric" placeholder="1" value={minQty}
+                  onChange={(e) => setMinQty(e.target.value)} onBlur={() => touch('qty')} />
+              </div>
+            </div>
+            {showErr('qty') ? (
+              <p className="field-error">{showErr('qty')}</p>
+            ) : (
+              <p className="hint">
+                Единицу пишите так, как она стоит после числа: 1 000 золота, 5 шт. Наличие уменьшается с каждой
+                оплатой; на нуле лот уходит из каталога.
+              </p>
+            )}
+          </div>
+        )}
+
         {variable ? (
           <div className="field">
             <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
@@ -392,7 +487,7 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
           </div>
         ) : (
           <div className="field">
-            <label className="label" htmlFor="price">Цена, ₽</label>
+            <label className="label" htmlFor="price">{perPiece ? `Цена за ${unitLabel(perUnits)}, ₽` : 'Цена, ₽'}</label>
             <input id="price" className="input" placeholder="490" inputMode="decimal" value={price} style={{ maxWidth: 220 }}
               onChange={(e) => setPrice(e.target.value)} onBlur={() => touch('price')} aria-invalid={!!showErr('price')} />
             {showErr('price') && <p className="field-error">{showErr('price')}</p>}
@@ -412,7 +507,7 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
               <span>−{(Number(quote.feeSeller) / 100).toLocaleString('ru-RU')} ₽</span>
             </div>
             <div className="row" style={{ justifyContent: 'space-between', fontSize: 15, fontWeight: 700, marginTop: 6 }}>
-              <span>Вы получите</span>
+              <span>{perPiece ? `Вы получите за ${unitLabel(perUnits)}` : 'Вы получите'}</span>
               <span style={{ color: 'var(--success)' }}>{(Number(quote.sellerPayout) / 100).toLocaleString('ru-RU')} ₽</span>
             </div>
             {quote.level && <p className="hint" style={{ marginTop: 6 }}>Ваш уровень: {quote.level.label}</p>}

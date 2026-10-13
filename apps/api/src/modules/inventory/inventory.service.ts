@@ -20,7 +20,11 @@ export class InventoryService {
       }),
       this.prisma.listing.update({
         where: { id: listing.id },
-        data: { stock: { increment: keys.length } },
+        // Склад пополнился — распроданный лот снова в продаже.
+        data: {
+          stock: { increment: keys.length },
+          ...(listing.status === 'sold_out' ? { status: 'active' as const } : {}),
+        },
       }),
     ]);
     return { added: keys.length };
@@ -50,6 +54,11 @@ export class InventoryService {
     await this.prisma.$transaction([
       this.prisma.digitalGood.delete({ where: { id: goodId } }),
       this.prisma.listing.update({ where: { id: good.listingId }, data: { stock: { decrement: 1 } } }),
+      // Удалён последний ключ — лот уходит из каталога, как после продажи последнего.
+      this.prisma.listing.updateMany({
+        where: { id: good.listingId, stock: { lte: 0 }, status: 'active' },
+        data: { status: 'sold_out' },
+      }),
     ]);
     return { ok: true };
   }

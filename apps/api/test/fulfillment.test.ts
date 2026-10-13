@@ -42,12 +42,18 @@ function makeDb(goods: Good[], order: Record<string, unknown>) {
         );
         return g ? { id: g.id } : null;
       }),
+      findMany: vi.fn(async ({ where }: { where: { reservedForOrderId: string; status: string } }) =>
+        state.goods
+          .filter((x) => x.reservedForOrderId === where.reservedForOrderId && x.status === where.status)
+          .map((x) => ({ id: x.id })),
+      ),
+      // CAS по одному ключу ({ id }) или снятие резерва списком ({ id: { in } }).
       updateMany: vi.fn(
-        async ({ where, data }: { where: { id: string; status: string }; data: Good }) => {
-          const g = state.goods.find((x) => x.id === where.id && x.status === where.status);
-          if (!g) return { count: 0 };
-          Object.assign(g, data);
-          return { count: 1 };
+        async ({ where, data }: { where: { id: string | { in: string[] }; status: string }; data: Partial<Good> }) => {
+          const ids = typeof where.id === 'string' ? [where.id] : where.id.in;
+          const hit = state.goods.filter((x) => ids.includes(x.id) && x.status === where.status);
+          for (const g of hit) Object.assign(g, data);
+          return { count: hit.length };
         },
       ),
       update: vi.fn(async ({ where, data }: { where: { id: string }; data: Good }) => {
@@ -57,7 +63,10 @@ function makeDb(goods: Good[], order: Record<string, unknown>) {
       }),
     },
     delivery: { upsert: vi.fn(async (arg: unknown) => state.deliveries.push(arg)) },
-    listing: { update: vi.fn(async (arg: unknown) => state.listingUpdates.push(arg)) },
+    listing: {
+      update: vi.fn(async (arg: unknown) => state.listingUpdates.push(arg)),
+      updateMany: vi.fn(async () => ({ count: 0 })),
+    },
     // Транзакция в тесте выполняет уже созданные промисы: Prisma принимает
     // массив вызовов, и к этому моменту они отработали — как и в проде.
     $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
@@ -79,6 +88,7 @@ const ORDER = {
   sellerId: 's1',
   amount: 1000,
   currency: 'RUB',
+  qty: 1,
 };
 
 function service(prisma: unknown) {
@@ -152,6 +162,42 @@ describe('выдача ключа', () => {
     );
     await service(prisma).autoFulfill('o1');
     expect(state.goods[0].status).toBe('available');
+  });
+});
+
+describe('несколько ключей в одном заказе', () => {
+  const goods = () => [
+    { id: 'g1', listingId: 'l1', status: 'available' },
+    { id: 'g2', listingId: 'l1', status: 'available' },
+    { id: 'g3', listingId: 'l1', status: 'available' },
+  ];
+
+  it('заказ на 2 штуки получает ровно 2 ключа, склад уменьшается на 2', async () => {
+    const { prisma, state } = makeDb(goods(), { ...ORDER, qty: 2 });
+    await service(prisma).autoFulfill('o1');
+    expect(state.goods.filter((g) => g.status === 'delivered')).toHaveLength(2);
+    expect(state.goods.filter((g) => g.status === 'available')).toHaveLength(1);
+    expect(state.order.status).toBe('delivered');
+    expect(state.listingUpdates[0]).toMatchObject({ data: { stock: { decrement: 2 } } });
+    const delivery = state.deliveries[0] as { create: { payloadRef: { goodIds: string[] } } };
+    expect(delivery.create.payloadRef.goodIds).toHaveLength(2);
+  });
+
+  it('ключей меньше, чем куплено, — возврат, и резерв снимается целиком', async () => {
+    // Полвыдачи за полную цену хуже возврата: два ключа не уходят «в счёт» трёх
+    const { prisma, state } = makeDb(goods().slice(0, 2), { ...ORDER, qty: 3 });
+    await service(prisma).autoFulfill('o1');
+    expect(state.order.status).toBe('refunded');
+    expect(state.goods.every((g) => g.status === 'available' && !g.reservedForOrderId)).toBe(true);
+    expect(ledger.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('повтор после частичного резерва берёт уже свои ключи, а не новые', async () => {
+    const pre = goods();
+    pre[0] = { ...pre[0]!, status: 'reserved', reservedForOrderId: 'o1' };
+    const { prisma, state } = makeDb(pre, { ...ORDER, qty: 2 });
+    await service(prisma).autoFulfill('o1');
+    expect(state.goods.filter((g) => g.status === 'delivered').map((g) => g.id)).toEqual(['g1', 'g2']);
   });
 });
 

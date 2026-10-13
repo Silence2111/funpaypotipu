@@ -14,10 +14,18 @@ import { ListingsService } from '../src/modules/listings/listings.service';
 
 const HOUR = 3600 * 1000;
 
-function setup(listing: Record<string, unknown> | null, opts: { orders?: number; attrs?: unknown[] } = {}) {
-  const calls = { update: [] as unknown[], delete: [] as unknown[], updateMany: [] as unknown[] };
+function setup(
+  listing: Record<string, unknown> | null,
+  opts: { orders?: number; attrs?: unknown[]; fulfillmentType?: string } = {},
+) {
+  const calls = { update: [] as unknown[], delete: [] as unknown[], updateMany: [] as unknown[], create: [] as unknown[] };
   const prisma = {
+    category: { findFirst: vi.fn(async () => ({ id: 'c1', fulfillmentType: opts.fulfillmentType ?? 'manual' })) },
     listing: {
+      create: vi.fn(async (a: { data: Record<string, unknown> }) => {
+        calls.create.push(a);
+        return { id: 'l1', ...a.data };
+      }),
       findUnique: vi.fn(async () => listing),
       findMany: vi.fn(async () => (listing ? [listing] : [])),
       update: vi.fn(async (a: unknown) => {
@@ -74,6 +82,65 @@ describe('изменение лота', () => {
     const { svc, calls } = setup({ ...MINE, status: 'paused' });
     await svc.update('s1', 'l1', { status: 'active' });
     expect(calls.update).toHaveLength(1);
+  });
+});
+
+describe('наличие лота', () => {
+  const NEW = {
+    gameId: 'g1',
+    categoryId: 'c1',
+    title: 'Золото, сервер Гордунни',
+    description: 'Передаю через аукцион',
+    price: '1500',
+    currency: 'RUB' as const,
+    attributes: {},
+    images: [],
+    topup: null,
+    stock: null,
+  };
+
+  it('валюта поштучно: единица, пачка, минимум и наличие сохраняются', async () => {
+    const { svc, calls } = setup(null);
+    await svc.create('s1', { ...NEW, unitName: 'золота', pricePerUnits: 1000, minQty: 10_000, stock: 250_000 });
+    expect(calls.create[0]).toMatchObject({
+      data: { unitName: 'золота', pricePerUnits: 1000, minQty: 10_000, stock: 250_000, status: 'active' },
+    });
+  });
+
+  it('пачка не из списка и валюта без наличия — не сохраняются', async () => {
+    const { svc } = setup(null);
+    await expect(svc.create('s1', { ...NEW, unitName: 'золота', pricePerUnits: 7, stock: 100 })).rejects.toThrow(/1 000/);
+    await expect(svc.create('s1', { ...NEW, unitName: 'золота', pricePerUnits: 1000 })).rejects.toThrow(/наличие/);
+  });
+
+  it('у пополнения количества нет — у него сумма на выбор', async () => {
+    const { svc } = setup(null, { fulfillmentType: 'provider' });
+    await expect(svc.create('s1', { ...NEW, unitName: 'кристаллов', stock: 100 })).rejects.toThrow(/пополнений/);
+  });
+
+  it('лот ключей без ключей в каталог не выходит', async () => {
+    const { svc, calls } = setup(null, { fulfillmentType: 'auto_key' });
+    await svc.create('s1', { ...NEW, stock: 500 });
+    // наличие ключей ведёт склад: ввод продавца не учитывается
+    expect(calls.create[0]).toMatchObject({ data: { stock: 0, status: 'sold_out' } });
+  });
+
+  it('закончившийся лот не возвращается в продажу без наличия', async () => {
+    const { svc, calls } = setup({ ...MINE, status: 'sold_out', unitName: 'золота', pricePerUnits: 1000, minQty: 1, stock: 0 });
+    await expect(svc.update('s1', 'l1', { status: 'active' })).rejects.toThrow(/укажите наличие/);
+    expect(calls.update).toHaveLength(0);
+  });
+
+  it('наличие обнулили правкой — лот уходит из каталога', async () => {
+    const { svc, calls } = setup({ ...MINE, unitName: 'золота', pricePerUnits: 1000, minQty: 1, stock: 5_000 });
+    await svc.update('s1', 'l1', { stock: 0 });
+    expect(calls.update[0]).toMatchObject({ data: { stock: 0, status: 'sold_out' } });
+  });
+
+  it('продавец пополнил наличие — лот снова в продаже сам', async () => {
+    const { svc, calls } = setup({ ...MINE, status: 'sold_out', unitName: 'золота', pricePerUnits: 1000, minQty: 1, stock: 0 });
+    await svc.update('s1', 'l1', { stock: 80_000 });
+    expect(calls.update[0]).toMatchObject({ data: { stock: 80_000, status: 'active' } });
   });
 });
 

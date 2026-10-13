@@ -3,13 +3,20 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Info, ShieldCheck, Star, User } from 'lucide-react';
 import { getListing, getPublicPricing } from '@/lib/api';
-import { formatListingPrice, formatPrice } from '@/lib/format';
+import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { tileFor } from '@/lib/tile';
 import { BuyButton } from '@/components/buy-button';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
 import { MessageSellerButton } from '@/components/message-seller-button';
-import { priceWithAcquiring, PAYMENT_METHODS, isDemoSeller, markupLabel, topupQuote } from '@gamemarket/shared';
+import {
+  priceWithAcquiring,
+  PAYMENT_METHODS,
+  isDemoSeller,
+  markupLabel,
+  soldByQty,
+  topupQuote,
+} from '@gamemarket/shared';
 import { JsonLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
 import { SellerReviews } from '@/components/seller-reviews';
@@ -53,6 +60,22 @@ export default async function ListingPage({
   const provider = listing.fulfillmentType === 'provider';
   const confirmH = pricing?.autoConfirmHours ?? 72;
   const fulfillH = pricing?.fulfillHours ?? 24;
+  const soldOut = listing.status === 'sold_out';
+  // Поштучно: цена за пачку, покупатель выбирает количество. У ключей поле
+  // количества появляется, только когда на складе есть из чего выбирать.
+  const pack = perPackLabel(listing);
+  const qtyOffer =
+    soldByQty({ unitName: listing.unitName ?? null, fulfillmentType: listing.fulfillmentType }) &&
+    (listing.unitName || listing.stock == null || listing.stock > 1)
+      ? {
+          price: listing.price,
+          currency: listing.currency,
+          unitName: listing.unitName ?? null,
+          pricePerUnits: listing.pricePerUnits ?? 1,
+          minQty: listing.minQty ?? 1,
+          stock: listing.stock ?? null,
+        }
+      : undefined;
 
   // Лот «на сумму покупателя»: вместо кнопки «Купить» — форма суммы, цена «от».
   const topup =
@@ -90,7 +113,7 @@ export default async function ListingPage({
           '@type': 'Offer',
           price: major(listing.price),
           priceCurrency: listing.currency,
-          availability: 'https://schema.org/InStock',
+          availability: soldOut ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
           seller: sellerLd,
         },
     ...(listing.seller.profile && listing.seller.profile.ratingAvg > 0
@@ -114,8 +137,11 @@ export default async function ListingPage({
         <div className="alert success" role="status" style={{ marginBottom: 20 }}>
           <ShieldCheck size={18} strokeWidth={1.75} />
           <span>
-            Лот опубликован и уже виден в каталоге.
-            {auto ? ' Загрузите ключи на склад ниже — без них покупка вернёт деньги покупателю.' : ''}
+            {!soldOut
+              ? 'Лот опубликован и уже виден в каталоге.'
+              : auto
+                ? 'Лот создан. Загрузите ключи на склад ниже — с первым ключом он появится в каталоге.'
+                : 'Лот создан. Наличие — ноль: лот появится в каталоге, когда вы его пополните.'}
           </span>
         </div>
       )}
@@ -219,17 +245,27 @@ export default async function ListingPage({
                   : 'Выдаёт продавец'}
             </span>
             {demo && <span className="demo-mark">Пример</span>}
+            {soldOut && <span className="badge">Закончился</span>}
           </div>
-          <div className="price" style={{ fontSize: 28, margin: topup ? '16px 0 4px' : '16px 0' }}>
-            {formatListingPrice(listing)}
+          <div className="price" style={{ fontSize: 28, margin: topup || pack ? '16px 0 4px' : '16px 0' }}>
+            {pack ? formatPrice(listing.price, listing.currency) : formatListingPrice(listing)}
+            {pack && (
+              <span className="faint" style={{ fontSize: 15, fontWeight: 500, letterSpacing: 0 }}> {pack}</span>
+            )}
           </div>
           {topup && (
             <p className="hint" style={{ marginBottom: 16 }}>
               Сумму выбираете вы, наценка продавца — {markupLabel(topup.markupBps)}
             </p>
           )}
+          {pack && !soldOut && (
+            <p className="hint" style={{ marginBottom: 16 }}>
+              Количество выбираете вы
+              {listing.minQty && listing.minQty > 1 ? `, от ${formatQty(listing.minQty, listing.unitName)}` : ''}
+            </p>
+          )}
 
-          {!topup && (() => {
+          {!topup && !pack && !soldOut && (() => {
             const base = BigInt(listing.price);
             const card = PAYMENT_METHODS.find((m) => m.key === 'card')!;
             const cardPrice = priceWithAcquiring(base, card).toString();
@@ -255,7 +291,14 @@ export default async function ListingPage({
             );
           })()}
 
-          {topup ? (
+          {soldOut ? (
+            <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
+              <p style={{ margin: 0, fontWeight: 600 }}>Лот закончился</p>
+              <p className="hint" style={{ margin: '4px 0 0' }}>
+                Продавец может пополнить наличие. Добавьте лот в избранное, чтобы не потерять его.
+              </p>
+            </div>
+          ) : topup ? (
             <GameTopupForm
               variant="lot"
               game={listing.game}
@@ -265,9 +308,9 @@ export default async function ListingPage({
               initialAmount={amount ?? ''}
             />
           ) : (
-            <BuyButton listingId={listing.id} fulfillmentType={listing.fulfillmentType} />
+            <BuyButton listingId={listing.id} fulfillmentType={listing.fulfillmentType} qtyOffer={qtyOffer} />
           )}
-          {pricing?.paymentsDemo && (
+          {pricing?.paymentsDemo && !soldOut && (
             <p className="hint" style={{ marginTop: 10, textAlign: 'center' }}>
               Демо-оплата: платёжка не подключена, деньги не списываются.
             </p>

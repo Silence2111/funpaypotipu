@@ -33,6 +33,7 @@ const prisma = new PrismaClient();
 
 import { DEMO_EMAIL_DOMAIN as DEMO_DOMAIN, DEMO_SELLER_USERNAMES } from '../../shared/src/demo';
 import { topupQuote, topupTermsError } from '../../shared/src/topup';
+import { qtyTermsError } from '../../shared/src/quantity';
 const DEMO_NOTE = 'Демонстрационный профиль витрины.';
 
 interface DemoGame {
@@ -140,6 +141,8 @@ interface DemoListing {
   auto?: boolean;
   /** Пополнение на сумму покупателя: цена лота считается из условий («от»). */
   topup?: { markupBps: number; minRub: number; maxRub: number };
+  /** Поштучно: priceRub — цена за perUnits единиц, покупатель выбирает количество. */
+  qty?: { unit: string; perUnits: number; minQty: number; stock: number };
   /** Прежнее название лота: стенды, поднятые до смены, получают его обновлённым. */
   legacyTitle?: string;
 }
@@ -257,9 +260,13 @@ const LISTINGS: DemoListing[] = [
     game: 'wot',
     category: 'currency',
     seller: 'keystore',
-    title: '6500 золота на аккаунт',
-    description: 'По логину, без передачи пароля. Зачисление в день покупки.',
-    priceRub: 1990,
+    title: 'Золото на аккаунт, от 2 500',
+    legacyTitle: '6500 золота на аккаунт',
+    description:
+      'По логину, без передачи пароля. Количество выбираете сами, от 2 500 золота. ' +
+      'Зачисление в день покупки.',
+    priceRub: 310,
+    qty: { unit: 'золота', perUnits: 1000, minQty: 2500, stock: 5_000_000 },
   },
   {
     game: 'wot',
@@ -340,6 +347,7 @@ async function upsertListings() {
     if (!seller) continue;
 
     const terms = topupTermsOf(l);
+    const qty = qtyTermsOf(l);
     const price = terms ? topupQuote(terms.min, terms.markupBps).price : BigInt(Math.round(l.priceRub * 100));
 
     const exists = await prisma.listing.findFirst({
@@ -363,6 +371,18 @@ async function upsertListings() {
           },
         });
       }
+      if (qty) {
+        // Поштучный лот: условия как в сиде, наличие — снова полное, а
+        // распроданный на прошлом показе лот возвращается в продажу.
+        await prisma.listing.update({
+          where: { id: exists.id },
+          data: { title: l.title, description: l.description, price, ...qty },
+        });
+        await prisma.listing.updateMany({
+          where: { id: exists.id, status: ListingStatus.sold_out },
+          data: { status: ListingStatus.active },
+        });
+      }
       continue;
     }
 
@@ -376,6 +396,7 @@ async function upsertListings() {
         price,
         currency: 'RUB',
         stock: l.stock ?? null,
+        ...qty,
         status: ListingStatus.active,
         fulfillmentType: category.fulfillmentType,
         autoDelivery: l.auto ?? false,
@@ -386,6 +407,20 @@ async function upsertListings() {
     });
     if (category.fulfillmentType === FulfillmentType.auto_key) await refillDemoKeys(created.id);
   }
+}
+
+/** Условия продажи поштучно — с той же проверкой, что у API. */
+function qtyTermsOf(l: DemoListing) {
+  if (!l.qty) return null;
+  const terms = {
+    unitName: l.qty.unit,
+    pricePerUnits: l.qty.perUnits,
+    minQty: l.qty.minQty,
+    stock: l.qty.stock,
+  };
+  const err = qtyTermsError(terms);
+  if (err) throw new Error(`Поштучный лот «${l.title}»: ${err}`);
+  return terms;
 }
 
 /** Условия пополнения из описания лота — с той же проверкой, что у API. */
@@ -416,6 +451,12 @@ async function refillDemoKeys(listingId: string) {
   await prisma.listing.update({
     where: { id: listingId },
     data: { stock: Math.max(available, DEMO_KEYS_PER_LOT) },
+  });
+  // Ключи раскупили на прошлом показе — лот ушёл из каталога; со свежими
+  // ключами он снова в продаже.
+  await prisma.listing.updateMany({
+    where: { id: listingId, status: ListingStatus.sold_out },
+    data: { status: ListingStatus.active },
   });
 }
 

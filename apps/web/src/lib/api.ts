@@ -51,6 +51,12 @@ export interface ListingCard {
   topupMarkupBps?: number | null;
   topupMin?: string | null;
   topupMax?: string | null;
+  /** Поштучно: цена price — за pricePerUnits единиц; null — лот продаётся целиком. */
+  unitName?: string | null;
+  pricePerUnits?: number;
+  minQty?: number;
+  /** Наличие; null — без ограничения. У лота ключей — число ключей на складе. */
+  stock?: number | null;
   seller: { profile: { username: string; ratingAvg: number; onlineAt?: string | null } | null };
   category: { slug: string; title: string };
   game: { slug: string; title: string };

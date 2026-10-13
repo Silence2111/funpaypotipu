@@ -8,7 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { Prisma, PrismaClient, type OrderStatus } from '@gamemarket/db';
+import { Prisma, PrismaClient, type Order, type OrderStatus } from '@gamemarket/db';
 import {
   canTransition,
   payToEscrowFromBalance,
@@ -24,6 +24,9 @@ import {
   topupAmountError,
   topupQuote,
   maskContacts,
+  qtyError,
+  qtyTotal,
+  soldByQty,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
@@ -59,7 +62,7 @@ export class OrdersService {
   async create(
     buyerId: string,
     listingId: string,
-    opts: { promoCode?: string; account?: string; topupAmount?: string } = {},
+    opts: { promoCode?: string; account?: string; topupAmount?: string; qty?: number } = {},
   ) {
     const { promoCode } = opts;
     const account = opts.account?.trim() || undefined;
@@ -67,6 +70,7 @@ export class OrdersService {
       where: { id: listingId },
       include: { game: { select: { slug: true } } },
     });
+    if (listing?.status === 'sold_out') throw new BadRequestException('Лот закончился');
     if (!listing || listing.status !== 'active') throw new NotFoundException('Лот недоступен');
     if (listing.sellerId === buyerId) throw new BadRequestException('Нельзя купить собственный лот');
     if (listing.fulfillmentType === 'provider') {
@@ -90,6 +94,21 @@ export class OrdersService {
       base = topupQuote(topupNominal, listing.topupMarkupBps).price;
     } else if (opts.topupAmount) {
       throw new BadRequestException('У этого лота фиксированная цена — сумму выбирает продавец');
+    }
+
+    // Поштучно: цена лота — за пачку единиц, сумма — за выбранное количество.
+    // Наличие здесь только проверяется, списывается оно при оплате (finalizePaid):
+    // брошенный неоплаченный заказ не должен держать товар.
+    let qty = 1;
+    if (soldByQty(listing)) {
+      qty = opts.qty ?? listing.minQty;
+      const qtyErr = qtyError(qty, listing);
+      if (qtyErr) throw new BadRequestException(qtyErr);
+      base = qtyTotal(listing.price, listing.pricePerUnits, qty);
+    } else if (opts.qty !== undefined && opts.qty !== 1) {
+      throw new BadRequestException('Этот лот продаётся целиком');
+    } else if (listing.stock != null && listing.stock < 1) {
+      throw new BadRequestException('Лот закончился');
     }
 
     const f = await this.fees.computeForCategory(
@@ -142,8 +161,15 @@ export class OrdersService {
           currency: listing.currency,
           ...(account ? { account } : {}),
           ...(topupNominal != null ? { topupAmount: topupNominal.toString() } : {}),
+          ...(soldByQty(listing)
+            ? {
+                unitName: listing.unitName ?? 'шт.',
+                unitPrice: listing.price.toString(),
+                pricePerUnits: listing.pricePerUnits,
+              }
+            : {}),
         } as Prisma.InputJsonValue,
-        qty: 1,
+        qty,
         amount,
         currency: listing.currency,
         feeBuyer: f.feeBuyer,
@@ -200,14 +226,21 @@ export class OrdersService {
     return this.finalizePaid(order.id);
   }
 
-  /** Общий пост-оплатный шаг: статус paid → уведомления → авто-исполнение. */
+  /** Общий пост-оплатный шаг: статус paid → наличие → уведомления → авто-исполнение. */
   private async finalizePaid(orderId: string) {
     const paid = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: 'paid', paidAt: new Date() },
     });
+    if (!(await this.takeStock(paid))) return this.get(paid.id);
     await this.notifications.notify(paid.sellerId, 'order_paid', { orderId: paid.id });
-    await this.sys(paid.id, 'Оплата поступила — средства защищены эскроу.');
+    // Сколько передать — первым сообщением в чате сделки, как на FunPay.
+    const unit = (paid.listingSnapshot as { unitName?: string } | null)?.unitName;
+    const howMany =
+      unit && (paid.qty > 1 || unit !== 'шт.')
+        ? ` Количество: ${new Intl.NumberFormat('ru-RU').format(paid.qty)} ${unit}.`
+        : '';
+    await this.sys(paid.id, `Оплата поступила — средства защищены эскроу.${howMany}`);
 
     if (paid.fulfillmentType !== 'manual') {
       await this.fulfillment.autoFulfill(paid.id);
@@ -234,7 +267,68 @@ export class OrdersService {
     return paid;
   }
 
-  /** Покупатель получает выданный ключ (расшифровка). */
+  /**
+   * Списание наличия обычного лота при оплате. Условный UPDATE: из двух
+   * одновременных оплат последней единицы пройдёт одна, вторая получит
+   * деньги назад сразу, а не будет ждать выдачи товара, которого нет.
+   * Наличие авто-лота ведёт склад ключей (FulfillmentService).
+   */
+  private async takeStock(order: Order): Promise<boolean> {
+    if (order.fulfillmentType !== 'manual') return true;
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: order.listingId },
+      select: { stock: true },
+    });
+    if (!listing || listing.stock == null) return true;
+
+    const taken = await this.prisma.listing.updateMany({
+      where: { id: order.listingId, stock: { gte: order.qty } },
+      data: { stock: { decrement: order.qty } },
+    });
+    if (taken.count === 0) {
+      await this.ledger.post({
+        legs: refundToBalance(order.buyerId, order.amount),
+        currency: order.currency,
+        idempotencyKey: `refund:${order.id}`,
+        orderId: order.id,
+        refType: 'oos_refund',
+        refId: order.id,
+      });
+      await this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
+      await this.notifications.notify(order.buyerId, 'order_refunded', { orderId: order.id, reason: 'out_of_stock' });
+      await this.sys(order.id, 'Пока шла оплата, товар закончился — деньги вернулись на баланс покупателя.');
+      return false;
+    }
+    // Распродано — лот уходит из каталога сам, как на FunPay.
+    await this.prisma.listing.updateMany({
+      where: { id: order.listingId, stock: 0, status: 'active' },
+      data: { status: 'sold_out' },
+    });
+    return true;
+  }
+
+  /**
+   * Деньги вернулись до выдачи — товар не ушёл, наличие возвращается, а
+   * распроданный лот снова в продаже. После выдачи товар у покупателя:
+   * наличие не трогаем.
+   */
+  private async restock(order: Order): Promise<void> {
+    if (order.fulfillmentType !== 'manual') return;
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: order.listingId },
+      select: { stock: true, status: true },
+    });
+    if (!listing || listing.stock == null) return;
+    await this.prisma.listing.update({
+      where: { id: order.listingId },
+      data: {
+        stock: { increment: order.qty },
+        ...(listing.status === 'sold_out' ? { status: 'active' as const } : {}),
+      },
+    });
+  }
+
+  /** Покупатель получает выданные ключи (расшифровка). */
   async revealKey(orderId: string, buyerId: string) {
     const order = await this.get(orderId);
     if (order.buyerId !== buyerId) throw new ForbiddenException('Это не ваш заказ');
@@ -242,11 +336,15 @@ export class OrdersService {
       throw new BadRequestException('Товар ещё не выдан');
     }
     const delivery = await this.prisma.delivery.findUnique({ where: { orderId } });
-    const goodId = (delivery?.payloadRef as { goodId?: string } | null)?.goodId;
-    if (!goodId) throw new NotFoundException('Для этого заказа нет авто-выданного ключа');
-    const good = await this.prisma.digitalGood.findUnique({ where: { id: goodId } });
-    if (!good) throw new NotFoundException('Ключ не найден');
-    return { key: this.encryption.decrypt(good.payloadEnc) };
+    const ref = delivery?.payloadRef as { goodId?: string; goodIds?: string[] } | null;
+    // Заказы до продажи поштучно хранили один goodId.
+    const ids = ref?.goodIds ?? (ref?.goodId ? [ref.goodId] : []);
+    if (!ids.length) throw new NotFoundException('Для этого заказа нет авто-выданного ключа');
+    const goods = await this.prisma.digitalGood.findMany({ where: { id: { in: ids } } });
+    if (goods.length !== ids.length) throw new NotFoundException('Ключ не найден');
+    const byId = new Map(goods.map((g) => [g.id, g]));
+    const keys = ids.map((id) => this.encryption.decrypt(byId.get(id)!.payloadEnc));
+    return { key: keys[0], keys };
   }
 
   async markDelivered(orderId: string, sellerId: string) {
@@ -371,6 +469,7 @@ export class OrdersService {
         where: { id: order.id },
         data: { status: 'refunded' },
       });
+      await this.restock(order);
       await this.notifications.notify(order.buyerId, 'order_refunded', { orderId: order.id });
       await this.sys(order.id, 'Заказ отменён, средства возвращены покупателю на баланс.');
       return res;
@@ -393,6 +492,7 @@ export class OrdersService {
     }
     this.assertTransition(order.status, 'refunded');
     const wasDisputed = order.status === 'disputed';
+    const wasPaid = order.status === 'paid';
 
     await this.ledger.post({
       legs: refundToBalance(order.buyerId, order.amount),
@@ -403,6 +503,7 @@ export class OrdersService {
       refId: order.id,
     });
     const res = await this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
+    if (wasPaid) await this.restock(order);
     if (wasDisputed) {
       await this.prisma.dispute.updateMany({
         where: { orderId: order.id, status: { in: ['open', 'in_review'] } },
@@ -430,6 +531,7 @@ export class OrdersService {
       refId: order.id,
     });
     await this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
+    await this.restock(order);
     await this.notifications.notify(order.buyerId, 'order_refunded', {
       orderId: order.id,
       reason: 'seller_timeout',
@@ -529,6 +631,7 @@ export class OrdersService {
         role: asBuyer ? ('buyer' as const) : ('seller' as const),
         counterparty: (asBuyer ? seller : buyer).profile?.username ?? null,
         title: (o.listingSnapshot as { title?: string } | null)?.title ?? null,
+        unitName: (o.listingSnapshot as { unitName?: string } | null)?.unitName ?? null,
       };
     });
   }

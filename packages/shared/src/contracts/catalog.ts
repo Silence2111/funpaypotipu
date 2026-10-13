@@ -31,6 +31,10 @@ export const createListingSchema = z.object({
   images: z.array(z.string().min(1)).max(12).default([]), // ключи S3 или абсолютные URL
   stock: z.number().int().nonnegative().nullable().default(null),
   topup: topupTermsInputSchema.nullable().default(null),
+  // Продажа поштучно (quantity.ts): единица, цена за пачку, минимум за заказ.
+  unitName: z.string().max(24).nullable().optional(),
+  pricePerUnits: z.number().int().positive().optional(),
+  minQty: z.number().int().positive().optional(),
 });
 export type CreateListingInput = z.infer<typeof createListingSchema>;
 

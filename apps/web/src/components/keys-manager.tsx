@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { KeyRound } from 'lucide-react';
 import { apiFetch, getToken, getUser } from '@/lib/session';
 
@@ -21,6 +22,7 @@ export function KeysManager({
   sellerId: string;
   auto: boolean;
 }) {
+  const router = useRouter();
   const [stock, setStock] = useState<Stock | null>(null);
   const [visible, setVisible] = useState(false);
   const [text, setText] = useState('');
@@ -55,13 +57,16 @@ export function KeysManager({
       setMsg(`Добавлено ключей: ${r.added}`);
       setText('');
       await load();
+      // Первые ключи возвращают закончившийся лот в продажу — страница
+      // лота должна показать кнопку покупки без ручного обновления.
+      router.refresh();
     } catch {
       setMsg('Не удалось добавить ключи');
     }
   }
 
   return (
-    <section className="card" style={{ marginTop: 40 }}>
+    <section id="keys" className="card" style={{ marginTop: 40, scrollMarginTop: 80 }}>
       <h2 className="h2" style={{ fontSize: 18, marginBottom: 4 }}>
         <KeyRound size={18} /> Склад ключей
       </h2>

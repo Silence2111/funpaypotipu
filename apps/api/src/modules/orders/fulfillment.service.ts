@@ -28,8 +28,8 @@ export class FulfillmentService {
   }
 
   private async deliverKey(order: Order): Promise<void> {
-    const goodId = await this.reserveGood(order.listingId, order.id);
-    if (!goodId) {
+    const goodIds = await this.reserveGoods(order.listingId, order.id, order.qty);
+    if (!goodIds) {
       // Нет в наличии — авто-возврат покупателю на баланс, чтобы деньги не зависли в эскроу.
       await this.refundToBuyer(order, 'oos_refund', 'out_of_stock');
       await this.notifications.notify(order.sellerId, 'listing_out_of_stock', {
@@ -43,28 +43,63 @@ export class FulfillmentService {
     await this.prisma.$transaction([
       this.prisma.delivery.upsert({
         where: { orderId: order.id },
-        update: { status: 'sent', deliveredAt: new Date(), payloadRef: { goodId } },
+        update: { status: 'sent', deliveredAt: new Date(), payloadRef: { goodIds } },
         create: {
           orderId: order.id,
           method: 'auto_key',
           status: 'sent',
           deliveredAt: new Date(),
-          payloadRef: { goodId },
+          payloadRef: { goodIds },
         },
       }),
-      this.prisma.digitalGood.update({
-        where: { id: goodId },
-        data: { status: 'delivered', deliveredAt: new Date() },
-      }),
+      ...goodIds.map((id) =>
+        this.prisma.digitalGood.update({
+          where: { id },
+          data: { status: 'delivered', deliveredAt: new Date() },
+        }),
+      ),
       this.prisma.listing.update({
         where: { id: order.listingId },
-        data: { stock: { decrement: 1 } },
+        data: { stock: { decrement: goodIds.length } },
       }),
       this.prisma.order.update({
         where: { id: order.id },
         data: { status: 'delivered', deliveredAt: new Date(), autoConfirmAt },
       }),
     ]);
+    // Ключи кончились — лот уходит из каталога сам и вернётся с пополнением склада.
+    await this.prisma.listing.updateMany({
+      where: { id: order.listingId, stock: { lte: 0 }, status: 'active' },
+      data: { status: 'sold_out' },
+    });
+  }
+
+  /**
+   * Резерв `qty` ключей под заказ. Не хватило — резерв снимается целиком, и
+   * заказ уходит в возврат: полвыдачи за полную цену хуже, чем возврат.
+   * Повторный вызов по тому же заказу берёт уже зарезервированные ключи.
+   */
+  private async reserveGoods(listingId: string, orderId: string, qty: number): Promise<string[] | null> {
+    const held = await this.prisma.digitalGood.findMany({
+      where: { reservedForOrderId: orderId, status: 'reserved' },
+      select: { id: true },
+    });
+    const ids = held.map((g) => g.id);
+    while (ids.length < qty) {
+      const id = await this.reserveGood(listingId, orderId);
+      if (!id) break;
+      ids.push(id);
+    }
+    if (ids.length < qty) {
+      if (ids.length) {
+        await this.prisma.digitalGood.updateMany({
+          where: { id: { in: ids }, status: 'reserved' },
+          data: { status: 'available', reservedForOrderId: null },
+        });
+      }
+      return null;
+    }
+    return ids;
   }
 
   private async deliverTopUp(order: Order): Promise<void> {

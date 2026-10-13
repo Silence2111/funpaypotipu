@@ -39,6 +39,8 @@ export class FavoritesService {
         images: true,
         status: true,
         topupMarkupBps: true, // лот «на сумму покупателя»: в избранном цена «от»
+        unitName: true, // поштучно: цена «за 1 000 золота»
+        pricePerUnits: true,
         seller: { select: { profile: { select: { username: true, ratingAvg: true } } } },
       },
     });

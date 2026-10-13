@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
-import { formatPrice } from '@/lib/format';
+import { formatPrice, formatQty } from '@/lib/format';
 import { CabinetNav } from '@/components/cabinet-nav';
 
 interface Row {
@@ -15,6 +15,9 @@ interface Row {
   currency: string;
   createdAt: string;
   title: string | null;
+  qty: number;
+  /** Единица поштучного заказа; null — товар целиком. */
+  unitName: string | null;
   counterparty: string | null;
   role: 'buyer' | 'seller';
 }
@@ -136,6 +139,7 @@ function Orders() {
               <span style={{ flex: 1, minWidth: 200 }}>
                 <span style={{ fontWeight: 600, display: 'block' }}>{o.title ?? o.publicNumber}</span>
                 <span className="faint" style={{ fontSize: 13 }}>
+                  {o.unitName && (o.qty > 1 || o.unitName !== 'шт.') ? `${formatQty(o.qty, o.unitName)} · ` : ''}
                   {o.publicNumber} ·{' '}
                   {new Date(o.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                   {o.counterparty ? ` · ${o.role === 'buyer' ? 'продавец' : 'покупатель'} ${o.counterparty}` : ''}

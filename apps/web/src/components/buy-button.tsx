@@ -2,21 +2,48 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { qtyError, qtyTotal } from '@gamemarket/shared/quantity';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { payOrder } from '@/lib/checkout';
+import { formatPrice, formatQty } from '@/lib/format';
 
-/** Оформление заказа: create (+ промокод, +UID для пополнений) → deposit → оплата → заказ. */
-export function BuyButton({ listingId, fulfillmentType }: { listingId: string; fulfillmentType?: string }) {
+/** Условия поштучного лота: покупатель выбирает количество, сумма — за него. */
+export interface QtyOffer {
+  price: string;
+  currency: string;
+  unitName: string | null;
+  pricePerUnits: number;
+  minQty: number;
+  stock: number | null;
+}
+
+/** «25 000», «25000», «25 000» → 25000; не число — NaN. */
+const parseQty = (v: string) => (/^\d[\d\s\u00a0\u202f]*$/.test(v.trim()) ? Number(v.replace(/\D/g, '')) : NaN);
+
+/** Оформление заказа: create (+ промокод, +UID для пополнений, +количество) → deposit → оплата → заказ. */
+export function BuyButton({
+  listingId,
+  fulfillmentType,
+  qtyOffer,
+}: {
+  listingId: string;
+  fulfillmentType?: string;
+  qtyOffer?: QtyOffer;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [promo, setPromo] = useState('');
   const [account, setAccount] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [qtyInput, setQtyInput] = useState(qtyOffer ? String(qtyOffer.minQty) : '1');
   const [err, setErr] = useState<string | null>(null);
 
   const isTopUp = fulfillmentType === 'provider';
-  const canBuy = !isTopUp || (account.trim().length > 0 && confirmed);
+  const qty = parseQty(qtyInput);
+  const qtyProblem = qtyOffer ? qtyError(qty, qtyOffer) : null;
+  const total = qtyOffer && !qtyProblem ? qtyTotal(BigInt(qtyOffer.price), qtyOffer.pricePerUnits, qty) : null;
+  const canBuy = (!isTopUp || (account.trim().length > 0 && confirmed)) && !qtyProblem;
 
   async function createOrder() {
     const order = await apiFetch<{ id: string }>('/orders', {
@@ -25,14 +52,17 @@ export function BuyButton({ listingId, fulfillmentType }: { listingId: string; f
         listingId,
         ...(promo.trim() ? { promoCode: promo.trim() } : {}),
         ...(isTopUp && account.trim() ? { account: account.trim() } : {}),
+        ...(qtyOffer ? { qty } : {}),
       }),
     });
     return order.id;
   }
 
+  const blocker = () => qtyProblem ?? 'Укажите игровой ID и отметьте, что он верный';
+
   async function buy() {
     if (!getToken()) return router.push(`/register?next=${encodeURIComponent(`/lot/${listingId}`)}`);
-    if (!canBuy) { setErr('Укажите игровой ID и отметьте, что он верный'); return; }
+    if (!canBuy) { setErr(blocker()); return; }
     setBusy(true);
     setErr(null);
     try {
@@ -47,7 +77,7 @@ export function BuyButton({ listingId, fulfillmentType }: { listingId: string; f
 
   async function buyFromBalance() {
     if (!getToken()) return router.push(`/login?next=${encodeURIComponent(`/lot/${listingId}`)}`);
-    if (!canBuy) { setErr('Укажите игровой ID и отметьте, что он верный'); return; }
+    if (!canBuy) { setErr(blocker()); return; }
     setBusy(true);
     setErr(null);
     try {
@@ -62,6 +92,25 @@ export function BuyButton({ listingId, fulfillmentType }: { listingId: string; f
 
   return (
     <>
+      {qtyOffer && (
+        <div className="field" style={{ marginBottom: 12 }}>
+          <label className="label" htmlFor="buy-qty">
+            Количество{qtyOffer.unitName ? `, ${qtyOffer.unitName}` : ''}
+          </label>
+          <input id="buy-qty" className="input" inputMode="numeric" autoComplete="off" value={qtyInput}
+            onChange={(e) => { setQtyInput(e.target.value); setErr(null); }}
+            aria-invalid={!!qtyProblem} aria-describedby="buy-qty-note" />
+          {qtyProblem && qtyInput.trim() ? (
+            <p className="field-error" id="buy-qty-note">{qtyProblem}</p>
+          ) : (
+            <p className="hint" id="buy-qty-note">
+              {qtyOffer.minQty > 1 ? `От ${formatQty(qtyOffer.minQty, qtyOffer.unitName)}` : 'От 1'}
+              {qtyOffer.stock != null ? ` · в наличии ${formatQty(qtyOffer.stock, qtyOffer.unitName)}` : ''}
+            </p>
+          )}
+        </div>
+      )}
+
       {isTopUp && (
         <div className="field" style={{ marginBottom: 12 }}>
           <label className="label" htmlFor="topup-account">Игровой ID или логин</label>
@@ -85,7 +134,7 @@ export function BuyButton({ listingId, fulfillmentType }: { listingId: string; f
       </details>
 
       <button className="btn block lg" onClick={buy} disabled={busy || !canBuy} type="button">
-        {busy ? 'Оформляем заказ…' : 'Купить'}
+        {busy ? 'Оформляем заказ…' : total != null ? `Купить за ${formatPrice(total.toString(), qtyOffer!.currency)}` : 'Купить'}
       </button>
       <button className="btn ghost block" style={{ marginTop: 8 }} onClick={buyFromBalance}
         disabled={busy || !canBuy} type="button">

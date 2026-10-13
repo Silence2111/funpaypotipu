@@ -2,7 +2,7 @@
  * Сквозные e2e-тесты денежных путей против запущенного API + БД.
  * Запуск: API_URL=http://localhost:4090 DATABASE_URL=... node apps/api/test/e2e.mjs
  * Покрывает: эскроу-покупка, авто-выдача ключей, пополнение на сумму покупателя,
- * выплаты (с холдом и ролью finance).
+ * продажа поштучно (наличие, перепродажа последней штуки), выплаты (с холдом и ролью finance).
  * Выход 0 — все проверки пройдены, иначе 1.
  */
 import db from '../../../packages/db/dist/index.js';
@@ -39,10 +39,11 @@ async function register(prefix, rnd) {
 // «Укажите характеристику …», и все проверки после создания лота краснеют.
 const REQUIRED_ATTRS = {
   accounts: { rank: 'Global Elite', region: 'EU' },
+  skins: { rarity: 'Covert' },
   keys: { region: 'Global' },
 };
 
-async function createListing(token, categorySlug, price) {
+async function createListing(token, categorySlug, price, extra = {}) {
   const game = await j('/catalog/games/cs2');
   const cat = game.body.categories.find((c) => c.slug === categorySlug);
   const l = await j('/listings', {
@@ -50,6 +51,7 @@ async function createListing(token, categorySlug, price) {
     body: JSON.stringify({
       gameId: game.body.id, categoryId: cat.id, title: `E2E ${categorySlug}`, description: 'test', price, currency: 'RUB',
       attributes: REQUIRED_ATTRS[categorySlug] ?? {},
+      ...extra,
     }),
   });
   if (l.status !== 201) throw new Error(`Лот не создан (${l.status}): ${JSON.stringify(l.body)}`);
@@ -143,6 +145,56 @@ async function scenarioSteamTopup(rnd) {
   check('Продавец получил цену минус 10%: 972 ₽', w.body.balance === '97200', w.body.balance);
 }
 
+async function scenarioQuantity(rnd) {
+  console.log('\n— Продажа поштучно —');
+  const seller = await register('qts', rnd);
+  const [b1, b2, b3] = [await register('qb1', rnd), await register('qb2', rnd), await register('qb3', rnd)];
+  // 120 ₽ за штуку, от 2 штук, в наличии 5
+  const lotId = await createListing(seller.token, 'skins', '12000', { unitName: 'шт.', pricePerUnits: 1, minQty: 2, stock: 5 });
+  const order = (token, qty) => j('/orders', { method: 'POST', token, body: JSON.stringify({ listingId: lotId, qty }) });
+  const stock = async () => (await prisma.listing.findUnique({ where: { id: lotId }, select: { stock: true, status: true } }));
+
+  check('Меньше минимума → 400', (await order(b1.token, 1)).status === 400);
+  check('Больше наличия → 400', (await order(b1.token, 6)).status === 400);
+  const o1 = await order(b1.token, 3);
+  check('3 шт. по 120 ₽ — заказ на 360 ₽', o1.body.amount === '36000' && o1.body.qty === 3, o1.body.amount);
+  check('Неоплаченный заказ наличие не держит', (await stock()).stock === 5);
+  await pay(b1.token, o1.body.id);
+  check('Оплата списала 3 шт.: осталось 2', (await stock()).stock === 2);
+
+  // Два покупателя на последние 2 штуки: заказ создают оба, оплата достаётся первому.
+  const o2 = await order(b2.token, 2);
+  const o3 = await order(b3.token, 2);
+  await pay(b2.token, o2.body.id);
+  const after = await stock();
+  check('Последние штуки проданы — лот закончился', after.stock === 0 && after.status === 'sold_out', JSON.stringify(after));
+  await pay(b3.token, o3.body.id);
+  const late = await j(`/orders/${o3.body.id}`, { token: b3.token });
+  check('Опоздавшему деньги вернулись сразу', late.body.status === 'refunded', late.body.status);
+  const w3 = await j('/wallet', { token: b3.token });
+  check('Возврат на баланс: 240 ₽', w3.body.balance === '24000', w3.body.balance);
+  const page = await j(`/listings/${lotId}`);
+  check('Закончившийся лот открывается по ссылке', page.status === 200 && page.body.status === 'sold_out');
+  check('Закончившийся лот не купить', (await order(b1.token, 2)).status === 400);
+
+  await j(`/orders/${o1.body.id}/cancel`, { method: 'POST', token: b1.token });
+  const back = await stock();
+  check('Отмена до выдачи вернула 3 шт., лот снова в продаже', back.stock === 3 && back.status === 'active', JSON.stringify(back));
+
+  // Ключи: лот без ключей в каталог не выходит, несколько ключей в одном заказе.
+  const keysLot = await createListing(seller.token, 'keys', '4900');
+  const empty = await prisma.listing.findUnique({ where: { id: keysLot }, select: { status: true } });
+  check('Лот ключей без ключей не в продаже', empty.status === 'sold_out', empty.status);
+  await j(`/listings/${keysLot}/keys`, { method: 'POST', token: seller.token, body: JSON.stringify({ keys: ['Q-KEY-1', 'Q-KEY-2', 'Q-KEY-3'] }) });
+  const ko = await j('/orders', { method: 'POST', token: b2.token, body: JSON.stringify({ listingId: keysLot, qty: 2 }) });
+  check('2 ключа по 49 ₽ — заказ на 98 ₽', ko.body.amount === '9800', ko.body.amount);
+  await pay(b2.token, ko.body.id);
+  const keys = await j(`/orders/${ko.body.id}/key`, { token: b2.token });
+  check('Выданы 2 разных ключа', keys.body.keys?.length === 2 && keys.body.keys[0] !== keys.body.keys[1], JSON.stringify(keys.body));
+  const left = await prisma.listing.findUnique({ where: { id: keysLot }, select: { stock: true } });
+  check('На складе остался 1 ключ', left.stock === 1, String(left.stock));
+}
+
 async function scenarioPayout(rnd) {
   console.log('\n— Выплаты (finance) —');
   const seller = await register('pys', rnd);
@@ -180,6 +232,7 @@ async function scenarioPayout(rnd) {
   await scenarioEscrow(rnd);
   await scenarioAutoKey(rnd);
   await scenarioSteamTopup(rnd);
+  await scenarioQuantity(rnd);
   await scenarioPayout(rnd);
 
   const passed = results.filter(Boolean).length;

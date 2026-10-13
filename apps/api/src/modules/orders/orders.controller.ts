@@ -12,6 +12,8 @@ const createOrderSchema = z.object({
   account: z.string().max(120).optional(), // игровой UID/логин для пополнений (provider)
   // Сколько зачислить — у лота «на сумму покупателя»; минорные единицы строкой.
   topupAmount: z.string().regex(/^\d{1,12}$/).optional(),
+  // Сколько единиц — у лота поштучно (валюта, предметы, ключи).
+  qty: z.number().int().positive().optional(),
 });
 type CreateOrderBody = z.infer<typeof createOrderSchema>;
 

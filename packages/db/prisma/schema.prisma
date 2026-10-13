@@ -365,6 +365,12 @@ model Listing {
   topupMarkupBps  Int?            @map("topup_markup_bps")
   topupMin        BigInt?         @map("topup_min")
   topupMax        BigInt?         @map("topup_max")
+  // Продажа поштучно (packages/shared/src/quantity.ts): price — за
+  // pricePerUnits единиц, покупатель выбирает количество от minQty до stock.
+  // unitName null — обычный лот, продаётся целиком.
+  unitName        String?         @map("unit_name")
+  pricePerUnits   Int             @default(1) @map("price_per_units")
+  minQty          Int             @default(1) @map("min_qty")
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
@@ -388,13 +394,15 @@ model DigitalGood {
   listingId         String            @map("listing_id") @db.Uuid
   payloadEnc        String            @map("payload_enc") // зашифрованный ключ/код
   status            DigitalGoodStatus @default(available)
-  reservedForOrderId String?          @unique @map("reserved_for_order_id") @db.Uuid
+  // Не уникален: заказ на несколько штук получает несколько ключей.
+  reservedForOrderId String?          @map("reserved_for_order_id") @db.Uuid
   deliveredAt       DateTime?         @map("delivered_at")
   createdAt         DateTime          @default(now()) @map("created_at")
 
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   @@index([listingId, status])
+  @@index([reservedForOrderId])
   @@map("digital_goods")
 }
 

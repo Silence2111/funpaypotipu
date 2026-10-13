@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowUp, CheckCircle2, Pencil, Trash2 } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
-import { formatListingPrice } from '@/lib/format';
+import { formatListingPrice, formatQty } from '@/lib/format';
 import { BumpButton } from '@/components/bump-button';
 import { CabinetNav } from '@/components/cabinet-nav';
 
@@ -18,6 +18,10 @@ interface Row {
   status: string;
   boostUntil?: string | null;
   topupMarkupBps?: number | null;
+  fulfillmentType?: string;
+  unitName?: string | null;
+  pricePerUnits?: number;
+  stock?: number | null;
   categoryId: string;
   category: { slug: string; title: string };
   game: { slug: string; title: string };
@@ -27,7 +31,7 @@ const STATUS_RU: Record<string, string> = {
   active: 'в продаже',
   draft: 'черновик',
   paused: 'снят с продажи',
-  sold_out: 'распродан',
+  sold_out: 'закончился',
   blocked: 'заблокирован',
 };
 
@@ -180,7 +184,7 @@ function MyLots() {
               {g.items.map((l) => (
                 <div key={l.id} className="card row" style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
                   <span style={{ flex: 1, minWidth: 180 }}>
-                    {l.status === 'active' ? (
+                    {l.status === 'active' || l.status === 'sold_out' ? (
                       <Link href={`/lot/${l.id}`} style={{ fontWeight: 600 }}>
                         {l.title}
                       </Link>
@@ -194,10 +198,36 @@ function MyLots() {
                       <span className={l.status === 'active' ? 'badge success' : l.status === 'blocked' ? 'badge danger' : 'badge'}>
                         {STATUS_RU[l.status] ?? l.status}
                       </span>
+                      {l.stock != null && (l.unitName || l.fulfillmentType === 'auto_key') && l.status !== 'sold_out' && (
+                        <span className="faint" style={{ fontSize: 13 }}>в наличии {formatQty(l.stock, l.unitName)}</span>
+                      )}
                     </span>
                   </span>
                   {l.status === 'blocked' ? (
                     <span className="hint">Заблокирован модератором. Если это ошибка — напишите в поддержку.</span>
+                  ) : l.status === 'sold_out' ? (
+                    // Распроданный лот возвращается в продажу пополнением, а не кнопкой:
+                    // без наличия его всё равно нельзя купить.
+                    <span className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                      {l.fulfillmentType === 'auto_key' ? (
+                        <Link href={`/lot/${l.id}#keys`} className="chip">
+                          Загрузить ключи
+                        </Link>
+                      ) : (
+                        <Link href={`/cabinet/lot/${l.id}`} className="chip">
+                          <Pencil size={14} strokeWidth={1.75} /> Пополнить наличие
+                        </Link>
+                      )}
+                      <button
+                        type="button"
+                        className="chip"
+                        disabled={busy === l.id}
+                        onClick={() => remove(l)}
+                        aria-label={`Удалить «${l.title}»`}
+                      >
+                        <Trash2 size={14} strokeWidth={1.75} /> Удалить
+                      </button>
+                    </span>
                   ) : (
                     <span className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                       {l.status === 'active' && <BumpButton key={l.boostUntil ?? l.id} listingId={l.id} boostUntil={l.boostUntil} />}

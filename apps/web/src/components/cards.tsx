@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Star, Zap } from 'lucide-react';
 import { isDemoSeller } from '@gamemarket/shared';
 import type { Game, ListingCard } from '@/lib/api';
-import { formatListingPrice } from '@/lib/format';
+import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { tileFor } from '@/lib/tile';
 
 export function ListingCardView({ listing }: { listing: ListingCard }) {
@@ -10,6 +10,12 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
   const onAt = listing.seller.profile?.onlineAt;
   const online = onAt ? Date.now() - new Date(onAt).getTime() < 5 * 60 * 1000 : false;
   const instant = listing.fulfillmentType === 'auto_key' || listing.fulfillmentType === 'provider';
+  const pack = perPackLabel(listing);
+  // Наличие показываем у того, что продаётся количеством: валюта и ключи.
+  const stock =
+    listing.stock != null && (listing.unitName || listing.fulfillmentType === 'auto_key')
+      ? formatQty(listing.stock, listing.unitName)
+      : null;
   return (
     <Link href={`/lot/${listing.id}`} className="card link" style={{ display: 'block' }}>
       <div className="thumb">
@@ -34,9 +40,17 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
         {isDemoSeller(listing.seller.profile?.username) && (
           <span className="demo-mark" title="Демонстрационный лот: показывает, как устроена сделка">Пример</span>
         )}
+        {stock && <span className="faint" style={{ fontSize: 13 }}>в наличии {stock}</span>}
       </div>
-      <div className="row" style={{ justifyContent: 'space-between', marginTop: 12 }}>
-        <span className="price">{formatListingPrice(listing)}</span>
+      <div className="row" style={{ justifyContent: 'space-between', marginTop: 12, gap: 8 }}>
+        {pack ? (
+          <span>
+            <span className="price">{formatPrice(listing.price, listing.currency)}</span>{' '}
+            <span className="faint" style={{ fontSize: 13 }}>{pack}</span>
+          </span>
+        ) : (
+          <span className="price">{formatListingPrice(listing)}</span>
+        )}
         {listing.seller.profile && (
           <span className="row faint" style={{ fontSize: 13, gap: 4 }}>
             {online && (

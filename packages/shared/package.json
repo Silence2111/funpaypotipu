@@ -20,6 +20,10 @@
     "./demo": {
       "types": "./dist/demo.d.ts",
       "default": "./dist/demo.js"
+    },
+    "./quantity": {
+      "types": "./dist/quantity.d.ts",
+      "default": "./dist/quantity.js"
     }
   },
   "scripts": {
