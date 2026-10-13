@@ -12,6 +12,7 @@ import { PRISMA } from '../../prisma/prisma.module';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StorageService } from '../storage/storage.service';
 import { ScanService } from '../antivirus/scan.service';
+import { BlocksService } from '../access/blocks.service';
 
 export interface ChatAttachmentDto {
   url: string;
@@ -50,7 +51,17 @@ export class ChatService {
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
     private readonly scanner: ScanService,
+    private readonly blocks: BlocksService,
   ) {}
+
+  /**
+   * Чёрный список закрывает переписку до сделки. Диалог оплаченного заказа
+   * остаётся открытым: без него товар не передать и спор не разобрать.
+   */
+  private async assertNotBlocked(conv: { orderId: string | null; buyerId: string; sellerId: string }, senderId: string) {
+    if (conv.orderId) return;
+    await this.blocks.assertCanContact(senderId, conv.buyerId === senderId ? conv.sellerId : conv.buyerId, 'message');
+  }
 
   /** Presigned PUT для прямой загрузки вложения клиентом. */
   async requestUpload(conversationId: string, userId: string, mime: string) {
@@ -70,6 +81,7 @@ export class ChatService {
     size: number,
   ): Promise<ChatMessageDto> {
     const conv = await this.assertParticipant(conversationId, senderId);
+    await this.assertNotBlocked(conv, senderId);
     await this.scan(key);
     const message = await this.prisma.message.create({
       data: {
@@ -138,6 +150,7 @@ export class ChatService {
     });
     if (!listing) throw new NotFoundException('Лот не найден');
     if (listing.sellerId === buyerId) throw new ForbiddenException('Это ваш лот');
+    await this.blocks.assertCanContact(buyerId, listing.sellerId, 'message');
 
     const existing = await this.prisma.conversation.findFirst({
       where: { buyerId, sellerId: listing.sellerId, orderId: null },
@@ -205,6 +218,7 @@ export class ChatService {
     rawBody: string,
   ): Promise<ChatMessageDto> {
     const conv = await this.assertParticipant(conversationId, senderId);
+    await this.assertNotBlocked(conv, senderId);
     const { masked, flagged } = maskContacts(rawBody);
 
     const message = await this.prisma.message.create({

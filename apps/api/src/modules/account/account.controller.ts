@@ -1,0 +1,62 @@
+import { Body, Controller, Delete, Get, Param, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { z } from 'zod';
+import { ZodValidationPipe } from '../../common/zod-validation.pipe';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
+import { BlocksService } from '../access/blocks.service';
+import { AccountService } from './account.service';
+
+const profileSchema = z.object({
+  displayName: z.string().trim().min(2, 'Имя — от 2 символов').max(40, 'Имя — до 40 символов').optional(),
+  bio: z.string().trim().max(500, 'О себе — до 500 символов').nullable().optional(),
+});
+
+@Controller('account')
+@UseGuards(JwtAuthGuard)
+export class AccountController {
+  constructor(
+    private readonly account: AccountService,
+    private readonly blocks: BlocksService,
+  ) {}
+
+  @Get('profile')
+  profile(@CurrentUser() user: AuthUser) {
+    return this.account.profile(user.userId);
+  }
+
+  @Patch('profile')
+  update(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(profileSchema)) body: { displayName?: string; bio?: string | null },
+  ) {
+    return this.account.updateProfile(user.userId, body);
+  }
+
+  @Post('avatar')
+  @UseInterceptors(FileInterceptor('file'))
+  avatar(@CurrentUser() user: AuthUser, @UploadedFile() file: { buffer: Buffer; mimetype: string; size: number }) {
+    return this.account.setAvatar(user.userId, file);
+  }
+
+  @Delete('avatar')
+  removeAvatar(@CurrentUser() user: AuthUser) {
+    return this.account.removeAvatar(user.userId);
+  }
+
+  // ── Чёрный список ──
+  @Get('blocks')
+  blocksList(@CurrentUser() user: AuthUser) {
+    return this.blocks.list(user.userId);
+  }
+
+  @Post('blocks')
+  block(@CurrentUser() user: AuthUser, @Body(new ZodValidationPipe(z.object({ userId: z.string().uuid() }))) body: { userId: string }) {
+    return this.blocks.add(user.userId, body.userId);
+  }
+
+  @Delete('blocks/:userId')
+  unblock(@CurrentUser() user: AuthUser, @Param('userId') userId: string) {
+    return this.blocks.remove(user.userId, userId);
+  }
+}

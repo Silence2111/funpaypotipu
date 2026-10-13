@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@gamemarket/db';
 import { sellerLevel } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
+import { assetUrl } from '../storage/asset-url';
 
 @Injectable()
 export class SellersService {
@@ -59,7 +60,7 @@ export class SellersService {
       id: profile.userId,
       username: profile.username,
       displayName: profile.displayName,
-      avatarUrl: profile.avatarUrl,
+      avatarUrl: assetUrl(profile.avatarUrl),
       bio: profile.bio,
       country: profile.country,
       ratingAvg: profile.ratingAvg,

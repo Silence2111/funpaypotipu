@@ -198,6 +198,8 @@ model User {
   deletedAt     DateTime?  @map("deleted_at")
 
   profile        Profile?
+  blocksMade     UserBlock[]        @relation("BlocksMade")
+  blocksReceived UserBlock[]        @relation("BlocksReceived")
   kyc            KycVerification[]
   sessions       AuthSession[]
   twoFactor      TwoFactor?
@@ -237,6 +239,20 @@ model Profile {
   @@map("profiles")
 }
 
+/// Чёрный список: blocker не хочет переписки и сделок с blocked (как на FunPay).
+model UserBlock {
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker User @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
 model KycVerification {
   id           String    @id @default(uuid()) @db.Uuid
   userId       String    @map("user_id") @db.Uuid
@@ -256,6 +272,10 @@ model KycVerification {
 model AuthSession {
   id               String    @id @default(uuid()) @db.Uuid
   userId           String    @map("user_id") @db.Uuid
+  // Вход на устройстве: id первой строки. Обновление токенов создаёт новую
+  // строку того же семейства; access-токен несёт семейство, и «завершить
+  // сеанс» действует сразу, а не через 15 минут жизни токена.
+  familyId         String    @map("family_id") @db.Uuid
   refreshTokenHash String    @map("refresh_token_hash")
   userAgent        String?   @map("user_agent")
   ip               String?
@@ -268,6 +288,7 @@ model AuthSession {
 
   @@index([userId])
   @@index([refreshTokenHash])
+  @@index([familyId])
   @@map("auth_sessions")
 }
 

@@ -4,7 +4,7 @@
  * Покрывает: эскроу-покупка, авто-выдача ключей, пополнение на сумму покупателя,
  * продажа поштучно (наличие, перепродажа последней штуки), способы оплаты (надбавка карты,
  * второй платёж по заказу), модерация (жалобы, бан, заморозка, спор у арбитра),
- * выплаты (с холдом и ролью finance).
+ * аккаунт (чёрный список, профиль, пароль, сеансы), выплаты (с холдом и ролью finance).
  * Выход 0 — все проверки пройдены, иначе 1.
  */
 import db from '../../../packages/db/dist/index.js';
@@ -305,6 +305,56 @@ async function scenarioModeration(rnd) {
   check('Решение в пользу покупателя: деньги на балансе', refunded.body.status === 'refunded' && wb.body.balance === '90000', `${refunded.body.status} / ${wb.body.balance}`);
 }
 
+async function signIn(prefix, rnd, password = 'password123') {
+  const r = await j('/auth/login', { method: 'POST', body: JSON.stringify({ email: `${prefix}${rnd}@e2e.local`, password }) });
+  return { status: r.status, token: r.body.accessToken };
+}
+
+async function scenarioAccount(rnd) {
+  console.log('\n— Аккаунт: чёрный список, профиль, пароль, сеансы —');
+  const seller = await register('acs', rnd);
+  const buyer = await register('acb', rnd);
+  const lot = await createListing(seller.token, 'accounts', '50000');
+  const paidLot = await createListing(seller.token, 'accounts', '60000');
+  // Заказ до блокировки: по нему переписка должна остаться
+  const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: paidLot }) });
+  await pay(buyer.token, order.body.id);
+
+  const block = await j('/account/blocks', { method: 'POST', token: seller.token, body: JSON.stringify({ userId: buyer.id }) });
+  check('Продавец добавил покупателя в чёрный список', block.status === 201);
+  const buy = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) });
+  check('Из чёрного списка не купить', buy.status === 403 && /ограничил вам покупки/.test(buy.body.message), buy.body.message);
+  const chat = await j(`/conversations/for-listing/${lot}`, { method: 'POST', token: buyer.token });
+  check('И не написать до сделки', chat.status === 403);
+  const convs = await j('/conversations', { token: buyer.token });
+  const orderConv = convs.body.find?.((c) => c.orderId === order.body.id);
+  const msg = await j(`/conversations/${orderConv?.id}/messages`, { method: 'POST', token: buyer.token, body: JSON.stringify({ body: 'Жду данные аккаунта' }) });
+  check('А по оплаченному заказу переписка открыта', msg.status === 201, String(msg.status));
+  await j(`/account/blocks/${buyer.id}`, { method: 'DELETE', token: seller.token });
+  check('Убрал из списка — снова можно купить', (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) })).status === 201);
+
+  const prof = await j('/account/profile', { method: 'PATCH', token: seller.token, body: JSON.stringify({ displayName: 'Склад аккаунтов', bio: 'Отвечаю быстро, пишите в телеграм @fast_seller' }) });
+  check('Профиль сохранён, контакты в «о себе» скрыты', prof.body.displayName === 'Склад аккаунтов' && !/fast_seller/.test(prof.body.bio ?? ''), prof.body.bio);
+  const pub = await j(`/sellers/${seller.id}`);
+  check('Имя видно на витрине', pub.body.displayName === 'Склад аккаунтов');
+
+  // Второе устройство продавца
+  const phone = await signIn('acs', rnd);
+  const list = await j('/auth/sessions', { token: seller.token });
+  check('Видны оба входа, текущий помечен', list.body.length === 2 && list.body.filter((s) => s.current).length === 1, String(list.body.length));
+  const wrong = await j('/auth/password', { method: 'POST', token: seller.token, body: JSON.stringify({ current: 'nope', next: 'new-password-1' }) });
+  check('Без верного текущего пароль не меняется', wrong.status === 400);
+  const changed = await j('/auth/password', { method: 'POST', token: seller.token, body: JSON.stringify({ current: 'password123', next: 'new-password-1' }) });
+  check('Смена пароля закрыла второе устройство', changed.body.closedSessions === 1, JSON.stringify(changed.body));
+  check('Его токен перестал работать сразу', (await j('/wallet', { token: phone.token })).status === 401);
+  check('А этот — работает', (await j('/wallet', { token: seller.token })).status === 200);
+  check('Старый пароль не подходит, новый — да', (await signIn("acs", rnd)).status === 401 && (await signIn("acs", rnd, "new-password-1")).status === 200);
+  const s2 = await j('/auth/sessions', { token: seller.token });
+  const other = s2.body.find?.((s) => !s.current);
+  await j(`/auth/sessions/${other?.id}/revoke`, { method: 'POST', token: seller.token });
+  check('Завершить сеанс другого устройства', (await j('/auth/sessions', { token: seller.token })).body.length === 1);
+}
+
 async function scenarioPayout(rnd) {
   console.log('\n— Выплаты (finance) —');
   const seller = await register('pys', rnd);
@@ -345,6 +395,7 @@ async function scenarioPayout(rnd) {
   await scenarioQuantity(rnd);
   await scenarioPaymentMethods(rnd);
   await scenarioModeration(rnd);
+  await scenarioAccount(rnd);
   await scenarioPayout(rnd);
 
   const passed = results.filter(Boolean).length;

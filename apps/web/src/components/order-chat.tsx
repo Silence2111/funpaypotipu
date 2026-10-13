@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { Paperclip } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
+import { apiErrorMessage } from '@/lib/errors';
 import { uploadViaPresignedUrl } from '@/lib/upload';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -24,6 +25,7 @@ export function OrderChat({ conversationId, meId }: { conversationId: string; me
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState('');
   const [live, setLive] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -64,15 +66,28 @@ export function OrderChat({ conversationId, meId }: { conversationId: string; me
     const body = draft.trim();
     if (!body) return;
     setDraft('');
+    setErr(null);
+    // Отказ (например, чёрный список) возвращает текст в поле и объясняет причину.
+    const fail = (text: string) => {
+      setErr(text);
+      setDraft(body);
+    };
     const socket = socketRef.current;
     if (socket && live) {
-      socket.emit('message:send', { conversationId, body }); // ответ придёт как message:new
-    } else {
-      const msg = await apiFetch<Msg>(`/conversations/${conversationId}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({ body }),
+      // Само сообщение придёт как message:new, в ответе — только отказ.
+      socket.emit('message:send', { conversationId, body }, (res?: { error?: string }) => {
+        if (res?.error) fail(res.error);
       });
-      setMessages((prev) => [...prev, msg]);
+    } else {
+      try {
+        const msg = await apiFetch<Msg>(`/conversations/${conversationId}/messages`, {
+          method: 'POST',
+          body: JSON.stringify({ body }),
+        });
+        setMessages((prev) => [...prev, msg]);
+      } catch (e) {
+        fail(apiErrorMessage(e, 'Сообщение не отправлено. Попробуйте ещё раз.'));
+      }
     }
   }
 
@@ -87,8 +102,8 @@ export function OrderChat({ conversationId, meId }: { conversationId: string; me
         body: JSON.stringify(att),
       });
       setMessages((prev) => [...prev, msg]);
-    } catch {
-      /* хранилище недоступно / ошибка загрузки */
+    } catch (e) {
+      setErr(apiErrorMessage(e, 'Файл не отправлен: хранилище недоступно или файл не прошёл проверку.'));
     }
   }
 
@@ -155,6 +170,11 @@ export function OrderChat({ conversationId, meId }: { conversationId: string; me
           Отправить
         </button>
       </form>
+      {err && (
+        <p className="field-error" role="alert" style={{ marginTop: 8 }}>
+          {err}
+        </p>
+      )}
       <p className="faint" style={{ fontSize: 12, marginTop: 8 }}>
         Контакты (телефоны, ники, ссылки) скрываются автоматически.
       </p>

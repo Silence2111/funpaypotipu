@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Param,
   Post,
   Req,
   Res,
@@ -25,6 +26,11 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser, type AuthUser } from './current-user.decorator';
 
 const codeSchema = z.object({ code: z.string().min(6).max(8) });
+const passwordSchema = z.object({
+  current: z.string().min(1, 'Введите текущий пароль'),
+  // Те же правила, что при регистрации.
+  next: z.string().min(8, 'Новый пароль — от 8 символов').max(128),
+});
 
 const REFRESH_COOKIE = 'refresh_token';
 const REFRESH_PATH = '/api/auth';
@@ -103,6 +109,37 @@ export class AuthController {
     res.clearCookie(REFRESH_COOKIE, { path: REFRESH_PATH });
   }
 
+  // ── Пароль и сеансы ──
+  @Post('password')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  changePassword(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(passwordSchema)) body: { current: string; next: string },
+  ) {
+    return this.auth.changePassword(user.userId, body.current, body.next, user.sessionFamily);
+  }
+
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  sessions(@CurrentUser() user: AuthUser) {
+    return this.auth.sessions(user.userId, user.sessionFamily);
+  }
+
+  @Post('sessions/:id/revoke')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  revokeSession(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.auth.revokeSession(user.userId, id, user.sessionFamily);
+  }
+
+  @Post('sessions/revoke-others')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  revokeOthers(@CurrentUser() user: AuthUser) {
+    return this.auth.revokeOtherSessions(user.userId, user.sessionFamily);
+  }
+
   /** Кто я и мои роли — консоль сотрудника показывает только свои разделы. */
   @Get('me')
   @UseGuards(JwtAuthGuard)
@@ -111,6 +148,12 @@ export class AuthController {
   }
 
   // ── Двухфакторная аутентификация ──
+  @Get('2fa')
+  @UseGuards(JwtAuthGuard)
+  async twoFactorStatus(@CurrentUser() user: AuthUser) {
+    return { enabled: await this.twoFactor.isEnabled(user.userId) };
+  }
+
   @Post('2fa/setup')
   @UseGuards(JwtAuthGuard)
   setup2fa(@CurrentUser() user: AuthUser) {

@@ -4,6 +4,8 @@ import { JwtService } from '@nestjs/jwt';
 export interface AccessPayload {
   sub: string; // userId
   username: string;
+  /** Семейство сеанса (вход на устройстве). У токенов до 13.10 его нет. */
+  fam?: string;
 }
 
 export interface RefreshPayload {

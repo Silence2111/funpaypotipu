@@ -79,7 +79,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayInit {
       client.disconnect(true);
       return { error: 'unauthorized' };
     }
-    // В комнату сообщение отправляет сам ChatService (afterInit).
-    return this.chat.sendMessage(data.conversationId, userId, data.body);
+    // В комнату сообщение отправляет сам ChatService (afterInit). Отказ —
+    // ответом на emit: исключение сокет отдал бы как «Internal server error»,
+    // и клиент молча терял бы сообщение (например, при чёрном списке).
+    try {
+      return await this.chat.sendMessage(data.conversationId, userId, data.body);
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Сообщение не отправлено' };
+    }
   }
 }

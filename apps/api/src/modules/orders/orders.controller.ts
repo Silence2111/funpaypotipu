@@ -5,6 +5,7 @@ import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { AccountStatusService } from '../access/account-status.service';
+import { BlocksService } from '../access/blocks.service';
 import { OrdersService } from './orders.service';
 
 const createOrderSchema = z.object({
@@ -36,6 +37,7 @@ export class OrdersController {
   constructor(
     private readonly orders: OrdersService,
     private readonly account: AccountStatusService,
+    private readonly blocks: BlocksService,
   ) {}
 
   @Post()
@@ -44,6 +46,7 @@ export class OrdersController {
     @Body(new ZodValidationPipe(createOrderSchema)) body: CreateOrderBody,
   ) {
     await this.account.assertCanTrade(user.userId);
+    await this.blocks.assertCanBuy(user.userId, body.listingId);
     const { listingId, ...opts } = body;
     return this.orders.create(user.userId, listingId, opts);
   }

@@ -11,6 +11,7 @@ const LINKS = [
   { href: '/cabinet/lots', label: 'Мои лоты' },
   { href: '/cabinet/chats', label: 'Диалоги' },
   { href: '/cabinet/favorites', label: 'Избранное' },
+  { href: '/cabinet/settings', label: 'Профиль' },
   { href: '/cabinet/security', label: 'Безопасность' },
 ];
 

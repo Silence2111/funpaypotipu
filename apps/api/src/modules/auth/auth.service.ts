@@ -157,11 +157,6 @@ export class AuthService {
       throw new UnauthorizedException('Обнаружено повторное использование refresh-токена');
     }
 
-    await this.prisma.authSession.update({
-      where: { id: session.id },
-      data: { revokedAt: new Date() },
-    });
-
     const user = await this.prisma.user.findUnique({
       where: { id: session.userId },
       include: { profile: true },
@@ -169,7 +164,14 @@ export class AuthService {
     if (!user?.profile) throw new UnauthorizedException('Пользователь не найден');
     if (user.status === 'banned') throw new ForbiddenException(BANNED);
 
-    return this.issue(user.id, user.email, user.profile.username, ctx);
+    // Сначала новая строка того же семейства, потом отзыв старой: запросы,
+    // которые идут в этот момент со старым access-токеном, не получат 401.
+    const issued = await this.issue(user.id, user.email, user.profile.username, ctx, session.familyId);
+    await this.prisma.authSession.update({
+      where: { id: session.id },
+      data: { revokedAt: new Date() },
+    });
+    return issued;
   }
 
   async logout(refreshToken: string | undefined): Promise<void> {
@@ -185,14 +187,17 @@ export class AuthService {
     }
   }
 
+  /** Новый вход — новое семейство сеанса; обновление токенов продолжает прежнее. */
   private async issue(
     userId: string,
     email: string | null,
     username: string,
     ctx: RequestCtx,
+    familyId?: string,
   ): Promise<IssuedAuth> {
     const sid = randomUUID();
-    const accessToken = this.tokens.signAccess({ sub: userId, username });
+    const family = familyId ?? sid;
+    const accessToken = this.tokens.signAccess({ sub: userId, username, fam: family });
     const refreshToken = this.tokens.signRefresh({ sub: userId, sid });
     const ttl = Number(process.env.JWT_REFRESH_TTL ?? 2592000);
 
@@ -200,6 +205,7 @@ export class AuthService {
       data: {
         id: sid,
         userId,
+        familyId: family,
         refreshTokenHash: sha256(refreshToken),
         userAgent: ctx.userAgent,
         ip: ctx.ip,
@@ -210,6 +216,80 @@ export class AuthService {
 
     const roles = await this.rolesOf(userId);
     return { user: { id: userId, email, username, roles }, accessToken, refreshToken };
+  }
+
+  // ── Пароль и сеансы из кабинета ──
+
+  /**
+   * Смена пароля: нужен текущий. Остальные устройства выходят сразу —
+   * смену пароля делают, когда подозревают чужой вход.
+   */
+  async changePassword(userId: string, current: string, next: string, keepFamily?: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true, email: true } });
+    if (!user?.passwordHash) {
+      throw new BadRequestException('У аккаунта нет пароля — задайте его через «Забыли пароль»');
+    }
+    if (!(await bcrypt.compare(current, user.passwordHash))) throw new BadRequestException('Текущий пароль неверный');
+    if (current === next) throw new BadRequestException('Новый пароль совпадает с текущим');
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash: await bcrypt.hash(next, 12) } });
+    const closed = await this.closeSessions(userId, keepFamily);
+    if (user.email && this.mail.enabled) {
+      await this.mail.send(
+        user.email,
+        'Пароль изменён',
+        'Пароль от GameMarket изменён, другие устройства вышли из аккаунта. Если это были не вы — восстановите доступ через «Забыли пароль».',
+      );
+    }
+    return { ok: true, closedSessions: closed };
+  }
+
+  /** Активные входы: устройство, адрес, когда вошли. Текущий помечен. */
+  async sessions(userId: string, currentFamily?: string) {
+    const rows = await this.prisma.authSession.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      select: { familyId: true, userAgent: true, ip: true, createdAt: true },
+    });
+    // Время входа — у первой строки семейства, а не у последнего обновления токенов.
+    const firsts = await this.prisma.authSession.findMany({
+      where: { familyId: { in: rows.map((r) => r.familyId) } },
+      orderBy: { createdAt: 'asc' },
+      distinct: ['familyId'],
+      select: { familyId: true, createdAt: true },
+    });
+    const since = new Map(firsts.map((f) => [f.familyId, f.createdAt]));
+    return rows.map((r) => ({
+      id: r.familyId,
+      userAgent: r.userAgent,
+      ip: r.ip,
+      signedInAt: since.get(r.familyId) ?? r.createdAt,
+      lastActiveAt: r.createdAt,
+      current: r.familyId === currentFamily,
+    }));
+  }
+
+  async revokeSession(userId: string, familyId: string, currentFamily?: string) {
+    if (familyId === currentFamily) {
+      throw new BadRequestException('Это текущий сеанс — чтобы выйти на этом устройстве, нажмите «Выйти»');
+    }
+    const res = await this.prisma.authSession.updateMany({
+      where: { userId, familyId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (!res.count) throw new BadRequestException('Сеанс уже завершён');
+    return { ok: true };
+  }
+
+  async revokeOtherSessions(userId: string, currentFamily?: string) {
+    return { ok: true, closedSessions: await this.closeSessions(userId, currentFamily) };
+  }
+
+  private async closeSessions(userId: string, keepFamily?: string): Promise<number> {
+    const res = await this.prisma.authSession.updateMany({
+      where: { userId, revokedAt: null, ...(keepFamily ? { familyId: { not: keepFamily } } : {}) },
+      data: { revokedAt: new Date() },
+    });
+    return res.count;
   }
 
   /** Ключи ролей пользователя: «admin», «moderator»… */

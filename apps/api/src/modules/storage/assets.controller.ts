@@ -13,7 +13,7 @@ const MIME: Record<string, string> = {
 
 /**
  * Публичная отдача изображений лотов/игр (приватный MinIO наружу не открыт).
- * Разрешены только префиксы listings/ и games/ — вложения чата и KYC остаются приватными.
+ * Разрешены только префиксы listings/, games/ и avatars/ — вложения чата и KYC остаются приватными.
  */
 @Controller('assets')
 export class AssetsController {
@@ -21,7 +21,7 @@ export class AssetsController {
 
   @Get()
   async serve(@Query('key') key: string, @Res() res: Response) {
-    if (!key || !/^(listings|games)\/[\w./-]+$/.test(key) || key.includes('..')) {
+    if (!key || !/^(listings|games|avatars)\/[\w./-]+$/.test(key) || key.includes('..')) {
       throw new NotFoundException();
     }
     if (!this.storage.enabled) throw new NotFoundException();

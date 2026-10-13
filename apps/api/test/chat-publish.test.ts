@@ -24,7 +24,8 @@ function setup() {
     riskSignal: { create: vi.fn(async () => ({})) },
   };
   const notifications = { notify: vi.fn(async () => undefined) };
-  const svc = new ChatService(prisma as never, notifications as never, {} as never, {} as never);
+  const blocks = { assertCanContact: vi.fn(async () => undefined) };
+  const svc = new ChatService(prisma as never, notifications as never, {} as never, {} as never, blocks as never);
   const publish = vi.fn();
   svc.setPublisher(publish);
   return { svc, publish };
