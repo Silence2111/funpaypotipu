@@ -81,6 +81,13 @@ export class PaymentsService {
       where: { providerRef: event.providerRef },
     });
     if (!payment) throw new NotFoundException('Платёж не найден');
+    // Подпись доказывает только, что событие от этого провайдера. Платёж
+    // другого провайдера он подтверждать не может: иначе заглушка, которая
+    // зарегистрирована всегда, подтверждала бы боевые платежи — деньги на
+    // баланс без денег на счёте.
+    if (payment.provider !== provider.key) {
+      throw new UnauthorizedException('Платёж создан другим провайдером');
+    }
     if (payment.status === 'succeeded') return { ok: true, alreadyProcessed: true };
 
     if (event.status === 'failed') {
@@ -104,8 +111,13 @@ export class PaymentsService {
     return { ok: true };
   }
 
-  /** Dev-шорткат для демо-оплаты (BuyButton): сам подписывает событие как mock-провайдер. */
+  /**
+   * Dev-шорткат для демо-оплаты (BuyButton): сам подписывает событие как
+   * mock-провайдер. Работает, только пока платежи и правда идут через
+   * заглушку: при настоящем провайдере это открытая кнопка «оплачено».
+   */
   async devConfirm(providerRef: string) {
+    if (this.registry.defaultKey !== this.mock.key) throw new NotFoundException();
     const signature = this.mock.sign(providerRef, 'succeeded');
     return this.handleWebhook('mock', { providerRef, status: 'succeeded', signature });
   }
