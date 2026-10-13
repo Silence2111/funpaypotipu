@@ -98,7 +98,7 @@ export class ChatService {
       data: { lastMessageAt: message.createdAt },
     });
     const recipientId = conv.buyerId === senderId ? conv.sellerId : conv.buyerId;
-    await this.notifications.notify(recipientId, 'new_message', { conversationId });
+    await this.notifications.notify(recipientId, 'new_message', { conversationId, preview: 'Вложение' });
 
     const dto: ChatMessageDto = {
       id: message.id,
@@ -244,7 +244,9 @@ export class ChatService {
     }
 
     const recipientId = conv.buyerId === senderId ? conv.sellerId : conv.buyerId;
-    await this.notifications.notify(recipientId, 'new_message', { conversationId });
+    // Превью — замаскированный текст: в Telegram контакты не утекают тоже.
+    const preview = masked.length > 140 ? `${masked.slice(0, 140)}…` : masked;
+    await this.notifications.notify(recipientId, 'new_message', { conversationId, preview });
 
     const dto: ChatMessageDto = {
       id: message.id,

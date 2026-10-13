@@ -6,6 +6,13 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { BlocksService } from '../access/blocks.service';
 import { AccountService } from './account.service';
+import { NOTIFY_GROUPS } from '@gamemarket/shared';
+
+// Группы — ровно те, что в shared/notify.ts: лишний ключ не попадёт в базу.
+const groupFlags = z
+  .object(Object.fromEntries(NOTIFY_GROUPS.map((g) => [g.key, z.boolean().optional()])) as Record<string, z.ZodOptional<z.ZodBoolean>>)
+  .strict();
+const notifySchema = z.object({ email: groupFlags.optional(), telegram: groupFlags.optional() });
 
 const profileSchema = z.object({
   displayName: z.string().trim().min(2, 'Имя — от 2 символов').max(40, 'Имя — до 40 символов').optional(),
@@ -42,6 +49,30 @@ export class AccountController {
   @Delete('avatar')
   removeAvatar(@CurrentUser() user: AuthUser) {
     return this.account.removeAvatar(user.userId);
+  }
+
+  // ── Уведомления ──
+  @Get('notifications')
+  notifications(@CurrentUser() user: AuthUser) {
+    return this.account.notifications(user.userId);
+  }
+
+  @Patch('notifications')
+  updateNotifications(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(notifySchema)) body: { email?: Record<string, boolean>; telegram?: Record<string, boolean> },
+  ) {
+    return this.account.updateNotifications(user.userId, body);
+  }
+
+  @Post('telegram/link')
+  telegramLink(@CurrentUser() user: AuthUser) {
+    return this.account.telegramLink(user.userId);
+  }
+
+  @Delete('telegram')
+  telegramUnlink(@CurrentUser() user: AuthUser) {
+    return this.account.telegramUnlink(user.userId);
   }
 
   // ── Чёрный список ──

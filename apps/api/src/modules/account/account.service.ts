@@ -1,7 +1,9 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@gamemarket/db';
-import { maskContacts } from '@gamemarket/shared';
+import { LOCKED_NOTIFY, maskContacts, notifyPrefs, type NotifyPrefs } from '@gamemarket/shared';
+import { Prisma } from '@gamemarket/db';
+import { TelegramService } from '../notifications/telegram.service';
 import { PRISMA } from '../../prisma/prisma.module';
 import { StorageService } from '../storage/storage.service';
 import { assetUrl } from '../storage/asset-url';
@@ -16,7 +18,46 @@ export class AccountService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly storage: StorageService,
+    private readonly telegram: TelegramService,
   ) {}
+
+  // ── Уведомления ──
+
+  async notifications(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { notifyPrefs: true, telegramId: true, email: true },
+    });
+    if (!user) throw new NotFoundException('Пользователь не найден');
+    return {
+      prefs: notifyPrefs(user.notifyPrefs as NotifyPrefs | null),
+      locked: LOCKED_NOTIFY,
+      email: { address: user.email },
+      telegram: { available: this.telegram.enabled, linked: !!user.telegramId, bot: this.telegram.botUsername || null },
+    };
+  }
+
+  async updateNotifications(userId: string, patch: NotifyPrefs) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { notifyPrefs: true } });
+    const saved = (user?.notifyPrefs as NotifyPrefs | null) ?? {};
+    const next: NotifyPrefs = {
+      email: { ...(saved.email ?? {}), ...(patch.email ?? {}) },
+      telegram: { ...(saved.telegram ?? {}), ...(patch.telegram ?? {}) },
+    };
+    await this.prisma.user.update({ where: { id: userId }, data: { notifyPrefs: next as Prisma.InputJsonValue } });
+    return this.notifications(userId);
+  }
+
+  /** Ссылка на бота с кодом привязки: открыть в Telegram и нажать «Старт». */
+  telegramLink(userId: string) {
+    if (!this.telegram.enabled) throw new NotFoundException('Telegram-бот на стенде не подключён');
+    return { url: this.telegram.linkUrl(userId) };
+  }
+
+  async telegramUnlink(userId: string) {
+    await this.prisma.user.update({ where: { id: userId }, data: { telegramId: null } });
+    return this.notifications(userId);
+  }
 
   async profile(userId: string) {
     const user = await this.prisma.user.findUnique({

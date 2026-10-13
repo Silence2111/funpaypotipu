@@ -1,7 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Bell } from 'lucide-react';
+// Подпуть: подписи и ссылки те же, что в письмах и Telegram (shared/notify.ts).
+import { NOTIFY_LABELS, notifyLink } from '@gamemarket/shared/notify';
 import { apiFetch, getToken } from '@/lib/session';
 
 interface Notif {
@@ -12,28 +15,6 @@ interface Notif {
   createdAt: string;
 }
 
-const LABELS: Record<string, string> = {
-  order_created: 'Новый заказ по вашему лоту',
-  order_paid: 'Заказ оплачен — выдайте товар',
-  order_delivered: 'Товар выдан — подтвердите получение',
-  order_completed: 'Сделка завершена, деньги зачислены',
-  order_cancelled: 'Заказ отменён',
-  order_refunded: 'Возврат по заказу',
-  payment_to_balance: 'Повторная оплата заказа зачислена на баланс',
-  listing_out_of_stock: 'Закончились ключи по лоту — заказ возвращён',
-  review_received: 'Новый отзыв',
-  review_reply: 'Продавец ответил на ваш отзыв',
-  cashback: 'Кэшбэк за покупку зачислен на баланс',
-  new_message: 'Новое сообщение',
-  dispute_opened: 'Открыт спор по сделке',
-  dispute_resolved: 'Спор разрешён',
-  report_handled: 'Ваша жалоба рассмотрена',
-  listing_blocked: 'Лот заблокирован модератором',
-  listing_unblocked: 'Блокировка лота снята',
-  account_status: 'Статус аккаунта изменён',
-  payout_paid: 'Выплата отправлена',
-  payout_rejected: 'Выплата отклонена',
-};
 
 export function NotificationsBell() {
   const [items, setItems] = useState<Notif[]>([]);
@@ -72,16 +53,29 @@ export function NotificationsBell() {
             <p className="muted" style={{ fontSize: 13, padding: 12, margin: 0 }}>Уведомлений нет</p>
           )}
           {items.slice(0, 12).map((n) => (
-            <button
+            // Уведомление ведёт туда, где действовать: заказ, чат, спор.
+            <Link
               key={n.id}
-              type="button"
-              onClick={() => markRead(n.id)}
+              href={notifyLink(n.type, n.payload)}
+              onClick={() => {
+                void markRead(n.id);
+                setOpen(false);
+              }}
               className="notif-item"
-              style={{ opacity: n.readAt ? 0.5 : 1 }}
+              style={{ opacity: n.readAt ? 0.5 : 1, display: 'block' }}
             >
-              <span style={{ fontWeight: n.readAt ? 400 : 600 }}>{LABELS[n.type] ?? n.type}</span>
-            </button>
+              <span style={{ fontWeight: n.readAt ? 400 : 600 }}>{NOTIFY_LABELS[n.type] ?? 'Уведомление'}</span>
+              {typeof n.payload?.preview === 'string' && n.payload.preview && (
+                <span className="faint" style={{ display: 'block', fontSize: 12, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {n.payload.preview}
+                </span>
+              )}
+            </Link>
           ))}
+          <Link href="/cabinet/settings#notifications" className="faint" style={{ display: 'block', fontSize: 12, padding: '8px 12px' }}
+            onClick={() => setOpen(false)}>
+            Настроить уведомления
+          </Link>
         </div>
       )}
     </div>

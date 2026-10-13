@@ -191,6 +191,8 @@ model User {
   phone         String?    @unique
   passwordHash  String?    @map("password_hash")
   telegramId    String?    @unique @map("telegram_id")
+  // Каналы уведомлений по группам (shared/notify.ts); null — по умолчанию.
+  notifyPrefs   Json?      @map("notify_prefs")
   status        UserStatus @default(active)
   lastLoginAt   DateTime?  @map("last_login_at")
   createdAt     DateTime   @default(now()) @map("created_at")

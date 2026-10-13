@@ -24,6 +24,10 @@
     "./quantity": {
       "types": "./dist/quantity.d.ts",
       "default": "./dist/quantity.js"
+    },
+    "./notify": {
+      "types": "./dist/notify.d.ts",
+      "default": "./dist/notify.js"
     }
   },
   "scripts": {

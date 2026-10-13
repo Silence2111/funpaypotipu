@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
+import { NotificationSettings } from '@/components/notification-settings';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -182,6 +183,8 @@ export default function SettingsPage() {
           </div>
         </form>
       )}
+
+      <NotificationSettings />
 
       <section style={{ maxWidth: 600 }}>
         <h2 className="h2" style={{ fontSize: 18, marginBottom: 6 }}>Чёрный список</h2>

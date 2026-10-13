@@ -349,6 +349,14 @@ async function scenarioAccount(rnd) {
   check('Его токен перестал работать сразу', (await j('/wallet', { token: phone.token })).status === 401);
   check('А этот — работает', (await j('/wallet', { token: seller.token })).status === 200);
   check('Старый пароль не подходит, новый — да', (await signIn("acs", rnd)).status === 401 && (await signIn("acs", rnd, "new-password-1")).status === 200);
+  const n0 = await j('/account/notifications', { token: buyer.token });
+  check('Уведомления по умолчанию: заказы письмом, сообщения — нет', n0.body.prefs?.email?.orders === true && n0.body.prefs?.email?.messages === false);
+  const n1 = await j('/account/notifications', { method: 'PATCH', token: buyer.token, body: JSON.stringify({ email: { orders: false } }) });
+  check('Настройка сохраняется', n1.body.prefs?.email?.orders === false);
+  check('Чужая группа не попадает в базу', (await j('/account/notifications', { method: 'PATCH', token: buyer.token, body: JSON.stringify({ email: { spam: true } }) })).status === 400);
+  check('Без бота ссылка на Telegram не выдаётся', (await j('/account/telegram/link', { method: 'POST', token: buyer.token })).status === 404);
+  check('Вебхук бота без секрета закрыт', (await j('/telegram/webhook', { method: 'POST', body: JSON.stringify({ message: { text: '/start x', chat: { id: 1 } } }) })).status === 403);
+
   const s2 = await j('/auth/sessions', { token: seller.token });
   const other = s2.body.find?.((s) => !s.current);
   await j(`/auth/sessions/${other?.id}/revoke`, { method: 'POST', token: seller.token });
