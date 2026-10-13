@@ -397,6 +397,27 @@ async function scenarioSupport(rnd) {
   check('Сообщение в закрытое обращение открывает его снова', (await j(`/support/tickets/${t.body.id}`, { token: user.token })).body.ticket.status === 'open');
 }
 
+async function scenarioCatalog(rnd) {
+  console.log('\n— Каталог: А–Я и продавцы онлайн —');
+  const idx = await j('/catalog/index');
+  const cs2 = idx.body.find?.((g) => g.slug === 'cs2');
+  check('Указатель: игры с разделами и числом лотов', cs2?.categories?.some((c) => c.slug === 'accounts' && c.listingCount > 0));
+  const titles = idx.body.map((g) => g.title);
+  check('Указатель по алфавиту', JSON.stringify(titles) === JSON.stringify([...titles].sort((a, b) => a.localeCompare(b))));
+
+  const on = await register('onl', rnd);
+  const off = await register('ofl', rnd);
+  const lotOn = await createListing(on.token, 'accounts', '11100');
+  const lotOff = await createListing(off.token, 'accounts', '11200');
+  await prisma.profile.update({ where: { userId: off.id }, data: { onlineAt: new Date(Date.now() - 3600_000) } });
+  await j('/wallet', { token: on.token }); // любой запрос отмечает «онлайн»
+  const list = await j('/listings?gameSlug=cs2&categorySlug=accounts&online=1&limit=60');
+  const ids = list.body.items.map((l) => l.id);
+  check('«Продавец онлайн»: свежий — в выдаче, час назад — нет', ids.includes(lotOn) && !ids.includes(lotOff));
+  const all = await j('/listings?gameSlug=cs2&categorySlug=accounts&online=false&limit=60');
+  check('online=false фильтр не включает', all.body.items.some((l) => l.id === lotOff));
+}
+
 async function scenarioPayout(rnd) {
   console.log('\n— Выплаты (finance) —');
   const seller = await register('pys', rnd);
@@ -439,6 +460,7 @@ async function scenarioPayout(rnd) {
   await scenarioModeration(rnd);
   await scenarioAccount(rnd);
   await scenarioSupport(rnd);
+  await scenarioCatalog(rnd);
   await scenarioPayout(rnd);
 
   const passed = results.filter(Boolean).length;

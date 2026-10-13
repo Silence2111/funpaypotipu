@@ -24,10 +24,20 @@ export default async function GamePage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; online?: string }>;
 }) {
   const { slug } = await params;
-  const { category } = await searchParams;
+  const { category, online } = await searchParams;
+  const onlineOnly = online === '1';
+  const href = (patch: { category?: string; online?: boolean }) => {
+    const p = new URLSearchParams();
+    const c = 'category' in patch ? patch.category : category;
+    const o = 'online' in patch ? patch.online : onlineOnly;
+    if (c) p.set('category', c);
+    if (o) p.set('online', '1');
+    const s = p.toString();
+    return `/igra/${slug}${s ? `?${s}` : ''}`;
+  };
 
   const game = await getGame(slug);
   if (!game) notFound();
@@ -36,6 +46,7 @@ export default async function GamePage({
     gameSlug: slug,
     categorySlug: category,
     sort: 'new',
+    online: onlineOnly,
     limit: 24,
   });
   const listings = browse?.items ?? [];
@@ -54,7 +65,7 @@ export default async function GamePage({
       {game.categories.length > 0 && (
         <div className="row" style={{ flexWrap: 'wrap', gap: 10 }}>
           <Link
-            href={`/igra/${slug}`}
+            href={href({ category: undefined })}
             className="chip"
             style={!category ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
           >
@@ -65,7 +76,7 @@ export default async function GamePage({
             return (
               <Link
                 key={c.id}
-                href={`/igra/${slug}?category=${c.slug}`}
+                href={href({ category: c.slug })}
                 className="chip"
                 style={active ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
               >
@@ -73,6 +84,12 @@ export default async function GamePage({
               </Link>
             );
           })}
+          <span className="spacer" />
+          <Link href={href({ online: !onlineOnly })} className="chip" aria-pressed={onlineOnly}
+            style={onlineOnly ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}>
+            <span aria-hidden style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--success)' }} />
+            Продавец онлайн
+          </Link>
         </div>
       )}
 
@@ -86,7 +103,7 @@ export default async function GamePage({
         ) : (
           <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
             <p className="muted" style={{ margin: 0 }}>
-              В этой категории пока нет лотов.
+              {onlineOnly ? 'Сейчас никто из продавцов этого раздела не онлайн.' : 'В этой категории пока нет лотов.'}
             </p>
           </div>
         )}

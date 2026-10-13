@@ -82,6 +82,15 @@ export const getGames = () => apiTry<Game[]>('/catalog/games');
 export const getGame = (slug: string) => apiTry<GameWithCategories>(`/catalog/games/${slug}`);
 export const getListing = (id: string) => apiTry<ListingDetail>(`/listings/${id}`);
 
+/** Все игры с разделами и числом лотов — для указателя А–Я. */
+export interface GameIndexEntry {
+  id: string;
+  slug: string;
+  title: string;
+  categories: Array<{ id: string; slug: string; title: string; listingCount: number }>;
+}
+export const getGameIndex = () => apiTry<GameIndexEntry[]>('/catalog/index');
+
 export interface SellerProfile {
   id: string;
   username: string;
@@ -138,6 +147,8 @@ export function browseListings(params: {
   sort?: string;
   attrs?: string;
   instant?: boolean;
+  /** Только продавцы онлайн (последние 5 минут). */
+  online?: boolean;
   limit?: number;
   page?: number;
 }) {

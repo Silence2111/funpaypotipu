@@ -27,6 +27,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     getGames(),
     browseListings({
       q: sp.q, gameSlug: sp.game, categorySlug: sp.category, sort, attrs: attrsParam, limit: 24, page,
+      online: sp.online === '1',
     }),
   ]);
 
@@ -45,7 +46,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
 
   // Сборка URL: базовые параметры + фасеты + патч (undefined убирает ключ).
   const qs = (patch: SP) => {
-    const base: SP = { q: sp.q, game: sp.game, category: sp.category, sort, page: String(page) };
+    const base: SP = { q: sp.q, game: sp.game, category: sp.category, sort, online: sp.online, page: String(page) };
     for (const [k, v] of Object.entries(facets)) base[`f_${k}`] = v;
     const merged = { ...base, ...patch };
     const p = new URLSearchParams();
@@ -68,6 +69,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         <Link href={qs({ game: undefined, category: undefined, page: '1' })} className="chip" style={chip(!sp.game)}>
           Все игры
         </Link>
+        <Link href="/igry" className="chip">А–Я</Link>
         {(games ?? []).map((g) => (
           <Link key={g.id} href={qs({ game: g.slug, category: undefined, page: '1' })} className="chip"
             style={chip(sp.game === g.slug)}>
@@ -75,6 +77,11 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
           </Link>
         ))}
         <span className="spacer" />
+        <Link href={qs({ online: sp.online === '1' ? undefined : '1', page: '1' })} className="chip"
+          style={chip(sp.online === '1')} aria-pressed={sp.online === '1'}>
+          <span aria-hidden style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--success)' }} />
+          Продавец онлайн
+        </Link>
         {[['new', 'новые'], ['popular', 'популярные'], ['price_asc', 'дешевле'], ['price_desc', 'дороже']].map(([v, label]) => (
           <Link key={v} href={qs({ sort: v, page: '1' })} className="chip" style={chip(sort === v)}>
             {label}

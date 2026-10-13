@@ -143,8 +143,8 @@ export default async function HomePage({
       <section id="games">
         <div className="section-head">
           <h2 className="h2">Игры</h2>
-          <Link href="/catalog" className="muted" style={{ fontSize: 14 }}>
-            Весь каталог →
+          <Link href="/igry" className="muted" style={{ fontSize: 14 }}>
+            Все игры А–Я →
           </Link>
         </div>
         {games && games.length > 0 ? (

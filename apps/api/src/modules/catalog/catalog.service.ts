@@ -38,6 +38,35 @@ export class CatalogService {
     };
   }
 
+  /**
+   * Указатель игр А–Я: все игры с разделами и числом лотов, как список игр на
+   * главной FunPay. Счётчики — одним запросом на все разделы.
+   */
+  async index() {
+    const [games, counts] = await Promise.all([
+      this.prisma.game.findMany({
+        where: { isActive: true },
+        orderBy: { title: 'asc' },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          categories: {
+            where: { isActive: true },
+            orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
+            select: { id: true, slug: true, title: true },
+          },
+        },
+      }),
+      this.prisma.listing.groupBy({ by: ['categoryId'], where: { status: 'active' }, _count: { _all: true } }),
+    ]);
+    const countMap = new Map(counts.map((c) => [c.categoryId, c._count._all]));
+    return games.map((g) => ({
+      ...g,
+      categories: g.categories.map((c) => ({ ...c, listingCount: countMap.get(c.id) ?? 0 })),
+    }));
+  }
+
   async getCategoryAttributes(categoryId: string) {
     return this.prisma.attribute.findMany({
       where: { categoryId },

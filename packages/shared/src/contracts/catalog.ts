@@ -56,6 +56,9 @@ export const listingQuerySchema = z.object({
   sort: z.enum(['new', 'price_asc', 'price_desc', 'popular']).default('new'),
   attrs: z.string().max(2000).optional(), // JSON вида {"rank":"Global Elite"}
   instant: z.coerce.boolean().optional(), // только мгновенная выдача (авто-ключи/пополнения)
+  // Только продавцы онлайн (были на сайте последние 5 минут). «1»/«true» — да,
+  // остальное — нет: z.coerce.boolean превратил бы «false» в true.
+  online: z.preprocess((v) => v === '1' || v === 'true' || v === true, z.boolean()).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(60).default(24),
 });
