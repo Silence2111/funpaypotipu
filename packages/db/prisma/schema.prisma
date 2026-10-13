@@ -392,6 +392,9 @@ model Listing {
   // Продажа поштучно (packages/shared/src/quantity.ts): price — за
   // pricePerUnits единиц, покупатель выбирает количество от minQty до stock.
   // unitName null — обычный лот, продаётся целиком.
+  // Что продавец спрашивает у покупателя при покупке: [{ label, required }],
+  // до трёх полей — ник, сервер, ID персонажа. Только у ручной выдачи.
+  buyerFields     Json?           @map("buyer_fields")
   unitName        String?         @map("unit_name")
   pricePerUnits   Int             @default(1) @map("price_per_units")
   minQty          Int             @default(1) @map("min_qty")

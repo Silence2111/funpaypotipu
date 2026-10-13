@@ -31,6 +31,13 @@ export const createListingSchema = z.object({
   images: z.array(z.string().min(1)).max(12).default([]), // ключи S3 или абсолютные URL
   stock: z.number().int().nonnegative().nullable().default(null),
   topup: topupTermsInputSchema.nullable().default(null),
+  // Что спросить у покупателя при покупке (buyer-data.ts): до трёх полей с разными названиями.
+  buyerFields: z
+    .array(z.object({ label: z.string().trim().min(2, 'Название поля — от 2 символов').max(40), required: z.boolean().default(true) }))
+    .max(3, 'Не больше трёх полей')
+    .refine((a) => new Set(a.map((f) => f.label.toLowerCase())).size === a.length, 'Названия полей не должны повторяться')
+    .nullable()
+    .optional(),
   // Продажа поштучно (quantity.ts): единица, цена за пачку, минимум за заказ.
   unitName: z.string().max(24).nullable().optional(),
   pricePerUnits: z.number().int().positive().optional(),
@@ -55,10 +62,10 @@ export const listingQuerySchema = z.object({
   maxPrice: z.coerce.number().int().nonnegative().optional(),
   sort: z.enum(['new', 'price_asc', 'price_desc', 'popular']).default('new'),
   attrs: z.string().max(2000).optional(), // JSON вида {"rank":"Global Elite"}
-  instant: z.coerce.boolean().optional(), // только мгновенная выдача (авто-ключи/пополнения)
-  // Только продавцы онлайн (были на сайте последние 5 минут). «1»/«true» — да,
-  // остальное — нет: z.coerce.boolean превратил бы «false» в true.
-  online: z.preprocess((v) => v === '1' || v === 'true' || v === true, z.boolean()).optional(),
+  // Флаги: «1»/«true» — да, остальное — нет. z.coerce.boolean превращал
+  // «false» в true, и ?instant=false включал фильтр.
+  instant: z.preprocess((v) => v === '1' || v === 'true' || v === true, z.boolean()).optional(), // только мгновенная выдача
+  online: z.preprocess((v) => v === '1' || v === 'true' || v === true, z.boolean()).optional(), // продавец был на сайте 5 минут назад
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(60).default(24),
 });

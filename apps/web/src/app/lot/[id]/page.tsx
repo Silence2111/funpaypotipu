@@ -282,6 +282,7 @@ export default async function ListingPage({
               price={listing.price}
               currency={listing.currency}
               qtyOffer={qtyOffer}
+              buyerFields={listing.fulfillmentType === 'manual' ? listing.buyerFields ?? [] : []}
             />
           )}
           {pricing?.paymentsDemo && !soldOut && (

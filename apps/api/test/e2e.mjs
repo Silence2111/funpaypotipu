@@ -418,6 +418,29 @@ async function scenarioCatalog(rnd) {
   check('online=false фильтр не включает', all.body.items.some((l) => l.id === lotOff));
 }
 
+async function scenarioBuyerData(rnd) {
+  console.log('\n— Данные от покупателя —');
+  const seller = await register('bds', rnd);
+  const buyer = await register('bdb', rnd);
+  const fields = [{ label: 'Ник в игре', required: true }, { label: 'Сервер', required: false }];
+  const lot = await createListing(seller.token, 'accounts', '25000', { buyerFields: fields });
+  const keyGame = await j('/catalog/games/cs2');
+  const keysCat = keyGame.body.categories.find((c) => c.slug === 'keys');
+  const autoLot = await j('/listings', {
+    method: 'POST', token: seller.token,
+    body: JSON.stringify({ gameId: keyGame.body.id, categoryId: keysCat.id, title: 'Ключ с полями', description: 'x', price: '1000', attributes: { region: 'Global' }, buyerFields: fields }),
+  });
+  check('У авто-выдачи полей нет — некому отвечать', autoLot.status === 400);
+  const page = await j(`/listings/${lot}`);
+  check('Поля видны на странице лота', page.body.buyerFields?.length === 2);
+  const missing = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot, buyerData: { Сервер: 'EU' } }) });
+  check('Без обязательного поля заказ не создаётся', missing.status === 400 && /Ник в игре/.test(missing.body.message));
+  const ok = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot, buyerData: { 'Ник в игре': ' Dragon_77 ', лишнее: 'x' } }) });
+  check('Ответы в заказе — только поля лота', JSON.stringify(ok.body.listingSnapshot?.buyerData) === JSON.stringify([{ label: 'Ник в игре', value: 'Dragon_77' }]), JSON.stringify(ok.body.listingSnapshot?.buyerData));
+  await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ buyerFields: null }) });
+  check('Продавец убрал поля — покупать без них', (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) })).status === 201);
+}
+
 async function scenarioPayout(rnd) {
   console.log('\n— Выплаты (finance) —');
   const seller = await register('pys', rnd);
@@ -461,6 +484,7 @@ async function scenarioPayout(rnd) {
   await scenarioAccount(rnd);
   await scenarioSupport(rnd);
   await scenarioCatalog(rnd);
+  await scenarioBuyerData(rnd);
   await scenarioPayout(rnd);
 
   const passed = results.filter(Boolean).length;

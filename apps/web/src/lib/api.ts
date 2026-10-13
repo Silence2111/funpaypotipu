@@ -65,6 +65,8 @@ export interface ListingCard {
 export type ListingDetail = ListingCard & {
   description: string;
   attributes: Record<string, unknown>;
+  /** Что продавец спрашивает у покупателя при покупке. */
+  buyerFields?: Array<{ label: string; required: boolean }> | null;
   fulfillmentType: string;
   salesCount: number;
   seller: { id: string; profile: { username: string; ratingAvg: number; ratingCount: number } | null };

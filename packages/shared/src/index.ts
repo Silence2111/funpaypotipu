@@ -13,3 +13,4 @@ export * from './demo';
 export * from './topup';
 export * from './quantity';
 export * from './notify';
+export * from './buyer-data';

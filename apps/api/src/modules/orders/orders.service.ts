@@ -28,6 +28,9 @@ import {
   qtyError,
   qtyTotal,
   soldByQty,
+  buyerDataError,
+  buyerFieldsOf,
+  cleanBuyerData,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
@@ -63,7 +66,7 @@ export class OrdersService {
   async create(
     buyerId: string,
     listingId: string,
-    opts: { promoCode?: string; account?: string; topupAmount?: string; qty?: number } = {},
+    opts: { promoCode?: string; account?: string; topupAmount?: string; qty?: number; buyerData?: Record<string, string> } = {},
   ) {
     const { promoCode } = opts;
     const account = opts.account?.trim() || undefined;
@@ -112,6 +115,12 @@ export class OrdersService {
       throw new BadRequestException('Лот закончился');
     }
 
+    // Данные для выдачи (ник, сервер) — до оплаты: продавцу не придётся их выспрашивать.
+    const buyerFields = buyerFieldsOf(listing.buyerFields);
+    const buyerDataErr = buyerDataError(buyerFields, opts.buyerData);
+    if (buyerDataErr) throw new BadRequestException(buyerDataErr);
+    const buyerData = cleanBuyerData(buyerFields, opts.buyerData);
+
     const f = await this.fees.computeForCategory(
       base,
       listing.categoryId,
@@ -148,6 +157,7 @@ export class OrdersService {
           currency: listing.currency,
           ...(account ? { account } : {}),
           ...(topupNominal != null ? { topupAmount: topupNominal.toString() } : {}),
+          ...(buyerData.length ? { buyerData } : {}),
           ...(soldByQty(listing)
             ? {
                 unitName: listing.unitName ?? 'шт.',

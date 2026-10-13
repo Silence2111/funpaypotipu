@@ -22,6 +22,8 @@ interface Order {
     title?: string; account?: string; topupAmount?: string;
     /** Поштучно: единица и цена пачки на момент заказа. */
     unitName?: string; unitPrice?: string; pricePerUnits?: number;
+    /** Ответы покупателя на поля лота: ник, сервер. */
+    buyerData?: Array<{ label: string; value: string }>;
   } | null;
   autoConfirmAt?: string | null; sellerPayoutAmount?: string;
 }
@@ -301,6 +303,16 @@ export default function OrderPage() {
               <span className="faint"> · {formatPrice(unitPrice, order.currency)} {pack}</span>
             )}
           </p>
+        )}
+        {order.listingSnapshot?.buyerData && order.listingSnapshot.buyerData.length > 0 && (
+          <dl style={{ margin: '14px 0 0', display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '4px 12px', fontSize: 15 }}>
+            {order.listingSnapshot.buyerData.map((a) => (
+              <div key={a.label} style={{ display: 'contents' }}>
+                <dt className="faint">{a.label}</dt>
+                <dd style={{ margin: 0, fontWeight: 600, wordBreak: 'break-word' }}>{a.value}</dd>
+              </div>
+            ))}
+          </dl>
         )}
         {kind === 'topup' && topupAccount && (
           <p style={{ margin: '14px 0 0', fontSize: 15 }}>

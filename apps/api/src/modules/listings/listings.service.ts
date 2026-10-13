@@ -189,6 +189,7 @@ export class ListingsService {
         ...cardSelect,
         description: true,
         attributes: true,
+        buyerFields: true,
         fulfillmentType: true,
         salesCount: true,
         seller: {
@@ -232,6 +233,7 @@ export class ListingsService {
         categoryId: true,
         description: true,
         attributes: true,
+        buyerFields: true,
         stock: true,
         category: { select: { slug: true, title: true, fulfillmentType: true } },
       },
@@ -308,6 +310,7 @@ export class ListingsService {
 
     await this.validateAttributes(input.categoryId, input.attributes);
     const terms = input.topup ? this.topupTerms(category.fulfillmentType, input.topup) : null;
+    const buyerFields = this.buyerFields(category.fulfillmentType, input.buyerFields);
     const qty = this.qtyTerms(category.fulfillmentType, {
       unitName: input.unitName ?? null,
       pricePerUnits: input.pricePerUnits ?? 1,
@@ -327,6 +330,7 @@ export class ListingsService {
         topupMin: terms?.min ?? null,
         topupMax: terms?.max ?? null,
         ...qty,
+        buyerFields,
         currency: input.currency,
         attributes: input.attributes as Prisma.InputJsonValue,
         images: input.images as Prisma.InputJsonValue,
@@ -356,6 +360,18 @@ export class ListingsService {
     const error = topupTermsError(terms);
     if (error) throw new BadRequestException(error);
     return terms;
+  }
+
+  /**
+   * Поля «что спросить у покупателя». Только у ручной выдачи: ключ и
+   * пополнение выдаются автоматически, отвечать на вопросы там некому.
+   */
+  private buyerFields(fulfillmentType: FulfillmentType, raw: CreateListingInput['buyerFields']) {
+    if (!raw?.length) return Prisma.DbNull;
+    if (fulfillmentType !== 'manual') {
+      throw new BadRequestException('Данные от покупателя спрашивают только у лотов с ручной выдачей');
+    }
+    return raw.map((f) => ({ label: f.label, required: f.required })) as Prisma.InputJsonValue;
   }
 
   /**
@@ -457,6 +473,7 @@ export class ListingsService {
     }
     // Наличие обнулили правкой — лот уходит из каталога, как после продажи последней штуки.
     if (data.stock === 0 && current.status === 'active' && input.status === undefined) data.status = 'sold_out';
+    if (input.buyerFields !== undefined) data.buyerFields = this.buyerFields(current.category.fulfillmentType, input.buyerFields);
     if (input.currency !== undefined) data.currency = input.currency;
     if (input.attributes !== undefined) data.attributes = input.attributes as Prisma.InputJsonValue;
     if (input.images !== undefined) data.images = input.images as Prisma.InputJsonValue;

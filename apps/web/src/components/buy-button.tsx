@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { qtyError, qtyTotal } from '@gamemarket/shared/quantity';
+import { buyerDataError, type BuyerField } from '@gamemarket/shared/buyer-data';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { payOrder } from '@/lib/checkout';
@@ -32,6 +33,7 @@ export function BuyButton({
   price,
   currency,
   qtyOffer,
+  buyerFields = [],
 }: {
   listingId: string;
   fulfillmentType?: string;
@@ -39,6 +41,8 @@ export function BuyButton({
   price: string;
   currency: string;
   qtyOffer?: QtyOffer;
+  /** Что продавец спрашивает у покупателя: ник, сервер. */
+  buyerFields?: BuyerField[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -47,6 +51,7 @@ export function BuyButton({
   const [confirmed, setConfirmed] = useState(false);
   const [qtyInput, setQtyInput] = useState(qtyOffer ? String(qtyOffer.minQty) : '1');
   const [method, setMethod] = useState<PayMethod>('sbp');
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
 
   const isTopUp = fulfillmentType === 'provider';
@@ -58,6 +63,7 @@ export function BuyButton({
       : qtyTotal(BigInt(qtyOffer.price), qtyOffer.pricePerUnits, qty)
     : BigInt(price);
   const toPay = base != null ? priceFor(base, method) : null;
+  const answersProblem = buyerDataError(buyerFields, answers);
   const canBuy = (!isTopUp || (account.trim().length > 0 && confirmed)) && !qtyProblem;
 
   async function createOrder() {
@@ -68,6 +74,7 @@ export function BuyButton({
         ...(promo.trim() ? { promoCode: promo.trim() } : {}),
         ...(isTopUp && account.trim() ? { account: account.trim() } : {}),
         ...(qtyOffer ? { qty } : {}),
+        ...(buyerFields.length ? { buyerData: answers } : {}),
       }),
     });
     return order.id;
@@ -80,6 +87,10 @@ export function BuyButton({
     }
     if (!canBuy) {
       setErr(qtyProblem ?? 'Укажите игровой ID и отметьте, что он верный');
+      return;
+    }
+    if (answersProblem) {
+      setErr(answersProblem);
       return;
     }
     setBusy(true);
@@ -119,6 +130,24 @@ export function BuyButton({
               {qtyOffer.stock != null ? ` · в наличии ${formatQty(qtyOffer.stock, qtyOffer.unitName)}` : ''}
             </p>
           )}
+        </div>
+      )}
+
+      {buyerFields.length > 0 && (
+        <div className="stack-form" style={{ gap: 12, marginBottom: 12 }}>
+          {buyerFields.map((f, i) => (
+            <div key={f.label} className="field">
+              <label className="label" htmlFor={`buyer-field-${i}`}>
+                {f.label}{f.required ? '' : ' — необязательно'}
+              </label>
+              <input id={`buyer-field-${i}`} className="input" maxLength={100} value={answers[f.label] ?? ''}
+                onChange={(e) => {
+                  setAnswers((a) => ({ ...a, [f.label]: e.target.value }));
+                  setErr(null);
+                }} />
+            </div>
+          ))}
+          <p className="hint" style={{ margin: 0 }}>Продавец увидит это в заказе — переписываться не придётся.</p>
         </div>
       )}
 

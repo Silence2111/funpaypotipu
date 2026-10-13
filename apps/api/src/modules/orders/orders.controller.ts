@@ -16,6 +16,8 @@ const createOrderSchema = z.object({
   topupAmount: z.string().regex(/^\d{1,12}$/).optional(),
   // Сколько единиц — у лота поштучно (валюта, предметы, ключи).
   qty: z.number().int().positive().optional(),
+  // Ответы на поля лота «что спросить у покупателя»: { «Ник в игре»: «Dragon_77» }.
+  buyerData: z.record(z.string().max(200)).optional(),
 });
 type CreateOrderBody = z.infer<typeof createOrderSchema>;
 

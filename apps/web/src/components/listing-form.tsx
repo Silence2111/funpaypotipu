@@ -33,6 +33,7 @@ export interface EditableListing {
   pricePerUnits: number;
   minQty: number;
   stock: number | null;
+  buyerFields: Array<{ label: string; required: boolean }> | null;
   game: { slug: string; title: string };
   category: { slug: string; title: string; fulfillmentType: string };
 }
@@ -100,6 +101,8 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
   const [perUnits, setPerUnits] = useState<number>(initial?.pricePerUnits ?? 1);
   const [minQty, setMinQty] = useState(initial ? String(initial.minQty) : '1');
   const [stock, setStock] = useState(initial?.unitName != null && initial.stock != null ? String(initial.stock) : '');
+  // Что спросить у покупателя до оплаты: ник, сервер — как поля лота на Playerok.
+  const [buyerFields, setBuyerFields] = useState<Array<{ label: string; required: boolean }>>(initial?.buyerFields ?? []);
 
   useEffect(() => {
     if (editing) return; // страница изменения сама проверяет вход и грузит лот
@@ -216,13 +219,23 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
     price: variable ? null : rubValue > 0 ? null : 'Цена в рублях, например 490',
     topup: variable ? termsError : null,
     qty: perPiece ? qtyTermsError(qtyTerms) : null,
+    buyer:
+      selected?.fulfillmentType !== 'manual'
+        ? null
+        : buyerFields.some((f) => f.label.trim().length < 2)
+          ? 'Название поля — от 2 символов'
+          : new Set(buyerFields.map((f) => f.label.trim().toLowerCase())).size !== buyerFields.length
+            ? 'Названия полей не должны повторяться'
+            : null,
   };
+  const manualLot = selected?.fulfillmentType === 'manual';
+  const cleanFields = buyerFields.map((f) => ({ label: f.label.trim(), required: f.required }));
   const showErr = (k: string) => (touched[k] ? fieldErrors[k] : null);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setErr(null);
-    setTouched({ game: true, category: true, title: true, description: true, price: true, topup: true, qty: true });
+    setTouched({ game: true, category: true, title: true, description: true, price: true, topup: true, qty: true, buyer: true });
     if (Object.values(fieldErrors).some(Boolean)) {
       setErr(editing ? 'Изменения не сохранены — поправьте отмеченные поля.' : 'Лот не опубликован — поправьте отмеченные поля.');
       return;
@@ -264,6 +277,8 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
             images: images.map((i) => i.key),
             ...pricing,
             ...quantity,
+            // Поля спрашиваются только у ручной выдачи; пустой список их снимает.
+            ...(manualLot ? { buyerFields: cleanFields.length ? cleanFields : null } : {}),
           }),
         });
         router.push(initial.status === 'active' ? `/lot/${initial.id}?updated=1` : '/cabinet/lots?updated=1');
@@ -290,6 +305,7 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
             ? { topup: { markupBps: terms.markupBps, min: terms.min.toString(), max: terms.max.toString() } }
             : {}),
           ...(perPiece ? qtyTerms : {}),
+          ...(manualLot && cleanFields.length ? { buyerFields: cleanFields } : {}),
         }),
       });
       router.push(`/lot/${created.id}?created=1`);
@@ -404,6 +420,44 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
               </label>
             ))}
           </fieldset>
+        )}
+
+        {manualLot && (
+          <div className="field">
+            <span className="label">Что спросить у покупателя — необязательно</span>
+            {buyerFields.map((f, i) => (
+              <div key={i} className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                <input className="input" style={{ flex: 1, minWidth: 160 }} maxLength={40} value={f.label}
+                  aria-label={`Поле ${i + 1}`} placeholder="Например, ник в игре" onBlur={() => touch('buyer')}
+                  onChange={(e) => setBuyerFields((list) => list.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
+                <label className="row hint" style={{ gap: 6, cursor: 'pointer', minHeight: 44 }}>
+                  <input type="checkbox" checked={f.required} style={{ width: 16, height: 16, accentColor: 'var(--accent)' }}
+                    onChange={(e) => setBuyerFields((list) => list.map((x, j) => (j === i ? { ...x, required: e.target.checked } : x)))} />
+                  обязательно
+                </label>
+                <button type="button" className="chip" aria-label={`Убрать поле ${f.label || i + 1}`}
+                  onClick={() => setBuyerFields((list) => list.filter((_, j) => j !== i))}>Убрать</button>
+              </div>
+            ))}
+            {buyerFields.length < 3 && (
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                {['Ник в игре', 'Сервер', 'ID персонажа']
+                  .filter((l) => !buyerFields.some((f) => f.label.trim().toLowerCase() === l.toLowerCase()))
+                  .map((l) => (
+                    <button key={l} type="button" className="chip"
+                      onClick={() => setBuyerFields((list) => [...list, { label: l, required: true }])}>+ {l}</button>
+                  ))}
+                <button type="button" className="chip" onClick={() => setBuyerFields((list) => [...list, { label: '', required: true }])}>
+                  + Своё поле
+                </button>
+              </div>
+            )}
+            {showErr('buyer') ? (
+              <p className="field-error">{showErr('buyer')}</p>
+            ) : (
+              <p className="hint">Покупатель заполнит это до оплаты, ответы будут в заказе. Пароли и коды не спрашивайте.</p>
+            )}
+          </div>
         )}
 
         {selectedCategory?.fulfillmentType === 'manual' && (
