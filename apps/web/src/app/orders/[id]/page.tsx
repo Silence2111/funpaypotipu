@@ -9,11 +9,15 @@ import { formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { apiErrorMessage } from '@/lib/errors';
 import { OrderChat } from '@/components/order-chat';
 import { OrderReview } from '@/components/order-review';
+import { PayMethods, priceFor, type PayMethod } from '@/components/pay-methods';
+import { payOrder } from '@/lib/checkout';
 
 interface Order {
   id: string; publicNumber: string; status: string; amount: string; currency: string;
   buyerId: string; sellerId: string; fulfillmentType: string;
   listingId?: string; qty?: number;
+  /** Чем оплачен и сколько сверху взял способ оплаты (карта +4.4%). */
+  paymentMethod?: string | null; paymentSurcharge?: string;
   listingSnapshot?: {
     title?: string; account?: string; topupAmount?: string;
     /** Поштучно: единица и цена пачки на момент заказа. */
@@ -30,6 +34,11 @@ const STATUS_RU: Record<string, string> = {
 };
 
 const STEP_OF: Record<string, number> = { created: 0, paid: 1, delivered: 2, disputed: 2, completed: 3 };
+
+const PAID_BY: Record<string, string> = {
+  balance: 'с баланса', sbp: 'по СБП', card: 'картой', applepay: 'через Apple Pay',
+  googlepay: 'через Google Pay', crypto: 'криптовалютой',
+};
 
 type Kind = 'key' | 'topup' | 'manual';
 
@@ -78,6 +87,8 @@ export default function OrderPage() {
   const [showDispute, setShowDispute] = useState(false);
   const [reason, setReason] = useState('');
   const [disputeId, setDisputeId] = useState<string | null>(null);
+  const [method, setMethod] = useState<PayMethod>('sbp');
+  const [payFailed, setPayFailed] = useState(false);
 
   const { ready, token, user: me } = useSession();
 
@@ -95,6 +106,11 @@ export default function OrderPage() {
     loadOrder().catch(() => setErr('Заказ не найден'));
     loadConv();
   }, [loadOrder, loadConv]);
+
+  // Оформление с лота: заказ создан, а оплата не прошла — платим отсюда.
+  useEffect(() => {
+    setPayFailed(new URLSearchParams(window.location.search).get('pay') === 'failed');
+  }, []);
 
   useEffect(() => {
     if (order?.status === 'disputed') {
@@ -134,6 +150,20 @@ export default function OrderPage() {
       router.push(`/disputes/${created.id}`);
     } catch (e) {
       setErr(apiErrorMessage(e, 'Не удалось открыть спор. Попробуйте ещё раз.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pay() {
+    setErr(null);
+    setBusy(true);
+    try {
+      await payOrder(id, method);
+      setPayFailed(false);
+      await loadOrder();
+    } catch (e) {
+      setErr(apiErrorMessage(e, 'Оплата не прошла. Выберите другой способ или попробуйте ещё раз.'));
     } finally {
       setBusy(false);
     }
@@ -228,6 +258,19 @@ export default function OrderPage() {
         </h1>
         <div className="price" style={{ fontSize: 22, whiteSpace: 'nowrap' }}>{formatPrice(order.amount, order.currency)}</div>
       </div>
+      {role === 'buyer' && order.paymentMethod && (
+        <p className="faint" style={{ fontSize: 13, margin: '4px 0 0', textAlign: 'right' }}>
+          Оплачено {PAID_BY[order.paymentMethod] ?? order.paymentMethod}
+          {order.paymentSurcharge && order.paymentSurcharge !== '0'
+            ? ` — ${formatPrice((BigInt(order.amount) + BigInt(order.paymentSurcharge)).toString(), order.currency)} с комиссией способа`
+            : ''}
+        </p>
+      )}
+      {payFailed && order.status === 'created' && (
+        <div className="alert error" role="alert" style={{ marginTop: 16 }}>
+          Оплата не прошла. Заказ создан — выберите способ ниже и попробуйте ещё раз.
+        </div>
+      )}
 
       <div className="card" style={{ marginTop: 20, padding: 20 }}>
         <div className="row" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -267,10 +310,16 @@ export default function OrderPage() {
         )}
         {text && <p style={{ margin: '14px 0 0', fontSize: 15 }} className="muted">{text}</p>}
 
+        {role === 'buyer' && order.status === 'created' && (
+          <div style={{ marginTop: 16, maxWidth: 440 }}>
+            <PayMethods base={BigInt(order.amount)} currency={order.currency} value={method} onChange={setMethod} />
+          </div>
+        )}
+
         <div className="row" style={{ gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
           {role === 'buyer' && order.status === 'created' && (
-            <button className="btn" onClick={() => act('pay-from-balance')} disabled={busy} type="button">
-              Оплатить с баланса
+            <button className="btn" onClick={pay} disabled={busy} type="button">
+              Оплатить {formatPrice(priceFor(BigInt(order.amount), method).toString(), order.currency)}
             </button>
           )}
           {role === 'seller' && order.status === 'paid' && (

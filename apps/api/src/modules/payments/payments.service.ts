@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@gamemarket/db';
-import { depositToBalance } from '@gamemarket/shared';
+import { chargeFor, depositToBalance, type GatewayMethodKey } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { OrdersService } from '../orders/orders.service';
 import { LedgerService } from '../ledger/ledger.service';
@@ -26,25 +26,33 @@ export class PaymentsService {
     private readonly ledger: LedgerService,
   ) {}
 
-  /** Пополнение баланса пользователя (не под заказ). */
-  async createBalanceDeposit(userId: string, amount: bigint, currency = 'RUB') {
+  /**
+   * Пополнение баланса пользователя (не под заказ). На баланс приходит
+   * `amount`, шлюз берёт его плюс надбавку способа оплаты.
+   */
+  async createBalanceDeposit(userId: string, amount: bigint, method: GatewayMethodKey = 'sbp', currency = 'RUB') {
     if (amount <= 0n) throw new BadRequestException('Сумма должна быть положительной');
+    const { charge, surcharge } = chargeFor(amount, method);
     const provider = this.registry.get(this.registry.defaultKey);
     const providerRef = randomUUID();
     await this.prisma.payment.create({
-      data: { userId, provider: provider.key, providerRef, amount, currency, status: 'pending' },
+      data: { userId, provider: provider.key, providerRef, amount: charge, surcharge, method, currency, status: 'pending' },
     });
-    const session = await provider.createDeposit({ amount, currency, orderId: '', providerRef });
-    return { providerRef, url: session.url };
+    const session = await provider.createDeposit({ amount: charge, currency, orderId: '', providerRef, method });
+    return { providerRef, url: session.url, amount: charge.toString(), surcharge: surcharge.toString(), method };
   }
 
-  /** Создать депозит под оплату заказа через провайдера по умолчанию. */
-  async createDeposit(orderId: string, userId: string) {
+  /**
+   * Депозит под оплату заказа выбранным способом. Шлюз берёт сумму заказа
+   * плюс надбавку способа (карта +4.4%) — ту же, что на кнопке «Оплатить».
+   */
+  async createDeposit(orderId: string, userId: string, method: GatewayMethodKey = 'sbp') {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Заказ не найден');
     if (order.buyerId !== userId) throw new ForbiddenException('Это не ваш заказ');
     if (order.status !== 'created') throw new BadRequestException('Заказ уже оплачен или закрыт');
 
+    const { charge, surcharge } = chargeFor(order.amount, method);
     const provider = this.registry.get(this.registry.defaultKey);
     const providerRef = randomUUID();
     await this.prisma.payment.create({
@@ -53,19 +61,22 @@ export class PaymentsService {
         orderId,
         provider: provider.key,
         providerRef,
-        amount: order.amount,
+        amount: charge,
+        surcharge,
+        method,
         currency: order.currency,
         status: 'pending',
       },
     });
 
     const session = await provider.createDeposit({
-      amount: order.amount,
+      amount: charge,
       currency: order.currency,
       orderId,
       providerRef,
+      method,
     });
-    return { orderId, providerRef, url: session.url };
+    return { orderId, providerRef, url: session.url, amount: charge.toString(), surcharge: surcharge.toString(), method };
   }
 
   /**
@@ -95,19 +106,31 @@ export class PaymentsService {
       return { ok: true, status: 'failed' };
     }
 
-    await this.prisma.payment.update({ where: { providerRef: event.providerRef }, data: { status: 'succeeded' } });
-    if (payment.orderId) {
-      await this.orders.markPaid(payment.orderId);
-    } else {
-      // Пополнение баланса: провайдер → баланс пользователя.
-      await this.ledger.post({
-        legs: depositToBalance(payment.userId, payment.amount),
-        currency: payment.currency,
-        idempotencyKey: `topup:${event.providerRef}`,
-        refType: 'balance_topup',
-        refId: payment.id,
+    // Отметка платежа и деньги — одной транзакцией. Из двух одновременных
+    // доставок вебхука проходит одна; упавшая на полпути обработка
+    // откатывается целиком, и повтор вебхука проведёт платёж заново.
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.payment.updateMany({
+        where: { providerRef: event.providerRef, status: { not: 'succeeded' } },
+        data: { status: 'succeeded' },
       });
-    }
+      if (claimed.count === 0) return 'duplicate' as const;
+      if (payment.orderId) return this.orders.capturePayment(tx, payment);
+      // Пополнение баланса: провайдер → баланс пользователя, надбавка — отдельно.
+      await this.ledger.post(
+        {
+          legs: depositToBalance(payment.userId, payment.amount - payment.surcharge, payment.surcharge),
+          currency: payment.currency,
+          idempotencyKey: `topup:${event.providerRef}`,
+          refType: 'balance_topup',
+          refId: payment.id,
+        },
+        tx,
+      );
+      return 'balance' as const;
+    });
+    if (outcome === 'duplicate') return { ok: true, alreadyProcessed: true };
+    if (payment.orderId && outcome !== 'balance') await this.orders.afterCapture(payment.orderId, outcome);
     return { ok: true };
   }
 

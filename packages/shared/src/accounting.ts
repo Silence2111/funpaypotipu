@@ -48,16 +48,27 @@ const credit = (account: AccountRef, amount: Minor): PostingLeg => ({ account, d
 
 // ── Денежные потоки (docs/03 §3) ──
 
-/** Оплата заказа с карты/провайдера: деньги провайдера → эскроу. */
-export const payToEscrowFromGateway = (amount: Minor): PostingLeg[] => [
-  debit(gatewayClearing(), amount),
+/**
+ * Надбавка способа оплаты (карта +4.4%): покупатель платит её сверх суммы,
+ * но в эскроу и на баланс она не попадает — это плата за приём платежа,
+ * обязательство перед платёжной системой (`fees_payable`). Сверка с отчётом
+ * провайдера закрывает её фактической комиссией.
+ */
+const surchargeLegs = (surcharge: Minor): PostingLeg[] =>
+  surcharge > 0n ? [credit(platformAccount('fees_payable'), surcharge)] : [];
+
+/** Оплата заказа с карты/провайдера: деньги провайдера → эскроу, надбавка — отдельно. */
+export const payToEscrowFromGateway = (amount: Minor, surcharge: Minor = 0n): PostingLeg[] => [
+  debit(gatewayClearing(), amount + surcharge),
   credit(escrowHolding(), amount),
+  ...surchargeLegs(surcharge),
 ];
 
-/** Пополнение баланса пользователя через провайдера: провайдер → баланс. */
-export const depositToBalance = (userId: string, amount: Minor): PostingLeg[] => [
-  debit(gatewayClearing(), amount),
+/** Пополнение баланса пользователя через провайдера: провайдер → баланс, надбавка — отдельно. */
+export const depositToBalance = (userId: string, amount: Minor, surcharge: Minor = 0n): PostingLeg[] => [
+  debit(gatewayClearing(), amount + surcharge),
   credit(userAccount(userId, 'available'), amount),
+  ...surchargeLegs(surcharge),
 ];
 
 /** Оплата заказа с баланса покупателя → эскроу. */

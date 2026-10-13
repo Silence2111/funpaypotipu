@@ -5,6 +5,7 @@ import {
   balanceDelta,
   payToEscrowFromGateway,
   payToEscrowFromBalance,
+  depositToBalance,
   releaseEscrow,
   refundToBalance,
   holdForPayout,
@@ -22,6 +23,23 @@ describe('accounting: сбалансированность потоков', () =
     const legs = payToEscrowFromGateway(100_00n);
     expect(() => assertBalanced(legs)).not.toThrow();
     expect(sum(legs, 'debit')).toBe(sum(legs, 'credit'));
+  });
+
+  it('надбавка за карту не попадает в эскроу и на баланс', () => {
+    // 1 000 ₽ заказа, картой 1 044 ₽: в эскроу — 1 000, 44 — обязательство перед платёжкой
+    const legs = payToEscrowFromGateway(100_000n, 4_400n);
+    expect(() => assertBalanced(legs)).not.toThrow();
+    expect(legs.find((l) => l.account.kind === 'gateway_clearing')?.amount).toBe(104_400n);
+    expect(legs.find((l) => l.account.kind === 'escrow')?.amount).toBe(100_000n);
+    expect(legs.find((l) => l.account.kind === 'fees_payable')?.amount).toBe(4_400n);
+
+    const topup = depositToBalance('u1', 100_000n, 4_400n);
+    expect(() => assertBalanced(topup)).not.toThrow();
+    expect(topup.find((l) => l.account.kind === 'available')?.amount).toBe(100_000n);
+  });
+
+  it('без надбавки проводка прежняя — две ноги', () => {
+    expect(payToEscrowFromGateway(100_000n)).toHaveLength(2);
   });
 
   it('оплата с баланса в эскроу сбалансирована', () => {

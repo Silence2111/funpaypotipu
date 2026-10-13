@@ -8,11 +8,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { Prisma, PrismaClient, type Order, type OrderStatus } from '@gamemarket/db';
+import { Prisma, PrismaClient, type Order, type OrderStatus, type Payment } from '@gamemarket/db';
 import {
   canTransition,
   payToEscrowFromBalance,
   payToEscrowFromGateway,
+  depositToBalance,
   refundToBalance,
   releaseEscrow,
   cashbackToBalance,
@@ -125,28 +126,14 @@ export class OrdersService {
     // уже из своего кармана, и чем удачнее промоакция, тем больше убыток.
     // Теперь потолок считает `maxPromoDiscount`: из комиссии сначала
     // вычитается то, что площадка по этой сделке заплатит в любом случае.
+    // Способ оплаты выбирают после создания заказа, поэтому потолок — по
+    // самому дорогому для площадки способу. Сходится ли сделка при реальном
+    // способе, пишется в журнал при оплате (logEconomics): запрещать её
+    // не повод — покупатель ни при чём, — но знать об этом надо.
     let amount = f.amountToPay;
-    let discount = 0n;
     if (promoCode) {
-      const maxDiscount = maxPromoDiscount({
-        amountToPay: f.amountToPay,
-        sellerPayout: f.sellerPayout,
-        paymentMethod: 'sbp',
-      });
-      discount = await this.promo.consume(promoCode, f.amountToPay, maxDiscount);
-      amount -= discount;
-    }
-
-    // Если сделка всё равно не сходится — это не повод её запрещать
-    // (покупатель ни при чём), но знать об этом надо.
-    const econ = dealEconomics({
-      amountToPay: f.amountToPay,
-      sellerPayout: f.sellerPayout,
-      promoDiscount: discount,
-      paymentMethod: 'sbp',
-    });
-    if (!econ.ok) {
-      this.logger.warn(`Заказ по лоту ${listingId}: ${explainDeal(econ)}`);
+      const maxDiscount = maxPromoDiscount({ amountToPay: f.amountToPay, sellerPayout: f.sellerPayout });
+      amount -= await this.promo.consume(promoCode, f.amountToPay, maxDiscount);
     }
 
     const order = await this.prisma.order.create({
@@ -188,21 +175,62 @@ export class OrdersService {
     return order;
   }
 
-  /** Оплата подтверждена провайдером (вызывается из payments после вебхука). Идемпотентно. */
-  async markPaid(orderId: string) {
-    const order = await this.get(orderId);
-    if (order.status === 'paid') return order;
-    this.assertTransition(order.status, 'paid');
-
-    await this.ledger.post({
-      legs: payToEscrowFromGateway(order.amount),
-      currency: order.currency,
-      idempotencyKey: `pay:${order.id}`,
-      orderId: order.id,
-      refType: 'order_payment',
-      refId: order.id,
+  /**
+   * Деньги шлюза по заказу. Вызывается из PaymentsService в той же
+   * транзакции, где платёж отмечен успешным: статус заказа и проводка в
+   * эскроу фиксируются вместе или не фиксируются вовсе.
+   *
+   * Заказ уже оплачен другим платежом, отменён или истёк, пока покупатель
+   * платил, — деньги не зависают у шлюза, а целиком ложатся на его баланс.
+   * Раньше такой вебхук падал на переходе статуса, и деньги терялись.
+   */
+  async capturePayment(tx: Prisma.TransactionClient, payment: Payment): Promise<'paid' | 'late'> {
+    const order = await tx.order.findUnique({ where: { id: payment.orderId! } });
+    if (!order) throw new NotFoundException('Заказ не найден');
+    const claimed = await tx.order.updateMany({
+      where: { id: order.id, status: 'created' },
+      data: {
+        status: 'paid',
+        paidAt: new Date(),
+        paymentMethod: payment.method,
+        paymentSurcharge: payment.surcharge,
+      },
     });
-    return this.finalizePaid(order.id);
+    if (claimed.count === 1) {
+      await this.ledger.post(
+        {
+          legs: payToEscrowFromGateway(order.amount, payment.surcharge),
+          currency: order.currency,
+          idempotencyKey: `pay:${order.id}`,
+          orderId: order.id,
+          refType: 'order_payment',
+          refId: order.id,
+        },
+        tx,
+      );
+      return 'paid';
+    }
+    await this.ledger.post(
+      {
+        legs: depositToBalance(order.buyerId, payment.amount - payment.surcharge, payment.surcharge),
+        currency: payment.currency,
+        idempotencyKey: `late:${payment.providerRef}`,
+        orderId: order.id,
+        refType: 'late_payment',
+        refId: payment.id,
+      },
+      tx,
+    );
+    return 'late';
+  }
+
+  /** Шаги после оплаты шлюзом, вне денежной транзакции. */
+  async afterCapture(orderId: string, outcome: 'paid' | 'late') {
+    if (outcome === 'paid') return this.afterPaid(orderId);
+    const order = await this.get(orderId);
+    await this.notifications.notify(order.buyerId, 'payment_to_balance', { orderId });
+    await this.sys(orderId, 'Пришла ещё одна оплата, когда заказ уже был оплачен или закрыт, — она зачислена на баланс покупателя.');
+    return order;
   }
 
   /** Оплата заказа с баланса пользователя (без внешнего провайдера). */
@@ -215,23 +243,50 @@ export class OrdersService {
     const balance = await this.ledger.balanceOf(buyerId, order.currency);
     if (balance < order.amount) throw new BadRequestException('Недостаточно средств на балансе');
 
-    await this.ledger.post({
-      legs: payToEscrowFromBalance(buyerId, order.amount),
-      currency: order.currency,
-      idempotencyKey: `pay:${order.id}`,
-      orderId: order.id,
-      refType: 'order_payment_balance',
-      refId: order.id,
+    // Двойной клик и параллельная оплата шлюзом: списывает тот, кто первым
+    // перевёл заказ в «оплачен», второй раз деньги не уходят.
+    const won = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.order.updateMany({
+        where: { id: order.id, status: 'created' },
+        data: { status: 'paid', paidAt: new Date(), paymentMethod: 'balance', paymentSurcharge: 0n },
+      });
+      if (claimed.count === 0) return false;
+      await this.ledger.post(
+        {
+          legs: payToEscrowFromBalance(buyerId, order.amount),
+          currency: order.currency,
+          idempotencyKey: `pay:${order.id}`,
+          orderId: order.id,
+          refType: 'order_payment_balance',
+          refId: order.id,
+        },
+        tx,
+      );
+      return true;
     });
-    return this.finalizePaid(order.id);
+    if (!won) return this.get(order.id);
+    return this.afterPaid(order.id);
   }
 
-  /** Общий пост-оплатный шаг: статус paid → наличие → уведомления → авто-исполнение. */
-  private async finalizePaid(orderId: string) {
-    const paid = await this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: 'paid', paidAt: new Date() },
+  /**
+   * Что площадке остаётся от сделки при том способе оплаты, которым её
+   * оплатили. При создании заказа способ ещё не известен — считаем здесь.
+   */
+  private logEconomics(order: Order) {
+    const amountToPay = order.sellerPayoutAmount + order.feeSeller + order.feeBuyer;
+    const econ = dealEconomics({
+      amountToPay,
+      sellerPayout: order.sellerPayoutAmount,
+      promoDiscount: amountToPay - order.amount,
+      paymentMethod: order.paymentMethod ?? 'balance',
     });
+    if (!econ.ok) this.logger.warn(`Заказ ${order.publicNumber}: ${explainDeal(econ)}`);
+  }
+
+  /** Общий пост-оплатный шаг: наличие → уведомления → авто-исполнение. Статус paid уже стоит. */
+  private async afterPaid(orderId: string) {
+    const paid = await this.get(orderId);
+    this.logEconomics(paid);
     if (!(await this.takeStock(paid))) return this.get(paid.id);
     await this.notifications.notify(paid.sellerId, 'order_paid', { orderId: paid.id });
     // Сколько передать — первым сообщением в чате сделки, как на FunPay.

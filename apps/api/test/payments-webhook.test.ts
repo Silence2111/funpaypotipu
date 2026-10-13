@@ -23,16 +23,28 @@ const realProvider: PaymentProvider = {
   verifyWebhook: (p) => ({ providerRef: p.providerRef, status: p.status }),
 };
 
-function setup(payment: Record<string, unknown>) {
-  const state = { payment: { ...payment } };
-  const prisma = {
+function setup(payment: Record<string, unknown>, order?: Record<string, unknown>) {
+  const state = { payment: { ...payment }, created: [] as Record<string, unknown>[] };
+  const prisma: Record<string, unknown> = {
     payment: {
       findUnique: vi.fn(async () => state.payment),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => state.created.push(data)),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(state.payment, data)),
+      // условная отметка «оплачен»: второй раз платёж не проводится
+      updateMany: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        if (state.payment.status === 'succeeded') return { count: 0 };
+        Object.assign(state.payment, data);
+        return { count: 1 };
+      }),
     },
+    order: { findUnique: vi.fn(async () => order ?? null) },
   };
-  const orders = { markPaid: vi.fn(async () => undefined) };
-  const ledger = { post: vi.fn(async () => undefined) };
+  prisma.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma));
+  const orders = {
+    capturePayment: vi.fn(async () => 'paid' as const),
+    afterCapture: vi.fn(async () => undefined),
+  };
+  const ledger = { post: vi.fn(async (_input: { legs: Array<{ account: { kind: string }; amount: bigint }> }) => undefined) };
   const mock = new MockPaymentProvider();
   const registry = new PaymentProviderRegistry(mock);
   registry.register(realProvider);
@@ -47,6 +59,8 @@ const BALANCE_TOPUP = {
   provider: 'yookassa',
   providerRef: 'ref-1',
   amount: 100_000_000n,
+  surcharge: 0n,
+  method: 'sbp',
   currency: 'RUB',
   status: 'pending',
 };
@@ -92,6 +106,43 @@ describe('подтверждение оплаты', () => {
     const { svc, orders } = setup({ ...BALANCE_TOPUP, provider: 'mock', orderId: 'o1' });
 
     await svc.devConfirm('ref-1');
-    expect(orders.markPaid).toHaveBeenCalledWith('o1');
+    expect(orders.capturePayment).toHaveBeenCalledTimes(1);
+    expect(orders.afterCapture).toHaveBeenCalledWith('o1', 'paid');
+  });
+
+  it('повторный вебхук того же платежа деньги второй раз не проводит', async () => {
+    process.env.PAYMENT_PROVIDER = 'yookassa';
+    const { svc, ledger } = setup(BALANCE_TOPUP);
+    const event = { providerRef: 'ref-1', status: 'succeeded' as const, signature: 'ok' };
+
+    await svc.handleWebhook('yookassa', event);
+    // вторая доставка застала платёж ещё «в ожидании» — отсекает условная отметка
+    const second = await svc.handleWebhook('yookassa', event);
+    expect(second).toMatchObject({ alreadyProcessed: true });
+    expect(ledger.post).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('способ оплаты', () => {
+  const ORDER = { id: 'o1', buyerId: 'u1', amount: 100_000n, currency: 'RUB', status: 'created' };
+
+  it('картой шлюз берёт сумму заказа плюс 4.4%, СБП — ровно сумму', async () => {
+    const { svc, state } = setup(BALANCE_TOPUP, ORDER);
+    const card = await svc.createDeposit('o1', 'u1', 'card');
+    expect(card).toMatchObject({ amount: '104400', surcharge: '4400', method: 'card' });
+    expect(state.created[0]).toMatchObject({ amount: 104_400n, surcharge: 4_400n, method: 'card' });
+
+    const sbp = await svc.createDeposit('o1', 'u1', 'sbp');
+    expect(sbp).toMatchObject({ amount: '100000', surcharge: '0' });
+  });
+
+  it('пополнение картой: на баланс — сумма без надбавки, надбавка — платёжке', async () => {
+    process.env.PAYMENT_PROVIDER = 'yookassa';
+    const { svc, ledger } = setup({ ...BALANCE_TOPUP, amount: 104_400n, surcharge: 4_400n, method: 'card' });
+
+    await svc.handleWebhook('yookassa', { providerRef: 'ref-1', status: 'succeeded', signature: 'ok' });
+    const legs = ledger.post.mock.calls[0]![0].legs;
+    expect(legs.find((l) => l.account.kind === 'available')?.amount).toBe(100_000n);
+    expect(legs.find((l) => l.account.kind === 'fees_payable')?.amount).toBe(4_400n);
   });
 });

@@ -40,10 +40,14 @@
  * Значения по умолчанию взяты консервативно (верх обычного коридора) и
  * переопределяются переменными окружения — их надо выставить по реальному
  * договору с провайдером, а не оставлять как есть.
+ *
+ * Надбавку карты (+4.4%) покупатель теперь платит на самом деле, поэтому
+ * эквайринг здесь — нетто: комиссия провайдера с полной суммы платежа минус
+ * надбавка. У карты он бывает отрицательным: надбавка больше комиссии.
  */
 
 import type { Minor } from './money';
-import { PAYMENT_METHODS, type PaymentMethod } from './payment';
+import { PAYMENT_METHODS, priceWithAcquiring, type PaymentMethod } from './payment';
 
 const num = (raw: string | undefined, fallback: number): number => {
   const v = Number(raw);
@@ -112,6 +116,9 @@ export interface DealEconomics {
   grossRevenue: Minor;
   promoDiscount: Minor;
   cashback: Minor;
+  /** Надбавка способа оплаты, которую заплатил покупатель сверх суммы. */
+  surcharge: Minor;
+  /** Приём платежа нетто: комиссия провайдера минус надбавка. Может быть < 0. */
   acquiringCost: Minor;
   /** Что реально остаётся площадке. */
   net: Minor;
@@ -131,9 +138,13 @@ export function dealEconomics(input: DealInput): DealEconomics {
 
   // Покупатель платит меньше на скидку — кэшбэк и эквайринг считаются
   // от того, что он заплатил на самом деле.
+  const key = input.paymentMethod ?? 'balance';
   const charged = amountToPay - promoDiscount;
   const cashback = cashbackFor(charged);
-  const acquiringCost = pctOf(charged, acquiringCostPct(input.paymentMethod ?? 'balance'));
+  const method = paymentMethodByKey(key);
+  const surcharge = method ? priceWithAcquiring(charged, method) - charged : 0n;
+  // Провайдер берёт комиссию со всего платежа, включая надбавку.
+  const acquiringCost = pctOf(charged + surcharge, acquiringCostPct(key)) - surcharge;
 
   const net = grossRevenue - promoDiscount - cashback - acquiringCost;
   const denom = Number(charged);
@@ -143,6 +154,7 @@ export function dealEconomics(input: DealInput): DealEconomics {
     grossRevenue,
     promoDiscount,
     cashback,
+    surcharge,
     acquiringCost,
     net,
     marginPct,
@@ -162,7 +174,19 @@ export function maxPromoDiscount(input: Omit<DealInput, 'promoDiscount'>): Minor
   const grossRevenue = amountToPay - sellerPayout;
   if (grossRevenue <= 0n) return 0n;
 
-  const rate = cashbackPct() + acquiringCostPct(input.paymentMethod ?? 'balance') + minMarginPct();
+  // Промокод применяется при создании заказа, а способ оплаты выбирают
+  // потом. Не выбран — потолок по самому дорогому для площадки способу.
+  if (input.paymentMethod === undefined) {
+    return PAYMENT_METHODS.reduce(
+      (min, m) => {
+        const v = maxPromoDiscount({ ...input, paymentMethod: m.key });
+        return v < min ? v : min;
+      },
+      grossRevenue,
+    );
+  }
+
+  const rate = cashbackPct() + netAcquiringPct(input.paymentMethod) + minMarginPct();
   // Скидка d уменьшает и базу для кэшбэка с эквайрингом:
   //   revenue − d − (amount − d)·rate ≥ 0  →  d ≤ (revenue − amount·rate) / (1 − rate)
   const headroom = Number(grossRevenue) - Number(amountToPay) * rate;
@@ -172,20 +196,33 @@ export function maxPromoDiscount(input: Omit<DealInput, 'promoDiscount'>): Minor
   return limit > grossRevenue ? grossRevenue : limit;
 }
 
+/**
+ * Нетто-эквайринг на рубль заказа: комиссия провайдера с суммы вместе с
+ * надбавкой минус сама надбавка. Карта: 3% × 1.044 − 4.4% ≈ −1.3%.
+ */
+const netAcquiringPct = (key: string): number => {
+  const fee = paymentMethodByKey(key)?.feePct ?? 0;
+  return acquiringCostPct(key) * (1 + fee) - fee;
+};
+
 /** Строка для журнала и для админки. */
 export function explainDeal(e: DealEconomics): string {
   const rub = (v: Minor) => (Number(v) / 100).toFixed(2);
+  const acquiring =
+    e.acquiringCost >= 0n
+      ? `эквайринг ${rub(e.acquiringCost)} ₽`
+      : `надбавка за способ оплаты сверх эквайринга ${rub(-e.acquiringCost)} ₽`;
   if (e.net > 0n) {
     return (
       `Комиссия ${rub(e.grossRevenue)} ₽, скидка ${rub(e.promoDiscount)} ₽, ` +
-      `кэшбэк ${rub(e.cashback)} ₽, эквайринг ${rub(e.acquiringCost)} ₽ → ` +
+      `кэшбэк ${rub(e.cashback)} ₽, ${acquiring} → ` +
       `площадке ${rub(e.net)} ₽ (${(e.marginPct * 100).toFixed(1)}%).`
     );
   }
   return (
     `Сделка убыточна: комиссия ${rub(e.grossRevenue)} ₽ не покрывает ` +
     `скидку ${rub(e.promoDiscount)} ₽, кэшбэк ${rub(e.cashback)} ₽ и ` +
-    `эквайринг ${rub(e.acquiringCost)} ₽. Площадка теряет ${rub(-e.net)} ₽.`
+    `${acquiring}. Площадка теряет ${rub(-e.net)} ₽.`
   );
 }
 

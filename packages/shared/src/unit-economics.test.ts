@@ -112,10 +112,20 @@ describe('потолок промокода', () => {
     expect(e.marginPct).toBeLessThan(minMarginPct());
   });
 
-  it('карта дороже СБП, поэтому и скидка меньше', () => {
-    expect(maxPromoDiscount({ ...input, paymentMethod: 'card' })).toBeLessThan(
+  it('крипта дороже СБП для площадки, поэтому и скидка меньше', () => {
+    expect(maxPromoDiscount({ ...input, paymentMethod: 'crypto' })).toBeLessThan(
       maxPromoDiscount({ ...input, paymentMethod: 'sbp' }),
     );
+  });
+
+  it('способ оплаты ещё не выбран — потолок по самому дорогому', () => {
+    const { paymentMethod: _omit, ...unknown } = input;
+    const worst = maxPromoDiscount(unknown);
+    for (const m of ['balance', 'sbp', 'crypto', 'card']) {
+      expect(worst).toBeLessThanOrEqual(maxPromoDiscount({ ...input, paymentMethod: m }));
+      // и по этому потолку сделка не уходит в минус ни при каком способе
+      expect(dealEconomics({ ...input, paymentMethod: m, promoDiscount: worst }).net).toBeGreaterThanOrEqual(0n);
+    }
   });
 
   it('при нулевой комиссии скидки нет вообще', () => {
@@ -140,6 +150,29 @@ describe('потолок промокода', () => {
         paymentMethod: 'sbp',
       }),
     ).toBe(0n);
+  });
+});
+
+describe('надбавка за карту', () => {
+  it('покупатель платит её сверх суммы, а провайдер берёт комиссию со всего платежа', () => {
+    const e = dealEconomics({
+      amountToPay: KEYS_PRO.amountToPay,
+      sellerPayout: KEYS_PRO.sellerPayout,
+      paymentMethod: 'card',
+    });
+    expect(e.surcharge).toBe(4_400n); // 4.4% от 1 000 ₽
+    // 3% от 1 044 ₽ = 31,32 ₽ комиссии минус 44 ₽ надбавки
+    expect(e.acquiringCost).toBe(BigInt(Math.round(104_400 * acquiringCostPct('card'))) - 4_400n);
+  });
+
+  it('у оплаты без надбавки эквайринг — чистый расход', () => {
+    const e = dealEconomics({
+      amountToPay: KEYS_PRO.amountToPay,
+      sellerPayout: KEYS_PRO.sellerPayout,
+      paymentMethod: 'sbp',
+    });
+    expect(e.surcharge).toBe(0n);
+    expect(e.acquiringCost).toBe(BigInt(Math.round(100_000 * acquiringCostPct('sbp'))));
   });
 });
 

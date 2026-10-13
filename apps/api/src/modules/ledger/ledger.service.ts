@@ -23,39 +23,46 @@ export interface PostInput {
 export class LedgerService {
   constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
 
-  /** Провести сбалансированный набор. Повтор с тем же ключом — no-op. */
-  async post(input: PostInput): Promise<void> {
+  /**
+   * Провести сбалансированный набор. Повтор с тем же ключом — no-op.
+   * С `tx` проводка идёт в транзакции вызывающего: так оплата заказа и смена
+   * его статуса фиксируются вместе или не фиксируются вовсе.
+   */
+  async post(input: PostInput, tx?: Tx): Promise<void> {
     assertBalanced(input.legs);
-    await this.prisma.$transaction(async (tx) => {
-      const dup = await tx.ledgerEntry.findUnique({
-        where: { idempotencyKey: input.idempotencyKey },
-      });
-      if (dup) return; // уже проведено
+    if (tx) return this.write(tx, input);
+    await this.prisma.$transaction((t) => this.write(t, input));
+  }
 
-      const txnId = randomUUID();
-      for (let i = 0; i < input.legs.length; i++) {
-        const leg = input.legs[i];
-        const account = await this.getOrCreateAccount(tx, leg.account, input.currency);
-        await tx.ledgerEntry.create({
-          data: {
-            txnId,
-            accountId: account.id,
-            direction: leg.direction,
-            amount: leg.amount,
-            currency: input.currency,
-            orderId: input.orderId,
-            refType: input.refType,
-            refId: input.refId,
-            // ключ идемпотентности несёт только первая нога набора (поле уникально)
-            idempotencyKey: i === 0 ? input.idempotencyKey : null,
-          },
-        });
-        await tx.ledgerAccount.update({
-          where: { id: account.id },
-          data: { balance: { increment: balanceDelta(leg) } },
-        });
-      }
+  private async write(tx: Tx, input: PostInput): Promise<void> {
+    const dup = await tx.ledgerEntry.findUnique({
+      where: { idempotencyKey: input.idempotencyKey },
     });
+    if (dup) return; // уже проведено
+
+    const txnId = randomUUID();
+    for (let i = 0; i < input.legs.length; i++) {
+      const leg = input.legs[i];
+      const account = await this.getOrCreateAccount(tx, leg.account, input.currency);
+      await tx.ledgerEntry.create({
+        data: {
+          txnId,
+          accountId: account.id,
+          direction: leg.direction,
+          amount: leg.amount,
+          currency: input.currency,
+          orderId: input.orderId,
+          refType: input.refType,
+          refId: input.refId,
+          // ключ идемпотентности несёт только первая нога набора (поле уникально)
+          idempotencyKey: i === 0 ? input.idempotencyKey : null,
+        },
+      });
+      await tx.ledgerAccount.update({
+        where: { id: account.id },
+        data: { balance: { increment: balanceDelta(leg) } },
+      });
+    }
   }
 
   async balanceOf(userId: string, currency: string): Promise<bigint> {

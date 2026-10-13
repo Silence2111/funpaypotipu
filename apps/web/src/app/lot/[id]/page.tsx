@@ -9,14 +9,7 @@ import { BuyButton } from '@/components/buy-button';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
 import { MessageSellerButton } from '@/components/message-seller-button';
-import {
-  priceWithAcquiring,
-  PAYMENT_METHODS,
-  isDemoSeller,
-  markupLabel,
-  soldByQty,
-  topupQuote,
-} from '@gamemarket/shared';
+import { isDemoSeller, markupLabel, soldByQty, topupQuote } from '@gamemarket/shared';
 import { JsonLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
 import { SellerReviews } from '@/components/seller-reviews';
@@ -265,32 +258,6 @@ export default async function ListingPage({
             </p>
           )}
 
-          {!topup && !pack && !soldOut && (() => {
-            const base = BigInt(listing.price);
-            const card = PAYMENT_METHODS.find((m) => m.key === 'card')!;
-            const cardPrice = priceWithAcquiring(base, card).toString();
-            return (
-              <details style={{ marginBottom: 14 }}>
-                <summary className="faint" style={{ fontSize: 13, cursor: 'pointer' }}>
-                  Цена по способу оплаты
-                </summary>
-                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <div className="row" style={{ justifyContent: 'space-between', fontSize: 13 }}>
-                    <span className="muted">С баланса · СБП · крипта</span>
-                    <span>{formatPrice(listing.price, listing.currency)}</span>
-                  </div>
-                  <div className="row" style={{ justifyContent: 'space-between', fontSize: 13 }}>
-                    <span className="muted">Карта · Apple Pay · Google Pay</span>
-                    <span>{formatPrice(cardPrice, listing.currency)} <span className="faint">+4.4%</span></span>
-                  </div>
-                  <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>
-                    С баланса — без комиссии эквайринга (и +2% кэшбэк)
-                  </div>
-                </div>
-              </details>
-            );
-          })()}
-
           {soldOut ? (
             <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
               <p style={{ margin: 0, fontWeight: 600 }}>Лот закончился</p>
@@ -308,7 +275,13 @@ export default async function ListingPage({
               initialAmount={amount ?? ''}
             />
           ) : (
-            <BuyButton listingId={listing.id} fulfillmentType={listing.fulfillmentType} qtyOffer={qtyOffer} />
+            <BuyButton
+              listingId={listing.id}
+              fulfillmentType={listing.fulfillmentType}
+              price={listing.price}
+              currency={listing.currency}
+              qtyOffer={qtyOffer}
+            />
           )}
           {pricing?.paymentsDemo && !soldOut && (
             <p className="hint" style={{ marginTop: 10, textAlign: 'center' }}>

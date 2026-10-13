@@ -8,6 +8,7 @@ const EMAIL_SUBJECTS: Record<string, string> = {
   order_paid: 'Новый оплаченный заказ',
   order_delivered: 'Товар по заказу выдан',
   order_refunded: 'Возврат по заказу',
+  payment_to_balance: 'Оплата зачислена на баланс',
   payout_paid: 'Выплата отправлена',
   payout_rejected: 'Заявка на вывод отклонена',
   dispute_opened: 'Открыт спор по вашей сделке',

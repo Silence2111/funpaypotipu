@@ -7,6 +7,7 @@ import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { payOrder } from '@/lib/checkout';
 import { formatPrice, formatQty } from '@/lib/format';
+import { PayMethods, priceFor, type PayMethod } from '@/components/pay-methods';
 
 /** Условия поштучного лота: покупатель выбирает количество, сумма — за него. */
 export interface QtyOffer {
@@ -21,14 +22,22 @@ export interface QtyOffer {
 /** «25 000», «25000», «25 000» → 25000; не число — NaN. */
 const parseQty = (v: string) => (/^\d[\d\s\u00a0\u202f]*$/.test(v.trim()) ? Number(v.replace(/\D/g, '')) : NaN);
 
-/** Оформление заказа: create (+ промокод, +UID для пополнений, +количество) → deposit → оплата → заказ. */
+/**
+ * Оформление заказа: количество, промокод, UID для пополнений, способ оплаты
+ * с ценой по нему → заказ → оплата выбранным способом → страница заказа.
+ */
 export function BuyButton({
   listingId,
   fulfillmentType,
+  price,
+  currency,
   qtyOffer,
 }: {
   listingId: string;
   fulfillmentType?: string;
+  /** Цена лота целиком; у поштучного сумма считается из количества. */
+  price: string;
+  currency: string;
   qtyOffer?: QtyOffer;
 }) {
   const router = useRouter();
@@ -37,12 +46,18 @@ export function BuyButton({
   const [account, setAccount] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [qtyInput, setQtyInput] = useState(qtyOffer ? String(qtyOffer.minQty) : '1');
+  const [method, setMethod] = useState<PayMethod>('sbp');
   const [err, setErr] = useState<string | null>(null);
 
   const isTopUp = fulfillmentType === 'provider';
   const qty = parseQty(qtyInput);
   const qtyProblem = qtyOffer ? qtyError(qty, qtyOffer) : null;
-  const total = qtyOffer && !qtyProblem ? qtyTotal(BigInt(qtyOffer.price), qtyOffer.pricePerUnits, qty) : null;
+  const base = qtyOffer
+    ? qtyProblem
+      ? null
+      : qtyTotal(BigInt(qtyOffer.price), qtyOffer.pricePerUnits, qty)
+    : BigInt(price);
+  const toPay = base != null ? priceFor(base, method) : null;
   const canBuy = (!isTopUp || (account.trim().length > 0 && confirmed)) && !qtyProblem;
 
   async function createOrder() {
@@ -58,35 +73,31 @@ export function BuyButton({
     return order.id;
   }
 
-  const blocker = () => qtyProblem ?? 'Укажите игровой ID и отметьте, что он верный';
-
   async function buy() {
-    if (!getToken()) return router.push(`/register?next=${encodeURIComponent(`/lot/${listingId}`)}`);
-    if (!canBuy) { setErr(blocker()); return; }
+    if (!getToken()) {
+      const page = method === 'balance' ? 'login' : 'register';
+      return router.push(`/${page}?next=${encodeURIComponent(`/lot/${listingId}`)}`);
+    }
+    if (!canBuy) {
+      setErr(qtyProblem ?? 'Укажите игровой ID и отметьте, что он верный');
+      return;
+    }
     setBusy(true);
     setErr(null);
+    let orderId: string;
     try {
-      const orderId = await createOrder();
-      await payOrder(orderId, 'gateway');
-      router.push(`/orders/${orderId}`);
+      orderId = await createOrder();
     } catch (e) {
       setErr(apiErrorMessage(e, 'Не удалось оформить заказ. Обновите страницу и попробуйте ещё раз.'));
       setBusy(false);
+      return;
     }
-  }
-
-  async function buyFromBalance() {
-    if (!getToken()) return router.push(`/login?next=${encodeURIComponent(`/lot/${listingId}`)}`);
-    if (!canBuy) { setErr(blocker()); return; }
-    setBusy(true);
-    setErr(null);
     try {
-      const orderId = await createOrder();
-      await payOrder(orderId, 'balance');
+      await payOrder(orderId, method);
       router.push(`/orders/${orderId}`);
-    } catch (e) {
-      setErr(apiErrorMessage(e, 'На балансе не хватает денег. Оплатите заказ обычным способом.'));
-      setBusy(false);
+    } catch {
+      // Заказ уже создан: оплатить его другим способом можно на его странице.
+      router.push(`/orders/${orderId}?pay=failed`);
     }
   }
 
@@ -130,15 +141,16 @@ export function BuyButton({
           <label className="label" htmlFor="promo" style={{ fontSize: 13 }}>Промокод</label>
           <input id="promo" className="input" placeholder="Например, START10" value={promo}
             onChange={(e) => setPromo(e.target.value)} />
+          <p className="hint">Скидка учтётся в сумме заказа при оплате.</p>
         </div>
       </details>
 
+      <div style={{ marginBottom: 14 }}>
+        <PayMethods base={base} currency={currency} value={method} onChange={setMethod} />
+      </div>
+
       <button className="btn block lg" onClick={buy} disabled={busy || !canBuy} type="button">
-        {busy ? 'Оформляем заказ…' : total != null ? `Купить за ${formatPrice(total.toString(), qtyOffer!.currency)}` : 'Купить'}
-      </button>
-      <button className="btn ghost block" style={{ marginTop: 8 }} onClick={buyFromBalance}
-        disabled={busy || !canBuy} type="button">
-        Оплатить с баланса
+        {busy ? 'Оформляем заказ…' : toPay != null ? `Оплатить ${formatPrice(toPay.toString(), currency)}` : 'Оплатить'}
       </button>
       {err && (
         <p className="field-error" role="alert" style={{ marginTop: 10, textAlign: 'center' }}>{err}</p>

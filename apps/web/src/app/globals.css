@@ -247,6 +247,69 @@ a {
   font-weight: 600;
   letter-spacing: -0.02em;
 }
+
+/* Способ оплаты: строка — способ и цена по нему. Выбранная — тонкой рамкой акцента. */
+.pay-methods {
+  display: grid;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.pay-methods legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+.pay-method {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  cursor: pointer;
+  transition: border-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pay-method:hover {
+  border-color: var(--border-strong);
+}
+.pay-method:has(input:checked) {
+  border-color: var(--accent);
+}
+.pay-method:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.pay-method:has(input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+.pay-method input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+.pay-method .pm-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.pay-method .pm-note {
+  display: block;
+  font-size: 12px;
+  color: var(--fg-faint);
+}
+.pay-method .pm-price {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
 .btn {
   display: inline-flex;
   align-items: center;

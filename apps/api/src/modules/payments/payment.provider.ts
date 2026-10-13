@@ -1,9 +1,12 @@
 /** Абстракция платёжного провайдера (docs/04). Позволяет менять шлюз без правок ядра. */
 export interface DepositInput {
+  /** Сколько взять с покупателя — уже с надбавкой способа оплаты. */
   amount: bigint;
   currency: string;
   orderId: string;
   providerRef: string;
+  /** Способ оплаты (shared/payment.ts): провайдер открывает нужную форму. */
+  method: string;
 }
 
 export interface DepositSession {

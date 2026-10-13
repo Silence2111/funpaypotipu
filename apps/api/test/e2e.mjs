@@ -2,7 +2,8 @@
  * Сквозные e2e-тесты денежных путей против запущенного API + БД.
  * Запуск: API_URL=http://localhost:4090 DATABASE_URL=... node apps/api/test/e2e.mjs
  * Покрывает: эскроу-покупка, авто-выдача ключей, пополнение на сумму покупателя,
- * продажа поштучно (наличие, перепродажа последней штуки), выплаты (с холдом и ролью finance).
+ * продажа поштучно (наличие, перепродажа последней штуки), способы оплаты (надбавка карты,
+ * второй платёж по заказу), выплаты (с холдом и ролью finance).
  * Выход 0 — все проверки пройдены, иначе 1.
  */
 import db from '../../../packages/db/dist/index.js';
@@ -195,6 +196,41 @@ async function scenarioQuantity(rnd) {
   check('На складе остался 1 ключ', left.stock === 1, String(left.stock));
 }
 
+async function scenarioPaymentMethods(rnd) {
+  console.log('\n— Способы оплаты —');
+  const seller = await register('pms', rnd);
+  const buyer = await register('pmb', rnd);
+  const listingId = await createListing(seller.token, 'accounts', '100000');
+  const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
+  const deposit = (method) =>
+    j('/payments/deposit', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: order.body.id, method }) });
+
+  // Покупатель начал платить по СБП, передумал и оплатил картой — и СБП тоже прошёл.
+  const sbp = await deposit('sbp');
+  const card = await deposit('card');
+  check('Картой: 1 000 ₽ + 4,4% = 1 044 ₽', card.body.amount === '104400' && card.body.surcharge === '4400', card.body.amount);
+  check('По СБП — ровно сумма заказа', sbp.body.amount === '100000', sbp.body.amount);
+  await j('/payments/mock/callback?providerRef=' + card.body.providerRef, { method: 'POST' });
+  const paid = await j(`/orders/${order.body.id}`, { token: buyer.token });
+  check('Заказ оплачен картой, надбавка записана', paid.body.status === 'paid' && paid.body.paymentMethod === 'card' && paid.body.paymentSurcharge === '4400');
+  const fees = await prisma.ledgerEntry.findMany({ where: { orderId: order.body.id, account: { kind: 'fees_payable' } } });
+  check('Надбавка — обязательство перед платёжкой, не эскроу', fees.length === 1 && fees[0].amount === 4400n);
+
+  await j('/payments/mock/callback?providerRef=' + sbp.body.providerRef, { method: 'POST' });
+  const w = await j('/wallet', { token: buyer.token });
+  check('Второй платёж по заказу — на баланс покупателя', w.body.balance === '100000', w.body.balance);
+  const again = await j(`/orders/${order.body.id}`, { token: buyer.token });
+  check('Заказ не оплачен дважды', again.body.status === 'paid');
+  const dup = await j('/payments/mock/callback?providerRef=' + sbp.body.providerRef, { method: 'POST' });
+  const w2 = await j('/wallet', { token: buyer.token });
+  check('Повтор вебхука не зачисляет второй раз', dup.body.alreadyProcessed === true && w2.body.balance === '100000', w2.body.balance);
+
+  const top = await j('/payments/topup', { method: 'POST', token: buyer.token, body: JSON.stringify({ amount: '50000', method: 'card' }) });
+  await j('/payments/mock/callback?providerRef=' + top.body.providerRef, { method: 'POST' });
+  const w3 = await j('/wallet', { token: buyer.token });
+  check('Пополнение картой: списано 522 ₽, на баланс 500 ₽', top.body.amount === '52200' && w3.body.balance === '150000', `${top.body.amount} / ${w3.body.balance}`);
+}
+
 async function scenarioPayout(rnd) {
   console.log('\n— Выплаты (finance) —');
   const seller = await register('pys', rnd);
@@ -233,6 +269,7 @@ async function scenarioPayout(rnd) {
   await scenarioAutoKey(rnd);
   await scenarioSteamTopup(rnd);
   await scenarioQuantity(rnd);
+  await scenarioPaymentMethods(rnd);
   await scenarioPayout(rnd);
 
   const passed = results.filter(Boolean).length;

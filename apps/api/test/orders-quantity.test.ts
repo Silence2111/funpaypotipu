@@ -48,7 +48,18 @@ const KEYS = { ...ACCOUNT, id: 'l-keys', title: 'Ключ Steam, случайн�
 function setup(listing: Record<string, unknown>, order: Record<string, unknown> = {}) {
   const state = {
     listing: { ...listing },
-    order: { id: 'o1', buyerId: 'buyer', sellerId: 'seller', listingId: listing.id, currency: 'RUB', ...order },
+    order: {
+      id: 'o1',
+      publicNumber: 'GM-TEST',
+      buyerId: 'buyer',
+      sellerId: 'seller',
+      listingId: listing.id,
+      currency: 'RUB',
+      feeBuyer: 0n,
+      feeSeller: 0n,
+      sellerPayoutAmount: 0n,
+      ...order,
+    },
     created: [] as Record<string, unknown>[],
     sys: [] as string[],
   };
@@ -88,7 +99,13 @@ function setup(listing: Record<string, unknown>, order: Record<string, unknown> 
       }),
       findUnique: vi.fn(async () => state.order),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(state.order, data)),
+      updateMany: vi.fn(async ({ where, data }: { where: { status?: string }; data: Record<string, unknown> }) => {
+        if (where.status && state.order.status !== where.status) return { count: 0 };
+        Object.assign(state.order, data);
+        return { count: 1 };
+      }),
     },
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma)),
   };
   const ledger = { post: vi.fn(async () => undefined), balanceOf: vi.fn(async () => 10_000_000n) };
   const fees = { computeForCategory: vi.fn(async (base: bigint) => computeFees(base, 0, 0.1)) };

@@ -24,3 +24,19 @@ export function priceWithAcquiring(base: bigint, method: PaymentMethod): bigint 
   if (!method.feePct) return base;
   return base + BigInt(Math.round(Number(base) * method.feePct));
 }
+
+/** Способы оплаты через платёжный шлюз — всё, кроме баланса. */
+export const GATEWAY_METHOD_KEYS = ['sbp', 'card', 'applepay', 'googlepay', 'crypto'] as const;
+export type GatewayMethodKey = (typeof GATEWAY_METHOD_KEYS)[number];
+
+/**
+ * Сколько шлюз возьмёт с покупателя сверх суммы заказа и что из этого —
+ * надбавка способа оплаты. Одна функция для витрины и для депозита: цена
+ * на кнопке и сумма платежа не расходятся.
+ */
+export function chargeFor(base: bigint, methodKey: string): { charge: bigint; surcharge: bigint } {
+  const method = PAYMENT_METHODS.find((m) => m.key === methodKey);
+  if (!method) throw new Error(`Неизвестный способ оплаты: ${methodKey}`);
+  const charge = priceWithAcquiring(base, method);
+  return { charge, surcharge: charge - base };
+}

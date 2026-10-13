@@ -1,14 +1,18 @@
 import { Body, Controller, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
+import { GATEWAY_METHOD_KEYS, type GatewayMethodKey } from '@gamemarket/shared';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { PaymentsService } from './payments.service';
 
-const depositSchema = z.object({ orderId: z.string().uuid() });
+// Способ оплаты через шлюз; без него — СБП, как платили до выбора способа.
+const methodSchema = z.enum(GATEWAY_METHOD_KEYS).default('sbp');
+const depositSchema = z.object({ orderId: z.string().uuid(), method: methodSchema });
 const topupSchema = z.object({
   amount: z.union([z.string(), z.number()]).transform((v) => String(v))
     .refine((v) => /^\d+$/.test(v) && BigInt(v) > 0n, 'ожидается положительное число минорных единиц'),
+  method: methodSchema,
 });
 const webhookSchema = z.object({
   providerRef: z.string().min(1),
@@ -24,9 +28,9 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   deposit(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(depositSchema)) body: { orderId: string },
+    @Body(new ZodValidationPipe(depositSchema)) body: { orderId: string; method: GatewayMethodKey },
   ) {
-    return this.payments.createDeposit(body.orderId, user.userId);
+    return this.payments.createDeposit(body.orderId, user.userId, body.method);
   }
 
   /** Пополнение баланса пользователя. */
@@ -34,9 +38,9 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   topup(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(topupSchema)) body: { amount: string },
+    @Body(new ZodValidationPipe(topupSchema)) body: { amount: string; method: GatewayMethodKey },
   ) {
-    return this.payments.createBalanceDeposit(user.userId, BigInt(body.amount));
+    return this.payments.createBalanceDeposit(user.userId, BigInt(body.amount), body.method);
   }
 
   /** Подписанный вебхук провайдера (production-путь). Подпись проверяется провайдером. */

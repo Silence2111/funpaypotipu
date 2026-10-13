@@ -427,6 +427,10 @@ model Order {
   deliveredAt        DateTime?       @map("delivered_at")
   completedAt        DateTime?       @map("completed_at")
   autoConfirmAt      DateTime?       @map("auto_confirm_at")
+  // Чем оплачен: balance, sbp, card… Надбавка способа сверх amount — плата
+  // за приём платежа, при возврате на баланс она не возвращается.
+  paymentMethod      String?         @map("payment_method")
+  paymentSurcharge   BigInt          @default(0) @map("payment_surcharge")
   createdAt          DateTime        @default(now()) @map("created_at")
   updatedAt          DateTime        @updatedAt @map("updated_at")
 
@@ -509,8 +513,12 @@ model Payment {
   orderId     String?       @map("order_id") @db.Uuid
   provider    String
   providerRef String        @unique @map("provider_ref")
+  // Сколько шлюз берёт с покупателя: сумма заказа или пополнения плюс surcharge.
   amount      BigInt
   currency    String        @db.Char(3)
+  // Способ оплаты (shared/payment.ts) и его надбавка — карта +4.4%.
+  method      String        @default("sbp")
+  surcharge   BigInt        @default(0)
   status      PaymentStatus @default(pending)
   rawPayload  Json?         @map("raw_payload")
   createdAt   DateTime      @default(now()) @map("created_at")

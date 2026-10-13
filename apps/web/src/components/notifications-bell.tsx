@@ -19,6 +19,7 @@ const LABELS: Record<string, string> = {
   order_completed: 'Сделка завершена, деньги зачислены',
   order_cancelled: 'Заказ отменён',
   order_refunded: 'Возврат по заказу',
+  payment_to_balance: 'Повторная оплата заказа зачислена на баланс',
   listing_out_of_stock: 'Закончились ключи по лоту — заказ возвращён',
   review_received: 'Новый отзыв',
   review_reply: 'Продавец ответил на ваш отзыв',

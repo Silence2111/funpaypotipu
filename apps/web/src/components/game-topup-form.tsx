@@ -14,7 +14,6 @@ import {
   topupQuote,
   topupRange,
 } from '@gamemarket/shared/topup';
-import { PAYMENT_METHODS, priceWithAcquiring } from '@gamemarket/shared/payment';
 import { isDemoSeller } from '@gamemarket/shared/demo';
 import type { TopupOffer } from '@/lib/api';
 import { apiFetch, getToken } from '@/lib/session';
@@ -22,11 +21,11 @@ import { apiErrorMessage } from '@/lib/errors';
 import { payOrder } from '@/lib/checkout';
 import { formatPrice } from '@/lib/format';
 import { tileFor } from '@/lib/tile';
+import { PayMethods, methodFee, priceFor, type PayMethod } from '@/components/pay-methods';
 
 /** Быстрые суммы, ₽: самые частые пополнения кошелька. */
 const PRESETS = [500, 1000, 2000, 5000];
 const DEFAULT_RUB = 1000;
-const CARD = PAYMENT_METHODS.find((m) => m.key === 'card')!;
 
 const rub = (minor: bigint) => formatPrice(minor.toString(), 'RUB');
 
@@ -76,7 +75,8 @@ export function GameTopupForm({
       : String(DEFAULT_RUB);
   });
   const [touched, setTouched] = useState({ account: false, amount: false });
-  const [busy, setBusy] = useState<'gateway' | 'balance' | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [method, setMethod] = useState<PayMethod>('sbp');
   const [err, setErr] = useState<string | null>(null);
 
   const nominal = amount ? BigInt(amount) * 100n : 0n;
@@ -90,7 +90,7 @@ export function GameTopupForm({
   const showAmountError = touched.amount ? amountError : null;
   const presets = PRESETS.filter((p) => !range || (BigInt(p * 100) >= range.min && BigInt(p * 100) <= range.max));
 
-  async function pay(from: 'gateway' | 'balance') {
+  async function pay() {
     setTouched({ account: true, amount: true });
     setErr(null);
     if (accountError || amountError || !offer || !quote) return;
@@ -99,12 +99,13 @@ export function GameTopupForm({
       // После входа вернуться к форме с тем же логином и суммой.
       const qs = new URLSearchParams({ account: account.trim(), amount });
       const back = `${returnPath}?${qs}${variant === 'hero' ? '#topup' : ''}`;
-      const page = from === 'balance' ? 'login' : 'register';
+      const page = method === 'balance' ? 'login' : 'register';
       router.push(`/${page}?next=${encodeURIComponent(back)}`);
       return;
     }
 
-    setBusy(from);
+    setBusy(true);
+    let orderId: string;
     try {
       const order = await apiFetch<{ id: string }>('/orders', {
         method: 'POST',
@@ -114,24 +115,24 @@ export function GameTopupForm({
           topupAmount: quote.nominal.toString(),
         }),
       });
-      await payOrder(order.id, from);
-      router.push(`/orders/${order.id}`);
+      orderId = order.id;
     } catch (e) {
-      setErr(
-        apiErrorMessage(
-          e,
-          from === 'balance'
-            ? 'На балансе не хватает денег. Оплатите обычным способом.'
-            : 'Не удалось оформить пополнение. Обновите страницу и попробуйте ещё раз.',
-        ),
-      );
-      setBusy(null);
+      setErr(apiErrorMessage(e, 'Не удалось оформить пополнение. Обновите страницу и попробуйте ещё раз.'));
+      setBusy(false);
+      return;
+    }
+    try {
+      await payOrder(orderId, method);
+      router.push(`/orders/${orderId}`);
+    } catch {
+      // Заказ уже создан: оплатить его другим способом можно на его странице.
+      router.push(`/orders/${orderId}?pay=failed`);
     }
   }
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    void pay('gateway');
+    void pay();
   }
 
   const tile = tileFor(game.title);
@@ -222,32 +223,28 @@ export function GameTopupForm({
       <div className="topup-summary">
         <div className="total">
           <span>К оплате</span>
-          <strong>{quote ? rub(quote.price) : '—'}</strong>
+          <strong>{quote ? rub(priceFor(quote.price, method)) : '—'}</strong>
         </div>
         {quote && offer && (
-          <>
-            <p>
-              {rub(quote.nominal)} на {game.title} + наценка продавца {markupLabel(offer.markupBps)}
-            </p>
-            <p>
-              Картой — {rub(priceWithAcquiring(quote.price, CARD))} (+{markupLabel(Math.round(CARD.feePct * 10_000))})
-            </p>
-          </>
+          <p>
+            {rub(quote.nominal)} на {game.title} + наценка продавца {markupLabel(offer.markupBps)}
+            {methodFee(method) ? ` + комиссия способа ${methodFee(method)}` : ''}
+          </p>
         )}
       </div>
 
+      <PayMethods
+        id={`pay-method-${variant}`}
+        base={quote ? quote.price : null}
+        currency="RUB"
+        value={method}
+        onChange={setMethod}
+        variant={variant === 'hero' ? 'select' : 'list'}
+      />
+
       <div>
-        <button className="btn block lg" type="submit" disabled={busy !== null}>
-          {busy === 'gateway' ? 'Оформляем…' : quote ? `Оплатить ${rub(quote.price)}` : 'Оплатить'}
-        </button>
-        <button
-          className="btn ghost block"
-          type="button"
-          style={{ marginTop: 8 }}
-          disabled={busy !== null}
-          onClick={() => void pay('balance')}
-        >
-          {busy === 'balance' ? 'Оформляем…' : 'Оплатить с баланса'}
+        <button className="btn block lg" type="submit" disabled={busy}>
+          {busy ? 'Оформляем…' : quote ? `Оплатить ${rub(priceFor(quote.price, method))}` : 'Оплатить'}
         </button>
         {err && (
           <p className="field-error" role="alert" style={{ marginTop: 10, textAlign: 'center' }}>
