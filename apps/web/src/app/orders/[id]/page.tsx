@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldCheck, KeyRound, Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { apiFetch, getToken, getUser } from '@/lib/session';
+import { apiFetch, getToken, useSession } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
 import { apiErrorMessage } from '@/lib/errors';
 import { OrderChat } from '@/components/order-chat';
@@ -55,7 +55,8 @@ function explain(status: string, role: 'buyer' | 'seller', kind: Kind, confirmUn
       : 'Покупатель оплатил, деньги у площадки. Выдача идёт автоматически.';
     case 'delivered': return 'Вы отметили выдачу. Деньги придут на баланс, когда покупатель подтвердит получение или истечёт срок проверки.';
     case 'completed': return 'Сделка закрыта, оплата зачислена на ваш баланс.';
-    case 'disputed': return 'Покупатель открыл спор. Ответьте в споре и приложите доказательства передачи.';
+    case 'disputed': return 'Покупатель открыл спор. Ответьте в споре и приложите доказательства передачи — или верните деньги сами.';
+    case 'refunded': return 'Деньги вернулись покупателю на баланс. Сделка закрыта.';
     default: return '';
   }
 }
@@ -77,7 +78,7 @@ export default function OrderPage() {
   const [note, setNote] = useState<string | null>(null);
   const [disputeId, setDisputeId] = useState<string | null>(null);
 
-  const me = getUser();
+  const { ready, token, user: me } = useSession();
 
   const loadOrder = useCallback(async () => {
     setOrder(await apiFetch<Order>(`/orders/${id}`));
@@ -158,6 +159,28 @@ export default function OrderPage() {
     }
   }
 
+  /** Продавец возвращает деньги сам — после оплаты, после выдачи или в споре. */
+  async function refund() {
+    const reason = window.prompt(
+      'Вернуть всю сумму покупателю на баланс? Отменить возврат будет нельзя.\nПричину увидит покупатель — можно оставить пустой.',
+      '',
+    );
+    if (reason === null) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      await apiFetch(`/orders/${id}/refund`, {
+        method: 'POST',
+        body: JSON.stringify(reason.trim() ? { reason: reason.trim() } : {}),
+      });
+      await loadOrder();
+    } catch (e) {
+      setErr(apiErrorMessage(e, 'Не удалось вернуть деньги. Обновите страницу — возможно, статус заказа уже изменился.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function revealKey() {
     try {
       const r = await apiFetch<{ key: string }>(`/orders/${id}/key`);
@@ -167,7 +190,14 @@ export default function OrderPage() {
     }
   }
 
-  if (!getToken())
+  if (!ready)
+    return (
+      <div className="container" style={{ paddingTop: 48, maxWidth: 720 }} aria-busy="true" aria-label="Загружаем заказ">
+        <div className="skeleton" style={{ height: 32, width: '60%' }} />
+        <div className="skeleton" style={{ height: 120, marginTop: 24 }} />
+      </div>
+    );
+  if (!token)
     return (
       <div className="container" style={{ padding: '48px 16px', maxWidth: 720 }}>
         <div className="card" style={{ padding: 24 }}>
@@ -269,14 +299,17 @@ export default function OrderPage() {
               <AlertTriangle size={16} strokeWidth={1.75} /> Открыть спор
             </button>
           )}
-          {order.status === 'paid' && (
+          {order.status === 'paid' && role === 'buyer' && (
             <button className="btn ghost" disabled={busy} type="button"
               onClick={() => {
-                if (window.confirm(role === 'buyer'
-                  ? 'Отменить заказ? Деньги вернутся на ваш баланс.'
-                  : 'Отменить заказ? Деньги вернутся покупателю.')) act('cancel');
+                if (window.confirm('Отменить заказ? Деньги вернутся на ваш баланс.')) act('cancel');
               }}>
               Отменить заказ
+            </button>
+          )}
+          {role === 'seller' && ['paid', 'delivered', 'disputed'].includes(order.status) && (
+            <button className="btn ghost" disabled={busy} type="button" onClick={refund}>
+              Вернуть деньги покупателю
             </button>
           )}
         </div>

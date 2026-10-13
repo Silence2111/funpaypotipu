@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 /** Разделы кабинета — как у FunPay: продажи, лоты, финансы и настройки отдельно. */
 const LINKS = [
   { href: '/cabinet', label: 'Обзор' },
+  { href: '/cabinet/orders', label: 'Заказы' },
   { href: '/cabinet/lots', label: 'Мои лоты' },
   { href: '/cabinet/chats', label: 'Диалоги' },
   { href: '/cabinet/favorites', label: 'Избранное' },

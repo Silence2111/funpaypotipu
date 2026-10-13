@@ -23,6 +23,7 @@ import {
   topupAccountError,
   topupAmountError,
   topupQuote,
+  maskContacts,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
@@ -378,6 +379,44 @@ export class OrdersService {
     throw new ConflictException(`Нельзя отменить заказ в статусе ${order.status}`);
   }
 
+  /**
+   * Продавец возвращает деньги сам — как «Вернуть деньги» на FunPay: после
+   * оплаты, после выдачи и во время спора (спор тогда закрывается в пользу
+   * покупателя). Раньше вернуть можно было только до выдачи: продавец, который
+   * ошибся с товаром, был вынужден ждать арбитра.
+   */
+  async refundBySeller(orderId: string, sellerId: string, reason?: string) {
+    const order = await this.get(orderId);
+    if (order.sellerId !== sellerId) throw new ForbiddenException('Вернуть деньги может только продавец');
+    if (!['paid', 'delivered', 'disputed'].includes(order.status)) {
+      throw new ConflictException('Деньги по этому заказу уже не у площадки');
+    }
+    this.assertTransition(order.status, 'refunded');
+    const wasDisputed = order.status === 'disputed';
+
+    await this.ledger.post({
+      legs: refundToBalance(order.buyerId, order.amount),
+      currency: order.currency,
+      idempotencyKey: `refund:${order.id}`,
+      orderId: order.id,
+      refType: 'seller_refund',
+      refId: order.id,
+    });
+    const res = await this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
+    if (wasDisputed) {
+      await this.prisma.dispute.updateMany({
+        where: { orderId: order.id, status: { in: ['open', 'in_review'] } },
+        data: { status: 'resolved_buyer', resolutionNote: 'Продавец вернул деньги сам', resolvedAt: new Date() },
+      });
+    }
+    await this.notifications.notify(order.buyerId, 'order_refunded', { orderId: order.id, reason: 'seller_refund' });
+    // Причину пишет продавец, а системное сообщение не проходит фильтр чата:
+    // без маскирования через «причину» уводили бы сделку в мессенджер.
+    const why = reason?.trim() ? ` Причина: ${maskContacts(reason.trim()).masked}` : '';
+    await this.sys(order.id, `Продавец вернул деньги покупателю на баланс.${why}`);
+    return res;
+  }
+
   /** Продавец не выдал товар в срок → системный возврат покупателю (вызывается sweep). */
   async refundOverdue(orderId: string) {
     const order = await this.get(orderId);
@@ -461,10 +500,36 @@ export class OrdersService {
     return refunded;
   }
 
-  listMine(userId: string) {
-    return this.prisma.order.findMany({
-      where: { OR: [{ buyerId: userId }, { sellerId: userId }] },
+  /**
+   * Мои заказы: покупки, продажи или всё вместе, с фильтром по статусам.
+   * Вторая сторона и название — сразу в ответе: список «Продажи» без них
+   * превращался в столбик номеров.
+   */
+  async listMine(userId: string, q: { role?: 'buyer' | 'seller'; status?: OrderStatus[] } = {}) {
+    const where: Prisma.OrderWhereInput =
+      q.role === 'buyer'
+        ? { buyerId: userId }
+        : q.role === 'seller'
+          ? { sellerId: userId }
+          : { OR: [{ buyerId: userId }, { sellerId: userId }] };
+    if (q.status?.length) where.status = { in: q.status };
+    const rows = await this.prisma.order.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
+      take: 200,
+      include: {
+        buyer: { select: { profile: { select: { username: true } } } },
+        seller: { select: { profile: { select: { username: true } } } },
+      },
+    });
+    return rows.map(({ buyer, seller, ...o }) => {
+      const asBuyer = o.buyerId === userId;
+      return {
+        ...o,
+        role: asBuyer ? ('buyer' as const) : ('seller' as const),
+        counterparty: (asBuyer ? seller : buyer).profile?.username ?? null,
+        title: (o.listingSnapshot as { title?: string } | null)?.title ?? null,
+      };
     });
   }
 

@@ -2,14 +2,15 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { getToken, getUser } from '@/lib/session';
+import { useSession } from '@/lib/session';
 import { OrderChat } from '@/components/order-chat';
 
 export default function ChatPage() {
   const params = useParams<{ id: string }>();
-  const me = getUser();
+  const { ready, token, user: me } = useSession();
 
-  if (!getToken() || !me) {
+  if (!ready) return <div className="container" style={{ padding: 48 }} aria-busy="true" />;
+  if (!token || !me) {
     return (
       <div className="container" style={{ padding: 48 }}>
         <p className="muted">Войдите, чтобы открыть диалог.</p>

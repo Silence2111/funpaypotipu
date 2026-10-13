@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Paperclip, ShieldAlert } from 'lucide-react';
-import { apiFetch, getToken, getUser } from '@/lib/session';
+import { apiFetch, getToken, useSession } from '@/lib/session';
 import { uploadViaPresignedUrl } from '@/lib/upload';
 
 interface Attach { url: string; mime: string }
@@ -23,7 +23,7 @@ const STATUS_RU: Record<string, string> = {
 export default function DisputePage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
-  const me = getUser();
+  const { ready, token, user: me } = useSession();
   const [dispute, setDispute] = useState<Dispute | null>(null);
   const [messages, setMessages] = useState<DMsg[]>([]);
   const [draft, setDraft] = useState('');
@@ -74,7 +74,8 @@ export default function DisputePage() {
     }
   }
 
-  if (!getToken()) return <div className="container" style={{ padding: 48 }}><p className="muted">Войдите, чтобы открыть спор.</p></div>;
+  if (!ready) return <div className="container" style={{ padding: 48 }} aria-busy="true" />;
+  if (!token) return <div className="container" style={{ padding: 48 }}><p className="muted">Войдите, чтобы открыть спор.</p></div>;
   if (!dispute) return <div className="container" style={{ padding: 48 }}>{err ?? ''}</div>;
 
   return (

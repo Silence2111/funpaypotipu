@@ -19,7 +19,9 @@ export type OrderStatus = (typeof ORDER_STATUS)[number];
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   created: ['paid', 'cancelled', 'expired'],
   paid: ['delivered', 'disputed', 'refunded'],
-  delivered: ['completed', 'disputed'],
+  // delivered → refunded — только продавцом (OrdersService.refundBySeller):
+  // покупатель после выдачи идёт в спор, иначе «получил ключ — отменил заказ».
+  delivered: ['completed', 'disputed', 'refunded'],
   disputed: ['refunded', 'completed'],
   completed: [],
   refunded: [],

@@ -2,6 +2,7 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -18,13 +19,20 @@ const room = (conversationId: string) => `conv:${conversationId}`;
  * Масштабирование на несколько инстансов — через Redis-адаптер (позже).
  */
 @WebSocketGateway({ namespace: '/chat', cors: { origin: true, credentials: true } })
-export class ChatGateway implements OnGatewayConnection {
+export class ChatGateway implements OnGatewayConnection, OnGatewayInit {
   @WebSocketServer() server!: Server;
 
   constructor(
     private readonly tokens: TokenService,
     private readonly chat: ChatService,
   ) {}
+
+  /** Любое новое сообщение — из сокета, REST или системное — уходит в комнату диалога. */
+  afterInit(server: Server) {
+    this.chat.setPublisher((conversationId, message) =>
+      server.to(room(conversationId)).emit('message:new', message),
+    );
+  }
 
   handleConnection(client: Socket) {
     try {
@@ -56,8 +64,7 @@ export class ChatGateway implements OnGatewayConnection {
   ) {
     const userId = client.data.userId as string | undefined;
     if (!userId) return { error: 'unauthorized' };
-    const msg = await this.chat.sendMessage(data.conversationId, userId, data.body);
-    this.server.to(room(data.conversationId)).emit('message:new', msg);
-    return msg;
+    // В комнату сообщение отправляет сам ChatService (afterInit).
+    return this.chat.sendMessage(data.conversationId, userId, data.body);
   }
 }

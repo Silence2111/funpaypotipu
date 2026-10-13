@@ -28,8 +28,23 @@ export interface ChatMessageDto {
   createdAt: Date;
 }
 
+type Publish = (conversationId: string, message: ChatMessageDto) => void;
+
 @Injectable()
 export class ChatService {
+  /**
+   * Доставка нового сообщения в открытые чаты. Её подключает шлюз сокетов
+   * (ChatGateway.afterInit): сервис не знает о транспорте. Раньше в комнату
+   * уходили только сообщения, отправленные через сокет, — системные («Оплата
+   * поступила», «Продавец вернул деньги») и отправленные через REST
+   * появлялись у собеседника только после перезагрузки.
+   */
+  private publish: Publish = () => {};
+
+  setPublisher(fn: Publish) {
+    this.publish = fn;
+  }
+
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly notifications: NotificationsService,
@@ -73,7 +88,7 @@ export class ChatService {
     const recipientId = conv.buyerId === senderId ? conv.sellerId : conv.buyerId;
     await this.notifications.notify(recipientId, 'new_message', { conversationId });
 
-    return {
+    const dto: ChatMessageDto = {
       id: message.id,
       conversationId,
       senderId,
@@ -82,6 +97,8 @@ export class ChatService {
       attachments: [{ url: await this.storage.presignGet(key), mime }],
       createdAt: message.createdAt,
     };
+    this.publish(conversationId, dto);
+    return dto;
   }
 
   async listConversations(userId: string) {
@@ -215,7 +232,7 @@ export class ChatService {
     const recipientId = conv.buyerId === senderId ? conv.sellerId : conv.buyerId;
     await this.notifications.notify(recipientId, 'new_message', { conversationId });
 
-    return {
+    const dto: ChatMessageDto = {
       id: message.id,
       conversationId,
       senderId,
@@ -223,6 +240,8 @@ export class ChatService {
       isFlagged: flagged,
       createdAt: message.createdAt,
     };
+    this.publish(conversationId, dto);
+    return dto;
   }
 
   /** Системное сообщение о событии сделки в чат заказа (senderId = null). */
@@ -238,6 +257,14 @@ export class ChatService {
     await this.prisma.conversation.update({
       where: { id: conv.id },
       data: { lastMessageAt: message.createdAt },
+    });
+    this.publish(conv.id, {
+      id: message.id,
+      conversationId: conv.id,
+      senderId: null,
+      body: text,
+      isFlagged: false,
+      createdAt: message.createdAt,
     });
   }
 }

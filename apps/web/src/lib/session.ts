@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 const TOKEN_KEY = 'gm_access';
 const USER_KEY = 'gm_user';
@@ -89,4 +91,25 @@ export async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise
     throw new Error(text || `HTTP ${res.status}`);
   }
   return (res.status === 204 ? (null as T) : res.json()) as Promise<T>;
+}
+
+/**
+ * Сессия для отрисовки. Читать localStorage прямо в теле компонента нельзя:
+ * на сервере его нет, страница рисует «Войдите», а в браузере — содержимое,
+ * и React падает на гидратации. Пока `ready` ложно, обе стороны рисуют
+ * одинаковый скелет.
+ */
+export function useSession(): { ready: boolean; token: string | null; user: SessionUser | null } {
+  const [state, setState] = useState<{ ready: boolean; token: string | null; user: SessionUser | null }>({
+    ready: false,
+    token: null,
+    user: null,
+  });
+  useEffect(() => {
+    const sync = () => setState({ ready: true, token: getToken(), user: getUser() });
+    sync();
+    window.addEventListener('gm-auth', sync);
+    return () => window.removeEventListener('gm-auth', sync);
+  }, []);
+  return state;
 }

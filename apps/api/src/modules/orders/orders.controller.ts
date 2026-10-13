@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ORDER_STATUS, type OrderStatus } from '@gamemarket/shared';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -13,6 +14,18 @@ const createOrderSchema = z.object({
   topupAmount: z.string().regex(/^\d{1,12}$/).optional(),
 });
 type CreateOrderBody = z.infer<typeof createOrderSchema>;
+
+const mineQuery = z.object({
+  role: z.enum(['buyer', 'seller']).optional(),
+  // ?status=paid,delivered
+  status: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v.split(',').filter(Boolean) : []))
+    .pipe(z.array(z.enum(ORDER_STATUS))),
+});
+
+const refundSchema = z.object({ reason: z.string().max(300).optional() });
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
@@ -29,8 +42,11 @@ export class OrdersController {
   }
 
   @Get('mine')
-  mine(@CurrentUser() user: AuthUser) {
-    return this.orders.listMine(user.userId);
+  mine(
+    @CurrentUser() user: AuthUser,
+    @Query(new ZodValidationPipe(mineQuery)) q: { role?: 'buyer' | 'seller'; status: OrderStatus[] },
+  ) {
+    return this.orders.listMine(user.userId, q);
   }
 
   @Get(':id')
@@ -61,5 +77,15 @@ export class OrdersController {
   @Post(':id/cancel')
   cancel(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.orders.cancel(id, user.userId);
+  }
+
+  /** Продавец возвращает деньги покупателю — до подтверждения, в том числе после выдачи. */
+  @Post(':id/refund')
+  refund(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(refundSchema)) body: { reason?: string },
+  ) {
+    return this.orders.refundBySeller(id, user.userId, body.reason);
   }
 }

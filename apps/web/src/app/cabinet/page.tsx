@@ -76,7 +76,7 @@ export default function CabinetPage() {
         </div>
         {orders.length ? (
           <div className="grid" style={{ gap: 8 }}>
-            {orders.map((o) => (
+            {orders.slice(0, 5).map((o) => (
               <Link key={o.id} href={`/orders/${o.id}`} className="card link row"
                 style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
                 <span className="muted" style={{ fontSize: 14 }}>{o.publicNumber}</span>
@@ -88,6 +88,9 @@ export default function CabinetPage() {
                 </span>
               </Link>
             ))}
+            <Link href="/cabinet/orders" className="muted" style={{ fontSize: 14, minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
+              Все покупки и продажи →
+            </Link>
           </div>
         ) : (
           <div className="card flat row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>

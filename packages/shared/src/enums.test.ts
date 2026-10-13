@@ -39,6 +39,10 @@ describe('машина состояний заказа', () => {
     expect(canTransition('paid', 'cancelled')).toBe(false);
   });
 
+  it('после выдачи деньги можно вернуть — это делает продавец, не покупатель', () => {
+    expect(canTransition('delivered', 'refunded')).toBe(true);
+  });
+
   it('деньги не возвращают из неоплаченного', () => {
     expect(canTransition('created', 'refunded')).toBe(false);
   });
