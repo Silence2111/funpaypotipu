@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Gamepad2 } from 'lucide-react';
 import { AuthNav } from './auth-nav';
 import { ThemeToggle } from './theme-toggle';
+import { CurrencySwitch } from './currency-switch';
 
 export function SiteHeader() {
   return (
@@ -17,6 +18,7 @@ export function SiteHeader() {
           <Link href="/rules" className="hide-mobile">Гарантии</Link>
         </nav>
         <span className="spacer" />
+        <CurrencySwitch className="hide-mobile" />
         <ThemeToggle />
         <AuthNav />
       </div>

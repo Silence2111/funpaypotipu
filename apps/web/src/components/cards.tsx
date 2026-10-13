@@ -4,6 +4,7 @@ import { isDemoSeller } from '@gamemarket/shared';
 import type { Game, ListingCard } from '@/lib/api';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { tileFor } from '@/lib/tile';
+import { ApproxPrice } from './approx-price';
 
 export function ListingCardView({ listing }: { listing: ListingCard }) {
   const cover = listing.images?.[0];
@@ -52,7 +53,10 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
             <span className="faint" style={{ fontSize: 13 }}>{pack}</span>
           </span>
         ) : (
-          <span className="price">{formatListingPrice(listing)}</span>
+          <span>
+            <span className="price">{formatListingPrice(listing)}</span>{' '}
+            <ApproxPrice minor={listing.price} currency={listing.currency} />
+          </span>
         )}
         {listing.seller.profile && (
           <span className="row faint" style={{ fontSize: 13, gap: 4 }}>

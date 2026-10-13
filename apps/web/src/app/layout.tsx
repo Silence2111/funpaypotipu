@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { CurrencySwitch } from '@/components/currency-switch';
 import { SiteHeader } from '@/components/site-header';
 import './globals.css';
 
@@ -55,6 +56,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <a href="/contacts" className="footer-link">Контакты</a>
               <a href="/podbor" className="footer-link">Как мы меряем выдачу</a>
             </nav>
+            {/* На телефоне в шапке нет места — валюта цен здесь, для всех ширин */}
+            <CurrencySwitch label="Валюта цен" />
           </div>
         </footer>
       </body>

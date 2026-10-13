@@ -44,6 +44,8 @@ export function FeesSection() {
   const [promoType, setPromoType] = useState<'percent' | 'fixed'>('fixed');
   const [promoValue, setPromoValue] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [usd, setUsd] = useState('');
+  const [eur, setEur] = useState('');
 
   const load = useCallback(async () => {
     setRules(await apiFetch<Rule[]>('/admin/fee-rules').catch(() => []));
@@ -53,7 +55,29 @@ export function FeesSection() {
   useEffect(() => {
     void load();
     apiFetch<Game[]>('/catalog/games').then(setGames).catch(() => {});
+    apiFetch<{ rates: { USD: number; EUR: number } | null }>('/fees/public')
+      .then((p) => {
+        if (p.rates) {
+          setUsd(String(p.rates.USD));
+          setEur(String(p.rates.EUR));
+        }
+      })
+      .catch(() => {});
   }, [load]);
+
+  function saveRates(e: FormEvent) {
+    e.preventDefault();
+    const USD = parseFloat(usd.replace(',', '.'));
+    const EUR = parseFloat(eur.replace(',', '.'));
+    if (!(USD >= 10 && USD <= 1000 && EUR >= 10 && EUR <= 1000)) {
+      return setMsg({ ok: false, text: 'Курс — рублей за доллар и за евро, от 10 до 1 000' });
+    }
+    void run(
+      () => apiFetch('/admin/rates', { method: 'PUT', body: JSON.stringify({ USD, EUR }) }),
+      'Курсы сохранены: цены на сайте показываются и в долларах, и в евро.',
+      'Не удалось сохранить курсы.',
+    );
+  }
 
   useEffect(() => {
     setCategoryId('');
@@ -173,6 +197,20 @@ export function FeesSection() {
           <input className="input" inputMode="decimal" style={{ width: 110 }} placeholder="%, напр. 5" value={newPct}
             onChange={(e) => setNewPct(e.target.value)} aria-label="Комиссия раздела, %" />
           <button className="btn secondary" type="submit">Своя ставка раздела</button>
+        </form>
+      </div>
+
+      <div>
+        <h2 className="h2" style={{ fontSize: 18, marginBottom: 6 }}>Курсы для показа цен</h2>
+        <p className="muted" style={{ margin: '0 0 12px', fontSize: 14 }}>
+          Покупатель может смотреть цены в долларах и евро — примерно, по этому курсу. Оплата всегда в рублях.
+        </p>
+        <form onSubmit={saveRates} className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <input className="input" inputMode="decimal" style={{ maxWidth: 160 }} placeholder="₽ за $1" value={usd}
+            onChange={(e) => setUsd(e.target.value)} aria-label="Рублей за доллар" />
+          <input className="input" inputMode="decimal" style={{ maxWidth: 160 }} placeholder="₽ за €1" value={eur}
+            onChange={(e) => setEur(e.target.value)} aria-label="Рублей за евро" />
+          <button className="btn secondary" type="submit">Сохранить курсы</button>
         </form>
       </div>
 

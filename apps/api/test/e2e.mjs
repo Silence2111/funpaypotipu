@@ -475,6 +475,18 @@ async function scenarioPromotion(rnd) {
   check('Истёкшее продвижение обнулено', after.promotedUntil === null);
 }
 
+async function scenarioRates(rnd) {
+  console.log('\n— Курсы для показа цен —');
+  const admin = await register('rta', rnd);
+  const user = await register('rtu', rnd);
+  await grant(admin.id, 'admin');
+  check('Курс задаёт только администратор', (await j('/admin/rates', { method: 'PUT', token: user.token, body: JSON.stringify({ USD: 92, EUR: 100 }) })).status === 403);
+  check('Опечатка на порядок не проходит', (await j('/admin/rates', { method: 'PUT', token: admin.token, body: JSON.stringify({ USD: 9.2, EUR: 100 }) })).status === 400);
+  await j('/admin/rates', { method: 'PUT', token: admin.token, body: JSON.stringify({ USD: 92.5, EUR: 100.1 }) });
+  const pub = await j('/fees/public');
+  check('Курсы видны витрине', pub.body.rates?.USD === 92.5 && pub.body.rates?.EUR === 100.1, JSON.stringify(pub.body.rates));
+}
+
 async function scenarioPayout(rnd) {
   console.log('\n— Выплаты (finance) —');
   const seller = await register('pys', rnd);
@@ -520,6 +532,7 @@ async function scenarioPayout(rnd) {
   await scenarioCatalog(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
+  await scenarioRates(rnd);
   await scenarioPayout(rnd);
 
   const passed = results.filter(Boolean).length;

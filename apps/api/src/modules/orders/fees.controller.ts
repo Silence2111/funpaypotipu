@@ -56,6 +56,8 @@ export class FeesController {
       paymentsDemo: (process.env.PAYMENT_PROVIDER ?? 'mock') === 'mock',
       // Цена суток продвижения лота, копейки строкой.
       promoDayPrice: PROMO_DAY_PRICE.toString(),
+      // Курсы для показа «≈ 10,84 $» рядом с ценой; оплата — в рублях.
+      rates: await this.fees.displayRates(),
       withdrawal: WITHDRAWAL_METHODS.map((m) => ({
         key: m.key,
         label: m.label,

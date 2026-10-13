@@ -3,6 +3,8 @@ import { Prisma, PrismaClient, type FeeScope } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import { AuditService } from '../access/audit.service';
 
+export const DISPLAY_RATES_KEY = 'display_rates';
+
 export interface FeeRuleInput {
   scope: FeeScope;
   scopeRef?: string | null;
@@ -82,6 +84,22 @@ export class AdminService {
     await this.prisma.userRole.deleteMany({ where: { userId, roleId: role.id } });
     await this.audit.log({ actorId, action: 'role.revoke', entityType: 'user', entityId: userId, after: { roleKey } });
     return { ok: true };
+  }
+
+  // ── Курсы для показа цен ──
+  /**
+   * Сколько рублей в долларе и евро — только для показа «≈ 10,84 $» рядом с
+   * ценой. Оплата всегда в рублях, поэтому курс задаёт площадка, а не биржа.
+   */
+  async setDisplayRates(actorId: string, rates: { USD: number; EUR: number }) {
+    const value = { USD: rates.USD, EUR: rates.EUR, setBy: actorId, setAt: new Date().toISOString() };
+    await this.prisma.systemSetting.upsert({
+      where: { key: DISPLAY_RATES_KEY },
+      update: { value },
+      create: { key: DISPLAY_RATES_KEY, value },
+    });
+    await this.audit.log({ actorId, action: 'rates.set', entityType: 'setting', entityId: DISPLAY_RATES_KEY, after: value });
+    return value;
   }
 
   listRoles() {

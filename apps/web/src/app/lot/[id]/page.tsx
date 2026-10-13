@@ -15,6 +15,7 @@ import { KeysManager } from '@/components/keys-manager';
 import { SellerReviews } from '@/components/seller-reviews';
 import { OwnerLotActions } from '@/components/owner-lot-actions';
 import { ReportButton } from '@/components/report-button';
+import { ApproxPrice } from '@/components/approx-price';
 
 export async function generateMetadata({
   params,
@@ -245,7 +246,8 @@ export default async function ListingPage({
             {pack ? formatPrice(listing.price, listing.currency) : formatListingPrice(listing)}
             {pack && (
               <span className="faint" style={{ fontSize: 15, fontWeight: 500, letterSpacing: 0 }}> {pack}</span>
-            )}
+            )}{' '}
+            <ApproxPrice minor={listing.price} currency={listing.currency} style={{ fontSize: 15 }} />
           </div>
           {topup && (
             <p className="hint" style={{ marginBottom: 16 }}>

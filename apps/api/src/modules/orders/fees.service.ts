@@ -14,6 +14,13 @@ import { PRISMA } from '../../prisma/prisma.module';
 export class FeesService {
   constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
 
+  /** Курсы для показа цен в долларах и евро (рублей за единицу) или null, если не заданы. */
+  async displayRates(): Promise<{ USD: number; EUR: number; setAt: string } | null> {
+    const row = await this.prisma.systemSetting.findUnique({ where: { key: 'display_rates' } });
+    const v = row?.value as { USD?: number; EUR?: number; setAt?: string } | undefined;
+    return v && v.USD && v.EUR ? { USD: v.USD, EUR: v.EUR, setAt: v.setAt ?? '' } : null;
+  }
+
   /**
    * Комиссия сделки. Если передан sellerId — комиссия ПРОДАВЦА уменьшается на
    * скидку его уровня (наш дифференциатор против плоских 10–20% у конкурентов).

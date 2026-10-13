@@ -10,7 +10,7 @@ import { cashbackPct, WITHDRAWAL_METHODS } from '@gamemarket/shared';
  */
 
 const feesStub = (rules: Array<{ feeBuyerPct: number; feeSellerPct: number }>) =>
-  ({ activeRules: async () => rules }) as never;
+  ({ activeRules: async () => rules, displayRates: async () => null }) as never;
 
 describe('публичный прайс площадки', () => {
   it('ставки берутся из активных правил, а не из разметки', async () => {
@@ -78,5 +78,14 @@ describe('публичный прайс площадки', () => {
     expect((await c.publicPricing()).autoConfirmHours).toBe(48);
     if (prev === undefined) delete process.env.ORDER_AUTO_CONFIRM_TTL_MS;
     else process.env.ORDER_AUTO_CONFIRM_TTL_MS = prev;
+  });
+
+  it('курсы для показа цен — те, что задал администратор, или их нет', async () => {
+    const withRates = new FeesController({
+      activeRules: async () => [],
+      displayRates: async () => ({ USD: 92.5, EUR: 100.1, setAt: '2026-10-13' }),
+    } as never);
+    expect((await withRates.publicPricing()).rates).toMatchObject({ USD: 92.5, EUR: 100.1 });
+    expect((await new FeesController(feesStub([])).publicPricing()).rates).toBeNull();
   });
 });
