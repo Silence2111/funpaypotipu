@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { markupLabel, topupQuote, topupTermsError } from '@gamemarket/shared/topup';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 
@@ -31,6 +32,11 @@ export default function NewListingPage() {
   // Ошибки у конкретных полей, показываются после ухода из поля или отправки
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const touch = (k: string) => setTouched((t) => ({ ...t, [k]: true }));
+  // Пополнение на сумму покупателя: продавец задаёт наценку и границы, а не цену.
+  const [byAmount, setByAmount] = useState(false);
+  const [markup, setMarkup] = useState('');
+  const [minRub, setMinRub] = useState('100');
+  const [maxRub, setMaxRub] = useState('15000');
 
   useEffect(() => {
     if (!getToken()) {
@@ -40,21 +46,42 @@ export default function NewListingPage() {
     apiFetch<Game[]>('/catalog/games').then(setGames).catch(() => {});
   }, [router]);
 
+  const selected = categories.find((c) => c.id === categoryId);
+  const variable = byAmount && selected?.fulfillmentType === 'provider';
+  const markupPct = parseFloat(markup.replace(',', '.'));
+  const terms =
+    /^\d{1,6}$/.test(minRub) && /^\d{1,6}$/.test(maxRub) && Number.isFinite(markupPct)
+      ? { markupBps: Math.round(markupPct * 100), min: BigInt(minRub) * 100n, max: BigInt(maxRub) * 100n }
+      : null;
+  const termsError = terms ? topupTermsError(terms) : 'Укажите наценку и границы суммы целыми рублями';
+  // Превью считаем на понятном примере — 1 000 ₽, если он в границах, иначе на минимуме.
+  const example =
+    terms && !termsError
+      ? topupQuote(terms.min <= 100_000n && terms.max >= 100_000n ? 100_000n : terms.min, terms.markupBps)
+      : null;
+
+  // Сумма для превью — число, а не объект: объект пересоздаётся каждый
+  // рендер, и эффект с ним в зависимостях запрашивал бы превью по кругу.
+  const previewMinor = variable
+    ? example
+      ? Number(example.price)
+      : 0
+    : Math.round(parseFloat(price.replace(',', '.')) * 100);
+
   // Живое превью комиссии/выплаты с учётом уровня продавца.
   useEffect(() => {
-    const rub = parseFloat(price.replace(',', '.'));
-    if (!categoryId || !(rub > 0)) {
+    if (!categoryId || !(previewMinor > 0)) {
       setQuote(null);
       return;
     }
     const t = setTimeout(() => {
-      const p = new URLSearchParams({ categoryId, price: String(Math.round(rub * 100)), currency: 'RUB' });
+      const p = new URLSearchParams({ categoryId, price: String(previewMinor), currency: 'RUB' });
       apiFetch<{ feeSeller: string; sellerPayout: string; level: { label: string } | null }>(`/fees/quote?${p}`)
         .then(setQuote)
         .catch(() => setQuote(null));
     }, 400);
     return () => clearTimeout(t);
-  }, [categoryId, price]);
+  }, [categoryId, previewMinor]);
 
   // Атрибуты выбранной категории (характеристики/фильтры как на FunPay).
   useEffect(() => {
@@ -108,14 +135,15 @@ export default function NewListingPage() {
     category: categoryId ? null : 'Выберите, что продаёте',
     title: title.trim().length >= 3 ? null : 'Название — от 3 знаков: его видят в каталоге',
     description: description.trim() ? null : 'Опишите, что получит покупатель и как передаёте',
-    price: rubValue > 0 ? null : 'Цена в рублях, например 490',
+    price: variable ? null : rubValue > 0 ? null : 'Цена в рублях, например 490',
+    topup: variable ? termsError : null,
   };
   const showErr = (k: string) => (touched[k] ? fieldErrors[k] : null);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setErr(null);
-    setTouched({ game: true, category: true, title: true, description: true, price: true });
+    setTouched({ game: true, category: true, title: true, description: true, price: true, topup: true });
     if (Object.values(fieldErrors).some(Boolean)) {
       setErr('Лот не опубликован — поправьте отмеченные поля.');
       return;
@@ -139,10 +167,14 @@ export default function NewListingPage() {
           categoryId,
           title: title.trim(),
           description: description.trim(),
-          price: String(Math.round(rubValue * 100)),
+          // У лота на сумму покупателя цену («от») сервер считает из условий сам.
+          price: variable && terms ? topupQuote(terms.min, terms.markupBps).price.toString() : String(Math.round(rubValue * 100)),
           currency: 'RUB',
           attributes: cleanAttrs,
           images: images.map((i) => i.key),
+          ...(variable && terms
+            ? { topup: { markupBps: terms.markupBps, min: terms.min.toString(), max: terms.max.toString() } }
+            : {}),
         }),
       });
       router.push(`/lot/${created.id}?created=1`);
@@ -152,7 +184,7 @@ export default function NewListingPage() {
     }
   }
 
-  const selectedCategory = categories.find((c) => c.id === categoryId);
+  const selectedCategory = selected;
 
   return (
     <div className="container" style={{ maxWidth: 600, paddingTop: 40 }}>
@@ -233,15 +265,64 @@ export default function NewListingPage() {
           {showErr('description') && <p className="field-error">{showErr('description')}</p>}
         </div>
 
-        <div className="field">
-          <label className="label" htmlFor="price">Цена, ₽</label>
-          <input id="price" className="input" placeholder="490" inputMode="decimal" value={price} style={{ maxWidth: 220 }}
-            onChange={(e) => setPrice(e.target.value)} onBlur={() => touch('price')} aria-invalid={!!showErr('price')} />
-          {showErr('price') && <p className="field-error">{showErr('price')}</p>}
-        </div>
+        {selectedCategory?.fulfillmentType === 'provider' && (
+          <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+            <legend className="label" style={{ marginBottom: 6, padding: 0 }}>Как продаёте</legend>
+            {[
+              { v: false, t: 'Фиксированная цена', d: 'Один номинал за одну цену, например «3280 кристаллов»' },
+              { v: true, t: 'На сумму покупателя', d: 'Покупатель вводит сумму, вы задаёте наценку и границы — как пополнение Steam' },
+            ].map((o) => (
+              <label key={o.t} className="row" style={{ gap: 10, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>
+                <input type="radio" name="pricing" checked={byAmount === o.v} onChange={() => setByAmount(o.v)}
+                  style={{ marginTop: 3, width: 18, height: 18, accentColor: 'var(--accent)' }} />
+                <span>
+                  <span style={{ fontWeight: 600, fontSize: 15 }}>{o.t}</span>
+                  <span className="hint" style={{ display: 'block' }}>{o.d}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+
+        {variable ? (
+          <div className="field">
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+              {[
+                { id: 'markup', label: 'Наценка, %', value: markup, set: setMarkup, ph: '8', mode: 'decimal' as const },
+                { id: 'min', label: 'От, ₽', value: minRub, set: setMinRub, ph: '100', mode: 'numeric' as const },
+                { id: 'max', label: 'До, ₽', value: maxRub, set: setMaxRub, ph: '15000', mode: 'numeric' as const },
+              ].map((f) => (
+                <div key={f.id} className="field">
+                  <label className="label" htmlFor={`topup-${f.id}`}>{f.label}</label>
+                  <input id={`topup-${f.id}`} className="input" inputMode={f.mode} placeholder={f.ph} value={f.value}
+                    onChange={(e) => f.set(e.target.value)} onBlur={() => touch('topup')}
+                    aria-invalid={!!showErr('topup')} />
+                </div>
+              ))}
+            </div>
+            {showErr('topup') ? (
+              <p className="field-error">{showErr('topup')}</p>
+            ) : (
+              <p className="hint">Покупатель вводит сумму в этих границах и платит её плюс вашу наценку.</p>
+            )}
+          </div>
+        ) : (
+          <div className="field">
+            <label className="label" htmlFor="price">Цена, ₽</label>
+            <input id="price" className="input" placeholder="490" inputMode="decimal" value={price} style={{ maxWidth: 220 }}
+              onChange={(e) => setPrice(e.target.value)} onBlur={() => touch('price')} aria-invalid={!!showErr('price')} />
+            {showErr('price') && <p className="field-error">{showErr('price')}</p>}
+          </div>
+        )}
 
         {quote ? (
           <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
+            {variable && example && terms && (
+              <p className="muted" style={{ margin: '0 0 8px', fontSize: 14 }}>
+                Покупатель пополняет {(Number(example.nominal) / 100).toLocaleString('ru-RU')} ₽ и платит{' '}
+                {(Number(example.price) / 100).toLocaleString('ru-RU')} ₽ с наценкой {markupLabel(terms.markupBps)}
+              </p>
+            )}
             <div className="row" style={{ justifyContent: 'space-between', fontSize: 14 }}>
               <span className="muted">Комиссия площадки</span>
               <span>−{(Number(quote.feeSeller) / 100).toLocaleString('ru-RU')} ₽</span>
