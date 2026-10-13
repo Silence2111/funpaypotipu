@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -11,6 +11,12 @@ const createReviewSchema = z.object({
   comment: z.string().max(2000).optional(),
 });
 const replySchema = z.object({ text: z.string().min(1).max(2000) });
+const updateReviewSchema = z
+  .object({
+    rating: z.number().int().min(1).max(5).optional(),
+    comment: z.string().max(2000).nullable().optional(),
+  })
+  .refine((v) => v.rating !== undefined || v.comment !== undefined, 'Нечего менять');
 
 @Controller('reviews')
 export class ReviewsController {
@@ -29,6 +35,28 @@ export class ReviewsController {
     body: { orderId: string; rating: number; comment?: string },
   ) {
     return this.reviews.create(body.orderId, user.userId, body.rating, body.comment);
+  }
+
+  @Get('by-order/:orderId')
+  @UseGuards(JwtAuthGuard)
+  byOrder(@CurrentUser() user: AuthUser, @Param('orderId') orderId: string) {
+    return this.reviews.forOrder(orderId, user.userId);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  update(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateReviewSchema)) body: { rating?: number; comment?: string | null },
+  ) {
+    return this.reviews.update(id, user.userId, body);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.reviews.remove(id, user.userId);
   }
 
   @Post(':id/reply')

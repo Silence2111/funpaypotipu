@@ -600,6 +600,9 @@ model Review {
   comment    String?
   sellerReply String? @map("seller_reply")
   createdAt  DateTime @default(now()) @map("created_at")
+  // Покупатель может поправить отзыв в первые 14 дней — витрина пишет «изменён».
+  editedAt   DateTime? @map("edited_at")
+  repliedAt  DateTime? @map("replied_at")
 
   order  Order @relation(fields: [orderId], references: [id])
   author User  @relation("ReviewAuthor", fields: [authorId], references: [id])

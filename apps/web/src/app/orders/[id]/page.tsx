@@ -3,11 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ShieldCheck, KeyRound, Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, KeyRound, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { apiFetch, getToken, useSession } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
 import { apiErrorMessage } from '@/lib/errors';
 import { OrderChat } from '@/components/order-chat';
+import { OrderReview } from '@/components/order-review';
 
 interface Order {
   id: string; publicNumber: string; status: string; amount: string; currency: string;
@@ -72,10 +73,6 @@ export default function OrderPage() {
   const [busy, setBusy] = useState(false);
   const [showDispute, setShowDispute] = useState(false);
   const [reason, setReason] = useState('');
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState('');
-  const [reviewDone, setReviewDone] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
   const [disputeId, setDisputeId] = useState<string | null>(null);
 
   const { ready, token, user: me } = useSession();
@@ -133,27 +130,6 @@ export default function OrderPage() {
       router.push(`/disputes/${created.id}`);
     } catch (e) {
       setErr(apiErrorMessage(e, 'Не удалось открыть спор. Попробуйте ещё раз.'));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function submitReview() {
-    if (rating < 1) {
-      setErr('Поставьте оценку');
-      return;
-    }
-    setErr(null);
-    setBusy(true);
-    try {
-      await apiFetch('/reviews', {
-        method: 'POST',
-        body: JSON.stringify({ orderId: id, rating, comment: comment.trim() || undefined }),
-      });
-      setReviewDone(true);
-    } catch {
-      setNote('Отзыв по этому заказу уже оставлен.');
-      setReviewDone(true);
     } finally {
       setBusy(false);
     }
@@ -343,26 +319,7 @@ export default function OrderPage() {
         </Link>
       )}
 
-      {role === 'buyer' && order.status === 'completed' && !reviewDone && (
-        <div className="card" style={{ marginTop: 16, padding: 20 }}>
-          <div className="label" style={{ marginBottom: 8 }}>Оцените продавца</div>
-          <div className="row" style={{ gap: 4 }} role="radiogroup" aria-label="Оценка">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button key={n} type="button" onClick={() => setRating(n)} aria-label={`${n} из 5`} aria-pressed={n === rating}
-                style={{ background: 'none', border: 0, cursor: 'pointer', padding: 10, lineHeight: 0 }}>
-                <Star size={24} strokeWidth={1.75}
-                  fill={n <= rating ? '#E8A317' : 'none'} color={n <= rating ? '#E8A317' : 'var(--fg-faint)'} />
-              </button>
-            ))}
-          </div>
-          <textarea className="input" rows={2} value={comment} onChange={(e) => setComment(e.target.value)}
-            placeholder="Что понравилось, что нет — необязательно" style={{ resize: 'vertical', marginTop: 10 }} />
-          <button className="btn" onClick={submitReview} disabled={busy} type="button" style={{ marginTop: 12 }}>
-            Оставить отзыв
-          </button>
-        </div>
-      )}
-      {reviewDone && <div className="alert success" style={{ marginTop: 16 }}>{note ?? 'Спасибо, отзыв опубликован.'}</div>}
+      {order.status === 'completed' && <OrderReview orderId={id} role={role} />}
 
       {err && <div className="alert error" role="alert" style={{ marginTop: 16 }}>{err}</div>}
 
