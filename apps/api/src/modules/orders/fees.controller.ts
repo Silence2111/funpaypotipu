@@ -9,6 +9,7 @@ import {
   cashbackPct,
 } from '@gamemarket/shared';
 import { FeesService } from './fees.service';
+import { PROMO_DAY_PRICE } from '../listings/listings.service';
 
 const LEVEL_DISCOUNTS = Object.values(SELLER_LEVELS).map((l) => l.feeDiscountBps);
 
@@ -53,6 +54,8 @@ export class FeesController {
       // Заглушка платежей подтверждает оплату, не приняв денег. Витрина
       // обязана сказать об этом у кнопки «Купить», а не молча «продать».
       paymentsDemo: (process.env.PAYMENT_PROVIDER ?? 'mock') === 'mock',
+      // Цена суток продвижения лота, копейки строкой.
+      promoDayPrice: PROMO_DAY_PRICE.toString(),
       withdrawal: WITHDRAWAL_METHODS.map((m) => ({
         key: m.key,
         label: m.label,

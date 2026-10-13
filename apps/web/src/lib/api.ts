@@ -57,6 +57,8 @@ export interface ListingCard {
   minQty?: number;
   /** Наличие; null — без ограничения. У лота ключей — число ключей на складе. */
   stock?: number | null;
+  /** Платное продвижение до этого времени. */
+  promotedUntil?: string | null;
   seller: { profile: { username: string; ratingAvg: number; onlineAt?: string | null } | null };
   category: { slug: string; title: string };
   game: { slug: string; title: string };
@@ -181,6 +183,8 @@ export interface PublicPricing {
   fulfillHours?: number;
   /** Платёжка — заглушка: оплата на стенде демонстрационная. */
   paymentsDemo?: boolean;
+  /** Цена суток продвижения лота, копейки. */
+  promoDayPrice?: string;
   withdrawal: Array<{ key: string; label: string; feePct: number; minFeeMinor: string }>;
 }
 

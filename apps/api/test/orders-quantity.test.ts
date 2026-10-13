@@ -107,7 +107,7 @@ function setup(listing: Record<string, unknown>, order: Record<string, unknown> 
     },
     $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma)),
   };
-  const ledger = { post: vi.fn(async () => undefined), balanceOf: vi.fn(async () => 10_000_000n) };
+  const ledger = { post: vi.fn(async () => undefined), balanceOf: vi.fn(async () => 10_000_000n), assertNotOverdrawn: vi.fn(async () => undefined) };
   const fees = { computeForCategory: vi.fn(async (base: bigint) => computeFees(base, 0, 0.1)) };
   const notifications = { notify: vi.fn(async () => undefined) };
   const chat = { postSystem: vi.fn(async (_id: string, text: string) => state.sys.push(text)) };

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient } from '@gamemarket/db';
 import { assertBalanced, balanceDelta, type AccountRef, type PostingLeg } from '@gamemarket/shared';
@@ -63,6 +63,19 @@ export class LedgerService {
         data: { balance: { increment: balanceDelta(leg) } },
       });
     }
+  }
+
+  /**
+   * Внутри транзакции списания: баланс не ушёл в минус. Два параллельных
+   * списания обновляют одну строку счёта по очереди — второе увидит итог
+   * первого и откатится, вместо того чтобы увести баланс ниже нуля.
+   */
+  async assertNotOverdrawn(tx: Tx, userId: string, currency: string): Promise<void> {
+    const acc = await tx.ledgerAccount.findFirst({
+      where: { ownerType: 'user', ownerId: userId, kind: 'available', currency },
+      select: { balance: true },
+    });
+    if (acc && acc.balance < 0n) throw new BadRequestException('Недостаточно средств на балансе');
   }
 
   async balanceOf(userId: string, currency: string): Promise<bigint> {

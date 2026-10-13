@@ -93,6 +93,18 @@ export class ListingsController {
     return this.listings.create(user.userId, body);
   }
 
+  /** Продвинуть лот за деньги с баланса: 1, 3 или 7 суток. */
+  @Post(':id/promote')
+  @UseGuards(JwtAuthGuard)
+  async promote(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(z.object({ days: z.union([z.literal(1), z.literal(3), z.literal(7)]) }))) body: { days: number },
+  ) {
+    await this.account.assertCanTrade(user.userId);
+    return this.listings.promote(user.userId, id, body.days);
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   async update(

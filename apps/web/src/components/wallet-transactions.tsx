@@ -14,15 +14,24 @@ interface Tx {
   createdAt: string;
 }
 
+/** Подписи операций — по refType проводок; неизвестное — «Операция», а не сырой ключ. */
 const REF_RU: Record<string, string> = {
   balance_topup: 'Пополнение баланса',
   order_payment_balance: 'Оплата заказа с баланса',
   order_payment: 'Оплата заказа',
-  escrow_release: 'Зачисление за продажу',
+  order_release: 'Зачисление за продажу',
+  dispute_release: 'Зачисление по решению спора',
   cashback: 'Кэшбэк за покупку',
-  refund: 'Возврат',
-  payout: 'Вывод средств',
+  order_refund: 'Возврат: заказ отменён',
+  order_refund_overdue: 'Возврат: продавец не выдал товар',
+  seller_refund: 'Возврат от продавца',
+  dispute_refund: 'Возврат по решению спора',
+  oos_refund: 'Возврат: товар закончился',
+  late_payment: 'Повторная оплата заказа — на баланс',
+  promotion: 'Продвижение лота',
   payout_hold: 'Заявка на вывод',
+  payout_reverse: 'Заявка на вывод отклонена',
+  payout_settle: 'Вывод средств',
 };
 
 export function WalletTransactions() {
@@ -46,7 +55,7 @@ export function WalletTransactions() {
           <div key={t.id} className="row"
             style={{ justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
             <span style={{ fontSize: 14 }}>
-              {REF_RU[t.refType ?? ''] ?? t.refType ?? 'Операция'}
+              {REF_RU[t.refType ?? ''] ?? 'Операция'}
               <span className="faint" style={{ fontSize: 12, marginLeft: 8 }}>
                 {new Date(t.createdAt).toLocaleDateString('ru-RU')}
               </span>

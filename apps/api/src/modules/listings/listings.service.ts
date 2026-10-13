@@ -8,6 +8,9 @@ import {
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type FulfillmentType } from '@gamemarket/db';
 import {
+  chargeFromBalance,
+  promoCost,
+  promoUntil,
   qtyTermsError,
   topupQuote,
   topupTermsError,
@@ -20,9 +23,12 @@ import {
 import { PRISMA } from '../../prisma/prisma.module';
 import { SearchService } from '../search/search.service';
 import { StorageService } from '../storage/storage.service';
+import { LedgerService } from '../ledger/ledger.service';
 
 const ASSET_BASE = process.env.PUBLIC_ASSET_BASE ?? '';
 const BOOST_MS = 24 * 3600 * 1000; // лот держится в топе сутки
+// Цена суток продвижения, копейки. Решение площадки (ПЛАН.md), не код.
+export const PROMO_DAY_PRICE = BigInt(process.env.PROMO_DAY_PRICE ?? 9_900);
 
 /** Кулдаун поднятия по заслугам: чем больше продаж, тем чаще (как на FunPay). */
 const bumpCooldownMs = (sales: number) => (sales >= 50 ? 1 : sales >= 10 ? 2 : 4) * 3600 * 1000;
@@ -40,6 +46,8 @@ const cardSelect = {
   status: true,
   createdAt: true,
   boostUntil: true,
+  // Платное продвижение: карточка помечает его, выдача ставит выше.
+  promotedUntil: true,
   fulfillmentType: true,
   // Лот «на сумму покупателя»: карточка пишет «от», страница лота — форму суммы.
   topupMarkupBps: true,
@@ -61,7 +69,44 @@ export class ListingsService {
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly search: SearchService,
     private readonly storage: StorageService,
+    private readonly ledger: LedgerService,
   ) {}
+
+  /**
+   * Продвижение с баланса: лот выше в своём разделе на оплаченный срок.
+   * Списание и новый срок — одной транзакцией, баланс не уходит в минус.
+   */
+  async promote(sellerId: string, listingId: string, days: number) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { sellerId: true, status: true, currency: true, promotedUntil: true, title: true },
+    });
+    if (!listing) throw new NotFoundException('Лот не найден');
+    if (listing.sellerId !== sellerId) throw new ForbiddenException('Это не ваш лот');
+    if (listing.status !== 'active') throw new BadRequestException('Продвигать можно только лот в продаже');
+
+    const cost = promoCost(PROMO_DAY_PRICE, days);
+    const balance = await this.ledger.balanceOf(sellerId, listing.currency);
+    if (balance < cost) {
+      throw new BadRequestException(`На балансе не хватает ${((Number(cost - balance)) / 100).toLocaleString('ru-RU')} ₽ — пополните баланс`);
+    }
+    const until = promoUntil(listing.promotedUntil, days);
+    await this.prisma.$transaction(async (tx) => {
+      await this.ledger.post(
+        {
+          legs: chargeFromBalance(sellerId, cost),
+          currency: listing.currency,
+          idempotencyKey: `promotion:${listingId}:${randomUUID()}`,
+          refType: 'promotion',
+          refId: listingId,
+        },
+        tx,
+      );
+      await this.ledger.assertNotOverdrawn(tx, sellerId, listing.currency);
+      await tx.listing.update({ where: { id: listingId }, data: { promotedUntil: until } });
+    });
+    return { promotedUntil: until, charged: cost.toString() };
+  }
 
   /** Загрузка изображения лота через API (MinIO приватный; отдача через /assets). */
   async uploadImage(sellerId: string, file: { buffer: Buffer; mimetype: string; size: number }) {
@@ -161,7 +206,12 @@ export class ListingsService {
           ? [{ price: 'desc' }]
           : query.sort === 'popular'
             ? [{ salesCount: 'desc' }, { createdAt: 'desc' }]
-            : [{ boostUntil: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }];
+            : [
+                // Оплаченное продвижение — выше всех; истёкшее обнуляет фоновая задача.
+                { promotedUntil: { sort: 'desc', nulls: 'last' } },
+                { boostUntil: { sort: 'desc', nulls: 'last' } },
+                { createdAt: 'desc' },
+              ];
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.listing.findMany({

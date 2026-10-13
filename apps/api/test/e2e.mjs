@@ -441,6 +441,40 @@ async function scenarioBuyerData(rnd) {
   check('Продавец убрал поля — покупать без них', (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) })).status === 201);
 }
 
+async function scenarioPromotion(rnd) {
+  console.log('\n— Продвижение с баланса —');
+  const seller = await register('prs', rnd);
+  const g = await j('/catalog/games/cs2');
+  const skins = g.body.categories.find((c) => c.slug === 'skins');
+  const lot = await createListing(seller.token, 'skins', '77700');
+  const poor = await j(`/listings/${lot}/promote`, { method: 'POST', token: seller.token, body: JSON.stringify({ days: 1 }) });
+  check('Без денег на балансе продвинуть нельзя', poor.status === 400 && /не хватает/.test(poor.body.message), poor.body.message);
+
+  const top = await j('/payments/topup', { method: 'POST', token: seller.token, body: JSON.stringify({ amount: '15000' }) });
+  await j('/payments/mock/callback?providerRef=' + top.body.providerRef, { method: 'POST' });
+  // Две покупки сразу при деньгах на одну: проходит одна, баланс не уходит в минус.
+  const [a, b] = await Promise.all([1, 1].map(() => j(`/listings/${lot}/promote`, { method: 'POST', token: seller.token, body: JSON.stringify({ days: 1 }) })));
+  const ok = [a, b].filter((r) => r.status === 201).length;
+  const w = await j('/wallet', { token: seller.token });
+  check('Двойной клик: списали одни сутки, баланс не в минусе', ok === 1 && w.body.balance === '5100', `${ok} / ${w.body.balance}`);
+  const first = await j(`/listings?gameSlug=cs2&categorySlug=${skins.slug}&limit=5`);
+  check('Продвигаемый лот первый в разделе', first.body.items[0]?.id === lot && !!first.body.items[0]?.promotedUntil);
+  const hist = await j('/wallet/transactions', { token: seller.token });
+  check('Списание видно в истории', hist.body.some?.((t) => t.refType === 'promotion' && t.amount === '9900'));
+  const bad = await j(`/listings/${lot}/promote`, { method: 'POST', token: seller.token, body: JSON.stringify({ days: 5 }) });
+  check('Только пакеты 1, 3, 7 суток', bad.status === 400);
+
+  // Истёкшее продвижение не держит лот наверху: его обнуляет фоновая задача.
+  await prisma.listing.update({ where: { id: lot }, data: { promotedUntil: new Date(Date.now() - 1000) } });
+  for (let i = 0; i < 20; i++) {
+    const l = await prisma.listing.findUnique({ where: { id: lot }, select: { promotedUntil: true } });
+    if (!l.promotedUntil) break;
+    await wait(500);
+  }
+  const after = await prisma.listing.findUnique({ where: { id: lot }, select: { promotedUntil: true } });
+  check('Истёкшее продвижение обнулено', after.promotedUntil === null);
+}
+
 async function scenarioPayout(rnd) {
   console.log('\n— Выплаты (finance) —');
   const seller = await register('pys', rnd);
@@ -485,6 +519,7 @@ async function scenarioPayout(rnd) {
   await scenarioSupport(rnd);
   await scenarioCatalog(rnd);
   await scenarioBuyerData(rnd);
+  await scenarioPromotion(rnd);
   await scenarioPayout(rnd);
 
   const passed = results.filter(Boolean).length;

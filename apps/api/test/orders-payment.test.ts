@@ -33,6 +33,7 @@ function setup(order: Record<string, unknown>) {
   const ledger = {
     post: vi.fn(async (_input: { legs: Legs; idempotencyKey: string; refType: string }, _tx?: unknown) => undefined),
     balanceOf: vi.fn(async () => 1_000_000n),
+    assertNotOverdrawn: vi.fn(async () => undefined),
   };
   const notifications = { notify: vi.fn(async () => undefined) };
   const chat = { postSystem: vi.fn(async () => undefined) };

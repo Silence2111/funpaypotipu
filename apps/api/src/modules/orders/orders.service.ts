@@ -272,6 +272,7 @@ export class OrdersService {
         },
         tx,
       );
+      await this.ledger.assertNotOverdrawn(tx, buyerId, order.currency);
       return true;
     });
     if (!won) return this.get(order.id);

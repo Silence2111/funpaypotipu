@@ -8,6 +8,7 @@ import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatListingPrice, formatQty } from '@/lib/format';
 import { BumpButton } from '@/components/bump-button';
+import { PromoteButton } from '@/components/promote-button';
 import { CabinetNav } from '@/components/cabinet-nav';
 
 interface Row {
@@ -17,6 +18,7 @@ interface Row {
   currency: string;
   status: string;
   boostUntil?: string | null;
+  promotedUntil?: string | null;
   topupMarkupBps?: number | null;
   fulfillmentType?: string;
   unitName?: string | null;
@@ -231,6 +233,9 @@ function MyLots() {
                   ) : (
                     <span className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                       {l.status === 'active' && <BumpButton key={l.boostUntil ?? l.id} listingId={l.id} boostUntil={l.boostUntil} />}
+                      {l.status === 'active' && (
+                        <PromoteButton listingId={l.id} promotedUntil={l.promotedUntil} onDone={() => void load()} />
+                      )}
                       <Link href={`/cabinet/lot/${l.id}`} className="chip">
                         <Pencil size={14} strokeWidth={1.75} /> Изменить
                       </Link>

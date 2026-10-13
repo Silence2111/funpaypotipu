@@ -100,6 +100,12 @@ export const cashbackToBalance = (buyerId: string, amount: Minor): PostingLeg[] 
   credit(userAccount(buyerId, 'available'), amount),
 ];
 
+/** Платная услуга площадки с баланса (продвижение лота): баланс → доход площадки. */
+export const chargeFromBalance = (userId: string, amount: Minor): PostingLeg[] => [
+  debit(userAccount(userId, 'available'), amount),
+  credit(platformRevenue(), amount),
+];
+
 /** Заявка на вывод: резервируем сумму с баланса в обязательства к выплате. */
 export const holdForPayout = (userId: string, amount: Minor): PostingLeg[] => [
   debit(userAccount(userId, 'available'), amount),

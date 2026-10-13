@@ -11,6 +11,8 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
   const online = onAt ? Date.now() - new Date(onAt).getTime() < 5 * 60 * 1000 : false;
   const instant = listing.fulfillmentType === 'auto_key' || listing.fulfillmentType === 'provider';
   const pack = perPackLabel(listing);
+  // Оплаченное продвижение помечается: покупатель должен видеть, почему лот выше.
+  const promoted = !!listing.promotedUntil && new Date(listing.promotedUntil).getTime() > Date.now();
   // Наличие показываем у того, что продаётся количеством: валюта и ключи.
   const stock =
     listing.stock != null && (listing.unitName || listing.fulfillmentType === 'auto_key')
@@ -41,6 +43,7 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
           <span className="demo-mark" title="Демонстрационный лот: показывает, как устроена сделка">Пример</span>
         )}
         {stock && <span className="faint" style={{ fontSize: 13 }}>в наличии {stock}</span>}
+        {promoted && <span className="faint" style={{ fontSize: 12 }}>продвижение</span>}
       </div>
       <div className="row" style={{ justifyContent: 'space-between', marginTop: 12, gap: 8 }}>
         {pack ? (
