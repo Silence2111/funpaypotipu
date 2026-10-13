@@ -47,6 +47,10 @@ export interface ListingCard {
   status: string;
   createdAt: string;
   fulfillmentType?: string;
+  /** Лот «на сумму покупателя»: наценка и границы суммы; price — цена минимума («от»). */
+  topupMarkupBps?: number | null;
+  topupMin?: string | null;
+  topupMax?: string | null;
   seller: { profile: { username: string; ratingAvg: number; onlineAt?: string | null } | null };
   category: { slug: string; title: string };
   game: { slug: string; title: string };
@@ -162,6 +166,26 @@ export interface PublicPricing {
 }
 
 export const getPublicPricing = () => apiTry<PublicPricing>('/fees/public');
+
+/** Предложение «на сумму покупателя» для виджета пополнения (деньги — строкой). */
+export interface TopupOffer {
+  listingId: string;
+  title: string;
+  currency: string;
+  markupBps: number;
+  min: string;
+  max: string;
+  seller: { username: string | null };
+}
+
+export interface TopupOffers {
+  game: { slug: string; title: string };
+  currency: string;
+  offers: TopupOffer[];
+}
+
+export const getTopupOffers = (game: string) =>
+  apiTry<TopupOffers>(`/topup/offers?game=${encodeURIComponent(game)}`);
 
 /**
  * Замер выдачи против тривиального правила. Печатается на витрине как есть,

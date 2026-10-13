@@ -131,7 +131,7 @@ export function topupAccountSpec(gameSlug: string): TopupAccountSpec {
       label: 'Логин Steam',
       placeholder: 'Например, gamer_2007',
       // Самая частая ошибка — имя профиля вместо логина: пополнение не найдёт аккаунт.
-      hint: 'Тот, с которым вы входите в Steam, — не имя профиля',
+      hint: 'Логин для входа в Steam, не имя профиля',
     };
   }
   return {

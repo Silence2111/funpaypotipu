@@ -1,17 +1,26 @@
 import Link from 'next/link';
 import { ShieldCheck, MessagesSquare, Zap, Info } from 'lucide-react';
-import { getGames, browseListings, getPublicPricing } from '@/lib/api';
+import { getGames, browseListings, getPublicPricing, getTopupOffers } from '@/lib/api';
 import { GameCardView, ListingCardView } from '@/components/cards';
+import { GameTopupForm } from '@/components/game-topup-form';
 
-export default async function HomePage() {
-  const [games, browse, instantBrowse, pricing] = await Promise.all([
+export default async function HomePage({
+  searchParams,
+}: {
+  // Логин и сумма возвращаются сюда после входа: виджет открывается заполненным.
+  searchParams: Promise<{ account?: string; amount?: string }>;
+}) {
+  const [games, browse, instantBrowse, pricing, steam, query] = await Promise.all([
     getGames(),
     browseListings({ limit: 8, sort: 'new' }),
     browseListings({ limit: 8, instant: true, sort: 'popular' }),
     getPublicPricing(),
+    getTopupOffers('steam'),
+    searchParams,
   ]);
   const listings = browse?.items ?? [];
   const instant = instantBrowse?.items ?? [];
+  const topup = steam && steam.offers.length > 0 ? steam : null;
 
   // Проценты берём из API, а не пишем в разметке. Не ответил — не обещаем.
   // 2,5% — не «3%»: округление до целого на витрине завышало ставку вывода
@@ -25,27 +34,45 @@ export default async function HomePage() {
   const payoutFee = pricing?.withdrawal.find((w) => w.key === 'sbp')?.feePct ?? null;
 
   return (
-    <div className="container stack-lg" style={{ paddingTop: 72 }}>
-      {/* Hero */}
-      <section style={{ textAlign: 'center', maxWidth: 760, margin: '0 auto' }}>
-        <h1 className="h1">Игровые товары. Безопасно.</h1>
-        <p className="lead">
-          Аккаунты, валюта, предметы, ключи и пополнения. Деньги лежат у площадки,
-          пока вы не подтвердите, что получили товар.
-        </p>
-        <div className="row" style={{ justifyContent: 'center', marginTop: 28, gap: 12, flexWrap: 'wrap' }}>
-          <Link href="/catalog" className="btn lg">
-            Смотреть лоты
-          </Link>
-          <Link href="/cabinet/new" className="btn ghost lg">
-            Продать свой лот
-          </Link>
+    <div className="container stack-lg home">
+      {/* Первый экран. Пополнение Steam — самый короткий путь к первой покупке,
+          поэтому оно здесь, а не в каталоге; кнопка «Оплатить» — единственный
+          акцент экрана, «Смотреть лоты» становится второстепенной. */}
+      <section className={topup ? 'hero' : 'hero solo'}>
+        <div className="hero-copy">
+          <h1 className="h1">Игровые товары. Безопасно.</h1>
+          <p className="lead">
+            Аккаунты, валюта, предметы, ключи и пополнения. Деньги лежат у площадки,
+            пока вы не подтвердите, что получили товар.
+          </p>
+        </div>
+        <div className="hero-actions">
+          <div className="row hero-buttons" style={{ marginTop: 28, gap: 12, flexWrap: 'wrap' }}>
+            <Link href="/catalog" className={topup ? 'btn secondary lg' : 'btn lg'}>
+              Смотреть лоты
+            </Link>
+            <Link href="/cabinet/new" className="btn ghost lg">
+              Продать свой лот
+            </Link>
+          </div>
+
+          <p className="muted" style={{ fontSize: 14, marginTop: 20 }}>
+            Покупателю — без комиссии.
+            {feeRange && <> Продавцу — {feeRange}, вывод от {payoutFee != null ? pct(payoutFee) : '—'}.</>}
+          </p>
         </div>
 
-        <p className="muted" style={{ fontSize: 14, marginTop: 20 }}>
-          Покупателю — без комиссии.
-          {feeRange && <> Продавцу — {feeRange}, вывод от {payoutFee != null ? pct(payoutFee) : '—'}.</>}
-        </p>
+        {topup && (
+          <GameTopupForm
+            variant="hero"
+            game={topup.game}
+            offers={topup.offers}
+            returnPath="/"
+            initialAccount={(query.account ?? '').slice(0, 120)}
+            initialAmount={query.amount ?? ''}
+            paymentsDemo={pricing?.paymentsDemo ?? false}
+          />
+        )}
       </section>
 
       {pricing?.paymentsDemo && (

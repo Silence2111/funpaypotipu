@@ -38,6 +38,7 @@ export class FavoritesService {
         currency: true,
         images: true,
         status: true,
+        topupMarkupBps: true, // лот «на сумму покупателя»: в избранном цена «от»
         seller: { select: { profile: { select: { username: true, ratingAvg: true } } } },
       },
     });

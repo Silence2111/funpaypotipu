@@ -3,12 +3,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Info, ShieldCheck, Star, User } from 'lucide-react';
 import { getListing, getPublicPricing } from '@/lib/api';
-import { formatPrice } from '@/lib/format';
+import { formatListingPrice, formatPrice } from '@/lib/format';
 import { tileFor } from '@/lib/tile';
 import { BuyButton } from '@/components/buy-button';
+import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
 import { MessageSellerButton } from '@/components/message-seller-button';
-import { priceWithAcquiring, PAYMENT_METHODS, isDemoSeller } from '@gamemarket/shared';
+import { priceWithAcquiring, PAYMENT_METHODS, isDemoSeller, markupLabel, topupQuote } from '@gamemarket/shared';
 import { JsonLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
 import { SellerReviews } from '@/components/seller-reviews';
@@ -40,18 +41,34 @@ export default async function ListingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; account?: string; amount?: string }>;
 }) {
   const { id } = await params;
-  const { created } = await searchParams;
+  const { created, account, amount } = await searchParams;
   const [listing, pricing] = await Promise.all([getListing(id), getPublicPricing()]);
   if (!listing) notFound();
   const demo = isDemoSeller(listing.seller.profile?.username);
   const auto = listing.fulfillmentType === 'auto_key';
+  const provider = listing.fulfillmentType === 'provider';
   const confirmH = pricing?.autoConfirmHours ?? 72;
   const fulfillH = pricing?.fulfillHours ?? 24;
 
-  const priceMajor = (Number(BigInt(listing.price)) / 100).toFixed(2);
+  // Лот «на сумму покупателя»: вместо кнопки «Купить» — форма суммы, цена «от».
+  const topup =
+    listing.topupMarkupBps != null && listing.topupMin != null && listing.topupMax != null
+      ? {
+          listingId: listing.id,
+          title: listing.title,
+          currency: listing.currency,
+          markupBps: listing.topupMarkupBps,
+          min: listing.topupMin,
+          max: listing.topupMax,
+          seller: { username: listing.seller.profile?.username ?? null },
+        }
+      : null;
+
+  const major = (minor: bigint | string) => (Number(BigInt(minor)) / 100).toFixed(2);
+  const sellerLd = { '@type': 'Person', name: listing.seller.profile?.username ?? 'seller' };
   const productLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -59,13 +76,22 @@ export default async function ListingPage({
     description: listing.description.slice(0, 300),
     image: listing.images ?? [],
     category: listing.category.title,
-    offers: {
-      '@type': 'Offer',
-      price: priceMajor,
-      priceCurrency: listing.currency,
-      availability: 'https://schema.org/InStock',
-      seller: { '@type': 'Person', name: listing.seller.profile?.username ?? 'seller' },
-    },
+    offers: topup
+      ? {
+          '@type': 'AggregateOffer',
+          lowPrice: major(topupQuote(BigInt(topup.min), topup.markupBps).price),
+          highPrice: major(topupQuote(BigInt(topup.max), topup.markupBps).price),
+          priceCurrency: listing.currency,
+          availability: 'https://schema.org/InStock',
+          seller: sellerLd,
+        }
+      : {
+          '@type': 'Offer',
+          price: major(listing.price),
+          priceCurrency: listing.currency,
+          availability: 'https://schema.org/InStock',
+          seller: sellerLd,
+        },
     ...(listing.seller.profile && listing.seller.profile.ratingAvg > 0
       ? {
           aggregateRating: {
@@ -179,17 +205,24 @@ export default async function ListingPage({
             <span className={auto ? 'badge success' : 'badge'}>
               {auto
                 ? 'Ключ сразу после оплаты'
-                : listing.fulfillmentType === 'provider'
-                  ? 'Пополнение по игровому ID'
+                : provider
+                  ? listing.game.slug === 'steam'
+                    ? 'Пополнение по логину'
+                    : 'Пополнение по игровому ID'
                   : 'Выдаёт продавец'}
             </span>
             {demo && <span className="demo-mark">Пример</span>}
           </div>
-          <div className="price" style={{ fontSize: 28, margin: '16px 0' }}>
-            {formatPrice(listing.price, listing.currency)}
+          <div className="price" style={{ fontSize: 28, margin: topup ? '16px 0 4px' : '16px 0' }}>
+            {formatListingPrice(listing)}
           </div>
+          {topup && (
+            <p className="hint" style={{ marginBottom: 16 }}>
+              Сумму выбираете вы, наценка продавца — {markupLabel(topup.markupBps)}
+            </p>
+          )}
 
-          {(() => {
+          {!topup && (() => {
             const base = BigInt(listing.price);
             const card = PAYMENT_METHODS.find((m) => m.key === 'card')!;
             const cardPrice = priceWithAcquiring(base, card).toString();
@@ -215,7 +248,18 @@ export default async function ListingPage({
             );
           })()}
 
-          <BuyButton listingId={listing.id} fulfillmentType={listing.fulfillmentType} />
+          {topup ? (
+            <GameTopupForm
+              variant="lot"
+              game={listing.game}
+              offers={[topup]}
+              returnPath={`/lot/${listing.id}`}
+              initialAccount={(account ?? '').slice(0, 120)}
+              initialAmount={amount ?? ''}
+            />
+          ) : (
+            <BuyButton listingId={listing.id} fulfillmentType={listing.fulfillmentType} />
+          )}
           {pricing?.paymentsDemo && (
             <p className="hint" style={{ marginTop: 10, textAlign: 'center' }}>
               Демо-оплата: платёжка не подключена, деньги не списываются.
@@ -236,7 +280,9 @@ export default async function ListingPage({
               <li>
                 {auto
                   ? 'Ключ выдаётся сразу. Не выдался — деньги вернутся на баланс автоматически.'
-                  : `Продавец не выдал товар за ${fulfillH} ч — деньги вернутся на баланс автоматически.`}
+                  : provider
+                    ? 'Пополнение уходит сразу после оплаты. Не прошло — деньги вернутся на баланс автоматически.'
+                    : `Продавец не выдал товар за ${fulfillH} ч — деньги вернутся на баланс автоматически.`}
               </li>
               <li>После выдачи у вас {confirmH} ч на проверку: подтвердить или открыть спор с арбитром.</li>
             </ul>

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Star, Zap } from 'lucide-react';
 import { isDemoSeller } from '@gamemarket/shared';
 import type { Game, ListingCard } from '@/lib/api';
-import { formatPrice } from '@/lib/format';
+import { formatListingPrice } from '@/lib/format';
 import { tileFor } from '@/lib/tile';
 
 export function ListingCardView({ listing }: { listing: ListingCard }) {
@@ -36,7 +36,7 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
         )}
       </div>
       <div className="row" style={{ justifyContent: 'space-between', marginTop: 12 }}>
-        <span className="price">{formatPrice(listing.price, listing.currency)}</span>
+        <span className="price">{formatListingPrice(listing)}</span>
         {listing.seller.profile && (
           <span className="row faint" style={{ fontSize: 13, gap: 4 }}>
             {online && (

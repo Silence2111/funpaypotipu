@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ImageIcon } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
-import { formatPrice } from '@/lib/format';
+import { formatListingPrice } from '@/lib/format';
 
 interface FavListing {
   id: string;
@@ -13,6 +13,7 @@ interface FavListing {
   price: string;
   currency: string;
   images: string[];
+  topupMarkupBps?: number | null;
 }
 
 export default function FavoritesPage() {
@@ -52,7 +53,7 @@ export default function FavoritesPage() {
                 )}
               </div>
               <div style={{ fontSize: 15, fontWeight: 500 }}>{l.title}</div>
-              <div className="price" style={{ marginTop: 8 }}>{formatPrice(l.price, l.currency)}</div>
+              <div className="price" style={{ marginTop: 8 }}>{formatListingPrice(l)}</div>
             </Link>
           ))}
         </div>

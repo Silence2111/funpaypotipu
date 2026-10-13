@@ -12,7 +12,8 @@ import { OrderChat } from '@/components/order-chat';
 interface Order {
   id: string; publicNumber: string; status: string; amount: string; currency: string;
   buyerId: string; sellerId: string; fulfillmentType: string;
-  listingId?: string; listingSnapshot?: { title?: string } | null;
+  listingId?: string;
+  listingSnapshot?: { title?: string; account?: string; topupAmount?: string } | null;
   autoConfirmAt?: string | null; sellerPayoutAmount?: string;
 }
 interface Conversation { id: string; orderId: string | null }
@@ -25,16 +26,23 @@ const STATUS_RU: Record<string, string> = {
 
 const STEP_OF: Record<string, number> = { created: 0, paid: 1, delivered: 2, disputed: 2, completed: 3 };
 
+type Kind = 'key' | 'topup' | 'manual';
+
 /** Что сейчас происходит и что делать — отдельно для покупателя и продавца. */
-function explain(status: string, role: 'buyer' | 'seller', auto: boolean, confirmUntil: string | null) {
+function explain(status: string, role: 'buyer' | 'seller', kind: Kind, confirmUntil: string | null) {
   const until = confirmUntil ? new Date(confirmUntil).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : null;
+  const autoConfirm = until ? ` Если не подтвердите и не откроете спор до ${until}, заказ подтвердится сам.` : '';
   if (role === 'buyer') {
     switch (status) {
       case 'created': return 'Заказ создан, но не оплачен. Без оплаты он истечёт через 30 минут.';
-      case 'paid': return auto
+      case 'paid': return kind === 'key'
         ? 'Оплата получена, ключ выдаётся. Обновите страницу через пару секунд.'
-        : 'Оплата у площадки, продавец её не получит до вашего подтверждения. Ждём, когда он передаст товар; напишите ему в чат ниже. Не выдаст за 24 ч — деньги вернутся на баланс.';
-      case 'delivered': return `Товар выдан. Проверьте его и подтвердите получение — тогда продавец получит оплату.${until ? ` Если не подтвердите и не откроете спор до ${until}, заказ подтвердится сам.` : ''}`;
+        : kind === 'topup'
+          ? 'Оплата получена, пополнение отправляется. Обновите страницу через пару секунд.'
+          : 'Оплата у площадки, продавец её не получит до вашего подтверждения. Ждём, когда он передаст товар; напишите ему в чат ниже. Не выдаст за 24 ч — деньги вернутся на баланс.';
+      case 'delivered': return kind === 'topup'
+        ? `Пополнение отправлено. Проверьте баланс и подтвердите зачисление — тогда продавец получит оплату. Не пришло — откройте спор.${autoConfirm}`
+        : `Товар выдан. Проверьте его и подтвердите получение — тогда продавец получит оплату.${autoConfirm}`;
       case 'completed': return 'Сделка закрыта: продавец получил оплату, кэшбэк зачислен на ваш баланс.';
       case 'disputed': return 'Открыт спор. Деньги заморожены, пока арбитр не примет решение.';
       case 'refunded': return 'Деньги вернулись на ваш баланс на площадке.';
@@ -42,7 +50,9 @@ function explain(status: string, role: 'buyer' | 'seller', auto: boolean, confir
     }
   }
   switch (status) {
-    case 'paid': return 'Покупатель оплатил, деньги у площадки. Передайте товар и нажмите «Отметить выдачу» — у вас 24 ч.';
+    case 'paid': return kind === 'manual'
+      ? 'Покупатель оплатил, деньги у площадки. Передайте товар и нажмите «Отметить выдачу» — у вас 24 ч.'
+      : 'Покупатель оплатил, деньги у площадки. Выдача идёт автоматически.';
     case 'delivered': return 'Вы отметили выдачу. Деньги придут на баланс, когда покупатель подтвердит получение или истечёт срок проверки.';
     case 'completed': return 'Сделка закрыта, оплата зачислена на ваш баланс.';
     case 'disputed': return 'Покупатель открыл спор. Ответьте в споре и приложите доказательства передачи.';
@@ -186,10 +196,13 @@ export default function OrderPage() {
 
   const role = me?.id === order.buyerId ? 'buyer' : 'seller';
   const auto = order.fulfillmentType === 'auto_key';
+  const kind: Kind = auto ? 'key' : order.fulfillmentType === 'provider' ? 'topup' : 'manual';
   const step = STEP_OF[order.status] ?? -1;
   const closed = ['refunded', 'cancelled', 'expired'].includes(order.status);
-  const text = explain(order.status, role, auto, order.autoConfirmAt ?? null);
+  const text = explain(order.status, role, kind, order.autoConfirmAt ?? null);
   const title = order.listingSnapshot?.title;
+  const topupAccount = order.listingSnapshot?.account;
+  const topupAmount = order.listingSnapshot?.topupAmount;
 
   return (
     <div className="container" style={{ paddingTop: 40, maxWidth: 720 }}>
@@ -223,6 +236,12 @@ export default function OrderPage() {
               </li>
             ))}
           </ol>
+        )}
+        {kind === 'topup' && topupAccount && (
+          <p style={{ margin: '14px 0 0', fontSize: 15 }}>
+            {topupAmount ? <>Зачисление {formatPrice(topupAmount, order.currency)} на аккаунт </> : <>Пополнение на аккаунт </>}
+            <strong style={{ wordBreak: 'break-all' }}>{topupAccount}</strong>
+          </p>
         )}
         {text && <p style={{ margin: '14px 0 0', fontSize: 15 }} className="muted">{text}</p>}
 

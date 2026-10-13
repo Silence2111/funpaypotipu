@@ -639,3 +639,135 @@ summary:focus-visible {
   padding: 0 4px;
   border-radius: 4px;
 }
+
+/* Первый экран: текст слева, пополнение справа. На телефоне пополнение
+   встаёт сразу под заголовок, а кнопки каталога — под него: иначе до
+   «Оплатить» не долистать с первого экрана. Без предложений пополнения —
+   прежний центрированный экран (.solo), а не пустая колонка. */
+.home {
+  padding-top: 72px;
+}
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  grid-template-areas: 'copy widget' 'actions widget';
+  column-gap: 56px;
+}
+.hero-copy {
+  grid-area: copy;
+  align-self: end;
+}
+.hero-actions {
+  grid-area: actions;
+  align-self: start;
+}
+.hero > .topup-card {
+  grid-area: widget;
+  align-self: center;
+}
+.hero .lead {
+  max-width: 34em;
+}
+.hero.solo {
+  grid-template-columns: minmax(0, 760px);
+  grid-template-areas: 'copy' 'actions';
+  justify-content: center;
+  text-align: center;
+}
+.hero.solo .hero-buttons {
+  justify-content: center;
+}
+.hero.solo .lead {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Пополнение на сумму покупателя */
+.topup-card {
+  padding: 24px;
+  scroll-margin-top: 84px;
+}
+.input-suffix {
+  position: relative;
+}
+.input-suffix .input {
+  padding-right: 34px;
+}
+.input-suffix > span {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-faint);
+  pointer-events: none;
+}
+.topup-amount {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.topup-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.topup-presets .chip {
+  justify-content: center;
+  padding: 6px 4px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.topup-summary {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--page);
+  font-variant-numeric: tabular-nums;
+}
+.topup-summary .total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-weight: 600;
+}
+.topup-summary .total strong {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.topup-summary p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.inline-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 860px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'copy' 'widget' 'actions';
+    row-gap: 24px;
+  }
+}
+@media (max-width: 720px) {
+  .home {
+    padding-top: 32px;
+  }
+  .hero .lead {
+    font-size: 17px;
+  }
+  .topup-card {
+    padding: 20px 16px;
+  }
+}

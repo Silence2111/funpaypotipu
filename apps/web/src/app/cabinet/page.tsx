@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Wallet, Package, Tag } from 'lucide-react';
 import { apiFetch, clearSession, getToken, getUser } from '@/lib/session';
-import { formatPrice } from '@/lib/format';
+import { formatListingPrice, formatPrice } from '@/lib/format';
 import { TopUpForm } from '@/components/topup-form';
 import { PayoutForm } from '@/components/payout-form';
 import { WalletTransactions } from '@/components/wallet-transactions';
@@ -14,7 +14,7 @@ import { SellerDashboard } from '@/components/seller-dashboard';
 
 interface WalletDto { currency: string; balance: string }
 interface OrderRow { id: string; publicNumber: string; status: string; amount: string; currency: string }
-interface ListingRow { id: string; title: string; price: string; currency: string; status: string; boostUntil?: string | null }
+interface ListingRow { id: string; title: string; price: string; currency: string; status: string; boostUntil?: string | null; topupMarkupBps?: number | null }
 
 const STATUS_RU: Record<string, string> = {
   created: 'ждёт оплаты', paid: 'оплачен', delivered: 'выдан', completed: 'завершён',
@@ -111,7 +111,7 @@ export default function CabinetPage() {
                 style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
                 <Link href={`/lot/${l.id}`} style={{ flex: 1, minWidth: 140, fontWeight: 600 }}>{l.title}</Link>
                 <span className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
-                  <span className="price">{formatPrice(l.price, l.currency)}</span>
+                  <span className="price">{formatListingPrice(l)}</span>
                   <span className={l.status === 'active' ? 'badge success' : 'badge'}>{LISTING_RU[l.status] ?? l.status}</span>
                   {l.status === 'active' && <BumpButton listingId={l.id} boostUntil={l.boostUntil} />}
                 </span>

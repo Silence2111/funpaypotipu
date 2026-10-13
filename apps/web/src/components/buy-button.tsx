@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { payOrder } from '@/lib/checkout';
 
 /** Оформление заказа: create (+ промокод, +UID для пополнений) → deposit → оплата → заказ. */
 export function BuyButton({ listingId, fulfillmentType }: { listingId: string; fulfillmentType?: string }) {
@@ -36,11 +37,7 @@ export function BuyButton({ listingId, fulfillmentType }: { listingId: string; f
     setErr(null);
     try {
       const orderId = await createOrder();
-      const dep = await apiFetch<{ providerRef: string }>('/payments/deposit', {
-        method: 'POST',
-        body: JSON.stringify({ orderId }),
-      });
-      await apiFetch(`/payments/mock/callback?providerRef=${dep.providerRef}`, { method: 'POST' });
+      await payOrder(orderId, 'gateway');
       router.push(`/orders/${orderId}`);
     } catch (e) {
       setErr(apiErrorMessage(e, 'Не удалось оформить заказ. Обновите страницу и попробуйте ещё раз.'));
@@ -55,7 +52,7 @@ export function BuyButton({ listingId, fulfillmentType }: { listingId: string; f
     setErr(null);
     try {
       const orderId = await createOrder();
-      await apiFetch(`/orders/${orderId}/pay-from-balance`, { method: 'POST' });
+      await payOrder(orderId, 'balance');
       router.push(`/orders/${orderId}`);
     } catch (e) {
       setErr(apiErrorMessage(e, 'На балансе не хватает денег. Оплатите заказ обычным способом.'));
