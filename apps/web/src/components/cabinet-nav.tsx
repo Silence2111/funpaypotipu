@@ -9,7 +9,7 @@ const LINKS = [
   { href: '/cabinet', label: 'Обзор' },
   { href: '/cabinet/orders', label: 'Заказы' },
   { href: '/cabinet/lots', label: 'Мои лоты' },
-  { href: '/cabinet/chats', label: 'Диалоги' },
+  { href: '/chat', label: 'Сообщения' },
   { href: '/cabinet/favorites', label: 'Избранное' },
   { href: '/cabinet/settings', label: 'Профиль' },
   { href: '/cabinet/security', label: 'Безопасность' },

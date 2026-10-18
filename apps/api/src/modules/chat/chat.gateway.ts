@@ -15,6 +15,8 @@ import { TokenService } from '../auth/token.service';
 import { ChatService } from './chat.service';
 
 const room = (conversationId: string) => `conv:${conversationId}`;
+/** Личная комната: список диалогов и счётчик непрочитанных обновляются без перезагрузки. */
+const userRoom = (userId: string) => `user:${userId}`;
 
 /**
  * Realtime-чат (docs/05). Аутентификация по access-токену на handshake,
@@ -37,10 +39,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayInit {
     return !user || user.status === 'banned';
   }
 
-  /** Любое новое сообщение — из сокета, REST или системное — уходит в комнату диалога. */
+  /**
+   * Любое новое сообщение — из сокета, REST или системное — уходит в комнату
+   * диалога (открытый чат) и в личные комнаты участников (список диалогов).
+   */
   afterInit(server: Server) {
-    this.chat.setPublisher((conversationId, message) =>
-      server.to(room(conversationId)).emit('message:new', message),
+    this.chat.setPublisher((conversationId, message, participants) => {
+      server.to(room(conversationId)).emit('message:new', message);
+      for (const p of participants) server.to(userRoom(p)).emit('conversation:update', { conversationId, message });
+    });
+    this.chat.setReadPublisher((conversationId, readerId, at) =>
+      server.to(room(conversationId)).emit('message:read', { conversationId, readerId, at }),
     );
   }
 
@@ -51,6 +60,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayInit {
       const payload = this.tokens.verifyAccess(token);
       if (await this.banned(payload.sub)) throw new Error('banned');
       client.data.userId = payload.sub;
+      await client.join(userRoom(payload.sub));
     } catch {
       client.disconnect(true);
     }
@@ -66,6 +76,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayInit {
     await this.chat.assertParticipant(data.conversationId, userId);
     await client.join(room(data.conversationId));
     return { ok: true };
+  }
+
+  /** «Печатает…»: собеседнику в открытом диалоге. Клиент шлёт не чаще раза в три секунды. */
+  @SubscribeMessage('typing')
+  typing(@ConnectedSocket() client: Socket, @MessageBody() data: { conversationId: string }) {
+    const userId = client.data.userId as string | undefined;
+    // Только из комнаты, в которую клиент вошёл через conversation:join —
+    // там участие уже проверено.
+    if (!userId || !client.rooms.has(room(data?.conversationId))) return;
+    client.to(room(data.conversationId)).emit('typing', { conversationId: data.conversationId, userId });
   }
 
   @SubscribeMessage('message:send')

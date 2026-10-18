@@ -330,6 +330,15 @@ async function scenarioAccount(rnd) {
   const orderConv = convs.body.find?.((c) => c.orderId === order.body.id);
   const msg = await j(`/conversations/${orderConv?.id}/messages`, { method: 'POST', token: buyer.token, body: JSON.stringify({ body: 'Жду данные аккаунта' }) });
   check('А по оплаченному заказу переписка открыта', msg.status === 201, String(msg.status));
+  const sellerConvs = await j('/conversations', { token: seller.token });
+  const sc = sellerConvs.body.find?.((c) => c.orderId === order.body.id);
+  check(
+    'Мессенджер: собеседник, заказ, последнее сообщение, непрочитанное',
+    sc?.counterpart?.id === buyer.id && !!sc?.order?.publicNumber && sc?.last?.text === 'Жду данные аккаунта' && sc?.unread === 1,
+    JSON.stringify(sc?.last),
+  );
+  const hist = await j(`/conversations/${orderConv?.id}/messages?limit=1`, { token: seller.token });
+  check('История отдаёт последние сообщения, а не первые', hist.body?.[0]?.body === 'Жду данные аккаунта', JSON.stringify(hist.body));
   await j(`/account/blocks/${buyer.id}`, { method: 'DELETE', token: seller.token });
   check('Убрал из списка — снова можно купить', (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) })).status === 201);
 

@@ -38,6 +38,8 @@ describe('доставка сообщений в открытый чат', () =>
     expect(publish).toHaveBeenCalledWith(
       'c1',
       expect.objectContaining({ senderId: null, body: 'Оплата поступила — средства защищены эскроу.' }),
+      // и в списки диалогов обоих участников
+      ['b1', 's1'],
     );
   });
 

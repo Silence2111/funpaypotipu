@@ -14,7 +14,7 @@ export function SiteHeader() {
           GameMarket
         </Link>
         <nav className="nav">
-          <Link href="/catalog">Каталог</Link>
+          <Link href="/catalog" className="hide-mobile">Каталог</Link>
           <Link href="/cabinet/new" className="hide-mobile">Продать</Link>
           <Link href="/rules" className="hide-mobile">Гарантии</Link>
         </nav>
