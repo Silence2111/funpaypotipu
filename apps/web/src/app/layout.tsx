@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { CurrencySwitch } from '@/components/currency-switch';
 import { InstallApp } from '@/components/install-app';
 import { PwaRegister } from '@/components/pwa-register';
@@ -63,11 +64,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               © {new Date().getFullYear()} GameMarket · лоты с пометкой «Пример» — демонстрационные
             </p>
             <nav className="row faint" style={{ gap: '0 16px', fontSize: 13, flexWrap: 'wrap' }} aria-label="Документы">
-              <a href="/rules" className="footer-link">Правила и гарантии</a>
-              <a href="/oferta" className="footer-link">Оферта</a>
-              <a href="/privacy" className="footer-link">Персональные данные</a>
-              <a href="/contacts" className="footer-link">Контакты</a>
-              <a href="/podbor" className="footer-link">Как мы меряем выдачу</a>
+              <Link href="/pomosch" className="footer-link">Помощь</Link>
+              <Link href="/rules" className="footer-link">Правила и гарантии</Link>
+              <Link href="/oferta" className="footer-link">Оферта</Link>
+              <Link href="/privacy" className="footer-link">Персональные данные</Link>
+              <Link href="/contacts" className="footer-link">Контакты</Link>
+              <Link href="/podbor" className="footer-link">Как мы меряем выдачу</Link>
             </nav>
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
               <InstallApp />

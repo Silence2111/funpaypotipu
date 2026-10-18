@@ -170,6 +170,9 @@ function UserMenu({ user, sum, waiting }: { user: SessionUser; sum: Summary | nu
           <Link role="menuitem" href="/cabinet/settings">
             Настройки
           </Link>
+          <Link role="menuitem" href="/pomosch">
+            Помощь
+          </Link>
           <Link role="menuitem" href="/cabinet/support">
             Поддержка
           </Link>

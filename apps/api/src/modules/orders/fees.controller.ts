@@ -9,7 +9,9 @@ import {
   cashbackPct,
 } from '@gamemarket/shared';
 import { FeesService } from './fees.service';
+import { AUTO_GOODS_CONFIRM_MS } from './fulfillment.service';
 import { PROMO_DAY_PRICE } from '../listings/listings.service';
+import { KYC_REQUIRED_ABOVE, NEWBIE_HOLD_DAYS } from '../payouts/payouts.service';
 
 const LEVEL_DISCOUNTS = Object.values(SELLER_LEVELS).map((l) => l.feeDiscountBps);
 
@@ -51,6 +53,12 @@ export class FeesController {
       fulfillHours: Math.round(
         Number(process.env.ORDER_FULFILL_DEADLINE_MS ?? 24 * 3600 * 1000) / 3600_000,
       ),
+      // Ключи и пополнения: часов на проверку после автоматической выдачи.
+      autoGoodsConfirmHours: Math.round(AUTO_GOODS_CONFIRM_MS / 3600_000),
+      // Вывод: свыше какой суммы нужна верификация личности и сколько дней
+      // ждёт первый вывод у пользователя без продаж — «Помощь» называет их.
+      payoutKycAboveMinor: KYC_REQUIRED_ABOVE.toString(),
+      payoutNewbieHoldDays: NEWBIE_HOLD_DAYS,
       // Заглушка платежей подтверждает оплату, не приняв денег. Витрина
       // обязана сказать об этом у кнопки «Купить», а не молча «продать».
       paymentsDemo: (process.env.PAYMENT_PROVIDER ?? 'mock') === 'mock',

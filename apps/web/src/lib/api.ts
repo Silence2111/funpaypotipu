@@ -236,6 +236,12 @@ export interface PublicPricing {
   paymentsDemo?: boolean;
   /** Цена суток продвижения лота, копейки. */
   promoDayPrice?: string;
+  /** Часов на проверку ключа или пополнения после автоматической выдачи. */
+  autoGoodsConfirmHours?: number;
+  /** Вывод свыше этой суммы (копейки) — после верификации личности. */
+  payoutKycAboveMinor?: string;
+  /** Дней ждёт первый вывод у пользователя без продаж. */
+  payoutNewbieHoldDays?: number;
   withdrawal: Array<{ key: string; label: string; feePct: number; minFeeMinor: string }>;
 }
 

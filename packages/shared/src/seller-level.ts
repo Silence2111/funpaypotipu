@@ -27,11 +27,18 @@ export const SELLER_LEVELS: Record<SellerLevelKey, SellerLevel> = {
   pro: { key: 'pro', label: 'Pro-продавец', feeDiscountBps: 300, holdHours: 12 },
 };
 
+/** Пороги уровней: по ним считается уровень, их же называет «Помощь». */
+export const LEVEL_RULES = {
+  trusted: { salesCount: 10, ratingAvg: 4.5 },
+  pro: { salesCount: 50, ratingCount: 20, ratingAvg: 4.7 }, // и проверенные документы
+} as const;
+
 export function sellerLevel(s: SellerStats): SellerLevel {
-  if (s.verified && s.salesCount >= 50 && s.ratingCount >= 20 && s.ratingAvg >= 4.7) {
+  const { pro, trusted } = LEVEL_RULES;
+  if (s.verified && s.salesCount >= pro.salesCount && s.ratingCount >= pro.ratingCount && s.ratingAvg >= pro.ratingAvg) {
     return SELLER_LEVELS.pro;
   }
-  if (s.salesCount >= 10 && s.ratingAvg >= 4.5) {
+  if (s.salesCount >= trusted.salesCount && s.ratingAvg >= trusted.ratingAvg) {
     return SELLER_LEVELS.trusted;
   }
   return SELLER_LEVELS.new;

@@ -20,9 +20,10 @@ import { EncryptionService } from '../crypto/encryption.service';
 import { AuditService } from '../access/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
-const NEWBIE_HOLD_DAYS = Number(process.env.PAYOUT_NEWBIE_HOLD_DAYS ?? 3);
+/** Первый вывод без продаж ждёт столько дней — защита от отмыва через пополнение. */
+export const NEWBIE_HOLD_DAYS = Number(process.env.PAYOUT_NEWBIE_HOLD_DAYS ?? 3);
 // Вывод свыше порога — только после верификации личности (минорные единицы).
-const KYC_REQUIRED_ABOVE = BigInt(process.env.PAYOUT_KYC_REQUIRED_ABOVE ?? 1_500_000);
+export const KYC_REQUIRED_ABOVE = BigInt(process.env.PAYOUT_KYC_REQUIRED_ABOVE ?? 1_500_000);
 
 @Injectable()
 export class PayoutsService {

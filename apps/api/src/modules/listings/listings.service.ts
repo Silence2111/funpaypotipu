@@ -8,6 +8,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type FulfillmentType } from '@gamemarket/db';
 import {
+  bumpCooldownHours,
   chargeFromBalance,
   promoCost,
   promoUntil,
@@ -32,7 +33,7 @@ const BOOST_MS = 24 * 3600 * 1000; // лот держится в топе сут
 export const PROMO_DAY_PRICE = BigInt(process.env.PROMO_DAY_PRICE ?? 9_900);
 
 /** Кулдаун поднятия по заслугам: чем больше продаж, тем чаще (как на FunPay). */
-const bumpCooldownMs = (sales: number) => (sales >= 50 ? 1 : sales >= 10 ? 2 : 4) * 3600 * 1000;
+const bumpCooldownMs = (sales: number) => bumpCooldownHours(sales) * 3600 * 1000;
 
 /** Общая пачка раздела валюты («за 1 000 золота») или null, если её нет. */
 const sectionPack = (c: { unitName: string | null; pricePerUnits: number | null }) =>

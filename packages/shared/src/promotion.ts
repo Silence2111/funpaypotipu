@@ -8,6 +8,12 @@ import type { Minor } from './money';
 export const PROMO_DAYS = [1, 3, 7] as const;
 export type PromoDays = (typeof PROMO_DAYS)[number];
 
+/**
+ * Как часто можно бесплатно поднять лот, в часах: чем больше продаж, тем
+ * чаще — как у FunPay. Тот же порог называет «Помощь».
+ */
+export const bumpCooldownHours = (sales: number): number => (sales >= 50 ? 1 : sales >= 10 ? 2 : 4);
+
 /** Стоимость пакета: сутки × дни, без скидок — проще сверять с выпиской. */
 export const promoCost = (dayPrice: Minor, days: number): Minor => dayPrice * BigInt(days);
 

@@ -564,6 +564,14 @@ async function scenarioRates(rnd) {
 
 async function scenarioPayout(rnd) {
   console.log('\n— Выплаты (finance) —');
+  // «Помощь» называет сроки и пороги из этих полей, а не из текста статьи.
+  const terms = await j('/fees/public');
+  check(
+    'Условия для «Помощи»: проверка авто-товаров, порог верификации, ожидание первого вывода',
+    Number.isInteger(terms.body.autoGoodsConfirmHours) && /^\d+$/.test(terms.body.payoutKycAboveMinor ?? '') &&
+      Number.isInteger(terms.body.payoutNewbieHoldDays),
+    JSON.stringify({ a: terms.body.autoGoodsConfirmHours, k: terms.body.payoutKycAboveMinor, h: terms.body.payoutNewbieHoldDays }),
+  );
   const seller = await register('pys', rnd);
   const buyer = await register('pyb', rnd);
   const listingId = await createListing(seller.token, 'accounts', '150000');

@@ -6,7 +6,8 @@ import { LedgerService } from '../ledger/ledger.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MockTopUpProvider, type TopUpResult } from './topup.provider';
 
-const AUTO_CONFIRM_TTL_MS = 24 * 3600 * 1000; // авто-товары подтверждаются быстрее
+/** Ключи и пополнения подтверждаются быстрее: проверить их — дело минут. */
+export const AUTO_GOODS_CONFIRM_MS = 24 * 3600 * 1000;
 
 /** Авто-исполнение заказа после оплаты: выдача ключа из склада или пополнение. */
 @Injectable()
@@ -39,7 +40,7 @@ export class FulfillmentService {
       return;
     }
 
-    const autoConfirmAt = new Date(Date.now() + AUTO_CONFIRM_TTL_MS);
+    const autoConfirmAt = new Date(Date.now() + AUTO_GOODS_CONFIRM_MS);
     await this.prisma.$transaction([
       this.prisma.delivery.upsert({
         where: { orderId: order.id },
@@ -137,7 +138,7 @@ export class FulfillmentService {
       return;
     }
 
-    const autoConfirmAt = new Date(Date.now() + AUTO_CONFIRM_TTL_MS);
+    const autoConfirmAt = new Date(Date.now() + AUTO_GOODS_CONFIRM_MS);
     await this.prisma.$transaction([
       this.prisma.delivery.upsert({
         where: { orderId: order.id },

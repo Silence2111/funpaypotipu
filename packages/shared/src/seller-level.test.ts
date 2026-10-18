@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
+  LEVEL_RULES,
   SELLER_LEVELS,
   effectiveSellerPct,
   levelDiscountFraction,
+  sellerLevel,
 } from './seller-level';
 
 /**
@@ -45,5 +47,21 @@ describe('скидка уровня продавца', () => {
     const p = effectiveSellerPct(КАТЕГОРИЯ, SELLER_LEVELS.pro);
     expect(t).toBeLessThan(n);
     expect(p).toBeLessThan(t);
+  });
+});
+
+describe('пороги уровней', () => {
+  const { trusted, pro } = LEVEL_RULES;
+
+  it('«Проверенный» — ровно с порога продаж и рейтинга', () => {
+    const at = { salesCount: trusted.salesCount, ratingAvg: trusted.ratingAvg, ratingCount: 5, verified: false };
+    expect(sellerLevel(at).key).toBe('trusted');
+    expect(sellerLevel({ ...at, salesCount: trusted.salesCount - 1 }).key).toBe('new');
+  });
+
+  it('Pro — только с проверенными документами', () => {
+    const at = { salesCount: pro.salesCount, ratingAvg: pro.ratingAvg, ratingCount: pro.ratingCount, verified: true };
+    expect(sellerLevel(at).key).toBe('pro');
+    expect(sellerLevel({ ...at, verified: false }).key).toBe('trusted');
   });
 });
