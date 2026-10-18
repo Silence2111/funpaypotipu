@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
 
-/** Переключатель светлой/тёмной темы (сохраняется в localStorage). */
-export function ThemeToggle() {
+/** Тема сайта: сохранённая или системная; переключение запоминается. */
+export function useTheme(): ['light' | 'dark', () => void] {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
@@ -20,6 +20,12 @@ export function ThemeToggle() {
     setTheme(next);
   }
 
+  return [theme, toggle];
+}
+
+/** Переключатель светлой/тёмной темы в шапке. На телефоне он — в шторке профиля. */
+export function ThemeToggle() {
+  const [theme, toggle] = useTheme();
   return (
     <button onClick={toggle} className="chip hide-mobile" type="button" aria-label="Переключить тему"
       style={{ padding: '6px 12px' }}>

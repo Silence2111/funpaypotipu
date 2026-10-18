@@ -44,7 +44,7 @@ export default async function GamePage({
   if (!section) {
     return (
       <div className="container" style={{ paddingTop: 40 }}>
-        <Link href="/igry" className="faint" style={{ fontSize: 14 }}>
+        <Link href="/igry" className="faint back-link" style={{ fontSize: 14 }}>
           ← Все игры
         </Link>
         <h1 className="h1" style={{ fontSize: 34, marginTop: 12 }}>

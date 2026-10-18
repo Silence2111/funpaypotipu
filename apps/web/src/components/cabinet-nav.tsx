@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { isStaff, useSession } from '@/lib/session';
@@ -16,13 +17,23 @@ const LINKS = [
   { href: '/cabinet/support', label: 'Поддержка' },
 ];
 
+/**
+ * На телефоне — одна строка с прокруткой, а не три строки кнопок над каждой
+ * страницей кабинета; текущий раздел прокручен в видимую часть.
+ */
 export function CabinetNav() {
   const path = usePathname();
   const { user } = useSession();
+  const nav = useRef<HTMLElement>(null);
   // Сотруднику — вход в консоль: на телефоне в шапке для него нет места.
   const links = isStaff(user) ? [...LINKS, { href: '/admin', label: 'Консоль' }] : LINKS;
+
+  useEffect(() => {
+    nav.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [path]);
+
   return (
-    <nav aria-label="Разделы кабинета" className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+    <nav ref={nav} aria-label="Разделы кабинета" className="row cabinet-nav">
       {links.map((l) => (
         <Link
           key={l.href}

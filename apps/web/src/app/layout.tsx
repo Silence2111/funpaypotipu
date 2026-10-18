@@ -5,6 +5,7 @@ import { CurrencySwitch } from '@/components/currency-switch';
 import { InstallApp } from '@/components/install-app';
 import { PwaRegister } from '@/components/pwa-register';
 import { SiteHeader } from '@/components/site-header';
+import { TabBar } from '@/components/tab-bar';
 import './globals.css';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
@@ -29,6 +30,8 @@ export const metadata: Metadata = {
 
 // Цвет строки состояния и панели браузера — как у шапки сайта.
 export const viewport: Viewport = {
+  // Отступы под «чёлку» и полоску «Домой» — у нижней панели и шапки.
+  viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#FFFFFF' },
     { media: '(prefers-color-scheme: dark)', color: '#121317' },
@@ -78,6 +81,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
         </footer>
+        <TabBar />
       </body>
     </html>
   );

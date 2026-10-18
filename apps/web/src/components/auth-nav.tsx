@@ -1,25 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { ChevronDown, LogOut, MessagesSquare } from 'lucide-react';
-import { apiFetch, clearSession, getUser, isStaff, type SessionUser } from '@/lib/session';
+import { clearSession, getUser, isStaff, type SessionUser } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
+import { useSummary, type Summary } from '@/lib/summary';
 import { NotificationsBell } from './notifications-bell';
 
-/** Ответ `GET /account/summary` — счётчики шапки. */
-interface Summary {
-  unreadMessages: number;
-  unreadNotifications: number;
-  balance: { currency: string; available: string };
-  sales: { toDeliver: number };
-  purchases: { toConfirm: number };
-}
-
-export function AuthNav() {
+/** Вошедший пользователь; null — гость. Следит за входом и выходом в других вкладках. */
+export function useSessionUser(): SessionUser | null {
   const [user, setUser] = useState<SessionUser | null>(null);
-
   useEffect(() => {
     const sync = () => setUser(getUser());
     sync();
@@ -30,7 +22,11 @@ export function AuthNav() {
       window.removeEventListener('storage', sync);
     };
   }, []);
+  return user;
+}
 
+export function AuthNav() {
+  const user = useSessionUser();
   if (!user) {
     return (
       <Link href="/login" className="chip">
@@ -44,41 +40,19 @@ export function AuthNav() {
 /**
  * Шапка вошедшего, как у FunPay: сообщения со счётчиком, уведомления,
  * баланс и меню профиля, где видно продажи, которые ждут выдачи, и
- * покупки, которые ждут подтверждения.
+ * покупки, которые ждут подтверждения. На телефоне сообщения и профиль —
+ * в нижней панели, в шапке остаются поиск и уведомления.
  */
 function UserBar({ user }: { user: SessionUser }) {
   const pathname = usePathname();
-  const [sum, setSum] = useState<Summary | null>(null);
-
-  const load = useCallback(() => {
-    apiFetch<Summary>('/account/summary')
-      .then(setSum)
-      .catch(() => {});
-  }, []);
-
-  // Свежие счётчики: раз в полминуты, при возврате на вкладку и при переходе
-  // (прочитал диалог — счётчик погас).
-  useEffect(() => {
-    const t = setInterval(load, 30_000);
-    window.addEventListener('focus', load);
-    // Мессенджер сообщает о прочтении и о новых сообщениях сам.
-    window.addEventListener('gm-unread', load);
-    return () => {
-      clearInterval(t);
-      window.removeEventListener('focus', load);
-      window.removeEventListener('gm-unread', load);
-    };
-  }, [load]);
-  useEffect(load, [pathname, load]);
-
+  const sum = useSummary(true, pathname);
   const unread = sum?.unreadMessages ?? 0;
-  const waiting = (sum?.sales.toDeliver ?? 0) + (sum?.purchases.toConfirm ?? 0);
 
   return (
     <div className="row user-bar">
       <Link
         href="/chat"
-        className="chip"
+        className="chip hide-mobile"
         aria-label={unread ? `Сообщения: ${unread} непрочитанных` : 'Сообщения'}
         title="Сообщения"
         aria-current={pathname.startsWith('/chat') ? 'page' : undefined}
@@ -92,15 +66,73 @@ function UserBar({ user }: { user: SessionUser }) {
           {formatPrice(sum.balance.available, sum.balance.currency)}
         </Link>
       )}
-      <UserMenu user={user} sum={sum} waiting={waiting} />
+      <UserMenu user={user} sum={sum} />
     </div>
   );
 }
 
-function UserMenu({ user, sum, waiting }: { user: SessionUser; sum: Summary | null; waiting: number }) {
+/** Продажи, ждущие выдачи, и покупки, ждущие подтверждения, — счётчик на аватаре. */
+export const waitingCount = (sum: Summary | null) => (sum?.sales.toDeliver ?? 0) + (sum?.purchases.toConfirm ?? 0);
+
+/**
+ * Пункты профиля — одни и те же в меню шапки и в шторке на телефоне.
+ * `extra` — пункты перед «Выйти» (в шторке — тема).
+ */
+export function ProfileLinks({ user, sum, extra }: { user: SessionUser; sum: Summary | null; extra?: ReactNode }) {
+  const toDeliver = sum?.sales.toDeliver ?? 0;
+  const toConfirm = sum?.purchases.toConfirm ?? 0;
+  return (
+    <>
+      <Link role="menuitem" href="/cabinet/orders?role=seller">
+        Продажи
+        {toDeliver > 0 && <span className="menu-count">{toDeliver} ждут выдачи</span>}
+      </Link>
+      <Link role="menuitem" href="/cabinet/orders?role=buyer">
+        Покупки
+        {toConfirm > 0 && <span className="menu-count">{toConfirm} ждут подтверждения</span>}
+      </Link>
+      <Link role="menuitem" href="/cabinet/lots">
+        Мои лоты
+      </Link>
+      <Link role="menuitem" href="/cabinet">
+        Кошелёк
+      </Link>
+      <Link role="menuitem" href={`/prodavec/${user.id}`}>
+        Мой профиль на витрине
+      </Link>
+      <Link role="menuitem" href="/cabinet/favorites">
+        Избранное
+      </Link>
+      <Link role="menuitem" href="/cabinet/settings">
+        Настройки
+      </Link>
+      <Link role="menuitem" href="/cabinet/security">
+        Безопасность
+      </Link>
+      <Link role="menuitem" href="/pomosch">
+        Помощь
+      </Link>
+      <Link role="menuitem" href="/cabinet/support">
+        Поддержка
+      </Link>
+      {isStaff(user) && (
+        <Link role="menuitem" href="/admin">
+          Консоль сотрудника
+        </Link>
+      )}
+      {extra}
+      <button role="menuitem" type="button" onClick={() => clearSession()}>
+        <LogOut size={16} strokeWidth={1.75} aria-hidden /> Выйти
+      </button>
+    </>
+  );
+}
+
+function UserMenu({ user, sum }: { user: SessionUser; sum: Summary | null }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const waiting = waitingCount(sum);
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
@@ -117,11 +149,8 @@ function UserMenu({ user, sum, waiting }: { user: SessionUser; sum: Summary | nu
     };
   }, [open]);
 
-  const toDeliver = sum?.sales.toDeliver ?? 0;
-  const toConfirm = sum?.purchases.toConfirm ?? 0;
-
   return (
-    <div className="user-menu" ref={box}>
+    <div className="user-menu hide-mobile" ref={box}>
       <button
         type="button"
         className="chip"
@@ -133,9 +162,9 @@ function UserMenu({ user, sum, waiting }: { user: SessionUser; sum: Summary | nu
         <span className="avatar" style={{ width: 24, height: 24, fontSize: 12 }} aria-hidden>
           {user.username.charAt(0).toUpperCase()}
         </span>
-        <span className="hide-mobile user-name">{user.username}</span>
+        <span className="user-name">{user.username}</span>
         {waiting > 0 && <span className="notif-badge">{waiting}</span>}
-        <ChevronDown size={14} strokeWidth={1.75} className="hide-mobile" aria-hidden />
+        <ChevronDown size={14} strokeWidth={1.75} aria-hidden />
       </button>
       {open && (
         <div className="menu-pop" role="menu" aria-label="Профиль">
@@ -147,43 +176,7 @@ function UserMenu({ user, sum, waiting }: { user: SessionUser; sum: Summary | nu
               </div>
             )}
           </div>
-          <Link role="menuitem" href="/cabinet/orders?role=seller">
-            Продажи
-            {toDeliver > 0 && <span className="menu-count">{toDeliver} ждут выдачи</span>}
-          </Link>
-          <Link role="menuitem" href="/cabinet/orders?role=buyer">
-            Покупки
-            {toConfirm > 0 && <span className="menu-count">{toConfirm} ждут подтверждения</span>}
-          </Link>
-          <Link role="menuitem" href="/cabinet/lots">
-            Мои лоты
-          </Link>
-          <Link role="menuitem" href="/cabinet">
-            Кошелёк
-          </Link>
-          <Link role="menuitem" href={`/prodavec/${user.id}`}>
-            Мой профиль на витрине
-          </Link>
-          <Link role="menuitem" href="/cabinet/favorites">
-            Избранное
-          </Link>
-          <Link role="menuitem" href="/cabinet/settings">
-            Настройки
-          </Link>
-          <Link role="menuitem" href="/pomosch">
-            Помощь
-          </Link>
-          <Link role="menuitem" href="/cabinet/support">
-            Поддержка
-          </Link>
-          {isStaff(user) && (
-            <Link role="menuitem" href="/admin">
-              Консоль сотрудника
-            </Link>
-          )}
-          <button role="menuitem" type="button" onClick={() => clearSession()}>
-            <LogOut size={16} strokeWidth={1.75} aria-hidden /> Выйти
-          </button>
+          <ProfileLinks user={user} sum={sum} />
         </div>
       )}
     </div>

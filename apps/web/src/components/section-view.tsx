@@ -87,7 +87,7 @@ export async function SectionView({
           [section.title, base],
         ])}
       />
-      <Link href="/igry" className="faint" style={{ fontSize: 14 }}>
+      <Link href="/igry" className="faint back-link" style={{ fontSize: 14 }}>
         ← Все игры
       </Link>
       <div className="section-top" style={{ marginTop: 12 }}>
