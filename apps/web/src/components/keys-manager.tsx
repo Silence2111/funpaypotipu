@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, Package } from 'lucide-react';
 import { apiFetch, getToken, getUser } from '@/lib/session';
+import { apiErrorMessage } from '@/lib/errors';
 
 interface Stock {
   available: number;
@@ -12,21 +13,36 @@ interface Stock {
   revoked: number;
 }
 
-/** Панель склада ключей — видна только владельцу авто-лота (эндпоинт вернёт 403/400 иначе). */
+const linesOf = (text: string) =>
+  text
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+/**
+ * Склад автовыдачи — виден только владельцу авто-лота (эндпоинт вернёт
+ * 403/400 иначе). Ключи, а у аккаунтов и предметов — логины и пароли,
+ * промокоды, ссылки: по штуке в строке, покупатель получает свою сразу
+ * после оплаты.
+ */
 export function KeysManager({
   listingId,
   sellerId,
   auto,
+  keys,
 }: {
   listingId: string;
   sellerId: string;
   auto: boolean;
+  /** Склад ключей раздела «Ключи»; иначе — строки любого товара. */
+  keys: boolean;
 }) {
   const router = useRouter();
   const [stock, setStock] = useState<Stock | null>(null);
   const [visible, setVisible] = useState(false);
   const [text, setText] = useState('');
-  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -45,52 +61,87 @@ export function KeysManager({
 
   if (!visible) return null;
 
+  const lines = linesOf(text);
+
   async function add() {
-    const keys = text.split('\n').map((s) => s.trim()).filter(Boolean);
-    if (!keys.length) return;
+    if (!lines.length) return;
     setMsg(null);
+    setBusy(true);
     try {
-      const r = await apiFetch<{ added: number }>(`/listings/${listingId}/keys`, {
+      const r = await apiFetch<{ added: number; skipped?: number }>(`/listings/${listingId}/keys`, {
         method: 'POST',
-        body: JSON.stringify({ keys }),
+        body: JSON.stringify({ keys: lines }),
       });
-      setMsg(`Добавлено ключей: ${r.added}`);
+      // Повторы сервер не кладёт: одна строка — одному покупателю.
+      const skipped = r.skipped ? ` Повторы пропущены: ${r.skipped}.` : '';
+      setMsg({ ok: true, text: `На склад добавлено: ${r.added}.${skipped}` });
       setText('');
       await load();
-      // Первые ключи возвращают закончившийся лот в продажу — страница
+      // Первая загрузка возвращает закончившийся лот в продажу — страница
       // лота должна показать кнопку покупки без ручного обновления.
       router.refresh();
-    } catch {
-      setMsg('Не удалось добавить ключи');
+    } catch (e) {
+      setMsg({ ok: false, text: apiErrorMessage(e, 'Не удалось загрузить. Попробуйте ещё раз.') });
+    } finally {
+      setBusy(false);
     }
   }
 
+  const Icon = keys ? KeyRound : Package;
   return (
     <section id="keys" className="card" style={{ marginTop: 40, scrollMarginTop: 80 }}>
-      <h2 className="h2" style={{ fontSize: 18, marginBottom: 4 }}>
-        <KeyRound size={18} /> Склад ключей
+      <h2 className="h2 row" style={{ fontSize: 18, gap: 8, marginBottom: 4 }}>
+        <Icon size={18} strokeWidth={1.75} aria-hidden />{' '}
+        {keys ? 'Склад ключей' : 'Склад автовыдачи'}
       </h2>
       <p className="faint" style={{ fontSize: 13, marginTop: 0 }}>
-        Управление доступно только вам как продавцу авто-лота.
+        Видите только вы. Каждая строка — одна штука: покупатель получает свою сразу после оплаты.
       </p>
       {stock && (
-        <div className="row" style={{ gap: 16, margin: '12px 0' }}>
+        <div className="row" style={{ gap: 8, margin: '12px 0', flexWrap: 'wrap' }}>
           <span className="badge">в наличии: {stock.available}</span>
           <span className="badge">зарезервировано: {stock.reserved}</span>
           <span className="badge">выдано: {stock.delivered}</span>
         </div>
       )}
       <textarea
-        className="input"
-        style={{ minHeight: 96, resize: 'vertical', fontFamily: 'monospace' }}
-        placeholder={'Ключи по одному в строке:\nSTEAM-AAAA-BBBB\nSTEAM-CCCC-DDDD'}
+        className="input store-lines"
+        aria-label={keys ? 'Ключи, по одному в строке' : 'Товар, по одной штуке в строке'}
+        placeholder={
+          keys
+            ? 'Ключи по одному в строке:\nSTEAM-AAAA-BBBB\nSTEAM-CCCC-DDDD'
+            : 'По одной штуке в строке:\nлогин:пароль\nпромокод или ссылка'
+        }
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      <div className="row" style={{ justifyContent: 'space-between', marginTop: 12 }}>
-        {msg ? <span className="muted" style={{ fontSize: 14 }}>{msg}</span> : <span />}
-        <button className="btn" type="button" onClick={add}>
-          Загрузить
+      <div
+        className="row"
+        style={{ justifyContent: 'space-between', gap: 12, marginTop: 12, flexWrap: 'wrap' }}
+      >
+        {msg ? (
+          <span
+            className={msg.ok ? 'muted' : 'field-error'}
+            role={msg.ok ? 'status' : 'alert'}
+            style={{ fontSize: 14 }}
+          >
+            {msg.text}
+          </span>
+        ) : (
+          <span className="hint" style={{ margin: 0 }}>
+            Повторы не ложатся на склад: одна строка — одному покупателю.
+          </span>
+        )}
+        <button
+          className="btn"
+          type="button"
+          disabled={busy || !lines.length}
+          onClick={() => void add()}
+        >
+          {busy ? 'Загружаем…' : lines.length ? `Загрузить ${lines.length}` : 'Загрузить'}
         </button>
       </div>
     </section>

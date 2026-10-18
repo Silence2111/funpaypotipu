@@ -30,6 +30,7 @@ const GOLD = {
   minQty: 10_000,
   stock: 250_000,
   game: { slug: 'wow' },
+  category: { fulfillmentType: 'manual' },
 };
 
 const ACCOUNT = {
@@ -43,7 +44,15 @@ const ACCOUNT = {
   stock: null,
 };
 
-const KEYS = { ...ACCOUNT, id: 'l-keys', title: 'Ключ Steam, случайная игра', price: 4_900n, fulfillmentType: 'auto_key', stock: 5 };
+const KEYS = {
+  ...ACCOUNT,
+  id: 'l-keys',
+  title: 'Ключ Steam, случайная игра',
+  price: 4_900n,
+  fulfillmentType: 'auto_key',
+  stock: 5,
+  category: { fulfillmentType: 'auto_key' },
+};
 
 function setup(listing: Record<string, unknown>, order: Record<string, unknown> = {}) {
   const state = {

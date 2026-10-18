@@ -42,6 +42,11 @@ export const createListingSchema = z.object({
   unitName: z.string().max(24).nullable().optional(),
   pricePerUnits: z.number().int().positive().optional(),
   minQty: z.number().int().positive().optional(),
+  // Автовыдача со склада строк у аккаунтов, предметов и услуг: покупатель
+  // сразу получает свою строку, как ключ. У ключей она всегда, у пополнений — нет.
+  autoDelivery: z.boolean().optional(),
+  // Сообщение покупателю в чат заказа сразу после оплаты: как войти, что дальше.
+  deliveryTemplate: z.string().trim().max(2000, 'Сообщение — до 2000 знаков').nullable().optional(),
 });
 export type CreateListingInput = z.infer<typeof createListingSchema>;
 

@@ -3137,6 +3137,14 @@ a.my-lot-title:hover {
   font-size: 15px;
 }
 
+/* Склад автовыдачи: строка — одна штука, моноширинно, чтобы видеть опечатки. */
+.store-lines {
+  min-height: 120px;
+  resize: vertical;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  line-height: 1.5;
+}
+
 /* Фото лота: листается пальцем, миниатюры, на весь экран по нажатию. */
 .gallery-main {
   position: relative;

@@ -63,6 +63,23 @@ export class OrdersService {
     await this.chat.postSystem(orderId, text).catch(() => {});
   }
 
+  /**
+   * Сообщение продавца из лота сразу после оплаты: как войти, что сделать
+   * после получения. Приходит от его имени, а не от площадки. Как и
+   * системные, не роняет оплату: деньги уже в эскроу.
+   */
+  private async sellerNote(order: Order) {
+    try {
+      const listing = await this.prisma.listing.findUnique({
+        where: { id: order.listingId },
+        select: { deliveryTemplate: true },
+      });
+      if (listing?.deliveryTemplate) await this.chat.postFromSeller(order.id, listing.deliveryTemplate);
+    } catch (e) {
+      this.logger.warn(`Сообщение продавца по заказу ${order.publicNumber}: ${(e as Error).message}`);
+    }
+  }
+
   async create(
     buyerId: string,
     listingId: string,
@@ -72,7 +89,7 @@ export class OrdersService {
     const account = opts.account?.trim() || undefined;
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      include: { game: { select: { slug: true } } },
+      include: { game: { select: { slug: true } }, category: { select: { fulfillmentType: true } } },
     });
     if (listing?.status === 'sold_out') throw new BadRequestException('Лот закончился');
     if (!listing || listing.status !== 'active') throw new NotFoundException('Лот недоступен');
@@ -158,6 +175,11 @@ export class OrdersService {
           ...(account ? { account } : {}),
           ...(topupNominal != null ? { topupAmount: topupNominal.toString() } : {}),
           ...(buyerData.length ? { buyerData } : {}),
+          // Автовыдача аккаунта или предмета: заказ называет выданное
+          // товаром, а не ключом. Ключи и прежние заказы — без пометки.
+          ...(listing.fulfillmentType === 'auto_key' && listing.category.fulfillmentType === 'manual'
+            ? { goods: 'item' }
+            : {}),
           ...(soldByQty(listing)
             ? {
                 unitName: listing.unitName ?? 'шт.',
@@ -314,12 +336,16 @@ export class OrdersService {
       const topup = fulfilled.fulfillmentType === 'provider';
       if (fulfilled.status === 'delivered') {
         await this.notifications.notify(fulfilled.buyerId, 'order_delivered', { orderId: fulfilled.id });
+        const item = (fulfilled.listingSnapshot as { goods?: string } | null)?.goods === 'item';
         await this.sys(
           fulfilled.id,
           topup
             ? 'Пополнение отправлено. Проверьте баланс и подтвердите получение.'
-            : 'Товар выдан автоматически. Заберите ключ на странице заказа.',
+            : item
+              ? 'Товар выдан автоматически — он на странице заказа. Проверьте его и подтвердите получение.'
+              : 'Товар выдан автоматически. Заберите ключ на странице заказа.',
         );
+        await this.sellerNote(fulfilled);
       } else if (fulfilled.status === 'refunded') {
         await this.sys(
           fulfilled.id,
@@ -330,6 +356,7 @@ export class OrdersService {
       }
       return fulfilled;
     }
+    await this.sellerNote(paid);
     return paid;
   }
 
@@ -343,9 +370,11 @@ export class OrdersService {
     if (order.fulfillmentType !== 'manual') return true;
     const listing = await this.prisma.listing.findUnique({
       where: { id: order.listingId },
-      select: { stock: true },
+      select: { stock: true, fulfillmentType: true },
     });
-    if (!listing || listing.stock == null) return true;
+    // Продавец включил автовыдачу, пока заказ ждал оплаты: наличие теперь —
+    // строки склада, а этот заказ он выдаст сам, как оформлено.
+    if (!listing || listing.stock == null || listing.fulfillmentType !== 'manual') return true;
 
     const taken = await this.prisma.listing.updateMany({
       where: { id: order.listingId, stock: { gte: order.qty } },
@@ -382,9 +411,9 @@ export class OrdersService {
     if (order.fulfillmentType !== 'manual') return;
     const listing = await this.prisma.listing.findUnique({
       where: { id: order.listingId },
-      select: { stock: true, status: true },
+      select: { stock: true, status: true, fulfillmentType: true },
     });
-    if (!listing || listing.stock == null) return;
+    if (!listing || listing.stock == null || listing.fulfillmentType !== 'manual') return;
     await this.prisma.listing.update({
       where: { id: order.listingId },
       data: {

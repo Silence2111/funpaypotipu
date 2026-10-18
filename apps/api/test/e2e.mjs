@@ -1,7 +1,7 @@
 /**
  * Сквозные e2e-тесты денежных путей против запущенного API + БД.
  * Запуск: API_URL=http://localhost:4090 DATABASE_URL=... node apps/api/test/e2e.mjs
- * Покрывает: эскроу-покупка, авто-выдача ключей, пополнение на сумму покупателя,
+ * Покрывает: эскроу-покупка, авто-выдача ключей и аккаунтов со склада, пополнение на сумму покупателя,
  * продажа поштучно (наличие, перепродажа последней штуки), способы оплаты (надбавка карты,
  * второй платёж по заказу), модерация (жалобы, бан, заморозка, спор у арбитра),
  * аккаунт (чёрный список, профиль, пароль, сеансы), вход с кодом из приложения и защита от подбора,
@@ -101,6 +101,45 @@ async function scenarioAutoKey(rnd) {
   check('Авто-выдача → delivered', o.body.status === 'delivered');
   const key = await j(`/orders/${order.body.id}/key`, { token: buyer.token });
   check('Ключ расшифрован покупателю', /^STEAM-/.test(key.body.key || ''));
+}
+
+// Автовыдача аккаунтов, как боты у продавцов FunPay: склад строк, своя
+// строка покупателю сразу после оплаты, инструкция продавца в чате.
+async function scenarioAutoGoods(rnd) {
+  console.log('\n— Автовыдача аккаунтов со склада —');
+  const seller = await register('ags', rnd);
+  const buyer = await register('agb', rnd);
+  const lot = await createListing(seller.token, 'accounts', '99000', {
+    autoDelivery: true,
+    deliveryTemplate: 'Войдите и смените пароль. Вопросы — в тг @seller',
+  });
+  const fresh = await prisma.listing.findUnique({ where: { id: lot }, select: { status: true, fulfillmentType: true, deliveryTemplate: true } });
+  check('Аккаунт с автовыдачей: склад строк, пока пуст — не в продаже', fresh.fulfillmentType === 'auto_key' && fresh.status === 'sold_out', JSON.stringify(fresh));
+  check('Контакты в сообщении после оплаты скрыты сразу', fresh.deliveryTemplate === 'Войдите и смените пароль. Вопросы — в [скрыто] [скрыто]', fresh.deliveryTemplate);
+  const add = await j(`/listings/${lot}/keys`, { method: 'POST', token: seller.token, body: JSON.stringify({ keys: ['acc1@mail.test:pass1', 'acc2@mail.test:pass2', 'acc1@mail.test:pass1'] }) });
+  check('На складе 2 строки, повтор пропущен', add.body.added === 2 && add.body.skipped === 1, JSON.stringify(add.body));
+  const again = await j(`/listings/${lot}/keys`, { method: 'POST', token: seller.token, body: JSON.stringify({ keys: ['acc2@mail.test:pass2'] }) });
+  check('Уже лежащее на складе второй раз не ложится', again.body.added === 0 && again.body.skipped === 1, JSON.stringify(again.body));
+  const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) });
+  await pay(buyer.token, order.body.id);
+  const o = await j(`/orders/${order.body.id}`, { token: buyer.token });
+  check('Оплатил — аккаунт выдан сразу', o.body.status === 'delivered' && o.body.listingSnapshot?.goods === 'item', o.body.status);
+  const got = await j(`/orders/${order.body.id}/key`, { token: buyer.token });
+  check('Покупатель видит свою строку', /^acc[12]@mail\.test:pass[12]$/.test(got.body.key ?? ''), got.body.key);
+  const conv = (await j('/conversations', { token: buyer.token })).body.find?.((c) => c.orderId === order.body.id);
+  const hist = await j(`/conversations/${conv?.id}/messages`, { token: buyer.token });
+  const said = (hist.body ?? []).map((m) => `${m.senderId === seller.id ? 'продавец' : m.senderId ? 'покупатель' : 'площадка'}: ${m.body}`);
+  check(
+    'В чате: выдача от площадки, затем инструкция от продавца',
+    /^площадка: Товар выдан автоматически/.test(said.at(-2) ?? '') && said.at(-1) === 'продавец: Войдите и смените пароль. Вопросы — в [скрыто] [скрыто]',
+    JSON.stringify(said.slice(-2)),
+  );
+  const left = await prisma.listing.findUnique({ where: { id: lot }, select: { stock: true, status: true } });
+  check('На складе осталась 1 строка, лот в продаже', left.stock === 1 && left.status === 'active', JSON.stringify(left));
+  const off = await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ autoDelivery: false }) });
+  check('Выключили — выдаёт продавец, наличие без ограничения', off.body.fulfillmentType === 'manual' && off.body.stock === null, JSON.stringify({ f: off.body.fulfillmentType, s: off.body.stock }));
+  const on = await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ autoDelivery: true }) });
+  check('Включили снова — на складе та же строка', on.body.fulfillmentType === 'auto_key' && on.body.stock === 1 && on.body.status === 'active', JSON.stringify({ f: on.body.fulfillmentType, s: on.body.stock, st: on.body.status }));
 }
 
 async function scenarioSteamTopup(rnd) {
@@ -664,6 +703,7 @@ async function scenarioPayout(rnd) {
   }
   await scenarioEscrow(rnd);
   await scenarioAutoKey(rnd);
+  await scenarioAutoGoods(rnd);
   await scenarioSteamTopup(rnd);
   await scenarioQuantity(rnd);
   await scenarioPaymentMethods(rnd);

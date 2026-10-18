@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ShieldCheck, KeyRound, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, KeyRound, AlertTriangle, CheckCircle2, Package } from 'lucide-react';
 import { apiFetch, getToken, useSession } from '@/lib/session';
 import { formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { apiErrorMessage } from '@/lib/errors';
@@ -24,6 +24,8 @@ interface Order {
     unitName?: string; unitPrice?: string; pricePerUnits?: number;
     /** Ответы покупателя на поля лота: ник, сервер. */
     buyerData?: Array<{ label: string; value: string }>;
+    /** «item» — автовыдача аккаунта или предмета со склада, а не ключ. */
+    goods?: string;
   } | null;
   autoConfirmAt?: string | null; sellerPayoutAmount?: string;
 }
@@ -42,7 +44,7 @@ const PAID_BY: Record<string, string> = {
   googlepay: 'через Google Pay', crypto: 'криптовалютой',
 };
 
-type Kind = 'key' | 'topup' | 'manual';
+type Kind = 'key' | 'item' | 'topup' | 'manual';
 
 /** Что сейчас происходит и что делать — отдельно для покупателя и продавца. */
 function explain(status: string, role: 'buyer' | 'seller', kind: Kind, confirmUntil: string | null) {
@@ -51,8 +53,8 @@ function explain(status: string, role: 'buyer' | 'seller', kind: Kind, confirmUn
   if (role === 'buyer') {
     switch (status) {
       case 'created': return 'Заказ создан, но не оплачен. Без оплаты он истечёт через 30 минут.';
-      case 'paid': return kind === 'key'
-        ? 'Оплата получена, ключ выдаётся. Обновите страницу через пару секунд.'
+      case 'paid': return kind === 'key' || kind === 'item'
+        ? `Оплата получена, ${kind === 'key' ? 'ключ' : 'товар'} выдаётся. Обновите страницу через пару секунд.`
         : kind === 'topup'
           ? 'Оплата получена, пополнение отправляется. Обновите страницу через пару секунд.'
           : 'Оплата у площадки, продавец её не получит до вашего подтверждения. Ждём, когда он передаст товар; напишите ему в чат ниже. Не выдаст за 24 ч — деньги вернутся на баланс.';
@@ -69,7 +71,7 @@ function explain(status: string, role: 'buyer' | 'seller', kind: Kind, confirmUn
     case 'paid': return kind === 'manual'
       ? 'Покупатель оплатил, деньги у площадки. Передайте товар и нажмите «Отметить выдачу» — у вас 24 ч.'
       : 'Покупатель оплатил, деньги у площадки. Выдача идёт автоматически.';
-    case 'delivered': return 'Вы отметили выдачу. Деньги придут на баланс, когда покупатель подтвердит получение или истечёт срок проверки.';
+    case 'delivered': return `${kind === 'manual' ? 'Вы отметили выдачу.' : 'Выдано автоматически.'} Деньги придут на баланс, когда покупатель подтвердит получение или истечёт срок проверки.`;
     case 'completed': return 'Сделка закрыта, оплата зачислена на ваш баланс.';
     case 'disputed': return 'Покупатель открыл спор. Ответьте в споре и приложите доказательства передачи — или верните деньги сами.';
     case 'refunded': return 'Деньги вернулись покупателю на баланс. Сделка закрыта.';
@@ -238,7 +240,11 @@ export default function OrderPage() {
 
   const role = me?.id === order.buyerId ? 'buyer' : 'seller';
   const auto = order.fulfillmentType === 'auto_key';
-  const kind: Kind = auto ? 'key' : order.fulfillmentType === 'provider' ? 'topup' : 'manual';
+  // Автовыдача аккаунта или предмета — «товар», у ключей — «ключ».
+  const kind: Kind = auto
+    ? order.listingSnapshot?.goods === 'item' ? 'item' : 'key'
+    : order.fulfillmentType === 'provider' ? 'topup' : 'manual';
+  const many = (order.qty ?? 1) > 1;
   const step = STEP_OF[order.status] ?? -1;
   const closed = ['refunded', 'cancelled', 'expired'].includes(order.status);
   const text = explain(order.status, role, kind, order.autoConfirmAt ?? null);
@@ -339,7 +345,8 @@ export default function OrderPage() {
           )}
           {role === 'buyer' && auto && (order.status === 'delivered' || order.status === 'completed') && !keys && (
             <button className={order.status === 'delivered' ? 'btn secondary' : 'btn'} onClick={revealKey} type="button">
-              <KeyRound size={16} /> {(order.qty ?? 1) > 1 ? 'Показать ключи' : 'Показать ключ'}
+              {kind === 'item' ? <Package size={16} strokeWidth={1.75} /> : <KeyRound size={16} strokeWidth={1.75} />}{' '}
+              {kind === 'item' ? 'Показать товар' : many ? 'Показать ключи' : 'Показать ключ'}
             </button>
           )}
           {role === 'buyer' && order.status === 'delivered' && (
@@ -370,7 +377,9 @@ export default function OrderPage() {
         {keys && (
           <div className="card flat" style={{ marginTop: 16, padding: 16, background: 'var(--page)' }}>
             <p className="hint" style={{ marginBottom: 6 }}>
-              {keys.length > 1 ? `Ваши ключи · ${keys.length}` : 'Ваш ключ'}
+              {kind === 'item'
+                ? keys.length > 1 ? `Ваш товар · ${keys.length} шт.` : 'Ваш товар'
+                : keys.length > 1 ? `Ваши ключи · ${keys.length}` : 'Ваш ключ'}
             </p>
             <ol style={{ margin: 0, paddingLeft: keys.length > 1 ? 22 : 0, listStyle: keys.length > 1 ? 'decimal' : 'none', display: 'grid', gap: 6 }}>
               {keys.map((k, i) => (
@@ -388,7 +397,10 @@ export default function OrderPage() {
           <div className="field">
             <label className="label" htmlFor="dispute-reason">Что пошло не так</label>
             <textarea id="dispute-reason" className="input" rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
-              placeholder="Например: ключ уже активирован, пишет «код использован»" style={{ resize: 'vertical' }} />
+              placeholder={kind === 'item'
+                ? 'Например: пароль не подходит, аккаунт не соответствует описанию'
+                : 'Например: ключ уже активирован, пишет «код использован»'}
+              style={{ resize: 'vertical' }} />
             <p className="hint">Спор рассмотрит арбитр площадки. Деньги заморожены до решения.</p>
           </div>
           <div className="row" style={{ gap: 8, marginTop: 12 }}>

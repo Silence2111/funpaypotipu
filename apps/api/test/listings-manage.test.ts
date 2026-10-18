@@ -69,6 +69,7 @@ const MINE = {
   sellerId: 's1',
   status: 'active',
   categoryId: 'c1',
+  fulfillmentType: 'manual',
   topupMarkupBps: null,
   category: { fulfillmentType: 'manual' },
 };

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ImagePlus, Star, X } from 'lucide-react';
 import { markupLabel, topupQuote, topupTermsError } from '@gamemarket/shared/topup';
@@ -43,6 +44,9 @@ export interface EditableListing {
   minQty: number;
   stock: number | null;
   buyerFields: Array<{ label: string; required: boolean }> | null;
+  /** auto_key — выдаётся со склада: ключи или строки товара. */
+  fulfillmentType: string;
+  deliveryTemplate: string | null;
   game: { slug: string; title: string };
   category: { slug: string; title: string; fulfillmentType: string; unitName?: string | null; pricePerUnits?: number | null };
 }
@@ -145,6 +149,10 @@ export function ListingForm({
   const [stock, setStock] = useState(initial?.unitName != null && initial.stock != null ? String(initial.stock) : '');
   // Что спросить у покупателя до оплаты: ник, сервер — как поля лота на Playerok.
   const [buyerFields, setBuyerFields] = useState<Array<{ label: string; required: boolean }>>(initial?.buyerFields ?? []);
+  // Автовыдача со склада строк у аккаунтов и предметов, как боты на FunPay.
+  const [autoDelivery, setAutoDelivery] = useState(initial?.fulfillmentType === 'auto_key');
+  // Сообщение покупателю в чат заказа сразу после оплаты.
+  const [template, setTemplate] = useState(initial?.deliveryTemplate ?? '');
 
   const presetGame = preset?.game;
   const presetCategory = preset?.category;
@@ -188,7 +196,13 @@ export function ListingForm({
     setPerUnits(pack.pricePerUnits);
   }, [pack?.unitName, pack?.pricePerUnits]); // eslint-disable-line react-hooks/exhaustive-deps
   const variable = byAmount && selected?.fulfillmentType === 'provider';
-  const perPiece = byQty && selected?.fulfillmentType === 'manual';
+  // Склад строк — у аккаунтов, предметов и услуг; валюту продают количеством.
+  const canAuto = selected?.fulfillmentType === 'manual' && !pack;
+  const autoLines = canAuto && autoDelivery;
+  const manualLot = selected?.fulfillmentType === 'manual' && !autoLines;
+  const perPiece = byQty && manualLot;
+  // Пополнение выполняет провайдер — инструкция продавца там ни к чему.
+  const withNote = !!selected && selected.fulfillmentType !== 'provider';
   const qtyTerms = {
     unitName: unitName.trim() || null,
     pricePerUnits: perUnits,
@@ -298,7 +312,7 @@ export function ListingForm({
     topup: variable ? termsError : null,
     qty: perPiece ? qtyTermsError(qtyTerms) : null,
     buyer:
-      selected?.fulfillmentType !== 'manual'
+      !manualLot
         ? null
         : buyerFields.some((f) => f.label.trim().length < 2)
           ? 'Название поля — от 2 символов'
@@ -306,7 +320,7 @@ export function ListingForm({
             ? 'Названия полей не должны повторяться'
             : null,
   };
-  const manualLot = selected?.fulfillmentType === 'manual';
+  const cleanTemplate = template.trim();
   const cleanFields = buyerFields.map((f) => ({ label: f.label.trim(), required: f.required }));
   const showErr = (k: string) => (touched[k] ? fieldErrors[k] : null);
 
@@ -346,7 +360,7 @@ export function ListingForm({
           : initial.unitName != null && initial.category.fulfillmentType === 'manual'
             ? { unitName: null, stock: null }
             : {};
-        await apiFetch(`/listings/${initial.id}`, {
+        const saved = await apiFetch<{ status: string }>(`/listings/${initial.id}`, {
           method: 'PATCH',
           body: JSON.stringify({
             title: title.trim(),
@@ -357,9 +371,19 @@ export function ListingForm({
             ...quantity,
             // Поля спрашиваются только у ручной выдачи; пустой список их снимает.
             ...(manualLot ? { buyerFields: cleanFields.length ? cleanFields : null } : {}),
+            ...(canAuto ? { autoDelivery: autoLines } : {}),
+            ...(withNote ? { deliveryTemplate: cleanTemplate || null } : {}),
           }),
         });
-        router.push(initial.status === 'active' ? `/lot/${initial.id}?updated=1` : '/cabinet/lots?updated=1');
+        // Только что включили автовыдачу, а склад пуст — сразу к складу на странице лота.
+        const switchedOn = autoLines && initial.fulfillmentType !== 'auto_key';
+        router.push(
+          switchedOn && saved.status === 'sold_out'
+            ? `/lot/${initial.id}?stock=1`
+            : initial.status === 'active'
+              ? `/lot/${initial.id}?updated=1`
+              : '/cabinet/lots?updated=1',
+        );
       } catch (e) {
         setErr(apiErrorMessage(e, 'Не удалось сохранить изменения. Попробуйте ещё раз через минуту.'));
         setBusy(false);
@@ -384,6 +408,8 @@ export function ListingForm({
             : {}),
           ...(perPiece ? qtyTerms : {}),
           ...(manualLot && cleanFields.length ? { buyerFields: cleanFields } : {}),
+          ...(autoLines ? { autoDelivery: true } : {}),
+          ...(withNote && cleanTemplate ? { deliveryTemplate: cleanTemplate } : {}),
         }),
       });
       router.push(`/lot/${created.id}?created=1`);
@@ -500,6 +526,45 @@ export function ListingForm({
           </fieldset>
         )}
 
+        {canAuto && (
+          <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+            <legend className="label" style={{ marginBottom: 6, padding: 0 }}>Как выдаёте</legend>
+            {[
+              { v: false, t: 'Вручную', d: 'Передаёте товар в чате заказа и отмечаете выдачу' },
+              {
+                v: true,
+                t: 'Автоматически со склада',
+                d: 'Загружаете товар строками: логин и пароль, промокод, ссылка. Покупатель получает свою строку сразу после оплаты',
+              },
+            ].map((o) => (
+              <label key={o.t} className="row" style={{ gap: 10, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>
+                <input type="radio" name="delivery" checked={autoDelivery === o.v} onChange={() => setAutoDelivery(o.v)}
+                  style={{ marginTop: 3, width: 18, height: 18, accentColor: 'var(--accent)' }} />
+                <span>
+                  <span style={{ fontWeight: 600, fontSize: 15 }}>{o.t}</span>
+                  <span className="hint" style={{ display: 'block' }}>{o.d}</span>
+                </span>
+              </label>
+            ))}
+            {autoLines ? (
+              <p className="hint" style={{ margin: '4px 0 0' }}>
+                {initial?.fulfillmentType === 'auto_key' ? (
+                  <>
+                    Склад — на <Link href={`/lot/${initial.id}#keys`} className="inline-link">странице лота</Link>, внизу.
+                  </>
+                ) : (
+                  'Товар загрузите на склад после сохранения: с первой строкой лот появится в каталоге.'
+                )}{' '}
+                Каждая строка — одна штука: покупатель может взять несколько, наличие считает склад.
+              </p>
+            ) : initial?.fulfillmentType === 'auto_key' ? (
+              <p className="hint" style={{ margin: '4px 0 0' }}>
+                Строки на складе останутся: включите автовыдачу снова — и они вернутся в продажу.
+              </p>
+            ) : null}
+          </fieldset>
+        )}
+
         {manualLot && (
           <div className="field">
             <span className="label">Что спросить у покупателя — необязательно</span>
@@ -538,6 +603,24 @@ export function ListingForm({
           </div>
         )}
 
+        {withNote && (
+          <div className="field">
+            <label className="label" htmlFor="note">Сообщение покупателю после оплаты — необязательно</label>
+            <textarea id="note" className="input" style={{ minHeight: 96, resize: 'vertical' }} maxLength={2000}
+              placeholder={
+                selected?.fulfillmentType === 'auto_key'
+                  ? 'Например: активируйте ключ в Steam — «Игры», затем «Активировать в Steam»'
+                  : autoLines
+                    ? 'Например: войдите по данным из заказа и сразу смените пароль и почту'
+                    : 'Например: спасибо за заказ, передам товар за 15 минут — будьте в сети'
+              }
+              value={template} onChange={(e) => setTemplate(e.target.value)} />
+            <p className="hint">
+              Придёт в чат заказа от вашего имени сразу после оплаты. Контакты и ссылки скрываются, как в любом сообщении.
+            </p>
+          </div>
+        )}
+
         {pack && (
           <p className="hint" style={{ margin: 0 }}>
             В этом разделе продают количеством: цена — за {formatQty(pack.pricePerUnits, pack.unitName)}, одинаково у
@@ -545,7 +628,7 @@ export function ListingForm({
           </p>
         )}
 
-        {selectedCategory?.fulfillmentType === 'manual' && !pack && (
+        {manualLot && !pack && (
           <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="label" style={{ marginBottom: 6, padding: 0 }}>Как продаёте</legend>
             {[

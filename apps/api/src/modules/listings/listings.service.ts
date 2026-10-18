@@ -10,6 +10,7 @@ import { Prisma, PrismaClient, type FulfillmentType } from '@gamemarket/db';
 import {
   bumpCooldownHours,
   chargeFromBalance,
+  maskContacts,
   promoCost,
   promoUntil,
   qtyTermsError,
@@ -38,6 +39,12 @@ const bumpCooldownMs = (sales: number) => bumpCooldownHours(sales) * 3600 * 1000
 /** Общая пачка раздела валюты («за 1 000 золота») или null, если её нет. */
 const sectionPack = (c: { unitName: string | null; pricePerUnits: number | null }) =>
   c.unitName && c.pricePerUnits ? { unitName: c.unitName, pricePerUnits: c.pricePerUnits } : null;
+
+/**
+ * Автовыдача у аккаунтов, предметов и услуг: одна строка склада — одна
+ * штука. Покупатель берёт сколько нужно, наличие считает склад.
+ */
+const PER_LINE = { unitName: null, pricePerUnits: 1, minQty: 1, stock: 0 };
 
 const formatUnits = (n: number, unit: string) => `${new Intl.NumberFormat('ru-RU').format(n)} ${unit}`;
 
@@ -283,8 +290,9 @@ export class ListingsService {
         fulfillmentType: true,
         salesCount: true,
         // id раздела — странице лота: по нему подписи параметров («Звание»,
-        // а не «rank») и похожие предложения.
-        category: { select: { id: true, slug: true, title: true } },
+        // а не «rank») и похожие предложения. Выдача раздела — чтобы
+        // автовыдачу аккаунта не называть ключом.
+        category: { select: { id: true, slug: true, title: true, fulfillmentType: true } },
         seller: {
           select: {
             id: true,
@@ -328,6 +336,7 @@ export class ListingsService {
         attributes: true,
         buyerFields: true,
         stock: true,
+        deliveryTemplate: true,
         category: { select: { slug: true, title: true, fulfillmentType: true, unitName: true, pricePerUnits: true } },
       },
     });
@@ -481,18 +490,22 @@ export class ListingsService {
     if (!category) throw new NotFoundException('Категория не найдена для указанной игры');
 
     await this.validateAttributes(input.categoryId, input.attributes);
-    const terms = input.topup ? this.topupTerms(category.fulfillmentType, input.topup) : null;
-    const buyerFields = this.buyerFields(category.fulfillmentType, input.buyerFields);
-    const qty = this.qtyTerms(
-      category.fulfillmentType,
-      {
-        unitName: input.unitName ?? null,
-        pricePerUnits: input.pricePerUnits ?? 1,
-        minQty: input.minQty ?? 1,
-        stock: input.stock,
-      },
-      sectionPack(category),
-    );
+    const fulfillment = this.fulfillmentOf(category, input.autoDelivery);
+    const terms = input.topup ? this.topupTerms(fulfillment, input.topup) : null;
+    const buyerFields = this.buyerFields(fulfillment, input.buyerFields);
+    const qty =
+      fulfillment === 'auto_key' && category.fulfillmentType === 'manual'
+        ? PER_LINE
+        : this.qtyTerms(
+            fulfillment,
+            {
+              unitName: input.unitName ?? null,
+              pricePerUnits: input.pricePerUnits ?? 1,
+              minQty: input.minQty ?? 1,
+              stock: input.stock,
+            },
+            sectionPack(category),
+          );
 
     const created = await this.prisma.listing.create({
       data: {
@@ -510,18 +523,49 @@ export class ListingsService {
         currency: input.currency,
         attributes: input.attributes as Prisma.InputJsonValue,
         images: input.images as Prisma.InputJsonValue,
-        // Наличие авто-лота — это склад ключей: его ведёт InventoryService.
-        // Без ключей лот в каталог не выходит: купить его всё равно нельзя.
-        // Первая загрузка ключей переводит его в продажу (addKeys).
-        stock: category.fulfillmentType === 'auto_key' ? 0 : qty.stock,
-        status: category.fulfillmentType === 'auto_key' || qty.stock === 0 ? 'sold_out' : 'active',
-        fulfillmentType: category.fulfillmentType,
-        autoDelivery: category.fulfillmentType !== 'manual',
+        // Наличие авто-лота — это склад ключей или строк: его ведёт
+        // InventoryService. Пустой лот в каталог не выходит: купить его всё
+        // равно нельзя. Первая загрузка склада переводит его в продажу (addKeys).
+        stock: fulfillment === 'auto_key' ? 0 : qty.stock,
+        status: fulfillment === 'auto_key' || qty.stock === 0 ? 'sold_out' : 'active',
+        fulfillmentType: fulfillment,
+        autoDelivery: fulfillment !== 'manual',
+        deliveryTemplate: this.template(input.deliveryTemplate),
       },
       select: cardSelect,
     });
     await this.search.indexListing(created.id);
     return created;
+  }
+
+  /**
+   * Способ выдачи лота. Ключи раздел выдаёт со склада всегда, пополнения —
+   * через провайдера. У аккаунтов, предметов и услуг выбирает продавец:
+   * передать в чате или выдавать сразу со склада строк — логин и пароль,
+   * промокод, ссылка, как боты автовыдачи у продавцов FunPay. Не выбрал —
+   * остаётся как было. Валюте с общей пачкой склад строк не подходит: её
+   * продают количеством.
+   */
+  private fulfillmentOf(
+    category: { fulfillmentType: FulfillmentType; unitName: string | null; pricePerUnits: number | null },
+    autoDelivery: boolean | undefined,
+    current: FulfillmentType = 'manual',
+  ): FulfillmentType {
+    if (category.fulfillmentType !== 'manual') return category.fulfillmentType;
+    if (autoDelivery === undefined) return current;
+    if (autoDelivery && sectionPack(category)) {
+      throw new BadRequestException('Валюту продают количеством — автовыдача со склада здесь не подходит');
+    }
+    return autoDelivery ? 'auto_key' : 'manual';
+  }
+
+  /**
+   * Сообщение покупателю после оплаты. Контакты скрываются сразу, как в
+   * описании профиля: продавец видит в форме то же, что получит покупатель.
+   */
+  private template(raw: string | null | undefined): string | null {
+    const text = raw?.trim();
+    return text ? maskContacts(text).masked : null;
   }
 
   /**
@@ -618,9 +662,19 @@ export class ListingsService {
     const data: Prisma.ListingUpdateInput = {};
     if (input.title !== undefined) data.title = input.title;
     if (input.description !== undefined) data.description = input.description;
+    if (input.deliveryTemplate !== undefined) data.deliveryTemplate = this.template(input.deliveryTemplate);
+    // Способ выдачи после правки: у аккаунтов, предметов и услуг продавец
+    // включает и выключает автовыдачу, у ключей и пополнений его задаёт раздел.
+    const fulfillment = this.fulfillmentOf(current.category, input.autoDelivery, current.fulfillmentType);
+    const auto = fulfillment === 'auto_key';
+    const switched = fulfillment !== current.fulfillmentType;
+    if (switched) {
+      data.fulfillmentType = fulfillment;
+      data.autoDelivery = auto;
+    }
     // У лота «на сумму покупателя» цена не задаётся, а следует из условий.
     if (input.topup) {
-      const terms = this.topupTerms(current.category.fulfillmentType, input.topup);
+      const terms = this.topupTerms(fulfillment, input.topup);
       data.topupMarkupBps = terms.markupBps;
       data.topupMin = terms.min;
       data.topupMax = terms.max;
@@ -633,21 +687,39 @@ export class ListingsService {
     const variable = input.topup !== undefined ? input.topup !== null : current.topupMarkupBps != null;
     if (input.price !== undefined && !variable) data.price = BigInt(input.price);
 
-    // Поштучно: проверяем итоговые условия — старые значения плюс изменённые.
-    const auto = current.category.fulfillmentType === 'auto_key';
-    if (
+    if (auto && current.category.fulfillmentType === 'manual') {
+      // Автовыдачу включили: продаётся по строке, наличие — строки, которые
+      // уже лежат на складе (в том числе с прошлого включения). Ник и сервер
+      // со склада спрашивать некому.
+      if (switched) {
+        Object.assign(data, PER_LINE, {
+          stock: await this.prisma.digitalGood.count({ where: { listingId: id, status: 'available' } }),
+          buyerFields: Prisma.DbNull,
+        });
+      }
+    } else if (
+      switched ||
       input.unitName !== undefined ||
       input.pricePerUnits !== undefined ||
       input.minQty !== undefined ||
       (input.stock !== undefined && !auto)
     ) {
+      // Поштучно: проверяем итоговые условия — старые значения плюс
+      // изменённые. Автовыдачу выключили — наличие склада к ручной выдаче не
+      // относится: без нового наличия лот продаётся без ограничения.
       const q = this.qtyTerms(
-        current.category.fulfillmentType,
+        fulfillment,
         {
           unitName: input.unitName !== undefined ? input.unitName : current.unitName,
           pricePerUnits: input.pricePerUnits ?? current.pricePerUnits,
           minQty: input.minQty ?? current.minQty,
-          stock: auto ? current.stock : input.stock !== undefined ? input.stock : current.stock,
+          stock: auto
+            ? current.stock
+            : input.stock !== undefined
+              ? input.stock
+              : switched
+                ? null
+                : current.stock,
         },
         sectionPack(current.category),
       );
@@ -658,18 +730,18 @@ export class ListingsService {
     }
     // Распроданный лот с пополненным наличием возвращается в продажу сам —
     // как «восстановление лота» у продавцов FunPay.
-    if (current.status === 'sold_out' && input.status === undefined && !auto) {
+    if (current.status === 'sold_out' && input.status === undefined && (!auto || switched)) {
       const stock = data.stock !== undefined ? (data.stock as number | null) : current.stock;
       if (stock == null || stock > 0) data.status = 'active';
     }
     // Наличие обнулили правкой — лот уходит из каталога, как после продажи последней штуки.
     if (data.stock === 0 && current.status === 'active' && input.status === undefined) data.status = 'sold_out';
-    if (input.buyerFields !== undefined) data.buyerFields = this.buyerFields(current.category.fulfillmentType, input.buyerFields);
+    if (input.buyerFields !== undefined) data.buyerFields = this.buyerFields(fulfillment, input.buyerFields);
     if (input.currency !== undefined) data.currency = input.currency;
     if (input.attributes !== undefined) data.attributes = input.attributes as Prisma.InputJsonValue;
     if (input.images !== undefined) data.images = input.images as Prisma.InputJsonValue;
     // Наличие обычного лота — выше, вместе с условиями поштучной продажи;
-    // наличие авто-лота меняет только склад ключей. Снятый или возвращённый
+    // наличие авто-лота меняет только склад. Снятый или возвращённый
     // вручную лот — уже не «на время отпуска».
     if (input.status !== undefined) {
       data.status = input.status;
@@ -680,7 +752,7 @@ export class ListingsService {
       const stock = data.stock !== undefined ? (data.stock as number | null) : current.stock;
       if (stock === 0) {
         throw new BadRequestException(
-          auto ? 'На складе нет ключей — загрузите их, и лот вернётся в продажу' : 'Лот закончился — укажите наличие',
+          auto ? 'Склад пуст — загрузите товар, и лот вернётся в продажу' : 'Лот закончился — укажите наличие',
         );
       }
     }
@@ -719,6 +791,7 @@ export class ListingsService {
         sellerId: true,
         status: true,
         categoryId: true,
+        fulfillmentType: true,
         topupMarkupBps: true,
         unitName: true,
         pricePerUnits: true,

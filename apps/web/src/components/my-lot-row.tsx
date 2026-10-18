@@ -131,7 +131,7 @@ export function MyLotRow({
           // Распроданный лот возвращается в продажу пополнением, а не
           // переключателем: без наличия его всё равно нельзя купить.
           <Link href={lot.fulfillmentType === 'auto_key' ? `/lot/${lot.id}#keys` : `/cabinet/lot/${lot.id}`} className="my-lot-link">
-            {lot.fulfillmentType === 'auto_key' ? 'Загрузить ключи' : 'Пополнить'}
+            {lot.fulfillmentType === 'auto_key' ? 'Пополнить склад' : 'Пополнить'}
           </Link>
         ) : (
           <button

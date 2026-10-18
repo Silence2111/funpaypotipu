@@ -401,6 +401,47 @@ export class ChatService {
     return dto;
   }
 
+  /**
+   * Сообщение продавца в чат заказа без его участия — текст из лота сразу
+   * после оплаты. От его имени, а не от площадки: инструкцию пишет он.
+   * Контакты скрыты, как в любом его сообщении.
+   */
+  async postFromSeller(orderId: string, text: string): Promise<void> {
+    const conv = await this.prisma.conversation.findUnique({
+      where: { orderId },
+      select: { id: true, buyerId: true, sellerId: true },
+    });
+    if (!conv) return;
+    const { masked, flagged } = maskContacts(text);
+    const message = await this.prisma.message.create({
+      data: {
+        conversationId: conv.id,
+        senderId: conv.sellerId,
+        type: 'text',
+        body: text,
+        bodyMasked: masked,
+        isFlagged: flagged,
+      },
+    });
+    await this.prisma.conversation.update({
+      where: { id: conv.id },
+      data: { lastMessageAt: message.createdAt },
+    });
+    this.publish(
+      conv.id,
+      {
+        id: message.id,
+        conversationId: conv.id,
+        senderId: conv.sellerId,
+        body: masked,
+        isFlagged: flagged,
+        createdAt: message.createdAt,
+        readAt: null,
+      },
+      [conv.buyerId, conv.sellerId],
+    );
+  }
+
   /** Системное сообщение о событии сделки в чат заказа (senderId = null). */
   async postSystem(orderId: string, text: string): Promise<void> {
     const conv = await this.prisma.conversation.findUnique({

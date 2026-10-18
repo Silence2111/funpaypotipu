@@ -93,7 +93,8 @@ export type ListingDetail = ListingCard & {
   buyerFields?: Array<{ label: string; required: boolean }> | null;
   fulfillmentType: string;
   salesCount: number;
-  category: { id: string; slug: string; title: string };
+  /** Выдача раздела: автовыдача у аккаунтов — со склада строк, а не ключи. */
+  category: { id: string; slug: string; title: string; fulfillmentType?: string };
   seller: { id: string; profile: { username: string; ratingAvg: number; ratingCount: number } | null };
 };
 
@@ -236,7 +237,7 @@ export interface PublicPricing {
   paymentsDemo?: boolean;
   /** Цена суток продвижения лота, копейки. */
   promoDayPrice?: string;
-  /** Часов на проверку ключа или пополнения после автоматической выдачи. */
+  /** Часов на проверку после автоматической выдачи: ключ, пополнение, товар со склада. */
   autoGoodsConfirmHours?: number;
   /** Вывод свыше этой суммы (копейки) — после верификации личности. */
   payoutKycAboveMinor?: string;

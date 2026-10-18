@@ -57,10 +57,10 @@ export default async function ListingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string; updated?: string; account?: string; amount?: string }>;
+  searchParams: Promise<{ created?: string; updated?: string; stock?: string; account?: string; amount?: string }>;
 }) {
   const { id } = await params;
-  const { created, updated, account, amount } = await searchParams;
+  const { created, updated, stock, account, amount } = await searchParams;
   const [listing, pricing] = await Promise.all([getListing(id), getPublicPricing()]);
   if (!listing) notFound();
   // Всё, что вокруг лота: продавец целиком, подписи параметров, его другие
@@ -77,8 +77,12 @@ export default async function ListingPage({
     .slice(0, 6);
   const demo = isDemoSeller(listing.seller.profile?.username);
   const auto = listing.fulfillmentType === 'auto_key';
+  // Автовыдача у аккаунтов и предметов — строка со склада продавца, а не ключ.
+  const keys = auto && listing.category.fulfillmentType !== 'manual';
   const provider = listing.fulfillmentType === 'provider';
-  const confirmH = pricing?.autoConfirmHours ?? 72;
+  // Выданное автоматически проверяют быстрее — срок короче, чем у ручной выдачи.
+  const confirmH =
+    auto || provider ? (pricing?.autoGoodsConfirmHours ?? 24) : (pricing?.autoConfirmHours ?? 72);
   const fulfillH = pricing?.fulfillHours ?? 24;
   const soldOut = listing.status === 'sold_out';
   // Поштучно: цена за пачку, покупатель выбирает количество. У ключей поле
@@ -169,7 +173,9 @@ export default async function ListingPage({
             {!soldOut
               ? 'Лот опубликован и уже виден в каталоге.'
               : auto
-                ? 'Лот создан. Загрузите ключи на склад ниже — с первым ключом он появится в каталоге.'
+                ? keys
+                  ? 'Лот создан. Загрузите ключи на склад ниже — с первым ключом он появится в каталоге.'
+                  : 'Лот создан. Загрузите товар на склад ниже — с первой строкой он появится в каталоге.'
                 : 'Лот создан. Наличие — ноль: лот появится в каталоге, когда вы его пополните.'}
           </span>
         </div>
@@ -178,6 +184,12 @@ export default async function ListingPage({
         <div className="alert success" role="status" style={{ marginBottom: 20 }}>
           <ShieldCheck size={18} strokeWidth={1.75} />
           <span>Изменения сохранены и уже видны в каталоге.</span>
+        </div>
+      )}
+      {stock && auto && soldOut && (
+        <div className="alert success" role="status" style={{ marginBottom: 20 }}>
+          <ShieldCheck size={18} strokeWidth={1.75} />
+          <span>Автовыдача включена. Загрузите товар на склад ниже — с первой строкой лот вернётся в каталог.</span>
         </div>
       )}
       <nav className="crumbs" aria-label="Путь">
@@ -194,7 +206,9 @@ export default async function ListingPage({
           <div className="row" style={{ gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
             <span className={auto ? 'badge success' : 'badge'}>
               {auto
-                ? 'Ключ сразу после оплаты'
+                ? keys
+                  ? 'Ключ сразу после оплаты'
+                  : 'Выдача сразу после оплаты'
                 : provider
                   ? listing.game.slug === 'steam'
                     ? 'Пополнение по логину'
@@ -276,7 +290,7 @@ export default async function ListingPage({
                 <li>Деньги лежат у площадки. Продавец получит их, только когда вы подтвердите получение.</li>
                 <li>
                   {auto
-                    ? 'Ключ выдаётся сразу. Не выдался — деньги вернутся на баланс автоматически.'
+                    ? `${keys ? 'Ключ выдаётся' : 'Товар выдаётся со склада продавца'} сразу. Не выдался — деньги вернутся на баланс автоматически.`
                     : provider
                       ? 'Пополнение уходит сразу после оплаты. Не прошло — деньги вернутся на баланс автоматически.'
                       : `Продавец не выдал товар за ${fulfillH} ч — деньги вернутся на баланс автоматически.`}
@@ -305,7 +319,7 @@ export default async function ListingPage({
               <Info size={18} strokeWidth={1.75} />
               <span>
                 Это пример лота: по нему видно, как устроена сделка. Купить можно — оплата на стенде
-                демонстрационная{auto ? ', а ключ придёт с пометкой «ПРИМЕР» и в игре не активируется' : ''}.
+                демонстрационная{keys ? ', а ключ придёт с пометкой «ПРИМЕР» и в игре не активируется' : ''}.
               </span>
             </div>
           )}
@@ -378,7 +392,7 @@ export default async function ListingPage({
         </div>
       </div>
 
-      <KeysManager listingId={listing.id} sellerId={listing.seller.id} auto={auto} />
+      <KeysManager listingId={listing.id} sellerId={listing.seller.id} auto={auto} keys={keys} />
       {!soldOut && (
         <MobileBuyBar
           target="#buy"
