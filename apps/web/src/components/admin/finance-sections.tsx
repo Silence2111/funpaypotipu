@@ -1,13 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { FileText } from 'lucide-react';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
 import { Empty, when } from './shared';
 
 interface Payout { id: string; amount: string; currency: string; method: string; status: string; createdAt?: string }
-interface Kyc { id: string; userId: string; level: string; status: string; createdAt?: string }
+interface Kyc {
+  id: string;
+  userId: string;
+  level: string;
+  status: string;
+  createdAt?: string;
+  user?: { username: string | null; displayName: string | null; email: string | null; since: string; sales: number };
+  files?: Array<{ kind: 'document' | 'selfie'; pdf: boolean; url: string }>;
+}
 
 const METHOD: Record<string, string> = { card: 'на карту', sbp: 'по СБП', crypto: 'в USDT' };
 
@@ -56,10 +65,14 @@ export function PayoutsSection() {
   );
 }
 
-/** Заявки на верификацию продавцов. */
+/**
+ * Заявки на проверку личности: документ и селфи — на экране, ссылки
+ * действуют час. Отказ — с причиной: продавец увидит её и переснимет.
+ */
 export function KycSection() {
   const [rows, setRows] = useState<Kyc[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [reasons, setReasons] = useState<Record<string, string>>({});
   const load = useCallback(async () => {
     setRows(await apiFetch<Kyc[]>('/kyc/pending').catch(() => []));
   }, []);
@@ -69,8 +82,13 @@ export function KycSection() {
 
   async function review(id: string, decision: 'approve' | 'reject') {
     setErr(null);
+    const reason = reasons[id]?.trim();
+    if (decision === 'reject' && !reason) {
+      setErr('Напишите причину отказа: продавец увидит её и переснимет.');
+      return;
+    }
     try {
-      await apiFetch(`/kyc/${id}/review`, { method: 'POST', body: JSON.stringify({ decision }) });
+      await apiFetch(`/kyc/${id}/review`, { method: 'POST', body: JSON.stringify({ decision, reason }) });
       await load();
     } catch (e) {
       setErr(apiErrorMessage(e, 'Не удалось сохранить решение.'));
@@ -85,14 +103,50 @@ export function KycSection() {
         <Empty>Заявок на верификацию нет.</Empty>
       ) : (
         rows.map((k) => (
-          <div key={k.id} className="card row" style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
-            <span className="faint" style={{ fontSize: 14 }}>
-              Пользователь {k.userId.slice(0, 8)} · уровень {k.level}{k.createdAt ? ` · ${when(k.createdAt)}` : ''}
-            </span>
-            <span className="row" style={{ gap: 8 }}>
-              <button className="btn" onClick={() => void review(k.id, 'approve')} type="button">Одобрить</button>
-              <button className="chip" onClick={() => void review(k.id, 'reject')} type="button">Отклонить</button>
-            </span>
+          <div key={k.id} className="card" style={{ padding: 16 }}>
+            <p style={{ margin: 0, fontWeight: 600 }}>
+              {k.user?.displayName ?? k.user?.username ?? `Пользователь ${k.userId.slice(0, 8)}`}
+              {k.user?.username && k.user.displayName && k.user.displayName !== k.user.username && (
+                <span className="faint" style={{ fontWeight: 400 }}> @{k.user.username}</span>
+              )}
+            </p>
+            <p className="faint" style={{ margin: '2px 0 12px', fontSize: 13 }}>
+              {k.user?.email ?? 'без почты'} · на площадке с {k.user ? when(k.user.since) : '—'} · продаж:{' '}
+              {k.user?.sales ?? 0}
+              {k.createdAt ? ` · заявка ${when(k.createdAt)}` : ''}
+            </p>
+            <div className="kyc-review-files">
+              {(k.files ?? []).map((f, i) => (
+                <a key={i} href={f.url} target="_blank" rel="noreferrer" className="kyc-review-file">
+                  {f.pdf ? (
+                    <span className="kyc-file-doc">
+                      <FileText size={22} strokeWidth={1.75} aria-hidden /> PDF
+                    </span>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={f.url} alt={f.kind === 'selfie' ? 'Селфи с документом' : 'Документ'} />
+                  )}
+                  <span>{f.kind === 'selfie' ? 'Селфи' : 'Документ'}</span>
+                </a>
+              ))}
+            </div>
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+              <button className="btn" onClick={() => void review(k.id, 'approve')} type="button">
+                Одобрить
+              </button>
+              <input
+                className="input"
+                style={{ flex: 1, minWidth: 180 }}
+                aria-label="Причина отказа"
+                placeholder="Причина отказа: размыто, нет селфи…"
+                maxLength={300}
+                value={reasons[k.id] ?? ''}
+                onChange={(e) => setReasons((r) => ({ ...r, [k.id]: e.target.value }))}
+              />
+              <button className="chip" onClick={() => void review(k.id, 'reject')} type="button">
+                Отклонить
+              </button>
+            </div>
           </div>
         ))
       )}

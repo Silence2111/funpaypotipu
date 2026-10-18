@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { apiFetch } from '@/lib/session';
 
 interface Method {
@@ -20,10 +21,19 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
   const [dest, setDest] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  // Крупный вывод — после проверки личности: порог площадки и свой статус.
+  const [kycAbove, setKycAbove] = useState<number | null>(null);
+  const [verified, setVerified] = useState(true);
 
   useEffect(() => {
     apiFetch<Method[]>('/payouts/methods')
       .then((m) => { setMethods(m ?? []); setMethodKey(m?.[0]?.key ?? ''); })
+      .catch(() => {});
+    apiFetch<{ payoutKycAboveMinor?: string }>('/fees/public')
+      .then((p) => setKycAbove(p.payoutKycAboveMinor ? Number(p.payoutKycAboveMinor) : null))
+      .catch(() => {});
+    apiFetch<{ status: string }>('/kyc/me')
+      .then((k) => setVerified(k.status === 'approved'))
       .catch(() => {});
   }, []);
 
@@ -35,6 +45,7 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
     : 0;
   const net = Math.max(0, grossMinor - fee);
   const belowMin = method && grossMinor > 0 && grossMinor < Number(method.minAmount);
+  const needsKyc = !verified && kycAbove != null && grossMinor > kycAbove;
 
   async function go() {
     if (!method) return;
@@ -77,6 +88,12 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
           <span className="faint">Комиссия {(fee / 100).toLocaleString('ru-RU')} ₽</span>
           <span style={{ fontWeight: 600, color: 'var(--success)' }}>на руки {(net / 100).toLocaleString('ru-RU')} ₽</span>
         </div>
+      )}
+      {needsKyc && (
+        <p className="hint" style={{ marginTop: 8 }}>
+          Больше {(kycAbove! / 100).toLocaleString('ru-RU')} ₽ за раз — после проверки личности.{' '}
+          <Link href="/cabinet/verification" className="inline-link">Пройти проверку</Link>
+        </p>
       )}
       {msg && <p className="faint" style={{ fontSize: 13, marginTop: 8 }}>{msg}</p>}
     </div>

@@ -264,7 +264,10 @@ model KycVerification {
   userId       String    @map("user_id") @db.Uuid
   level        KycLevel  @default(none)
   status       KycStatus @default(pending)
+  // { keys: [фото документа], selfie: селфи с документом } — ключи хранилища.
   documentRefs Json?     @map("document_refs")
+  // Почему не приняли — продавец видит это на странице проверки.
+  reason       String?
   reviewedBy   String?   @map("reviewed_by") @db.Uuid
   reviewedAt   DateTime? @map("reviewed_at")
   createdAt    DateTime  @default(now()) @map("created_at")

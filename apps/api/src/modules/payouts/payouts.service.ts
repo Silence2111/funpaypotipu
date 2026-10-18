@@ -59,7 +59,7 @@ export class PayoutsService {
       });
       if (!kyc) {
         throw new BadRequestException(
-          'Для вывода свыше 15 000 ₽ подтвердите личность в разделе «Верификация»',
+          `Вывод больше ${new Intl.NumberFormat('ru-RU').format(Number(KYC_REQUIRED_ABOVE / 100n))} ₽ — после проверки личности: «Безопасность» → «Проверка личности»`,
         );
       }
     }

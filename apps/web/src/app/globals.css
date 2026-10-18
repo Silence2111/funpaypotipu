@@ -3166,6 +3166,61 @@ a.my-lot-title:hover {
   }
 }
 
+/* Проверка личности: что даёт — списком с галочками, PDF — значком с именем. */
+.kyc-perks {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+}
+.kyc-perks li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.kyc-perks svg {
+  flex: none;
+  margin-top: 4px;
+  color: var(--success);
+}
+.kyc-file-doc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  padding: 8px;
+  color: var(--fg-muted);
+  font-size: 11px;
+  text-align: center;
+  word-break: break-all;
+}
+
+/* Консоль: документы заявки — крупные миниатюры, по нажатию — оригинал. */
+.kyc-review-files {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.kyc-review-file {
+  display: grid;
+  gap: 4px;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+.kyc-review-file img,
+.kyc-review-file .kyc-file-doc {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-subtle);
+}
+
 /* Склад автовыдачи: строка — одна штука, моноширинно, чтобы видеть опечатки. */
 .store-lines {
   min-height: 120px;

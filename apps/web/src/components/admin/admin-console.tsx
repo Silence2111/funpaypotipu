@@ -21,7 +21,7 @@ const TABS = [
   { key: 'listings', label: 'Лоты', roles: ['moderator'] },
   { key: 'users', label: 'Пользователи', roles: ['moderator'] },
   { key: 'payouts', label: 'Выплаты', roles: ['finance'] },
-  { key: 'kyc', label: 'Верификация', roles: ['moderator'] },
+  { key: 'kyc', label: 'Проверка личности', roles: ['moderator'] },
   { key: 'fees', label: 'Комиссии и промокоды', roles: [] as string[] },
   { key: 'audit', label: 'Журнал', roles: [] as string[] },
 ] as const;

@@ -26,6 +26,7 @@ describe('уведомления', () => {
 
   it('решения модерации письмом не выключаются', () => {
     expect(wantsNotify({ email: { moderation: false } }, 'email', 'account_status')).toBe(true);
+    expect(wantsNotify({ email: { moderation: false } }, 'email', 'kyc_rejected')).toBe(true);
   });
 
   it('неизвестный тип — только на сайте', () => {
@@ -38,5 +39,6 @@ describe('уведомления', () => {
     expect(notifyLink('new_message', { conversationId: 'c1' })).toBe('/chat/c1');
     expect(notifyLink('dispute_opened', { orderId: 'o1', disputeId: 'd1' })).toBe('/disputes/d1');
     expect(notifyLink('payout_paid', {})).toBe('/cabinet');
+    expect(notifyLink('kyc_rejected', { reason: 'Размыто' })).toBe('/cabinet/verification');
   });
 });

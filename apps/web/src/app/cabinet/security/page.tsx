@@ -7,6 +7,7 @@ import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { TwoFactorCard } from '@/components/two-factor-card';
+import { KycCard } from '@/components/kyc-card';
 
 interface Session {
   id: string;
@@ -30,7 +31,7 @@ function deviceOf(ua: string | null): string {
 const when = (iso: string) =>
   new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
-/** Безопасность: пароль, где выполнен вход, двухфакторная защита. */
+/** Безопасность: пароль, где выполнен вход, двухфакторная защита, проверка личности. */
 export default function SecurityPage() {
   const router = useRouter();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -163,6 +164,7 @@ export default function SecurityPage() {
       </section>
 
       <TwoFactorCard />
+      <KycCard />
     </div>
   );
 }

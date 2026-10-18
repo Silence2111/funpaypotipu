@@ -5,7 +5,7 @@
  * продажа поштучно (наличие, перепродажа последней штуки), способы оплаты (надбавка карты,
  * второй платёж по заказу), модерация (жалобы, бан, заморозка, спор у арбитра),
  * аккаунт (чёрный список, профиль, пароль, сеансы), вход с кодом из приложения и защита от подбора,
- * подписка на пуш-уведомления,
+ * подписка на пуш-уведомления, проверка личности,
  * поддержка, выплаты (с холдом и ролью finance).
  * Выход 0 — все проверки пройдены, иначе 1.
  */
@@ -678,6 +678,49 @@ async function scenarioFiles(rnd) {
   check('Фото лота загружается и видно на витрине', pub?.status === 200 && pub.headers.get('content-type') === 'image/png', JSON.stringify(img));
 }
 
+// Проверка личности: документ и селфи, сотрудник видит их и решает, отказ —
+// с причиной, после одобрения — «Документы проверены» в профиле.
+async function scenarioKyc(rnd) {
+  console.log('\n— Проверка личности —');
+  const abs = (u) => new URL(u, API).toString();
+  const seller = await register('kys', `k${rnd}`);
+  const stranger = await register('kyx', `k${rnd}`);
+  const mod = await register('kym', `k${rnd}`);
+  await grant(mod.id, 'moderator');
+  const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001', 'hex');
+  const upload = async (who) => {
+    const up = await j('/kyc/uploads', { method: 'POST', token: who.token, body: JSON.stringify({ mime: 'image/png' }) });
+    const put = await fetch(abs(up.body.uploadUrl), { method: 'PUT', body: png, headers: { 'Content-Type': 'image/png' } });
+    return put.ok ? up.body.key : null;
+  };
+  check('Сначала проверки нет', (await j('/kyc/me', { token: seller.token })).body.status === 'none');
+  const html = await j('/kyc/uploads', { method: 'POST', token: seller.token, body: JSON.stringify({ mime: 'text/html' }) });
+  check('HTML вместо фото документа не принимается', html.status === 400, String(html.status));
+  const [doc, selfie, foreign] = [await upload(seller), await upload(seller), await upload(stranger)];
+  const steal = await j('/kyc', { method: 'POST', token: seller.token, body: JSON.stringify({ documentKeys: [foreign], selfieKey: selfie }) });
+  check('Чужой файл в заявку не берётся', steal.status === 400, String(steal.status));
+  const sent = await j('/kyc', { method: 'POST', token: seller.token, body: JSON.stringify({ documentKeys: [doc], selfieKey: selfie }) });
+  check('Документ и селфи — на проверке', sent.status === 201 && sent.body.status === 'pending', JSON.stringify(sent.body));
+  const twice = await j('/kyc', { method: 'POST', token: seller.token, body: JSON.stringify({ documentKeys: [doc], selfieKey: selfie }) });
+  check('Пока на проверке, вторая заявка не принимается', twice.status === 409, String(twice.status));
+  const queue = await j('/kyc/pending', { token: mod.token });
+  const mine = queue.body.find?.((k) => k.userId === seller.id);
+  const shown = mine?.files?.[0] ? await fetch(abs(mine.files[0].url)) : null;
+  check('Сотрудник видит заявку: кто, документ и селфи', mine?.user?.username === `kys${'k' + rnd}` && mine.files.length === 2 && shown?.status === 200, JSON.stringify(mine?.files?.map((f) => f.kind)));
+  check('Продавцу очередь недоступна', (await j('/kyc/pending', { token: seller.token })).status === 403);
+  const noReason = await j(`/kyc/${mine?.id}/review`, { method: 'POST', token: mod.token, body: JSON.stringify({ decision: 'reject' }) });
+  check('Отказ без причины не проходит', noReason.status === 400, String(noReason.status));
+  await j(`/kyc/${mine?.id}/review`, { method: 'POST', token: mod.token, body: JSON.stringify({ decision: 'reject', reason: 'Селфи размыто' }) });
+  const after = await j('/kyc/me', { token: seller.token });
+  const bell = await j('/notifications', { token: seller.token });
+  check('Продавец видит причину отказа и уведомление', after.body.status === 'rejected' && after.body.reason === 'Селфи размыто' && bell.body.some?.((n) => n.type === 'kyc_rejected'), JSON.stringify(after.body));
+  const again = await j('/kyc', { method: 'POST', token: seller.token, body: JSON.stringify({ documentKeys: [await upload(seller)], selfieKey: await upload(seller) }) });
+  const next = (await j('/kyc/pending', { token: mod.token })).body.find?.((k) => k.userId === seller.id);
+  await j(`/kyc/${next?.id}/review`, { method: 'POST', token: mod.token, body: JSON.stringify({ decision: 'approve' }) });
+  const profile = await j(`/sellers/${seller.id}`);
+  check('Переснял — одобрено, в профиле «Документы проверены»', again.status === 201 && profile.body.verified === true, JSON.stringify({ s: again.status, v: profile.body.verified }));
+}
+
 async function scenarioRates(rnd) {
   console.log('\n— Курсы для показа цен —');
   const admin = await register('rta', rnd);
@@ -748,6 +791,7 @@ async function scenarioPayout(rnd) {
   await scenarioTwoFactor(rnd);
   await scenarioPush(rnd);
   await scenarioFiles(rnd);
+  await scenarioKyc(rnd);
   await scenarioRates(rnd);
   await scenarioPayout(rnd);
 

@@ -31,8 +31,8 @@ export const NOTIFY_GROUPS = [
   {
     key: 'moderation',
     label: 'Решения модерации',
-    hint: 'жалобы, блокировки — письмом всегда',
-    types: ['report_handled', 'listing_blocked', 'listing_unblocked', 'account_status'],
+    hint: 'жалобы, блокировки, проверка документов — письмом всегда',
+    types: ['report_handled', 'listing_blocked', 'listing_unblocked', 'account_status', 'kyc_approved', 'kyc_rejected'],
   },
 ] as const;
 
@@ -71,6 +71,8 @@ export const NOTIFY_LABELS: Record<string, string> = {
   listing_blocked: 'Лот заблокирован модератором',
   listing_unblocked: 'Блокировка лота снята',
   account_status: 'Статус аккаунта изменён',
+  kyc_approved: 'Документы проверены — вывод без ограничения суммы',
+  kyc_rejected: 'Документы не приняты — посмотрите причину',
   payout_paid: 'Выплата отправлена',
   payout_rejected: 'Выплата отклонена',
   support_reply: 'Поддержка ответила на обращение',
@@ -103,6 +105,7 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
   const id = (k: string) => (typeof p[k] === 'string' ? (p[k] as string) : null);
   if (id('disputeId')) return `/disputes/${id('disputeId')}`;
   if (id('ticketId')) return `/cabinet/support/${id('ticketId')}`;
+  if (type.startsWith('kyc_')) return '/cabinet/verification';
   if (type === 'new_message' && id('conversationId')) return `/chat/${id('conversationId')}`;
   if (id('orderId')) return `/orders/${id('orderId')}`;
   if (id('listingId')) return type === 'listing_blocked' ? '/cabinet/lots' : `/lot/${id('listingId')}`;
