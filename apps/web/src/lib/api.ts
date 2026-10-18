@@ -34,6 +34,9 @@ export interface Category {
   segment: string;
   fulfillmentType: string;
   listingCount?: number;
+  /** Общая пачка раздела валюты: «за 1 000 золота». */
+  unitName?: string | null;
+  pricePerUnits?: number | null;
 }
 
 export type GameWithCategories = Game & { categories: Category[] };

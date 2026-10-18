@@ -6,7 +6,16 @@
  */
 export const DEMO_EMAIL_DOMAIN = '@demo.gamemarket.local';
 
-export const DEMO_SELLER_USERNAMES = ['novichok', 'stabilno', 'keystore'] as const;
+export const DEMO_SELLER_USERNAMES = [
+  'novichok',
+  'stabilno',
+  'keystore',
+  'goldsmith',
+  'boostlab',
+  'mobilka',
+  'subshop',
+  'rpgarage',
+] as const;
 
 export function isDemoSeller(username: string | null | undefined): boolean {
   return !!username && (DEMO_SELLER_USERNAMES as readonly string[]).includes(username);

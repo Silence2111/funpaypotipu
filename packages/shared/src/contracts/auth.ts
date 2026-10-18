@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isDemoSeller } from '../demo';
 
 /** Контракты auth — общие для фронта и бэка (валидация + типы). */
 
@@ -9,7 +10,10 @@ export const registerSchema = z.object({
     .string()
     .min(3)
     .max(32)
-    .regex(/^[a-z0-9_]+$/, 'только строчные латинские буквы, цифры и _'),
+    .regex(/^[a-z0-9_]+$/, 'только строчные латинские буквы, цифры и _')
+    // Ник демо-продавца подписывает все лоты «Пример»: живой продавец с таким
+    // ником на проде продавал бы «примеры».
+    .refine((u) => !isDemoSeller(u), 'Это имя занято'),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 

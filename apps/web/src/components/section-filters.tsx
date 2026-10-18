@@ -20,10 +20,13 @@ const SORTS: Array<[string, string]> = [
 export function SectionFilters({
   attributes,
   values,
+  defaultSort = 'new',
 }: {
   attributes: Attribute[];
   /** Текущие параметры адреса: f_<ключ>, online, q, sort. */
   values: Record<string, string | undefined>;
+  /** Сортировка раздела без параметра в адресе: у валюты — сначала дешёвые. */
+  defaultSort?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -115,8 +118,8 @@ export function SectionFilters({
         <select
           className="input filter-select"
           aria-label="Сортировка"
-          value={values.sort ?? 'new'}
-          onChange={(e) => go({ sort: e.target.value === 'new' ? undefined : e.target.value })}
+          value={values.sort ?? defaultSort}
+          onChange={(e) => go({ sort: e.target.value === defaultSort ? undefined : e.target.value })}
         >
           {SORTS.map(([v, label]) => (
             <option key={v} value={v}>

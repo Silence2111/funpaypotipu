@@ -43,8 +43,11 @@ export async function SectionView({
     else continue;
     values[`f_${a.key}`] = v;
   }
-  const sort = SORTS.includes(sp.sort ?? '') ? sp.sort! : 'new';
-  if (sort !== 'new') values.sort = sort;
+  // В разделе валюты по умолчанию сначала дешёвые: там сравнивают цену за
+  // одну и ту же пачку, как в таблицах валюты на FunPay.
+  const defaultSort = section.unitName && section.pricePerUnits ? 'price_asc' : 'new';
+  const sort = SORTS.includes(sp.sort ?? '') ? sp.sort! : defaultSort;
+  if (sort !== defaultSort) values.sort = sort;
   if (sp.online === '1') values.online = '1';
   const q = sp.q?.trim().slice(0, 100);
   if (q) values.q = q;
@@ -105,7 +108,7 @@ export async function SectionView({
       </nav>
 
       <div style={{ marginTop: 20 }}>
-        <SectionFilters key={base} attributes={filterable} values={values} />
+        <SectionFilters key={base} attributes={filterable} values={values} defaultSort={defaultSort} />
       </div>
 
       <section style={{ marginTop: 20 }} aria-label={`Предложения: ${section.title}`}>

@@ -61,9 +61,12 @@ function UserBar({ user }: { user: SessionUser }) {
   useEffect(() => {
     const t = setInterval(load, 30_000);
     window.addEventListener('focus', load);
+    // Мессенджер сообщает о прочтении и о новых сообщениях сам.
+    window.addEventListener('gm-unread', load);
     return () => {
       clearInterval(t);
       window.removeEventListener('focus', load);
+      window.removeEventListener('gm-unread', load);
     };
   }, [load]);
   useEffect(load, [pathname, load]);

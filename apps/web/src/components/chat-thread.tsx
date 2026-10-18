@@ -49,8 +49,12 @@ export function ChatThread({
   const keepFrom = useRef<number | null>(null); // высота до подгрузки истории
   const lastTyping = useRef(0);
 
+  // Прочитал — шапка гасит счётчик сразу, не дожидаясь своего опроса.
   const markRead = useCallback(
-    () => apiFetch(`/conversations/${conversationId}/read`, { method: 'POST' }).catch(() => {}),
+    () =>
+      apiFetch(`/conversations/${conversationId}/read`, { method: 'POST' })
+        .then(() => window.dispatchEvent(new Event('gm-unread')))
+        .catch(() => {}),
     [conversationId],
   );
 

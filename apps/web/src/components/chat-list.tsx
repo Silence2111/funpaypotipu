@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Search } from 'lucide-react';
 import { apiFetch } from '@/lib/session';
@@ -17,10 +17,14 @@ export function ChatList({ activeId, meId }: { activeId?: string; meId: string }
   const socket = useChatSocket();
   const [items, setItems] = useState<ConversationItem[] | null>(null);
   const [q, setQ] = useState('');
+  const active = useRef(activeId);
+  active.current = activeId;
 
+  // Открытый диалог читается сразу — список, пришедший позже, не должен
+  // показывать у него непрочитанные.
   const load = useCallback(() => {
     apiFetch<ConversationItem[]>('/conversations')
-      .then(setItems)
+      .then((rows) => setItems(rows.map((c) => (c.id === active.current ? { ...c, unread: 0 } : c))))
       .catch(() => setItems((prev) => prev ?? []));
   }, []);
   useEffect(load, [load]);
@@ -43,6 +47,8 @@ export function ChatList({ activeId, meId }: { activeId?: string; meId: string }
           return prev;
         }
         const incoming = message.senderId !== null && message.senderId !== meId;
+        // Шапка пересчитает непрочитанные.
+        if (incoming) window.dispatchEvent(new Event('gm-unread'));
         const updated: ConversationItem = {
           ...conv,
           lastMessageAt: message.createdAt,
