@@ -40,10 +40,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayInit {
   }
 
   /**
+   * Вход проверяется до подключения — в middleware пространства. Раньше токен
+   * и бан проверялись в handleConnection, а клиент шлёт conversation:join
+   * сразу после connect: join приходил раньше, чем пользователь дочитывался
+   * из базы, получал «unauthorized», и открытый чат молчал до перезагрузки.
+   *
    * Любое новое сообщение — из сокета, REST или системное — уходит в комнату
    * диалога (открытый чат) и в личные комнаты участников (список диалогов).
    */
   afterInit(server: Server) {
+    server.use((client, next) => {
+      this.authenticate(client).then(
+        () => next(),
+        () => next(new Error('unauthorized')),
+      );
+    });
     this.chat.setPublisher((conversationId, message, participants) => {
       server.to(room(conversationId)).emit('message:new', message);
       for (const p of participants) server.to(userRoom(p)).emit('conversation:update', { conversationId, message });
@@ -53,17 +64,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayInit {
     );
   }
 
+  private async authenticate(client: Socket): Promise<void> {
+    const token = client.handshake.auth?.token as string | undefined;
+    if (!token) throw new Error('no token');
+    const payload = this.tokens.verifyAccess(token);
+    if (await this.banned(payload.sub)) throw new Error('banned');
+    client.data.userId = payload.sub;
+  }
+
+  /** Сюда доходит только проверенный в afterInit пользователь. */
   async handleConnection(client: Socket) {
-    try {
-      const token = client.handshake.auth?.token as string | undefined;
-      if (!token) throw new Error('no token');
-      const payload = this.tokens.verifyAccess(token);
-      if (await this.banned(payload.sub)) throw new Error('banned');
-      client.data.userId = payload.sub;
-      await client.join(userRoom(payload.sub));
-    } catch {
-      client.disconnect(true);
-    }
+    await client.join(userRoom(client.data.userId as string));
   }
 
   @SubscribeMessage('conversation:join')

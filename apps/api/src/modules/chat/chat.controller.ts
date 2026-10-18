@@ -6,6 +6,7 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { ChatService } from './chat.service';
 
 const sendSchema = z.object({ body: z.string().min(1).max(4000) });
+const startSchema = z.object({ body: z.string().min(1).max(4000).optional() }).default({});
 const historySchema = z.object({
   before: z.coerce.date().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -27,10 +28,20 @@ export class ChatController {
     return this.chat.listConversations(user.userId);
   }
 
-  /** Начать/открыть предпродажный диалог с продавцом лота. */
+  /** Начатый диалог с продавцом лота и непрочитанные в нём; { id: null } — ничего не создаёт. */
+  @Get('for-listing/:listingId')
+  findWithSeller(@CurrentUser() user: AuthUser, @Param('listingId') listingId: string) {
+    return this.chat.findWithSeller(user.userId, listingId);
+  }
+
+  /** Начать/открыть предпродажный диалог с продавцом лота; с { body } — и написать о лоте. */
   @Post('for-listing/:listingId')
-  startWithSeller(@CurrentUser() user: AuthUser, @Param('listingId') listingId: string) {
-    return this.chat.startWithSeller(user.userId, listingId);
+  startWithSeller(
+    @CurrentUser() user: AuthUser,
+    @Param('listingId') listingId: string,
+    @Body(new ZodValidationPipe(startSchema)) body: { body?: string },
+  ) {
+    return this.chat.startWithSeller(user.userId, listingId, body.body);
   }
 
   @Get(':id')

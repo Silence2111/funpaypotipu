@@ -1926,6 +1926,105 @@ summary:focus-visible {
   font-size: 12px;
   color: var(--fg-faint);
 }
+/* Кнопки карточки продавца: не влезли в ряд — каждая во всю ширину. */
+.seller-actions {
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.seller-actions .chip {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+/* Чат с продавцом на странице лота — тот же диалог, что в «Сообщениях». */
+.lot-chat {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  overflow: hidden;
+  animation: pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lot-chat-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 4px 4px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 700;
+}
+.lot-chat-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lot-chat-link {
+  flex-shrink: 0;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-faint);
+}
+.lot-chat-link:hover {
+  color: var(--accent);
+}
+.lot-chat-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--fg-faint);
+  cursor: pointer;
+}
+.lot-chat-link + .lot-chat-close {
+  margin-left: 0;
+}
+.lot-chat-close:hover {
+  background: var(--bg-subtle);
+  color: var(--fg);
+}
+.lot-chat .thread.embedded {
+  height: min(440px, 70dvh);
+  border: 0;
+  border-radius: 0;
+}
+.lot-chat .thread-body {
+  padding: 12px 16px;
+}
+.lot-chat-start {
+  padding: 14px 16px 0;
+}
+.lot-chat-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.lot-chat-quick .chip {
+  min-height: 34px;
+  font-size: 13px;
+}
+.lot-chat-start .thread-compose {
+  padding: 12px 0 6px;
+  border-top: 0;
+}
+.lot-chat-start .thread-note {
+  padding: 0 0 12px;
+}
+
 @media (max-width: 720px) {
   .messenger-wrap {
     padding: 0;

@@ -4,7 +4,7 @@ import { isDemoSeller } from '@gamemarket/shared';
 import type { SellerProfile } from '@/lib/api';
 import { presenceText, sinceText } from '@/lib/presence';
 import { Avatar } from './offers';
-import { MessageSellerButton } from './message-seller-button';
+import { LotChat } from './lot-chat';
 
 /** «12 отзывов», «1 отзыв», «3 отзыва». */
 export function reviewsCount(n: number): string {
@@ -16,10 +16,18 @@ export function reviewsCount(n: number): string {
 
 /**
  * Продавец на странице лота, как карточка продавца у FunPay: кто он, в сети
- * ли, рейтинг с числом отзывов, сколько продал и с какого времени на сайте.
- * Раньше это была строка с именем внизу панели покупки.
+ * ли, рейтинг с числом отзывов, сколько продал и с какого времени на сайте,
+ * и чат с ним прямо здесь. Раньше это была строка с именем внизу панели
+ * покупки.
  */
-export function SellerCard({ seller, listingId }: { seller: SellerProfile; listingId?: string }) {
+export function SellerCard({
+  seller,
+  lot,
+}: {
+  seller: SellerProfile;
+  /** Лот, с которого пишут продавцу; `manual` — товар выдаёт продавец. */
+  lot: { id: string; manual: boolean };
+}) {
   const seen = presenceText(seller.onlineAt);
   return (
     <section className="card seller-card" aria-label="Продавец">
@@ -69,12 +77,11 @@ export function SellerCard({ seller, listingId }: { seller: SellerProfile; listi
         </div>
       </dl>
 
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
-        {listingId && <MessageSellerButton listingId={listingId} />}
+      <LotChat listingId={lot.id} sellerId={seller.id} manual={lot.manual}>
         <Link href={`/prodavec/${seller.id}`} className="chip">
           Все предложения
         </Link>
-      </div>
+      </LotChat>
     </section>
   );
 }

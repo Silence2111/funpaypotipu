@@ -278,7 +278,9 @@ export default async function ListingPage({
             </div>
           </div>
 
-          {seller && <SellerCard seller={seller} listingId={listing.id} />}
+          {seller && (
+            <SellerCard seller={seller} lot={{ id: listing.id, manual: listing.fulfillmentType === 'manual' }} />
+          )}
           <div>
             <ReportButton targetType="listing" targetId={listing.id} ownerId={listing.seller.id} />
           </div>

@@ -25,16 +25,20 @@ const TYPING_MS = 4000;
  * «прочитано» у своих, «печатает…», история при прокрутке вверх и поле
  * ввода (Enter — отправить, Shift+Enter — новая строка).
  *
- * `embedded` — чат на странице заказа: без шапки, заказ и так на экране.
+ * `embedded` — чат на странице заказа или лота: без шапки, заказ или лот
+ * и так на экране. `aboutListingId` — чат на странице лота: сообщение уходит
+ * «о лоте», и продавец видит, о каком лоте вопрос.
  */
 export function ChatThread({
   conversationId,
   meId,
   embedded = false,
+  aboutListingId,
 }: {
   conversationId: string;
   meId: string;
   embedded?: boolean;
+  aboutListingId?: string;
 }) {
   const socket = useChatSocket();
   const live = useSocketLive(socket);
@@ -48,6 +52,13 @@ export function ChatThread({
   const stick = useRef(true); // держать прокрутку у последнего сообщения
   const keepFrom = useRef<number | null>(null); // высота до подгрузки истории
   const lastTyping = useRef(0);
+
+  // Сообщение может прийти дважды — ответом на отправку и по сокету.
+  const add = useCallback(
+    (rows: ChatMsg[]) =>
+      setMessages((prev) => (prev ? [...prev, ...rows.filter((m) => !prev.some((x) => x.id === m.id))] : prev)),
+    [],
+  );
 
   // Прочитал — шапка гасит счётчик сразу, не дожидаясь своего опроса.
   const markRead = useCallback(
@@ -84,7 +95,7 @@ export function ChatThread({
     const join = () => socket.emit('conversation:join', { conversationId });
     const onNew = (msg: ChatMsg) => {
       if (msg.conversationId !== conversationId) return;
-      setMessages((prev) => (prev && !prev.some((x) => x.id === msg.id) ? [...prev, msg] : prev));
+      add([msg]);
       if (msg.senderId && msg.senderId !== meId) {
         setTypingAt(0);
         if (document.visibilityState === 'visible') markRead();
@@ -108,7 +119,7 @@ export function ChatThread({
       socket.off('message:read', onRead);
       socket.off('typing', onTyping);
     };
-  }, [socket, conversationId, meId, markRead]);
+  }, [socket, conversationId, meId, markRead, add]);
 
   // «Печатает…» гаснет само, если собеседник замолчал.
   useEffect(() => {
@@ -153,6 +164,20 @@ export function ChatThread({
       setErr(reason);
       setDraft(text);
     };
+    if (aboutListingId) {
+      // Со страницы лота — через лот: перед вопросом о новом лоте встанет
+      // строка «Вопрос о лоте …».
+      try {
+        const res = await apiFetch<{ messages?: ChatMsg[] }>(`/conversations/for-listing/${aboutListingId}`, {
+          method: 'POST',
+          body: JSON.stringify({ body: text }),
+        });
+        add(res.messages ?? []);
+      } catch (er) {
+        fail(apiErrorMessage(er, 'Сообщение не отправлено. Попробуйте ещё раз.'));
+      }
+      return;
+    }
     if (socket && live) {
       // Само сообщение придёт как message:new, в ответе — только отказ.
       socket.emit('message:send', { conversationId, body: text }, (res?: { error?: string }) => {
@@ -165,7 +190,7 @@ export function ChatThread({
         method: 'POST',
         body: JSON.stringify({ body: text }),
       });
-      setMessages((prev) => (prev && !prev.some((x) => x.id === msg.id) ? [...prev, msg] : prev));
+      add([msg]);
     } catch (er) {
       fail(apiErrorMessage(er, 'Сообщение не отправлено. Попробуйте ещё раз.'));
     }
@@ -183,7 +208,7 @@ export function ChatThread({
         body: JSON.stringify(att),
       });
       stick.current = true;
-      setMessages((prev) => (prev && !prev.some((x) => x.id === msg.id) ? [...prev, msg] : prev));
+      add([msg]);
     } catch (er) {
       setErr(apiErrorMessage(er, 'Файл не отправлен: хранилище недоступно или файл не прошёл проверку.'));
     }

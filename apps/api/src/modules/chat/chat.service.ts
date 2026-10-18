@@ -231,25 +231,65 @@ export class ChatService {
     return { ok: true };
   }
 
-  /** Начать (или открыть существующий) предпродажный диалог с продавцом лота. */
-  async startWithSeller(buyerId: string, listingId: string) {
+  /**
+   * Уже начатый предпродажный диалог с продавцом лота — без создания нового —
+   * и сколько в нём непрочитанных ответов. Чат на странице лота показывает
+   * историю, а пустой диалог появляется у продавца только с первым
+   * сообщением покупателя.
+   */
+  async findWithSeller(buyerId: string, listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: { sellerId: true },
     });
     if (!listing) throw new NotFoundException('Лот не найден');
+    const existing = await this.prisma.conversation.findFirst({
+      where: { buyerId, sellerId: listing.sellerId, orderId: null },
+      select: { id: true },
+    });
+    if (!existing) return { id: null, unread: 0 };
+    const unread = await this.prisma.message.count({
+      where: { conversationId: existing.id, senderId: { not: buyerId }, readAt: null },
+    });
+    return { id: existing.id, unread };
+  }
+
+  /**
+   * Начать (или открыть существующий) предпродажный диалог с продавцом лота.
+   * С текстом — сразу и написать: перед вопросом встаёт строка «Вопрос о
+   * лоте …», чтобы продавец с десятком лотов понял, о чём речь. Пока
+   * покупатель пишет о том же лоте, строка не повторяется.
+   */
+  async startWithSeller(buyerId: string, listingId: string, body?: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { sellerId: true, title: true },
+    });
+    if (!listing) throw new NotFoundException('Лот не найден');
     if (listing.sellerId === buyerId) throw new ForbiddenException('Это ваш лот');
     await this.blocks.assertCanContact(buyerId, listing.sellerId, 'message');
 
-    const existing = await this.prisma.conversation.findFirst({
-      where: { buyerId, sellerId: listing.sellerId, orderId: null },
-    });
-    if (existing) return { id: existing.id };
+    const conv =
+      (await this.prisma.conversation.findFirst({
+        where: { buyerId, sellerId: listing.sellerId, orderId: null },
+        select: { id: true, buyerId: true, sellerId: true },
+      })) ??
+      (await this.prisma.conversation.create({
+        data: { buyerId, sellerId: listing.sellerId },
+        select: { id: true, buyerId: true, sellerId: true },
+      }));
+    if (!body) return { id: conv.id };
 
-    const conv = await this.prisma.conversation.create({
-      data: { buyerId, sellerId: listing.sellerId },
+    const messages: ChatMessageDto[] = [];
+    const context = `Вопрос о лоте «${listing.title}»`;
+    const lastSystem = await this.prisma.message.findFirst({
+      where: { conversationId: conv.id, senderId: null },
+      orderBy: { createdAt: 'desc' },
+      select: { body: true },
     });
-    return { id: conv.id };
+    if (lastSystem?.body !== context) messages.push(await this.system(conv, context));
+    messages.push(await this.sendMessage(conv.id, buyerId, body));
+    return { id: conv.id, messages };
   }
 
   /** Антивирус-скан вложения через ScanService. Заражённое удаляется из хранилища. */
@@ -367,7 +407,13 @@ export class ChatService {
       where: { orderId },
       select: { id: true, buyerId: true, sellerId: true },
     });
-    if (!conv) return;
+    if (conv) await this.system(conv, text);
+  }
+
+  private async system(
+    conv: { id: string; buyerId: string; sellerId: string },
+    text: string,
+  ): Promise<ChatMessageDto> {
     const message = await this.prisma.message.create({
       data: { conversationId: conv.id, senderId: null, type: 'system', body: text },
     });
@@ -375,18 +421,16 @@ export class ChatService {
       where: { id: conv.id },
       data: { lastMessageAt: message.createdAt },
     });
-    this.publish(
-      conv.id,
-      {
-        id: message.id,
-        conversationId: conv.id,
-        senderId: null,
-        body: text,
-        isFlagged: false,
-        createdAt: message.createdAt,
-        readAt: null,
-      },
-      [conv.buyerId, conv.sellerId],
-    );
+    const dto: ChatMessageDto = {
+      id: message.id,
+      conversationId: conv.id,
+      senderId: null,
+      body: text,
+      isFlagged: false,
+      createdAt: message.createdAt,
+      readAt: null,
+    };
+    this.publish(conv.id, dto, [conv.buyerId, conv.sellerId]);
+    return dto;
   }
 }

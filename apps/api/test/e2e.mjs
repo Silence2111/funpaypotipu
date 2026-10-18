@@ -348,6 +348,21 @@ async function scenarioAccount(rnd) {
   await j(`/account/blocks/${buyer.id}`, { method: 'DELETE', token: seller.token });
   check('Убрал из списка — снова можно купить', (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) })).status === 201);
 
+  // Чат на странице лота: диалог появляется с первым вопросом, и продавец
+  // видит, о каком лоте речь.
+  const none = await j(`/conversations/for-listing/${lot}`, { token: buyer.token });
+  check('Чат на лоте: до первого вопроса пустого диалога нет', none.status === 200 && none.body.id === null, JSON.stringify(none.body));
+  const ask = await j(`/conversations/for-listing/${lot}`, { method: 'POST', token: buyer.token, body: JSON.stringify({ body: 'Ещё продаёте?' }) });
+  const again = await j(`/conversations/for-listing/${lot}`, { method: 'POST', token: buyer.token, body: JSON.stringify({ body: 'А скидка будет?' }) });
+  check(
+    'Вопрос с лота: перед ним строка о лоте, второй вопрос — без повтора',
+    ask.body.messages?.[0]?.senderId === null && /^Вопрос о лоте «/.test(ask.body.messages[0].body) &&
+      ask.body.messages[1]?.body === 'Ещё продаёте?' && again.body.id === ask.body.id && again.body.messages?.length === 1,
+    JSON.stringify(ask.body.messages?.map((m) => m.body)),
+  );
+  const preSale = (await j('/conversations', { token: seller.token })).body.find?.((c) => c.id === ask.body.id);
+  check('У продавца два непрочитанных вопроса, строка о лоте не в счёт', preSale?.unread === 2 && preSale?.order === null, String(preSale?.unread));
+
   const prof = await j('/account/profile', { method: 'PATCH', token: seller.token, body: JSON.stringify({ displayName: 'Склад аккаунтов', bio: 'Отвечаю быстро, пишите в телеграм @fast_seller' }) });
   check('Профиль сохранён, контакты в «о себе» скрыты', prof.body.displayName === 'Склад аккаунтов' && !/fast_seller/.test(prof.body.bio ?? ''), prof.body.bio);
   const pub = await j(`/sellers/${seller.id}`);
