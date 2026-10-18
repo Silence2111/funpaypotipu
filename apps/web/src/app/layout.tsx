@@ -1,6 +1,8 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { CurrencySwitch } from '@/components/currency-switch';
+import { InstallApp } from '@/components/install-app';
+import { PwaRegister } from '@/components/pwa-register';
 import { SiteHeader } from '@/components/site-header';
 import './globals.css';
 
@@ -20,6 +22,16 @@ export const metadata: Metadata = {
     locale: 'ru_RU',
   },
   robots: { index: true, follow: true },
+  // С экрана «Домой» на iPhone — без адресной строки, как приложение.
+  appleWebApp: { capable: true, title: 'GameMarket', statusBarStyle: 'default' },
+};
+
+// Цвет строки состояния и панели браузера — как у шапки сайта.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FFFFFF' },
+    { media: '(prefers-color-scheme: dark)', color: '#121317' },
+  ],
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -41,6 +53,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               "try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}",
           }}
         />
+        <PwaRegister />
         <SiteHeader />
         <main>{children}</main>
         <footer className="container" style={{ padding: '48px 24px 40px', marginTop: 64 }}>
@@ -56,8 +69,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <a href="/contacts" className="footer-link">Контакты</a>
               <a href="/podbor" className="footer-link">Как мы меряем выдачу</a>
             </nav>
-            {/* На телефоне в шапке нет места — валюта цен здесь, для всех ширин */}
-            <CurrencySwitch label="Валюта цен" />
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <InstallApp />
+              {/* На телефоне в шапке нет места — валюта цен здесь, для всех ширин */}
+              <CurrencySwitch label="Валюта цен" />
+            </div>
           </div>
         </footer>
       </body>
