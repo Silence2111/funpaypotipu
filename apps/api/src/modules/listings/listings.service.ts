@@ -25,6 +25,7 @@ import { SearchService } from '../search/search.service';
 import { StorageService } from '../storage/storage.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { assetUrl } from '../storage/asset-url';
+import { ONLINE_MS } from '../../common/presence';
 
 const BOOST_MS = 24 * 3600 * 1000; // лот держится в топе сутки
 // Цена суток продвижения, копейки. Решение площадки (ПЛАН.md), не код.
@@ -214,7 +215,7 @@ export class ListingsService {
     if (query.sellerId) where.sellerId = query.sellerId;
     if (query.instant) where.fulfillmentType = { in: ['auto_key', 'provider'] };
     // Онлайн — тот же порог, что у зелёной точки на карточке: 5 минут.
-    if (query.online) where.seller = { profile: { onlineAt: { gte: new Date(Date.now() - 5 * 60 * 1000) } } };
+    if (query.online) where.seller = { profile: { onlineAt: { gte: new Date(Date.now() - ONLINE_MS) } } };
     if (query.gameSlug) where.game = { slug: query.gameSlug };
     if (query.categorySlug || query.segment) {
       where.category = {

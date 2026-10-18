@@ -34,12 +34,19 @@ export interface Category {
   segment: string;
   fulfillmentType: string;
   listingCount?: number;
+  /** Сколько продавцов торгует в разделе и сколько из них в сети. */
+  sellers?: SellersNow;
   /** Общая пачка раздела валюты: «за 1 000 золота». */
   unitName?: string | null;
   pricePerUnits?: number | null;
 }
 
-export type GameWithCategories = Game & { categories: Category[] };
+export interface SellersNow {
+  sellers: number;
+  online: number;
+}
+
+export type GameWithCategories = Game & { categories: Category[]; sellers?: SellersNow };
 
 export interface ListingCard {
   id: string;
@@ -113,6 +120,8 @@ export interface GameIndexEntry {
   aliases: string[];
   /** Место в «Популярных»; 100 — не в них. */
   sortOrder: number;
+  /** Продавцов игры в сети прямо сейчас. */
+  onlineSellers?: number;
   categories: Array<{ id: string; slug: string; title: string; listingCount: number }>;
 }
 

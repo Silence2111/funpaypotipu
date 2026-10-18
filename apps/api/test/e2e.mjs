@@ -446,6 +446,15 @@ async function scenarioCatalog(rnd) {
   check('«Продавец онлайн»: свежий — в выдаче, час назад — нет', ids.includes(lotOn) && !ids.includes(lotOff));
   const all = await j('/listings?gameSlug=cs2&categorySlug=accounts&online=false&limit=60');
   check('online=false фильтр не включает', all.body.items.some((l) => l.id === lotOff));
+  const game = await j('/catalog/games/cs2');
+  const acc = game.body.categories?.find((c) => c.slug === 'accounts');
+  const idxNow = await j('/catalog/index');
+  check(
+    'Продавцы в сети: у раздела и у игры',
+    acc?.sellers?.online >= 1 && acc.sellers.sellers > acc.sellers.online - 1 &&
+      game.body.sellers?.sellers >= acc.sellers.sellers && idxNow.body.find?.((g) => g.slug === 'cs2')?.onlineSellers >= 1,
+    JSON.stringify({ section: acc?.sellers, game: game.body.sellers }),
+  );
 }
 
 async function scenarioBuyerData(rnd) {

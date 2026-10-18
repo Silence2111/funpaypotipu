@@ -96,6 +96,11 @@ export function PopularGames({ games, limit = 12 }: { games: GameIndexEntry[]; l
                       .map((c) => c.title)
                       .join(', ')}
               </span>
+              {g.onlineSellers ? (
+                <span className="popular-online">
+                  <span className="dot-online" aria-hidden /> {g.onlineSellers} в сети
+                </span>
+              ) : null}
             </span>
           </Link>
         );

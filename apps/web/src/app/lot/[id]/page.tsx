@@ -8,7 +8,7 @@ import { BuyButton } from '@/components/buy-button';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
 import { isDemoSeller, markupLabel, soldByQty, topupQuote } from '@gamemarket/shared';
-import { JsonLd } from '@/components/json-ld';
+import { JsonLd, breadcrumbLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
 import { SellerReviews } from '@/components/seller-reviews';
 import { OwnerLotActions } from '@/components/owner-lot-actions';
@@ -152,6 +152,14 @@ export default async function ListingPage({
   return (
     <div className="container" style={{ paddingTop: 32 }}>
       <JsonLd data={productLd} />
+      <JsonLd
+        data={breadcrumbLd([
+          ['Все игры', '/igry'],
+          [listing.game.title, `/igra/${listing.game.slug}`],
+          [listing.category.title, sectionHref],
+          [listing.title, `/lot/${listing.id}`],
+        ])}
+      />
       {created && (
         <div className="alert success" role="status" style={{ marginBottom: 20 }}>
           <ShieldCheck size={18} strokeWidth={1.75} />
@@ -193,6 +201,9 @@ export default async function ListingPage({
             </span>
             {demo && <span className="demo-mark">Пример</span>}
             {soldOut && <span className="badge">Закончился</span>}
+            {listing.salesCount > 0 && (
+              <span className="lot-sold">Продаж: {new Intl.NumberFormat('ru-RU').format(listing.salesCount)}</span>
+            )}
           </div>
         </div>
 

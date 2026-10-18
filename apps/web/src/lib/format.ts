@@ -61,15 +61,16 @@ export function formatListingPrice(l: {
   return pack ? `${price} ${pack}` : price;
 }
 
-/** «1 предложение», «3 предложения», «25 предложений». */
-export function offersCount(n: number): string {
+/** Число со словом в нужной форме: plural(3, 'продавец', 'продавца', 'продавцов') → «3 продавца». */
+export function plural(n: number, one: string, few: string, many: string): string {
   const mod10 = n % 10;
   const mod100 = n % 100;
-  const word =
-    mod10 === 1 && mod100 !== 11
-      ? 'предложение'
-      : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
-        ? 'предложения'
-        : 'предложений';
+  const word = mod10 === 1 && mod100 !== 11 ? one : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? few : many;
   return `${new Intl.NumberFormat('ru-RU').format(n)} ${word}`;
 }
+
+/** «1 предложение», «3 предложения», «25 предложений». */
+export const offersCount = (n: number) => plural(n, 'предложение', 'предложения', 'предложений');
+
+/** «1 продавец», «3 продавца», «25 продавцов». */
+export const sellersCount = (n: number) => plural(n, 'продавец', 'продавца', 'продавцов');

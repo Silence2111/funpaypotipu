@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { browseListings, getCategoryAttributes, type Category, type GameWithCategories } from '@/lib/api';
-import { offersCount } from '@/lib/format';
+import { offersCount, sellersCount } from '@/lib/format';
 import { OfferTable } from './offers';
 import { SectionFilters } from './section-filters';
+import { JsonLd, breadcrumbLd } from './json-ld';
 
 /** Параметры адреса раздела: f_<ключ>, online, q, sort, page. */
 export type SectionSearch = Record<string, string | undefined>;
@@ -75,17 +76,34 @@ export async function SectionView({
     return s ? `${base}?${s}` : base;
   };
   const sellHref = `/cabinet/new?game=${encodeURIComponent(game.slug)}&category=${encodeURIComponent(section.slug)}`;
+  const people = section.sellers;
 
   return (
     <div className="container" style={{ paddingTop: 40, paddingBottom: 24 }}>
+      <JsonLd
+        data={breadcrumbLd([
+          ['Все игры', '/igry'],
+          [game.title, `/igra/${game.slug}`],
+          [section.title, base],
+        ])}
+      />
       <Link href="/igry" className="faint" style={{ fontSize: 14 }}>
         ← Все игры
       </Link>
       <div className="section-top" style={{ marginTop: 12 }}>
         <div>
           <h1 className="h1">{game.title}</h1>
-          <p className="muted">
+          <p className="muted section-meta">
             {section.title} · {offersCount(section.listingCount ?? total)}
+            {people && people.sellers > 0 && <> · {sellersCount(people.sellers)}</>}
+            {people && people.online > 0 && (
+              <>
+                {' · '}
+                <span className="section-online">
+                  <span className="dot-online" aria-hidden /> {people.online} в сети
+                </span>
+              </>
+            )}
           </p>
         </div>
         <Link href={sellHref} className="btn secondary">

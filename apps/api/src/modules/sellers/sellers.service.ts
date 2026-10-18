@@ -3,6 +3,7 @@ import { PrismaClient } from '@gamemarket/db';
 import { sellerLevel } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { assetUrl } from '../storage/asset-url';
+import { ONLINE_MS } from '../../common/presence';
 
 @Injectable()
 export class SellersService {
@@ -44,7 +45,7 @@ export class SellersService {
       await this.prisma.listing.count({ where: { sellerId, status: 'active' } }),
       Date.now(),
     ];
-    const online = !!profile.onlineAt && now - profile.onlineAt.getTime() < 5 * 60 * 1000;
+    const online = !!profile.onlineAt && now - profile.onlineAt.getTime() < ONLINE_MS;
 
     // Гистограмма рейтинга (сколько отзывов на каждую звезду) — как у FunPay.
     const grouped = await this.prisma.review.groupBy({
