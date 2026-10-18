@@ -1,25 +1,31 @@
 import Link from 'next/link';
 import { ShieldCheck, MessagesSquare, Zap, Info } from 'lucide-react';
-import { getGames, browseListings, getPublicPricing, getTopupOffers } from '@/lib/api';
-import { GameCardView, ListingCardView } from '@/components/cards';
+import { browseListings, getGameIndex, getPublicPricing, getTopupOffers, SEGMENTS } from '@/lib/api';
 import { GameTopupForm } from '@/components/game-topup-form';
+import { GameSearch } from '@/components/game-search';
+import { GameDirectory, PopularGames } from '@/components/game-directory';
+import { OfferTable } from '@/components/offers';
 
+/**
+ * Главная — каталог, как у бирж: поиск по играм, популярные игры, свежие
+ * предложения и все игры от А до Я. Раньше здесь был лендинг со слоганом
+ * и тремя преимуществами, а до игр нужно было долистать.
+ */
 export default async function HomePage({
   searchParams,
 }: {
   // Логин и сумма возвращаются сюда после входа: виджет открывается заполненным.
   searchParams: Promise<{ account?: string; amount?: string }>;
 }) {
-  const [games, browse, instantBrowse, pricing, steam, query] = await Promise.all([
-    getGames(),
+  const [index, browse, pricing, steam, query] = await Promise.all([
+    getGameIndex(),
     browseListings({ limit: 8, sort: 'new' }),
-    browseListings({ limit: 8, instant: true, sort: 'popular' }),
     getPublicPricing(),
     getTopupOffers('steam'),
     searchParams,
   ]);
+  const games = index ?? [];
   const listings = browse?.items ?? [];
-  const instant = instantBrowse?.items ?? [];
   const topup = steam && steam.offers.length > 0 ? steam : null;
 
   // Проценты берём из API, а не пишем в разметке. Не ответил — не обещаем.
@@ -35,30 +41,31 @@ export default async function HomePage({
 
   return (
     <div className="container stack-lg home">
-      {/* Первый экран. Пополнение Steam — самый короткий путь к первой покупке,
-          поэтому оно здесь, а не в каталоге; кнопка «Оплатить» — единственный
-          акцент экрана, «Смотреть лоты» становится второстепенной. */}
-      <section className={topup ? 'hero' : 'hero solo'}>
-        <div className="hero-copy">
+      {/* Первый экран: поиск по играм и пополнение Steam — самый короткий путь
+          к первой покупке. «Оплатить» в виджете — единственный акцент экрана. */}
+      <section className={topup ? 'home-hero' : undefined}>
+        <div>
           <h1 className="h1">Игровые товары. Безопасно.</h1>
           <p className="lead">
-            Аккаунты, валюта, предметы, ключи и пополнения. Деньги лежат у площадки,
-            пока вы не подтвердите, что получили товар.
+            {games.length > 0 ? `${games.length} игр и сервисов: ` : ''}аккаунты, валюта, предметы, ключи и донат.
+            Деньги лежат у площадки, пока вы не подтвердите, что получили товар.
           </p>
-        </div>
-        <div className="hero-actions">
-          <div className="row hero-buttons" style={{ marginTop: 28, gap: 12, flexWrap: 'wrap' }}>
-            <Link href="/catalog" className={topup ? 'btn secondary lg' : 'btn lg'}>
-              Смотреть лоты
-            </Link>
-            <Link href="/cabinet/new" className="btn ghost lg">
-              Продать свой лот
-            </Link>
+          <div style={{ marginTop: 24 }}>
+            <GameSearch index={games} size="lg" />
           </div>
-
+          <nav className="type-chips" aria-label="Типы товаров">
+            {SEGMENTS.map(([key, label]) => (
+              <Link key={key} href={`/catalog?segment=${key}`} className="chip">
+                {label}
+              </Link>
+            ))}
+          </nav>
           <p className="muted" style={{ fontSize: 14, marginTop: 20 }}>
             Покупателю — без комиссии.
-            {feeRange && <> Продавцу — {feeRange}, вывод от {payoutFee != null ? pct(payoutFee) : '—'}.</>}
+            {feeRange && <> Продавцу — {feeRange}, вывод от {payoutFee != null ? pct(payoutFee) : '—'}.</>}{' '}
+            <Link href="/cabinet/new" className="inline-link">
+              Продать свой лот
+            </Link>
           </p>
         </div>
 
@@ -85,103 +92,99 @@ export default async function HomePage({
         </div>
       )}
 
-      {/* Trust */}
-      {/* auto-fit, а не repeat(3, 1fr): на телефоне три колонки не сжимаются
-          и растягивают документ шире экрана. */}
-      <section id="how" className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-        {[
-          {
-            icon: ShieldCheck,
-            t: 'Деньги у площадки',
-            d: `Продавец получит оплату, только когда вы подтвердите получение${pricing?.autoConfirmHours ? ` или пройдёт ${pricing.autoConfirmHours} ч без спора` : ''}.`,
-          },
-          {
-            icon: MessagesSquare,
-            t: 'Спор с арбитром',
-            d: 'Не получили или товар не как в описании — открываете спор, деньги замораживаются до решения.',
-          },
-          {
-            icon: Zap,
-            t: 'Ключи сразу',
-            d: 'Ключи выдаются автоматически после оплаты, продавца ждать не нужно.',
-          },
-        ].map(({ icon: Icon, t, d }) => (
-          <div key={t} className="card">
-            <Icon size={22} strokeWidth={1.75} color="var(--accent)" />
-            <div style={{ fontWeight: 700, margin: '12px 0 6px' }}>{t}</div>
-            <div className="muted" style={{ fontSize: 14 }}>
-              {d}
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* Instant delivery */}
-      {instant.length > 0 && (
-        <section>
+      {games.length > 0 && (
+        <section aria-labelledby="popular-title">
           <div className="section-head">
-            <h2 className="h2" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Zap size={20} strokeWidth={1.75} /> Мгновенная выдача
+            <h2 className="h2" id="popular-title">
+              Популярные
+            </h2>
+            <a href="#catalog" className="muted" style={{ fontSize: 14 }}>
+              Все игры →
+            </a>
+          </div>
+          <PopularGames games={games} />
+        </section>
+      )}
+
+      {listings.length > 0 && (
+        <section aria-labelledby="fresh-title">
+          <div className="section-head">
+            <h2 className="h2" id="fresh-title">
+              Новые предложения
             </h2>
             <Link href="/catalog" className="muted" style={{ fontSize: 14 }}>
               Все →
             </Link>
           </div>
-          <p className="muted" style={{ fontSize: 14, marginTop: -8, marginBottom: 16 }}>
-            Ключи и пополнения — автоматически после оплаты
-            {pricing ? ` · ${pct(pricing.cashbackPct)} кэшбэка на баланс` : ''}
-          </p>
-          <div className="grid cols-auto">
-            {instant.map((l) => (
-              <ListingCardView key={l.id} listing={l} />
-            ))}
-          </div>
+          <OfferTable items={listings} showSection />
         </section>
       )}
 
-      {/* Games */}
-      <section id="games">
-        <div className="section-head">
-          <h2 className="h2">Игры</h2>
-          <Link href="/igry" className="muted" style={{ fontSize: 14 }}>
-            Все игры А–Я →
-          </Link>
-        </div>
-        {games && games.length > 0 ? (
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-            {games.map((g) => (
-              <GameCardView key={g.id} game={g} />
-            ))}
+      {games.length > 0 && (
+        <section id="catalog" aria-labelledby="catalog-title" style={{ scrollMarginTop: 80 }}>
+          <div className="section-head" style={{ flexWrap: 'wrap', gap: 12 }}>
+            <h2 className="h2" id="catalog-title">
+              Все игры от А до Я
+            </h2>
+            <div className="kind-links">
+              <Link href="/igry?vid=game" className="chip">
+                Игры
+              </Link>
+              <Link href="/igry?vid=mobile" className="chip">
+                Мобильные
+              </Link>
+              <Link href="/igry?vid=app" className="chip">
+                Приложения
+              </Link>
+            </div>
           </div>
-        ) : (
-          <EmptyGames />
-        )}
+          <GameDirectory games={games} />
+        </section>
+      )}
+
+      <section aria-labelledby="trust-title">
+        <h2 className="h2" id="trust-title" style={{ marginBottom: 20 }}>
+          Как защищена сделка
+        </h2>
+        <div className="trust-row">
+          <div>
+            <h3>
+              <ShieldCheck size={18} strokeWidth={1.75} aria-hidden /> Деньги у площадки
+            </h3>
+            <p>
+              Продавец получит оплату, когда вы подтвердите получение
+              {pricing?.autoConfirmHours ? ` или через ${pricing.autoConfirmHours} ч без спора` : ''}.
+            </p>
+          </div>
+          <div>
+            <h3>
+              <MessagesSquare size={18} strokeWidth={1.75} aria-hidden /> Спор с арбитром
+            </h3>
+            <p>Не получили или товар не как в описании — открываете спор, деньги замораживаются до решения.</p>
+          </div>
+          <div>
+            <h3>
+              <Zap size={18} strokeWidth={1.75} aria-hidden /> Ключи сразу
+            </h3>
+            <p>
+              Ключи и пополнения выдаются автоматически после оплаты
+              {pricing ? `, а с каждой покупки — ${pct(pricing.cashbackPct)} кэшбэка на баланс` : ''}.
+            </p>
+          </div>
+        </div>
+        <p style={{ marginTop: 16, fontSize: 14 }}>
+          <Link href="/rules" className="inline-link">
+            Правила и гарантии
+          </Link>
+        </p>
       </section>
 
-      {/* Recent listings */}
-      <section>
-        <div className="section-head">
-          <h2 className="h2">Новые лоты</h2>
-          <Link href="/catalog" className="muted" style={{ fontSize: 14 }}>
-            Все →
-          </Link>
-        </div>
-        {listings.length > 0 ? (
-          <div className="grid cols-auto">
-            {listings.map((l) => (
-              <ListingCardView key={l.id} listing={l} />
-            ))}
-          </div>
-        ) : (
-          <EmptyListings />
-        )}
-      </section>
-
-      {/* Pricing */}
       {pricing && (
-        <section id="pricing">
+        <section id="pricing" aria-labelledby="pricing-title">
           <div className="section-head">
-            <h2 className="h2">Сколько это стоит</h2>
+            <h2 className="h2" id="pricing-title">
+              Сколько это стоит
+            </h2>
           </div>
           <p className="muted" style={{ fontSize: 14, marginTop: -8, marginBottom: 16 }}>
             Ставки конкурентов сверены с их сайтами и справкой 26 сентября 2026 года.
@@ -194,35 +197,6 @@ export default async function HomePage({
           </p>
         </section>
       )}
-
-      {/* Как проходит сделка */}
-      <section>
-        <div className="section-head">
-          <h2 className="h2">Как проходит сделка</h2>
-        </div>
-        <ol
-          className="grid"
-          style={{
-            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-            gap: 16,
-            padding: 0,
-            listStyle: 'none',
-          }}
-        >
-          {[
-            ['01', 'Оплата', 'Деньги уходят не продавцу, а на эскроу-счёт площадки.'],
-            ['02', 'Передача', 'Продавец передаёт товар. Ключи и пополнения — автоматически.'],
-            ['03', 'Проверка', `У вас ${pricing?.autoConfirmHours ?? 72} ч, чтобы проверить. Не подошло — открываете спор.`],
-            ['04', 'Подтверждение', 'Подтвердили — продавец получает деньги, вы кэшбэк.'],
-          ].map(([n, t, d]) => (
-            <li key={n} className="card">
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{n}</div>
-              <div style={{ fontWeight: 700, margin: '8px 0 6px' }}>{t}</div>
-              <div className="muted" style={{ fontSize: 14 }}>{d}</div>
-            </li>
-          ))}
-        </ol>
-      </section>
     </div>
   );
 }
@@ -272,36 +246,6 @@ function PricingTable({
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-/**
- * Пустые состояния раньше говорили с разработчиком: «Запустите API и БД,
- * затем выполните pnpm db:seed». Человек, зашедший купить ключ, читал
- * инструкцию по развёртыванию.
- */
-function EmptyGames() {
-  return (
-    <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
-      <p style={{ margin: '0 0 6px', fontWeight: 600 }}>Каталог пока собирается</p>
-      <p className="muted" style={{ margin: 0, fontSize: 14 }}>
-        Игры появятся, как только продавцы выложат первые лоты.
-      </p>
-    </div>
-  );
-}
-
-function EmptyListings() {
-  return (
-    <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
-      <p style={{ margin: '0 0 6px', fontWeight: 600 }}>Лотов пока нет</p>
-      <p className="muted" style={{ margin: '0 0 16px', fontSize: 14 }}>
-        Если вам есть что продать — вы будете первым в каталоге.
-      </p>
-      <Link href="/cabinet/new" className="btn">
-        Выложить лот
-      </Link>
     </div>
   );
 }

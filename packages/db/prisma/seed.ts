@@ -1,8 +1,10 @@
 /**
- * Сид демо-данных: роли/права, базовые игры и категории, дефолтная комиссия.
+ * Базовый сид: роли и права, справочник игр и разделов (`catalog.ts`),
+ * комиссия по умолчанию.
  * Запуск: pnpm --filter @gamemarket/db seed
  */
-import { PrismaClient, CategorySegment, FulfillmentType, FeeScope } from '@prisma/client';
+import { PrismaClient, FeeScope } from '@prisma/client';
+import { seedCatalog } from './catalog';
 
 const prisma = new PrismaClient();
 
@@ -33,117 +35,6 @@ async function seedRbac() {
         where: { roleId_permissionId: { roleId: role.id, permissionId: perm.id } },
         update: {},
         create: { roleId: role.id, permissionId: perm.id },
-      });
-    }
-  }
-}
-
-async function seedCatalog() {
-  const cs2 = await prisma.game.upsert({
-    where: { slug: 'cs2' },
-    update: {},
-    create: { slug: 'cs2', title: 'Counter-Strike 2', sortOrder: 1 },
-  });
-  await prisma.category.upsert({
-    where: { gameId_slug: { gameId: cs2.id, slug: 'accounts' } },
-    update: {},
-    create: {
-      gameId: cs2.id,
-      slug: 'accounts',
-      title: 'Аккаунты',
-      segment: CategorySegment.accounts,
-      fulfillmentType: FulfillmentType.manual,
-    },
-  });
-  await prisma.category.upsert({
-    where: { gameId_slug: { gameId: cs2.id, slug: 'skins' } },
-    update: {},
-    create: {
-      gameId: cs2.id,
-      slug: 'skins',
-      title: 'Скины и предметы',
-      segment: CategorySegment.items,
-      fulfillmentType: FulfillmentType.manual,
-    },
-  });
-  await prisma.category.upsert({
-    where: { gameId_slug: { gameId: cs2.id, slug: 'keys' } },
-    update: {},
-    create: {
-      gameId: cs2.id,
-      slug: 'keys',
-      title: 'Ключи (авто-выдача)',
-      segment: CategorySegment.key,
-      fulfillmentType: FulfillmentType.auto_key,
-    },
-  });
-
-  // Пополнение Steam — вход с главной (виджет в первом экране), поэтому
-  // категория есть в базовом каталоге, а не только на демо-витрине.
-  const steam = await prisma.game.upsert({
-    where: { slug: 'steam' },
-    update: {},
-    create: { slug: 'steam', title: 'Steam', sortOrder: 3 },
-  });
-  await prisma.category.upsert({
-    where: { gameId_slug: { gameId: steam.id, slug: 'topup' } },
-    update: {},
-    create: {
-      gameId: steam.id,
-      slug: 'topup',
-      title: 'Пополнение',
-      segment: CategorySegment.topup,
-      fulfillmentType: FulfillmentType.provider,
-    },
-  });
-}
-
-async function seedAttributes() {
-  const cs2 = await prisma.game.findUnique({ where: { slug: 'cs2' } });
-  if (!cs2) return;
-  const bySlug = async (slug: string) =>
-    prisma.category.findUnique({ where: { gameId_slug: { gameId: cs2.id, slug } } });
-
-  const specs: Record<string, Array<{ key: string; label: string; type: string; options?: string[]; isRequired?: boolean; sortOrder: number }>> = {
-    accounts: [
-      { key: 'rank', label: 'Звание', type: 'enum', isRequired: true, sortOrder: 1,
-        options: ['Silver', 'Gold Nova', 'Master Guardian', 'Legendary Eagle', 'Supreme', 'Global Elite'] },
-      { key: 'region', label: 'Регион', type: 'enum', isRequired: true, sortOrder: 2,
-        options: ['EU', 'CIS', 'NA', 'Asia'] },
-      { key: 'prime', label: 'Prime-статус', type: 'bool', sortOrder: 3 },
-      { key: 'delivery', label: 'Способ получения', type: 'enum', sortOrder: 4,
-        options: ['Со сменой почты', 'Данные без входа', 'Перепривязка'] },
-    ],
-    skins: [
-      { key: 'rarity', label: 'Редкость', type: 'enum', isRequired: true, sortOrder: 1,
-        options: ['Consumer', 'Industrial', 'Mil-Spec', 'Restricted', 'Classified', 'Covert', 'Нож/Перчатки'] },
-      { key: 'stattrak', label: 'StatTrak™', type: 'bool', sortOrder: 2 },
-    ],
-    keys: [
-      { key: 'region', label: 'Регион', type: 'enum', isRequired: true, sortOrder: 1,
-        options: ['Global', 'EU', 'CIS', 'NA'] },
-      { key: 'platform', label: 'Платформа', type: 'enum', sortOrder: 2,
-        options: ['Steam', 'Epic', 'Origin'] },
-    ],
-  };
-
-  for (const [slug, attrs] of Object.entries(specs)) {
-    const cat = await bySlug(slug);
-    if (!cat) continue;
-    for (const a of attrs) {
-      await prisma.attribute.upsert({
-        where: { categoryId_key: { categoryId: cat.id, key: a.key } },
-        update: { label: a.label, type: a.type, options: a.options ?? undefined, isRequired: a.isRequired ?? false, sortOrder: a.sortOrder },
-        create: {
-          categoryId: cat.id,
-          key: a.key,
-          label: a.label,
-          type: a.type,
-          options: a.options ?? undefined,
-          isFilter: true,
-          isRequired: a.isRequired ?? false,
-          sortOrder: a.sortOrder,
-        },
       });
     }
   }
@@ -192,8 +83,7 @@ async function seedFees() {
 
 async function main() {
   await seedRbac();
-  await seedCatalog();
-  await seedAttributes();
+  await seedCatalog(prisma);
   await seedFees();
   console.log('✅ Seed завершён');
 }

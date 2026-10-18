@@ -1,5 +1,5 @@
 /**
- * Демо-витрина: игры, категории, продавцы и лоты.
+ * Демо-витрина: продавцы и лоты в разделах справочника (`catalog.ts`).
  *
  * Зачем отдельно от `seed.ts`. Базовый сид кладёт одну игру и ноль лотов,
  * поэтому свежеподнятый маркетплейс выглядит как пустая страница с надписью
@@ -22,12 +22,8 @@
  * Идемпотентен: повторный запуск ничего не дублирует.
  */
 import { createCipheriv, createHash, randomBytes } from 'node:crypto';
-import {
-  CategorySegment,
-  FulfillmentType,
-  ListingStatus,
-  PrismaClient,
-} from '@prisma/client';
+import { FulfillmentType, ListingStatus, PrismaClient } from '@prisma/client';
+import { seedCatalog } from './catalog';
 
 const prisma = new PrismaClient();
 
@@ -35,66 +31,6 @@ import { DEMO_EMAIL_DOMAIN as DEMO_DOMAIN, DEMO_SELLER_USERNAMES } from '../../s
 import { topupQuote, topupTermsError } from '../../shared/src/topup';
 import { qtyTermsError } from '../../shared/src/quantity';
 const DEMO_NOTE = 'Демонстрационный профиль витрины.';
-
-interface DemoGame {
-  slug: string;
-  title: string;
-  sortOrder: number;
-  categories: Array<{
-    slug: string;
-    title: string;
-    segment: CategorySegment;
-    fulfillmentType: FulfillmentType;
-  }>;
-}
-
-const ACCOUNTS = {
-  slug: 'accounts',
-  title: 'Аккаунты',
-  segment: CategorySegment.accounts,
-  fulfillmentType: FulfillmentType.manual,
-};
-const CURRENCY = {
-  slug: 'currency',
-  title: 'Игровая валюта',
-  segment: CategorySegment.currency,
-  fulfillmentType: FulfillmentType.manual,
-};
-const ITEMS = {
-  slug: 'items',
-  title: 'Предметы',
-  segment: CategorySegment.items,
-  fulfillmentType: FulfillmentType.manual,
-};
-const SERVICE = {
-  slug: 'service',
-  title: 'Услуги и буст',
-  segment: CategorySegment.service,
-  fulfillmentType: FulfillmentType.manual,
-};
-const KEYS = {
-  slug: 'keys',
-  title: 'Ключи (авто-выдача)',
-  segment: CategorySegment.key,
-  fulfillmentType: FulfillmentType.auto_key,
-};
-const TOPUP = {
-  slug: 'topup',
-  title: 'Пополнение',
-  segment: CategorySegment.topup,
-  fulfillmentType: FulfillmentType.provider,
-};
-
-const GAMES: DemoGame[] = [
-  { slug: 'cs2', title: 'Counter-Strike 2', sortOrder: 1, categories: [ACCOUNTS, ITEMS, KEYS] },
-  { slug: 'dota2', title: 'Dota 2', sortOrder: 2, categories: [ACCOUNTS, ITEMS, SERVICE] },
-  { slug: 'steam', title: 'Steam', sortOrder: 3, categories: [TOPUP, KEYS] },
-  { slug: 'genshin', title: 'Genshin Impact', sortOrder: 4, categories: [ACCOUNTS, TOPUP, SERVICE] },
-  { slug: 'roblox', title: 'Roblox', sortOrder: 5, categories: [CURRENCY, ACCOUNTS] },
-  { slug: 'brawl-stars', title: 'Brawl Stars', sortOrder: 6, categories: [ACCOUNTS, CURRENCY] },
-  { slug: 'standoff2', title: 'Standoff 2', sortOrder: 7, categories: [ACCOUNTS, CURRENCY, ITEMS] },
-  { slug: 'wot', title: 'World of Tanks', sortOrder: 8, categories: [ACCOUNTS, CURRENCY, SERVICE] },
-];
 
 interface DemoSeller {
   username: string;
@@ -163,11 +99,12 @@ const LISTINGS: DemoListing[] = [
   },
   {
     game: 'cs2',
-    category: 'items',
+    category: 'skins',
     seller: 'stabilno',
     title: 'AK-47 Redline, Field-Tested',
     description: 'Обмен через Steam после подтверждения сделки. Трейд-бан снят.',
     priceRub: 1190,
+    attributes: { rarity: 'Classified' },
   },
   {
     game: 'cs2',
@@ -218,6 +155,7 @@ const LISTINGS: DemoListing[] = [
     description: 'Активация в Steam. Выдача автоматическая после оплаты.',
     priceRub: 2790,
     auto: true,
+    attributes: { region: 'Россия' },
   },
   {
     game: 'genshin',
@@ -235,14 +173,17 @@ const LISTINGS: DemoListing[] = [
     title: 'Аккаунт AR 55, четыре пятизвёздочных',
     description: 'Полная передача почты. Список персонажей и оружия — в чате.',
     priceRub: 7900,
+    attributes: { server: 'Europe' },
   },
   {
     game: 'roblox',
     category: 'currency',
     seller: 'keystore',
-    title: '1000 Robux на аккаунт',
-    description: 'Через геймпасс. Нужен ник и открытая группа.',
-    priceRub: 690,
+    title: 'Robux через геймпасс, от 400',
+    legacyTitle: '1000 Robux на аккаунт',
+    description: 'Через геймпасс. Нужен ник и открытая группа. Количество выбираете сами, от 400 Robux.',
+    priceRub: 69,
+    qty: { unit: 'Robux', perUnits: 100, minQty: 400, stock: 200_000 },
   },
   {
     game: 'brawl-stars',
@@ -281,29 +222,6 @@ const LISTINGS: DemoListing[] = [
     priceRub: 5600,
   },
 ];
-
-async function upsertGames() {
-  for (const g of GAMES) {
-    const game = await prisma.game.upsert({
-      where: { slug: g.slug },
-      update: { title: g.title, sortOrder: g.sortOrder },
-      create: { slug: g.slug, title: g.title, sortOrder: g.sortOrder },
-    });
-    for (const c of g.categories) {
-      await prisma.category.upsert({
-        where: { gameId_slug: { gameId: game.id, slug: c.slug } },
-        update: {},
-        create: {
-          gameId: game.id,
-          slug: c.slug,
-          title: c.title,
-          segment: c.segment,
-          fulfillmentType: c.fulfillmentType,
-        },
-      });
-    }
-  }
-}
 
 async function upsertSellers() {
   for (const s of SELLERS) {
@@ -467,11 +385,13 @@ async function refillDemoKeys(listingId: string) {
 }
 
 async function main() {
-  await upsertGames();
+  // Игры и разделы — из справочника площадки: демо-лоты лежат в тех же
+  // разделах, что и лоты продавцов.
+  await seedCatalog(prisma);
   await upsertSellers();
   await upsertListings();
   const [games, listings] = await Promise.all([
-    prisma.game.count(),
+    prisma.game.count({ where: { isActive: true } }),
     prisma.listing.count({ where: { status: ListingStatus.active } }),
   ]);
   console.log(`✅ Демо-витрина: игр ${games}, активных лотов ${listings}`);

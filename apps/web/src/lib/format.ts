@@ -42,3 +42,16 @@ export function formatListingPrice(l: {
   const pack = perPackLabel(l);
   return pack ? `${price} ${pack}` : price;
 }
+
+/** «1 предложение», «3 предложения», «25 предложений». */
+export function offersCount(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  const word =
+    mod10 === 1 && mod100 !== 11
+      ? 'предложение'
+      : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+        ? 'предложения'
+        : 'предложений';
+  return `${new Intl.NumberFormat('ru-RU').format(n)} ${word}`;
+}

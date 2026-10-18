@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Star, Zap } from 'lucide-react';
 import { isDemoSeller } from '@gamemarket/shared';
-import type { Game, ListingCard } from '@/lib/api';
+import type { ListingCard } from '@/lib/api';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { tileFor } from '@/lib/tile';
 import { ApproxPrice } from './approx-price';
@@ -77,24 +77,6 @@ export function ListingCardView({ listing }: { listing: ListingCard }) {
   );
 }
 
-export function GameCardView({ game }: { game: Game }) {
-  // Компактная строка вместо квадрата на всю ширину колонки: восемь больших
-  // цветных квадратов перетягивали внимание с лотов и цен.
-  return (
-    <Link href={`/igra/${game.slug}`} className="card link row" style={{ gap: 12, padding: 12 }}>
-      <div style={{ width: 44, height: 44, borderRadius: 10, flex: 'none', overflow: 'hidden' }}>
-        {game.iconUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={game.iconUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <GameTile title={game.title} size={15} />
-        )}
-      </div>
-      <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3 }}>{game.title}</div>
-    </Link>
-  );
-}
-
 /**
  * Заглушка обложки: цветная плитка с буквами названия.
  *
@@ -102,7 +84,7 @@ export function GameCardView({ game }: { game: Game }) {
  * как сломанная страница, а чужие обложки игр брать нельзя. Цвет выводится
  * из названия, поэтому у одной игры он всегда одинаковый.
  */
-function GameTile({ title, size }: { title: string; size: number }) {
+export function GameTile({ title, size }: { title: string; size: number }) {
   const t = tileFor(title);
   return (
     <div

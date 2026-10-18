@@ -16,11 +16,18 @@ const HOUR = 3600 * 1000;
 
 function setup(
   listing: Record<string, unknown> | null,
-  opts: { orders?: number; attrs?: unknown[]; fulfillmentType?: string } = {},
+  opts: { orders?: number; attrs?: unknown[]; fulfillmentType?: string; pack?: { unitName: string; pricePerUnits: number } } = {},
 ) {
   const calls = { update: [] as unknown[], delete: [] as unknown[], updateMany: [] as unknown[], create: [] as unknown[] };
   const prisma = {
-    category: { findFirst: vi.fn(async () => ({ id: 'c1', fulfillmentType: opts.fulfillmentType ?? 'manual' })) },
+    category: {
+      findFirst: vi.fn(async () => ({
+        id: 'c1',
+        fulfillmentType: opts.fulfillmentType ?? 'manual',
+        unitName: opts.pack?.unitName ?? null,
+        pricePerUnits: opts.pack?.pricePerUnits ?? null,
+      })),
+    },
     listing: {
       create: vi.fn(async (a: { data: Record<string, unknown> }) => {
         calls.create.push(a);
@@ -111,6 +118,17 @@ describe('наличие лота', () => {
     const { svc } = setup(null);
     await expect(svc.create('s1', { ...NEW, unitName: 'золота', pricePerUnits: 7, stock: 100 })).rejects.toThrow(/1 000/);
     await expect(svc.create('s1', { ...NEW, unitName: 'золота', pricePerUnits: 1000 })).rejects.toThrow(/наличие/);
+  });
+
+  it('в разделе с общей пачкой цена всегда «за 1 000 золота», какую бы пачку ни прислали', async () => {
+    const { svc, calls } = setup(null, { pack: { unitName: 'золота', pricePerUnits: 1000 } });
+    await svc.create('s1', { ...NEW, unitName: 'голды', pricePerUnits: 1_000_000, minQty: 5000, stock: 90_000 });
+    expect(calls.create[0]).toMatchObject({ data: { unitName: 'золота', pricePerUnits: 1000, minQty: 5000 } });
+  });
+
+  it('в разделе с общей пачкой целиком не продают: цены иначе несравнимы', async () => {
+    const { svc } = setup(null, { pack: { unitName: 'золота', pricePerUnits: 1000 } });
+    await expect(svc.create('s1', { ...NEW, unitName: null })).rejects.toThrow(/за 1\s000 золота/);
   });
 
   it('у пополнения количества нет — у него сумма на выбор', async () => {

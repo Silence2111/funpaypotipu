@@ -33,6 +33,12 @@ export const PROMO_DAY_PRICE = BigInt(process.env.PROMO_DAY_PRICE ?? 9_900);
 /** Кулдаун поднятия по заслугам: чем больше продаж, тем чаще (как на FunPay). */
 const bumpCooldownMs = (sales: number) => (sales >= 50 ? 1 : sales >= 10 ? 2 : 4) * 3600 * 1000;
 
+/** Общая пачка раздела валюты («за 1 000 золота») или null, если её нет. */
+const sectionPack = (c: { unitName: string | null; pricePerUnits: number | null }) =>
+  c.unitName && c.pricePerUnits ? { unitName: c.unitName, pricePerUnits: c.pricePerUnits } : null;
+
+const formatUnits = (n: number, unit: string) => `${new Intl.NumberFormat('ru-RU').format(n)} ${unit}`;
+
 /** Сколько ждать до следующего поднятия лота; 0 — можно сейчас. */
 const bumpWaitMs = (boostUntil: Date | null, cooldownMs: number, now: number) =>
   boostUntil ? Math.max(0, boostUntil.getTime() - BOOST_MS + cooldownMs - now) : 0;
@@ -175,7 +181,7 @@ export class ListingsService {
     const attrs = this.parseAttrs(query.attrs);
     // Текстовый запрос + доступный движок → релевантный поиск с typo-tolerance.
     // При фильтре по продавцу/атрибутам идём в Postgres (в Meili они не индексируются).
-    if (query.q && this.search.enabled && !query.sellerId && !attrs && !query.instant && !query.online) {
+    if (query.q && this.search.enabled && !query.sellerId && !attrs && !query.instant && !query.online && !query.segment) {
       const found = await this.search.searchIds(
         query.q,
         {
@@ -210,7 +216,12 @@ export class ListingsService {
     // Онлайн — тот же порог, что у зелёной точки на карточке: 5 минут.
     if (query.online) where.seller = { profile: { onlineAt: { gte: new Date(Date.now() - 5 * 60 * 1000) } } };
     if (query.gameSlug) where.game = { slug: query.gameSlug };
-    if (query.categorySlug) where.category = { slug: query.categorySlug };
+    if (query.categorySlug || query.segment) {
+      where.category = {
+        ...(query.categorySlug ? { slug: query.categorySlug } : {}),
+        ...(query.segment ? { segment: query.segment } : {}),
+      };
+    }
     // Фасетные фильтры по атрибутам (JSON-путь в Postgres).
     if (attrs) {
       where.AND = Object.entries(attrs).map(([k, v]) => ({
@@ -312,7 +323,7 @@ export class ListingsService {
         attributes: true,
         buyerFields: true,
         stock: true,
-        category: { select: { slug: true, title: true, fulfillmentType: true } },
+        category: { select: { slug: true, title: true, fulfillmentType: true, unitName: true, pricePerUnits: true } },
       },
     });
     if (!listing || listing.status === 'archived') throw new NotFoundException('Лот не найден');
@@ -388,12 +399,16 @@ export class ListingsService {
     await this.validateAttributes(input.categoryId, input.attributes);
     const terms = input.topup ? this.topupTerms(category.fulfillmentType, input.topup) : null;
     const buyerFields = this.buyerFields(category.fulfillmentType, input.buyerFields);
-    const qty = this.qtyTerms(category.fulfillmentType, {
-      unitName: input.unitName ?? null,
-      pricePerUnits: input.pricePerUnits ?? 1,
-      minQty: input.minQty ?? 1,
-      stock: input.stock,
-    });
+    const qty = this.qtyTerms(
+      category.fulfillmentType,
+      {
+        unitName: input.unitName ?? null,
+        pricePerUnits: input.pricePerUnits ?? 1,
+        minQty: input.minQty ?? 1,
+        stock: input.stock,
+      },
+      sectionPack(category),
+    );
 
     const created = await this.prisma.listing.create({
       data: {
@@ -459,7 +474,18 @@ export class ListingsService {
   private qtyTerms(
     fulfillmentType: FulfillmentType,
     raw: { unitName: string | null; pricePerUnits: number; minQty: number; stock: number | null },
+    pack: { unitName: string; pricePerUnits: number } | null = null,
   ) {
+    // Раздел валюты с общей пачкой: все продают «за 1 000 золота», иначе
+    // сортировка по цене сравнивала бы цену за 1 000 и за 1 000 000.
+    if (pack && fulfillmentType === 'manual') {
+      if (!raw.unitName?.trim()) {
+        throw new BadRequestException(
+          `В этом разделе продают количеством: укажите цену за ${formatUnits(pack.pricePerUnits, pack.unitName)}`,
+        );
+      }
+      raw = { ...raw, unitName: pack.unitName, pricePerUnits: pack.pricePerUnits };
+    }
     const unitName = raw.unitName?.trim() || null;
     if (!unitName) return { unitName: null, pricePerUnits: 1, minQty: 1, stock: raw.stock };
     if (fulfillmentType === 'provider') {
@@ -531,12 +557,16 @@ export class ListingsService {
       input.minQty !== undefined ||
       (input.stock !== undefined && !auto)
     ) {
-      const q = this.qtyTerms(current.category.fulfillmentType, {
-        unitName: input.unitName !== undefined ? input.unitName : current.unitName,
-        pricePerUnits: input.pricePerUnits ?? current.pricePerUnits,
-        minQty: input.minQty ?? current.minQty,
-        stock: auto ? current.stock : input.stock !== undefined ? input.stock : current.stock,
-      });
+      const q = this.qtyTerms(
+        current.category.fulfillmentType,
+        {
+          unitName: input.unitName !== undefined ? input.unitName : current.unitName,
+          pricePerUnits: input.pricePerUnits ?? current.pricePerUnits,
+          minQty: input.minQty ?? current.minQty,
+          stock: auto ? current.stock : input.stock !== undefined ? input.stock : current.stock,
+        },
+        sectionPack(current.category),
+      );
       data.unitName = q.unitName;
       data.pricePerUnits = q.pricePerUnits;
       data.minQty = q.minQty;
@@ -606,7 +636,7 @@ export class ListingsService {
         pricePerUnits: true,
         minQty: true,
         stock: true,
-        category: { select: { fulfillmentType: true } },
+        category: { select: { fulfillmentType: true, unitName: true, pricePerUnits: true } },
       },
     });
     if (!listing) throw new NotFoundException('Лот не найден');

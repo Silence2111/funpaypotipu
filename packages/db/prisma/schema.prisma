@@ -308,13 +308,25 @@ model TwoFactor {
 
 // ─────────────────────────── CATALOG ───────────────────────────
 
+/// Раздел справочника: игра, мобильная игра, приложение или сервис.
+enum GameKind {
+  game
+  mobile
+  app
+}
+
 model Game {
   id        String   @id @default(uuid()) @db.Uuid
   slug      String   @unique
   title     String
+  kind      GameKind @default(game)
+  // Как игру ищут на самом деле: «кс», «ксго», «дота», «вов». Поиск по играм
+  // сравнивает запрос и с названием, и с этими словами.
+  aliases   String[] @default([])
   iconUrl   String?  @map("icon_url")
   coverUrl  String?  @map("cover_url")
   isActive  Boolean  @default(true) @map("is_active")
+  // Чем меньше, тем выше в «Популярных»; у остальных игр — 100.
   sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -332,6 +344,11 @@ model Category {
   title           String
   segment         CategorySegment
   fulfillmentType FulfillmentType @default(manual) @map("fulfillment_type")
+  // Пачка раздела валюты: все лоты продают «за 1 000 золота», и цены
+  // сравнимы — сортировка по цене иначе ставила «за 1 000» рядом с
+  // «за 1 000 000». null — раздел без общей пачки.
+  unitName        String?         @map("unit_name")
+  pricePerUnits   Int?            @map("price_per_units")
   isActive        Boolean         @default(true) @map("is_active")
   sortOrder       Int             @default(0) @map("sort_order")
   createdAt       DateTime        @default(now()) @map("created_at")

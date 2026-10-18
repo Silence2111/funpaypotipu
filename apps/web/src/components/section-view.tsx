@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { browseListings, getCategoryAttributes, type Category, type GameWithCategories } from '@/lib/api';
+import { offersCount } from '@/lib/format';
 import { OfferTable } from './offers';
 import { SectionFilters } from './section-filters';
 
@@ -12,18 +13,6 @@ const SORTS = ['new', 'price_asc', 'price_desc', 'popular'];
 /** Раздел для /igra/<игра>: первый с предложениями, а если пусто везде — первый. */
 export function defaultSection(game: GameWithCategories): Category | undefined {
   return game.categories.find((c) => (c.listingCount ?? 0) > 0) ?? game.categories[0];
-}
-
-export function offersCount(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  const word =
-    mod10 === 1 && mod100 !== 11
-      ? 'предложение'
-      : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
-        ? 'предложения'
-        : 'предложений';
-  return `${new Intl.NumberFormat('ru-RU').format(n)} ${word}`;
 }
 
 /**

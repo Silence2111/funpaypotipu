@@ -40,7 +40,8 @@ export class CatalogService {
 
   /**
    * Указатель игр А–Я: все игры с разделами и числом лотов, как список игр на
-   * главной FunPay. Счётчики — одним запросом на все разделы.
+   * главной FunPay. Счётчики — одним запросом на все разделы. Синонимы — для
+   * поиска по играм на сайте: «кс» находит Counter-Strike 2.
    */
   async index() {
     const [games, counts] = await Promise.all([
@@ -51,6 +52,9 @@ export class CatalogService {
           id: true,
           slug: true,
           title: true,
+          kind: true,
+          aliases: true,
+          sortOrder: true,
           categories: {
             where: { isActive: true },
             orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
@@ -61,10 +65,14 @@ export class CatalogService {
       this.prisma.listing.groupBy({ by: ['categoryId'], where: { status: 'active' }, _count: { _all: true } }),
     ]);
     const countMap = new Map(counts.map((c) => [c.categoryId, c._count._all]));
-    return games.map((g) => ({
-      ...g,
-      categories: g.categories.map((c) => ({ ...c, listingCount: countMap.get(c.id) ?? 0 })),
-    }));
+    // Порядок — по правилам языка, а не по байтам базы: при сортировке базы
+    // «EA Sports FC» вставал раньше «EA app», а кириллица перемешивалась.
+    return games
+      .sort((a, b) => a.title.localeCompare(b.title))
+      .map((g) => ({
+        ...g,
+        categories: g.categories.map((c) => ({ ...c, listingCount: countMap.get(c.id) ?? 0 })),
+      }));
   }
 
   async getCategoryAttributes(categoryId: string) {

@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getGame } from '@/lib/api';
-import { offersCount, SectionView, type SectionSearch } from '@/components/section-view';
+import { offersCount } from '@/lib/format';
+import { SectionView, type SectionSearch } from '@/components/section-view';
 
 type Params = Promise<{ slug: string; section: string }>;
 

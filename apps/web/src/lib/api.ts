@@ -98,13 +98,35 @@ export const getGames = () => apiTry<Game[]>('/catalog/games');
 export const getGame = (slug: string) => apiTry<GameWithCategories>(`/catalog/games/${slug}`);
 export const getListing = (id: string) => apiTry<ListingDetail>(`/listings/${id}`);
 
-/** Все игры с разделами и числом лотов — для указателя А–Я. */
+/** Все игры с разделами и числом лотов — для указателя А–Я и поиска по играм. */
 export interface GameIndexEntry {
   id: string;
   slug: string;
   title: string;
+  /** game — игра, mobile — мобильная игра, app — приложение или сервис. */
+  kind: 'game' | 'mobile' | 'app';
+  /** Как игру ищут: «кс», «дота». */
+  aliases: string[];
+  /** Место в «Популярных»; 100 — не в них. */
+  sortOrder: number;
   categories: Array<{ id: string; slug: string; title: string; listingCount: number }>;
 }
+
+/** Типы товаров во всех играх — как строка категорий на главной Playerok. */
+export const SEGMENTS: Array<[string, string]> = [
+  ['accounts', 'Аккаунты'],
+  ['currency', 'Валюта'],
+  ['items', 'Предметы'],
+  ['key', 'Ключи'],
+  ['topup', 'Донат'],
+  ['service', 'Услуги'],
+];
+
+export const KIND_LABELS: Record<GameIndexEntry['kind'], string> = {
+  game: 'Игры',
+  mobile: 'Мобильные игры',
+  app: 'Приложения и сервисы',
+};
 export const getGameIndex = () => apiTry<GameIndexEntry[]>('/catalog/index');
 
 export interface SellerProfile {
@@ -162,6 +184,8 @@ export function browseListings(params: {
   q?: string;
   sort?: string;
   attrs?: string;
+  /** Тип товара во всех играх: accounts, currency, items, key, topup, service. */
+  segment?: string;
   instant?: boolean;
   /** Только продавцы онлайн (последние 5 минут). */
   online?: boolean;

@@ -11,7 +11,15 @@ import { formatPrice, formatQty } from '@/lib/format';
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 interface Game { id: string; slug: string; title: string }
-interface Category { id: string; slug: string; title: string; fulfillmentType: string }
+interface Category {
+  id: string;
+  slug: string;
+  title: string;
+  fulfillmentType: string;
+  /** Общая пачка раздела валюты: все продают «за 1 000 золота». */
+  unitName?: string | null;
+  pricePerUnits?: number | null;
+}
 interface Attr { key: string; label: string; type: string; options?: string[] | null; isRequired: boolean }
 
 /** Свой лот для формы изменения — ответ `GET /listings/mine/:id`. */
@@ -35,7 +43,7 @@ export interface EditableListing {
   stock: number | null;
   buyerFields: Array<{ label: string; required: boolean }> | null;
   game: { slug: string; title: string };
-  category: { slug: string; title: string; fulfillmentType: string };
+  category: { slug: string; title: string; fulfillmentType: string; unitName?: string | null; pricePerUnits?: number | null };
 }
 
 const rubOf = (minor: string | null | undefined) => (minor ? String(Number(BigInt(minor)) / 100) : '');
@@ -139,6 +147,19 @@ export function ListingForm({
   }, [router, editing, presetGame, presetCategory]);
 
   const selected = categories.find((c) => c.id === categoryId);
+  // Раздел валюты с общей пачкой: продают только количеством и только «за
+  // 1 000 золота» — иначе цены в разделе несравнимы. Единицу и пачку задаёт
+  // раздел, продавец указывает цену, наличие и минимум.
+  const pack =
+    selected?.fulfillmentType === 'manual' && selected.unitName && selected.pricePerUnits
+      ? { unitName: selected.unitName, pricePerUnits: selected.pricePerUnits }
+      : null;
+  useEffect(() => {
+    if (!pack) return;
+    setByQty(true);
+    setUnitName(pack.unitName);
+    setPerUnits(pack.pricePerUnits);
+  }, [pack?.unitName, pack?.pricePerUnits]); // eslint-disable-line react-hooks/exhaustive-deps
   const variable = byAmount && selected?.fulfillmentType === 'provider';
   const perPiece = byQty && selected?.fulfillmentType === 'manual';
   const qtyTerms = {
@@ -485,7 +506,14 @@ export function ListingForm({
           </div>
         )}
 
-        {selectedCategory?.fulfillmentType === 'manual' && (
+        {pack && (
+          <p className="hint" style={{ margin: 0 }}>
+            В этом разделе продают количеством: цена — за {formatQty(pack.pricePerUnits, pack.unitName)}, одинаково у
+            всех продавцов, чтобы покупатель сравнивал цены.
+          </p>
+        )}
+
+        {selectedCategory?.fulfillmentType === 'manual' && !pack && (
           <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="label" style={{ marginBottom: 6, padding: 0 }}>Как продаёте</legend>
             {[
@@ -510,11 +538,12 @@ export function ListingForm({
               <div className="field">
                 <label className="label" htmlFor="qty-unit">Единица</label>
                 <input id="qty-unit" className="input" placeholder="золота" maxLength={24} value={unitName}
-                  onChange={(e) => setUnitName(e.target.value)} onBlur={() => touch('qty')} />
+                  readOnly={!!pack} onChange={(e) => setUnitName(e.target.value)} onBlur={() => touch('qty')} />
               </div>
               <div className="field">
                 <label className="label" htmlFor="qty-per">Цена за</label>
-                <select id="qty-per" className="input" value={perUnits} onChange={(e) => setPerUnits(Number(e.target.value))}>
+                <select id="qty-per" className="input" value={perUnits} disabled={!!pack}
+                  onChange={(e) => setPerUnits(Number(e.target.value))}>
                   {PRICE_PER_UNITS.map((n) => (
                     <option key={n} value={n}>{unitLabel(n)}</option>
                   ))}
@@ -535,8 +564,8 @@ export function ListingForm({
               <p className="field-error">{showErr('qty')}</p>
             ) : (
               <p className="hint">
-                Единицу пишите так, как она стоит после числа: 1 000 золота, 5 шт. Наличие уменьшается с каждой
-                оплатой; на нуле лот уходит из каталога.
+                {pack ? '' : 'Единицу пишите так, как она стоит после числа: 1 000 золота, 5 шт. '}
+                Наличие уменьшается с каждой оплатой; на нуле лот уходит из каталога.
               </p>
             )}
           </div>
