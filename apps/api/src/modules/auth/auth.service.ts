@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Inject,
   Injectable,
   UnauthorizedException,
@@ -14,6 +15,7 @@ import { PRISMA } from '../../prisma/prisma.module';
 import { MailService } from '../mail/mail.service';
 import { TokenService } from './token.service';
 import { TwoFactorService } from './twofactor.service';
+import { AttemptLimiter } from './attempts';
 
 export interface RequestCtx {
   userAgent?: string;
@@ -31,6 +33,9 @@ export interface IssuedAuth {
 const sha256 = (v: string): string => createHash('sha256').update(v).digest('hex');
 
 const BANNED = 'Аккаунт заблокирован. Если это ошибка — напишите в поддержку.';
+
+/** Неверный пароль десять раз за 15 минут — пауза для этой почты. */
+const passwordAttempts = new AttemptLimiter(10, 15 * 60_000);
 
 @Injectable()
 export class AuthService {
@@ -115,20 +120,36 @@ export class AuthService {
   }
 
   async login(input: LoginInput, ctx: RequestCtx): Promise<IssuedAuth> {
+    // Подбор пароля: перебор по почте упирается в паузу, а не в скорость сети.
+    const key = input.email.trim().toLowerCase();
+    const wait = passwordAttempts.wait(key);
+    if (wait) {
+      throw new HttpException(
+        { statusCode: 429, message: `Слишком много попыток входа. Попробуйте через ${wait} мин.`, error: 'too_many_attempts' },
+        429,
+      );
+    }
     const user = await this.prisma.user.findUnique({
       where: { email: input.email },
       include: { profile: true },
     });
-    if (!user?.passwordHash || !user.profile) throw new UnauthorizedException('Неверные данные');
-
-    const ok = await bcrypt.compare(input.password, user.passwordHash);
-    if (!ok) throw new UnauthorizedException('Неверные данные');
-    if (user.status === 'banned') throw new ForbiddenException(BANNED);
-
-    if (!(await this.twoFactor.verify(user.id, input.code))) {
-      throw new UnauthorizedException('Требуется код двухфакторной аутентификации');
+    if (!user?.passwordHash || !user.profile) {
+      passwordAttempts.fail(key);
+      throw new UnauthorizedException('Неверные данные');
     }
 
+    const ok = await bcrypt.compare(input.password, user.passwordHash);
+    if (!ok) {
+      passwordAttempts.fail(key);
+      throw new UnauthorizedException('Неверные данные');
+    }
+    if (user.status === 'banned') throw new ForbiddenException(BANNED);
+
+    // Пароль верный: форма различает «спросить код» и «код не подошёл».
+    const second = await this.twoFactor.check(user.id, input.code);
+    if (second !== 'ok') throw TwoFactorService.loginError(second);
+
+    passwordAttempts.reset(key);
     return this.issue(user.id, user.email, user.profile.username, ctx);
   }
 

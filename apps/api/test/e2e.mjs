@@ -4,9 +4,11 @@
  * Покрывает: эскроу-покупка, авто-выдача ключей, пополнение на сумму покупателя,
  * продажа поштучно (наличие, перепродажа последней штуки), способы оплаты (надбавка карты,
  * второй платёж по заказу), модерация (жалобы, бан, заморозка, спор у арбитра),
- * аккаунт (чёрный список, профиль, пароль, сеансы), поддержка, выплаты (с холдом и ролью finance).
+ * аккаунт (чёрный список, профиль, пароль, сеансы), вход с кодом из приложения и защита от подбора,
+ * поддержка, выплаты (с холдом и ролью finance).
  * Выход 0 — все проверки пройдены, иначе 1.
  */
+import { authenticator } from 'otplib';
 import db from '../../../packages/db/dist/index.js';
 
 const { prisma } = db;
@@ -550,6 +552,31 @@ async function scenarioMyLots(rnd) {
   );
 }
 
+async function scenarioTwoFactor(rnd) {
+  console.log('\n— Вход с кодом из приложения —');
+  const u = await register('tfa', rnd);
+  const email = `tfa${rnd}@e2e.local`;
+  const login = (code) => j('/auth/login', { method: 'POST', body: JSON.stringify({ email, password: 'password123', ...(code ? { code } : {}) }) });
+  const setup = await j('/auth/2fa/setup', { method: 'POST', token: u.token });
+  check('Подключение: ключ и QR-код', /^[A-Z2-7]{16,}$/.test(setup.body.secret ?? '') && /<svg/.test(setup.body.qrSvg ?? ''));
+  const on = await j('/auth/2fa/enable', { method: 'POST', token: u.token, body: JSON.stringify({ code: authenticator.generate(setup.body.secret) }) });
+  check('Включение выдаёт восемь резервных кодов', on.body.recoveryCodes?.length === 8, String(on.body.recoveryCodes?.length));
+  const noCode = await login();
+  check('Без кода форма просит код, а не пишет «неверный пароль»', noCode.status === 401 && noCode.body.error === 'two_factor_required', JSON.stringify(noCode.body));
+  const ok = await login(authenticator.generate(setup.body.secret));
+  check('С кодом из приложения — вход', ok.status === 200 && !!ok.body.accessToken, String(ok.status));
+  const reserve = on.body.recoveryCodes?.[0];
+  const first = await login(reserve);
+  const second = await login(reserve);
+  check('Резервный код работает один раз', first.status === 200 && second.body.error === 'two_factor_invalid', `${first.status} / ${second.body.error}`);
+  await register('tfb', rnd);
+  let last;
+  for (let i = 0; i < 11; i++) {
+    last = await j('/auth/login', { method: 'POST', body: JSON.stringify({ email: `tfb${rnd}@e2e.local`, password: 'wrong-password' }) });
+  }
+  check('Подбор пароля упирается в паузу', last.status === 429, String(last.status));
+}
+
 async function scenarioRates(rnd) {
   console.log('\n— Курсы для показа цен —');
   const admin = await register('rta', rnd);
@@ -616,6 +643,7 @@ async function scenarioPayout(rnd) {
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);
+  await scenarioTwoFactor(rnd);
   await scenarioRates(rnd);
   await scenarioPayout(rnd);
 

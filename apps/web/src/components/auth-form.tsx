@@ -13,6 +13,15 @@ interface AuthResponse {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Код ошибки входа из тела ответа: two_factor_required, too_many_attempts… */
+function errorCode(e: unknown): string | null {
+  try {
+    return (JSON.parse(e instanceof Error ? e.message : '') as { error?: string }).error ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Куда вернуть после входа: только свой путь, не внешний адрес. */
 function safeNext(raw: string | null, fallback: string) {
   return raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : fallback;
@@ -39,6 +48,10 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Второй шаг входа: код из приложения или резервный.
+  const [codeStep, setCodeStep] = useState(false);
+  const [recovery, setRecovery] = useState(false);
+  const [code, setCode] = useState('');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const touch = (k: string) => setTouched((t) => ({ ...t, [k]: true }));
 
@@ -62,20 +75,36 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
     e.preventDefault();
     setTouched({ email: true, username: true, password: true, agreed: true });
     if (Object.values(errors).some(Boolean)) return;
+    if (codeStep && !code.trim()) {
+      setError(recovery ? 'Введите резервный код' : 'Введите код из приложения');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const path = isRegister ? '/auth/register' : '/auth/login';
-      const payload = isRegister ? { email, password, username: username.trim() } : { email, password };
+      const payload = isRegister
+        ? { email, password, username: username.trim() }
+        : { email, password, ...(codeStep && code.trim() ? { code: code.trim() } : {}) };
       const res = await apiFetch<AuthResponse>(path, { method: 'POST', body: JSON.stringify(payload) });
       setSession(res.accessToken, res.user);
       router.push(next);
     } catch (err) {
-      setError(
-        isRegister
-          ? apiErrorMessage(err, 'Не удалось создать аккаунт. Попробуйте ещё раз.')
-          : 'Почта или пароль не подошли. Проверьте раскладку и попробуйте ещё раз.',
-      );
+      const kind = errorCode(err);
+      if (kind === 'two_factor_required') {
+        // Пароль верный — спрашиваем код. Раньше форма его не спрашивала, и
+        // включивший защиту больше не мог войти.
+        setCodeStep(true);
+        setError(null);
+      } else if (kind === 'two_factor_invalid' || kind === 'two_factor_locked' || kind === 'too_many_attempts') {
+        setError(apiErrorMessage(err, 'Не получилось войти. Попробуйте ещё раз.'));
+      } else {
+        setError(
+          isRegister
+            ? apiErrorMessage(err, 'Не удалось создать аккаунт. Попробуйте ещё раз.')
+            : 'Почта или пароль не подошли. Проверьте раскладку и попробуйте ещё раз.',
+        );
+      }
       setBusy(false);
     }
   }
@@ -95,6 +124,24 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
           : 'Войдите, чтобы купить, продать или открыть заказ.'}
       </p>
       <form onSubmit={submit} className="card stack-form" style={{ gap: 16, padding: 24 }} noValidate>
+        {codeStep ? (
+          <div className="field">
+            <label className="label" htmlFor="code">
+              {recovery ? 'Резервный код' : 'Код из приложения-аутентификатора'}
+            </label>
+            <input id="code" className="input" autoFocus value={code} onChange={(e) => setCode(e.target.value)}
+              inputMode={recovery ? 'text' : 'numeric'} autoComplete="one-time-code" autoCapitalize="none"
+              autoCorrect="off" spellCheck={false} maxLength={recovery ? 20 : 6}
+              placeholder={recovery ? 'abcde-fghjk' : '123456'} />
+            <p className="hint">
+              {recovery ? 'Каждый резервный код работает один раз.' : 'Шесть цифр из Google Authenticator, 1Password или похожего.'}{' '}
+              <button type="button" className="link-button" onClick={() => { setRecovery(!recovery); setCode(''); }}>
+                {recovery ? 'Ввести код из приложения' : 'Нет телефона — ввести резервный код'}
+              </button>
+            </p>
+          </div>
+        ) : (
+        <>
         <div className="field">
           <label className="label" htmlFor="email">Почта</label>
           <input id="email" className="input" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
@@ -135,10 +182,18 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
             {show('agreed') && <p className="field-error">{show('agreed')}</p>}
           </div>
         )}
+        </>
+        )}
         {error && <div className="alert error" role="alert">{error}</div>}
         <button className="btn lg block" type="submit" disabled={busy}>
           {busy ? (isRegister ? 'Создаём аккаунт…' : 'Входим…') : isRegister ? 'Создать аккаунт' : 'Войти'}
         </button>
+        {codeStep && (
+          <button type="button" className="link-button" style={{ alignSelf: 'center' }}
+            onClick={() => { setCodeStep(false); setCode(''); setError(null); }}>
+            ← Другая почта или пароль
+          </button>
+        )}
       </form>
       <p className="muted" style={{ fontSize: 14, marginTop: 20, textAlign: 'center' }}>
         {isRegister ? (

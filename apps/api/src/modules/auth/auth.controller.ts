@@ -25,7 +25,8 @@ import { TwoFactorService } from './twofactor.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser, type AuthUser } from './current-user.decorator';
 
-const codeSchema = z.object({ code: z.string().min(6).max(8) });
+// Код из приложения — 6 цифр, резервный — «abcde-fghjk».
+const codeSchema = z.object({ code: z.string().trim().min(6).max(20) });
 const passwordSchema = z.object({
   current: z.string().min(1, 'Введите текущий пароль'),
   // Те же правила, что при регистрации.
@@ -150,8 +151,8 @@ export class AuthController {
   // ── Двухфакторная аутентификация ──
   @Get('2fa')
   @UseGuards(JwtAuthGuard)
-  async twoFactorStatus(@CurrentUser() user: AuthUser) {
-    return { enabled: await this.twoFactor.isEnabled(user.userId) };
+  twoFactorStatus(@CurrentUser() user: AuthUser) {
+    return this.twoFactor.status(user.userId);
   }
 
   @Post('2fa/setup')
@@ -176,6 +177,16 @@ export class AuthController {
     @Body(new ZodValidationPipe(codeSchema)) body: { code: string },
   ) {
     return this.twoFactor.disable(user.userId, body.code);
+  }
+
+  /** Новые резервные коды взамен старых — по коду из приложения. */
+  @Post('2fa/recovery')
+  @UseGuards(JwtAuthGuard)
+  regenerate2fa(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(codeSchema)) body: { code: string },
+  ) {
+    return this.twoFactor.regenerate(user.userId, body.code);
   }
 
   /** Refresh — в httpOnly cookie, access — в теле ответа. */

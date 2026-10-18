@@ -3102,3 +3102,58 @@ a.my-lot-title:hover {
     transform: translateY(6px);
   }
 }
+
+/* Кнопка, которая выглядит ссылкой: «ввести резервный код». */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.link-button:hover {
+  text-decoration: underline;
+}
+
+/* Двухфакторная защита: QR-код всегда на белом — иначе его не считать. */
+.two-factor-setup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+}
+.qr {
+  flex: none;
+  width: 196px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+.qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.secret {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--page);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  word-break: break-all;
+}
+.reserve-codes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+  margin: 0;
+  padding: 14px 16px 14px 36px;
+  border-radius: var(--radius-sm);
+  background: var(--page);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 15px;
+}

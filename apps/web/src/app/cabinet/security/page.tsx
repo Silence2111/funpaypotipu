@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, KeyRound, MonitorSmartphone } from 'lucide-react';
+import { KeyRound, MonitorSmartphone } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
+import { TwoFactorCard } from '@/components/two-factor-card';
 
 interface Session {
   id: string;
@@ -37,14 +38,9 @@ export default function SecurityPage() {
   const [next, setNext] = useState('');
   const [busy, setBusy] = useState(false);
   const [sessions, setSessions] = useState<Session[] | null>(null);
-  const [twoFa, setTwoFa] = useState<boolean | null>(null);
-  const [secret, setSecret] = useState<string | null>(null);
-  const [otpauth, setOtpauth] = useState<string | null>(null);
-  const [code, setCode] = useState('');
 
   const load = useCallback(async () => {
     setSessions(await apiFetch<Session[]>('/auth/sessions').catch(() => []));
-    setTwoFa((await apiFetch<{ enabled: boolean }>('/auth/2fa').catch(() => ({ enabled: false }))).enabled);
   }, []);
 
   useEffect(() => {
@@ -166,61 +162,7 @@ export default function SecurityPage() {
         )}
       </section>
 
-      <section className="card" style={{ padding: 24, maxWidth: 600 }}>
-        <h2 className="h2 row" style={{ fontSize: 18, gap: 8 }}>
-          <ShieldCheck size={18} strokeWidth={1.75} /> Двухфакторная защита
-        </h2>
-        <p className="muted" style={{ fontSize: 14, margin: '8px 0 14px' }}>
-          При входе, кроме пароля, нужен код из приложения-аутентификатора: Google Authenticator, 1Password и похожих.
-        </p>
-        {twoFa === null ? null : twoFa ? (
-          <div className="stack-form" style={{ gap: 10 }}>
-            <p style={{ margin: 0 }}><span className="badge success">включена</span></p>
-            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-              <input className="input" style={{ maxWidth: 180 }} inputMode="numeric" placeholder="Код из приложения"
-                aria-label="Код для отключения" value={code} onChange={(e) => setCode(e.target.value)} />
-              <button className="chip" type="button" disabled={busy}
-                onClick={() => void run(async () => {
-                  await apiFetch('/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) });
-                  setCode('');
-                  return 'Двухфакторная защита отключена.';
-                }, 'Неверный код.')}>
-                Отключить
-              </button>
-            </div>
-          </div>
-        ) : !secret ? (
-          <button className="btn secondary" type="button" disabled={busy}
-            onClick={() => void apiFetch<{ secret: string; otpauth: string }>('/auth/2fa/setup', { method: 'POST' }).then((r) => {
-              setSecret(r.secret);
-              setOtpauth(r.otpauth);
-            })}>
-            Подключить
-          </button>
-        ) : (
-          <div className="stack-form" style={{ gap: 10 }}>
-            <p className="hint" style={{ margin: 0 }}>Добавьте ключ в приложение и введите код, который оно покажет.</p>
-            <div className="card flat" style={{ padding: 12, background: 'var(--page)', fontFamily: 'var(--font-mono, monospace)', fontSize: 13, wordBreak: 'break-all' }}>
-              {secret}
-              <div className="faint" style={{ marginTop: 6 }}>{otpauth}</div>
-            </div>
-            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-              <input className="input" style={{ maxWidth: 180 }} inputMode="numeric" placeholder="6-значный код"
-                aria-label="Код из приложения" value={code} onChange={(e) => setCode(e.target.value)} />
-              <button className="btn" type="button" disabled={busy}
-                onClick={() => void run(async () => {
-                  await apiFetch('/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) });
-                  setSecret(null);
-                  setOtpauth(null);
-                  setCode('');
-                  return 'Двухфакторная защита включена.';
-                }, 'Неверный код.')}>
-                Включить
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+      <TwoFactorCard />
     </div>
   );
 }
