@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search } from 'lucide-react';
+import { Search, SlidersHorizontal } from 'lucide-react';
 import type { Attribute } from '@/lib/api';
+import { BottomSheet } from './bottom-sheet';
 
 const SORTS: Array<[string, string]> = [
   ['new', 'Сначала поднятые'],
@@ -16,6 +17,9 @@ const SORTS: Array<[string, string]> = [
  * Фильтры раздела: параметры (звание, регион, сервер), «продавец в сети»,
  * поиск по предложениям и сортировка. Всё живёт в адресе страницы: ссылкой
  * с фильтрами можно поделиться, «назад» в браузере возвращает прежний вид.
+ *
+ * На телефоне параметры — в шторке за кнопкой «Фильтры» со счётчиком: в
+ * строку они занимали пол-экрана до первого предложения.
  */
 export function SectionFilters({
   attributes,
@@ -31,6 +35,7 @@ export function SectionFilters({
   const router = useRouter();
   const pathname = usePathname();
   const [q, setQ] = useState(values.q ?? '');
+  const [sheet, setSheet] = useState(false);
 
   function go(patch: Record<string, string | undefined>) {
     const p = new URLSearchParams();
@@ -41,60 +46,68 @@ export function SectionFilters({
     router.push(s ? `${pathname}?${s}` : pathname, { scroll: false });
   }
 
+  function reset() {
+    setQ('');
+    router.push(values.sort ? `${pathname}?sort=${values.sort}` : pathname, { scroll: false });
+  }
+
   const enums = attributes.filter((a) => a.type === 'enum' && a.options?.length);
   const flags = attributes.filter((a) => a.type === 'bool');
-  const active =
-    Object.keys(values).some((k) => k.startsWith('f_') && values[k]) ||
-    values.online === '1' ||
-    !!values.q;
+  // Сколько параметров выбрано — на кнопке «Фильтры».
+  const chosen = Object.keys(values).filter((k) => k.startsWith('f_') && values[k]).length + (values.online === '1' ? 1 : 0);
+  const active = chosen > 0 || !!values.q;
+
+  const params = (
+    <>
+      {enums.map((a) => {
+        const v = values[`f_${a.key}`] ?? '';
+        return (
+          <select
+            key={a.key}
+            className="input filter-select"
+            aria-label={a.label}
+            data-active={v ? 'true' : undefined}
+            value={v}
+            onChange={(e) => go({ [`f_${a.key}`]: e.target.value || undefined })}
+          >
+            <option value="">{a.label}</option>
+            {(a.options ?? []).map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        );
+      })}
+      {flags.map((a) => {
+        const on = values[`f_${a.key}`] === '1';
+        return (
+          <button
+            key={a.key}
+            type="button"
+            className="chip"
+            aria-pressed={on}
+            onClick={() => go({ [`f_${a.key}`]: on ? undefined : '1' })}
+          >
+            {a.label}
+          </button>
+        );
+      })}
+      <button
+        type="button"
+        className="chip"
+        aria-pressed={values.online === '1'}
+        onClick={() => go({ online: values.online === '1' ? undefined : '1' })}
+      >
+        <span className="dot-online" aria-hidden />
+        Продавец в сети
+      </button>
+    </>
+  );
 
   return (
     <div className="filters">
-      <div className="filters-group">
-        {enums.map((a) => {
-          const v = values[`f_${a.key}`] ?? '';
-          return (
-            <select
-              key={a.key}
-              className="input filter-select"
-              aria-label={a.label}
-              data-active={v ? 'true' : undefined}
-              value={v}
-              onChange={(e) => go({ [`f_${a.key}`]: e.target.value || undefined })}
-            >
-              <option value="">{a.label}</option>
-              {(a.options ?? []).map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
-          );
-        })}
-        {flags.map((a) => {
-          const on = values[`f_${a.key}`] === '1';
-          return (
-            <button
-              key={a.key}
-              type="button"
-              className="chip"
-              aria-pressed={on}
-              onClick={() => go({ [`f_${a.key}`]: on ? undefined : '1' })}
-            >
-              {a.label}
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          className="chip"
-          aria-pressed={values.online === '1'}
-          onClick={() => go({ online: values.online === '1' ? undefined : '1' })}
-        >
-          <span className="dot-online" aria-hidden />
-          Продавец в сети
-        </button>
-      </div>
+      <div className="filters-group filters-inline">{params}</div>
       <div className="filters-group filters-side">
         <form
           role="search"
@@ -108,6 +121,7 @@ export function SectionFilters({
           <input
             className="input"
             type="search"
+            enterKeyHint="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Поиск по предложениям"
@@ -115,6 +129,17 @@ export function SectionFilters({
             maxLength={100}
           />
         </form>
+        <button
+          type="button"
+          className="chip filters-open"
+          aria-haspopup="dialog"
+          aria-expanded={sheet}
+          onClick={() => setSheet(true)}
+        >
+          <SlidersHorizontal size={16} strokeWidth={1.75} aria-hidden />
+          Фильтры
+          {chosen > 0 && <span className="filters-count">{chosen}</span>}
+        </button>
         <select
           className="input filter-select"
           aria-label="Сортировка"
@@ -128,20 +153,28 @@ export function SectionFilters({
           ))}
         </select>
         {active && (
-          <button
-            type="button"
-            className="btn ghost filter-reset"
-            onClick={() => {
-              setQ('');
-              router.push(values.sort ? `${pathname}?sort=${values.sort}` : pathname, {
-                scroll: false,
-              });
-            }}
-          >
+          <button type="button" className="btn ghost filter-reset" onClick={reset}>
             Сбросить
           </button>
         )}
       </div>
+
+      {sheet && (
+        <BottomSheet label="Фильтры" onClose={() => setSheet(false)}>
+          <div className="sheet-title">Фильтры</div>
+          <div className="filters-sheet">{params}</div>
+          <div className="filters-sheet-actions">
+            {chosen > 0 && (
+              <button type="button" className="btn secondary" onClick={reset}>
+                Сбросить
+              </button>
+            )}
+            <button type="button" className="btn" onClick={() => setSheet(false)}>
+              Показать
+            </button>
+          </div>
+        </BottomSheet>
+      )}
     </div>
   );
 }

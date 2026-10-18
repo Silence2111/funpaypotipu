@@ -66,6 +66,8 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
         <input className="input" aria-label="Сумма вывода, ₽" placeholder="Сумма, ₽" inputMode="decimal" value={amount}
           onChange={(e) => setAmount(e.target.value)} style={{ maxWidth: 130 }} />
         <input className="input" aria-label="Куда вывести" placeholder="Номер карты или телефон СБП" value={dest}
+          inputMode={methodKey === 'sbp' ? 'tel' : methodKey === 'card' ? 'numeric' : 'text'} autoComplete="off"
+          autoCapitalize="none" spellCheck={false}
           onChange={(e) => setDest(e.target.value)} style={{ maxWidth: 180 }} />
         <button className="btn secondary" onClick={go} disabled={busy} type="button">Вывести</button>
       </div>

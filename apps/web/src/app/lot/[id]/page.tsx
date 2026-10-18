@@ -16,6 +16,7 @@ import { ReportButton } from '@/components/report-button';
 import { ApproxPrice } from '@/components/approx-price';
 import { OfferTable } from '@/components/offers';
 import { SellerCard } from '@/components/seller-card';
+import { MobileBuyBar } from '@/components/mobile-buy-bar';
 
 /** Параметры лота подписями раздела: «Звание: Gold Nova», а не «rank: Gold Nova». */
 function paramRows(defs: Attribute[], values: Record<string, unknown>): Array<[string, string]> {
@@ -208,7 +209,7 @@ export default async function ListingPage({
         </div>
 
         <aside className="lot-aside" aria-label="Покупка">
-          <div className="card" style={{ padding: 24 }}>
+          <div className="card lot-buy" id="buy" style={{ padding: 24 }}>
             <div className="price" style={{ fontSize: 28, margin: topup || pack ? '0 0 4px' : '0 0 16px' }}>
               {pack ? formatPrice(listing.price, listing.currency) : formatListingPrice(listing)}
               {pack && (
@@ -386,6 +387,14 @@ export default async function ListingPage({
       </div>
 
       <KeysManager listingId={listing.id} sellerId={listing.seller.id} auto={auto} />
+      {!soldOut && (
+        <MobileBuyBar
+          target="#buy"
+          price={pack ? formatPrice(listing.price, listing.currency) : formatListingPrice(listing)}
+          note={pack}
+          label={topup ? 'Пополнить' : 'Купить'}
+        />
+      )}
 
       <section style={{ marginTop: 48 }}>
         <h2 className="h2 lot-h2">Отзывы о продавце</h2>

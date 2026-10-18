@@ -145,6 +145,7 @@ export function LotChat({
                 <textarea
                   className="input"
                   rows={1}
+                  enterKeyHint="send"
                   value={draft}
                   maxLength={4000}
                   placeholder="Сообщение"

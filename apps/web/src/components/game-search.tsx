@@ -82,6 +82,7 @@ export function GameSearch({
       <input
         className="input"
         type="search"
+        enterKeyHint="search"
         role="combobox"
         aria-label="Поиск по играм"
         aria-expanded={shown}

@@ -97,7 +97,8 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
       <form onSubmit={submit} className="card stack-form" style={{ gap: 16, padding: 24 }} noValidate>
         <div className="field">
           <label className="label" htmlFor="email">Почта</label>
-          <input id="email" className="input" type="email" autoComplete="email" placeholder="name@mail.ru"
+          <input id="email" className="input" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
+            placeholder="name@mail.ru"
             value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => touch('email')}
             aria-invalid={!!show('email')} />
           {show('email') && <p className="field-error">{show('email')}</p>}
@@ -105,10 +106,11 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
         {isRegister && (
           <div className="field">
             <label className="label" htmlFor="username">Имя в профиле</label>
-            <input id="username" className="input" autoComplete="nickname" placeholder="Например, nightfox"
+            <input id="username" className="input" autoComplete="username" autoCapitalize="none" autoCorrect="off"
+              spellCheck={false} placeholder="Например, nightfox"
               value={username} onChange={(e) => setUsername(e.target.value)} onBlur={() => touch('username')}
               aria-invalid={!!show('username')} />
-            {show('username') ? <p className="field-error">{show('username')}</p> : <p className="hint">Латиница или кириллица, от 3 символов</p>}
+            {show('username') ? <p className="field-error">{show('username')}</p> : <p className="hint">Строчные латинские буквы, цифры и _, от 3 символов</p>}
           </div>
         )}
         <div className="field">

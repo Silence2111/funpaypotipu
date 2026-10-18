@@ -88,6 +88,7 @@ export function ChatList({ activeId, meId }: { activeId?: string; meId: string }
           <input
             className="input"
             type="search"
+            enterKeyHint="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Поиск по имени или заказу"

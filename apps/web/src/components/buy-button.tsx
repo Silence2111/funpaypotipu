@@ -141,6 +141,7 @@ export function BuyButton({
                 {f.label}{f.required ? '' : ' — необязательно'}
               </label>
               <input id={`buyer-field-${i}`} className="input" maxLength={100} value={answers[f.label] ?? ''}
+                autoCapitalize="none" autoCorrect="off" spellCheck={false}
                 onChange={(e) => {
                   setAnswers((a) => ({ ...a, [f.label]: e.target.value }));
                   setErr(null);
@@ -155,6 +156,7 @@ export function BuyButton({
         <div className="field" style={{ marginBottom: 12 }}>
           <label className="label" htmlFor="topup-account">Игровой ID или логин</label>
           <input id="topup-account" className="input" placeholder="Например, 812345678" value={account}
+            autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false}
             onChange={(e) => setAccount(e.target.value)} />
           <label className="row muted" style={{ gap: 10, fontSize: 13, marginTop: 6, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>
             <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}
@@ -169,6 +171,7 @@ export function BuyButton({
         <div className="field" style={{ marginTop: 8 }}>
           <label className="label" htmlFor="promo" style={{ fontSize: 13 }}>Промокод</label>
           <input id="promo" className="input" placeholder="Например, START10" value={promo}
+            autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false}
             onChange={(e) => setPromo(e.target.value)} />
           <p className="hint">Скидка учтётся в сумме заказа при оплате.</p>
         </div>

@@ -214,7 +214,7 @@ export default function DisputePage() {
               <Paperclip size={16} strokeWidth={1.75} />
               <input type="file" onChange={onFile} disabled={busy} style={{ display: 'none' }} />
             </label>
-            <input className="input" aria-label="Сообщение" value={draft} onChange={(e) => setDraft(e.target.value)}
+            <input className="input" aria-label="Сообщение" enterKeyHint="send" value={draft} onChange={(e) => setDraft(e.target.value)}
               placeholder={view.isStaff ? 'Сообщение сторонам…' : 'Сообщение арбитру и второй стороне…'} />
             <button className="btn" type="submit" disabled={busy}>Отправить</button>
           </div>

@@ -31,7 +31,8 @@ export default function ForgotPage() {
         </p>
       ) : (
         <form onSubmit={submit} className="stack-form">
-          <input className="input" type="email" placeholder="Email" value={email} required
+          <input className="input" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
+            placeholder="Email" value={email} required
             onChange={(e) => setEmail(e.target.value)} />
           <button className="btn" type="submit" disabled={busy} style={{ width: '100%' }}>
             {busy ? '…' : 'Отправить ссылку'}
