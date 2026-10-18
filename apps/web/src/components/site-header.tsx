@@ -16,7 +16,6 @@ export function SiteHeader() {
         <nav className="nav">
           <Link href="/catalog" className="hide-mobile">Каталог</Link>
           <Link href="/cabinet/new" className="hide-mobile">Продать</Link>
-          <Link href="/rules" className="hide-mobile">Гарантии</Link>
         </nav>
         {/* Поиск по играм, как «Поиск по 885 играм» в шапке FunPay. На телефоне
             места нет — там лупа ведёт в указатель игр с тем же поиском. */}

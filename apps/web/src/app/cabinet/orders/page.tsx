@@ -132,37 +132,57 @@ function Orders() {
           )}
         </div>
       ) : (
-        <div className="grid" style={{ gap: 8 }}>
-          {rows.map((o) => (
-            <Link key={o.id} href={`/orders/${o.id}`} className="card link row"
-              style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
-              <span style={{ flex: 1, minWidth: 200 }}>
-                <span style={{ fontWeight: 600, display: 'block' }}>{o.title ?? o.publicNumber}</span>
-                <span className="faint" style={{ fontSize: 13 }}>
-                  {o.unitName && (o.qty > 1 || o.unitName !== 'шт.') ? `${formatQty(o.qty, o.unitName)} · ` : ''}
-                  {o.publicNumber} ·{' '}
-                  {new Date(o.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
-                  {o.counterparty ? ` · ${o.role === 'buyer' ? 'продавец' : 'покупатель'} ${o.counterparty}` : ''}
+        // Таблицей, как «Покупки» и «Продажи» на FunPay: заказ, кто на той
+        // стороне, статус, сумма — строки одной высоты читаются быстрее карточек.
+        <div className="offers" style={{ ['--offer-cols' as string]: 'minmax(0, 1fr) minmax(120px, 180px) minmax(120px, 150px) minmax(96px, 120px)' }}>
+          <div className="offer-head" aria-hidden>
+            <span>Заказ</span>
+            <span>{role === 'buyer' ? 'Продавец' : 'Покупатель'}</span>
+            <span>Статус</span>
+            <span className="num">Сумма</span>
+          </div>
+          {rows.map((o) => {
+            const ship = o.status === 'paid' && o.role === 'seller';
+            const confirm = o.status === 'delivered' && o.role === 'buyer';
+            return (
+              <Link key={o.id} href={`/orders/${o.id}`} className="offer-row order-row">
+                <span className="offer-desc">
+                  <span className="offer-title">{o.title ?? o.publicNumber}</span>
+                  <span className="offer-meta">
+                    <span>
+                      {o.unitName && (o.qty > 1 || o.unitName !== 'шт.') ? `${formatQty(o.qty, o.unitName)} · ` : ''}
+                      {o.publicNumber} ·{' '}
+                      {new Date(o.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                    </span>
+                    {o.counterparty && (
+                      <span className="only-mobile">
+                        {o.role === 'buyer' ? 'продавец' : 'покупатель'} {o.counterparty}
+                      </span>
+                    )}
+                  </span>
                 </span>
-              </span>
-              <span className="row" style={{ gap: 12 }}>
-                <span className="price">{formatPrice(o.amount, o.currency)}</span>
-                <span
-                  className={
-                    o.status === 'completed'
-                      ? 'badge success'
-                      : o.status === 'disputed'
-                        ? 'badge warning'
-                        : o.status === 'paid' && o.role === 'seller'
-                          ? 'badge accent'
-                          : 'badge'
-                  }
-                >
-                  {o.status === 'paid' && o.role === 'seller' ? 'нужно выдать' : STATUS_RU[o.status] ?? o.status}
+                <span className="offer-attr">{o.counterparty ?? <span className="faint">—</span>}</span>
+                <span className="order-status">
+                  <span
+                    className={
+                      o.status === 'completed'
+                        ? 'badge success'
+                        : o.status === 'disputed'
+                          ? 'badge warning'
+                          : ship || confirm
+                            ? 'badge accent'
+                            : 'badge'
+                    }
+                  >
+                    {ship ? 'нужно выдать' : confirm ? 'подтвердите получение' : (STATUS_RU[o.status] ?? o.status)}
+                  </span>
                 </span>
-              </span>
-            </Link>
-          ))}
+                <span className="offer-price num">
+                  <span className="price">{formatPrice(o.amount, o.currency)}</span>
+                </span>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

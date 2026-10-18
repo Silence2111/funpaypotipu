@@ -49,7 +49,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <p className="faint" style={{ fontSize: 13, margin: 0 }}>
               © {new Date().getFullYear()} GameMarket · лоты с пометкой «Пример» — демонстрационные
             </p>
-            <nav className="row faint" style={{ gap: 16, fontSize: 13, flexWrap: 'wrap' }} aria-label="Документы">
+            <nav className="row faint" style={{ gap: '0 16px', fontSize: 13, flexWrap: 'wrap' }} aria-label="Документы">
               <a href="/rules" className="footer-link">Правила и гарантии</a>
               <a href="/oferta" className="footer-link">Оферта</a>
               <a href="/privacy" className="footer-link">Персональные данные</a>

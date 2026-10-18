@@ -36,6 +36,12 @@ export function NotificationsBell() {
 
   const unread = items.filter((i) => !i.readAt).length;
 
+  async function readAll() {
+    await apiFetch('/notifications/read-all', { method: 'POST' }).catch(() => {});
+    const now = new Date().toISOString();
+    setItems((prev) => prev.map((i) => (i.readAt ? i : { ...i, readAt: now })));
+  }
+
   async function markRead(id: string) {
     await apiFetch(`/notifications/${id}/read`, { method: 'POST' }).catch(() => {});
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, readAt: new Date().toISOString() } : i)));
@@ -49,6 +55,11 @@ export function NotificationsBell() {
       </button>
       {open && (
         <div className="notif-dropdown">
+          {unread > 0 && (
+            <button type="button" className="notif-readall" onClick={() => void readAll()}>
+              Прочитать все
+            </button>
+          )}
           {items.length === 0 && (
             <p className="muted" style={{ fontSize: 13, padding: 12, margin: 0 }}>Уведомлений нет</p>
           )}

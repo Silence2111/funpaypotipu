@@ -21,6 +21,35 @@ export class AccountService {
     private readonly telegram: TelegramService,
   ) {}
 
+  /**
+   * Сводка для шапки, как счётчики у FunPay: непрочитанные сообщения и
+   * уведомления, баланс, продажи, которые ждут выдачи, и покупки, которые
+   * ждут подтверждения. Одним запросом — шапка спрашивает его на каждой
+   * странице.
+   */
+  async summary(userId: string) {
+    const [unreadMessages, unreadNotifications, wallet, toDeliver, toConfirm] = await Promise.all([
+      this.prisma.message.count({
+        where: { readAt: null, senderId: { not: userId }, conversation: { OR: [{ buyerId: userId }, { sellerId: userId }] } },
+      }),
+      // Сообщения считает свой счётчик — в колокольчике они дублировали бы его.
+      this.prisma.notification.count({ where: { userId, readAt: null, type: { not: 'new_message' } } }),
+      this.prisma.ledgerAccount.findFirst({
+        where: { ownerType: 'user', ownerId: userId, kind: 'available', currency: 'RUB' },
+        select: { balance: true },
+      }),
+      this.prisma.order.count({ where: { sellerId: userId, status: 'paid' } }),
+      this.prisma.order.count({ where: { buyerId: userId, status: 'delivered' } }),
+    ]);
+    return {
+      unreadMessages,
+      unreadNotifications,
+      balance: { currency: 'RUB', available: (wallet?.balance ?? 0n).toString() },
+      sales: { toDeliver },
+      purchases: { toConfirm },
+    };
+  }
+
   // ── Уведомления ──
 
   async notifications(userId: string) {

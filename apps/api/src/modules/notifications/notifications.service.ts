@@ -70,9 +70,14 @@ export class NotificationsService {
     return `${title}${preview}\n${link}`;
   }
 
+  /**
+   * Колокольчик: всё, кроме новых сообщений. У сообщений свой счётчик в
+   * шапке и свой список — в мессенджере; в колокольчике они тонули бы
+   * события сделок.
+   */
   listMine(userId: string, limit = 50) {
     return this.prisma.notification.findMany({
-      where: { userId },
+      where: { userId, type: { not: 'new_message' } },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
@@ -81,6 +86,14 @@ export class NotificationsService {
   async markRead(id: string, userId: string) {
     await this.prisma.notification.updateMany({
       where: { id, userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+    return { ok: true };
+  }
+
+  async markAllRead(userId: string) {
+    await this.prisma.notification.updateMany({
+      where: { userId, readAt: null, type: { not: 'new_message' } },
       data: { readAt: new Date() },
     });
     return { ok: true };

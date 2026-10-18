@@ -339,6 +339,12 @@ async function scenarioAccount(rnd) {
   );
   const hist = await j(`/conversations/${orderConv?.id}/messages?limit=1`, { token: seller.token });
   check('История отдаёт последние сообщения, а не первые', hist.body?.[0]?.body === 'Жду данные аккаунта', JSON.stringify(hist.body));
+  const sum = await j('/account/summary', { token: seller.token });
+  check(
+    'Шапка: непрочитанные сообщения и продажи, ждущие выдачи',
+    sum.body.unreadMessages >= 1 && sum.body.sales?.toDeliver >= 1 && typeof sum.body.balance?.available === 'string',
+    JSON.stringify(sum.body),
+  );
   await j(`/account/blocks/${buyer.id}`, { method: 'DELETE', token: seller.token });
   check('Убрал из списка — снова можно купить', (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) })).status === 201);
 

@@ -32,6 +32,12 @@ export class AccountController {
     return this.account.profile(user.userId);
   }
 
+  /** Счётчики шапки: сообщения, уведомления, баланс, продажи и покупки, ждущие действия. */
+  @Get('summary')
+  summary(@CurrentUser() user: AuthUser) {
+    return this.account.summary(user.userId);
+  }
+
   @Patch('profile')
   update(
     @CurrentUser() user: AuthUser,
