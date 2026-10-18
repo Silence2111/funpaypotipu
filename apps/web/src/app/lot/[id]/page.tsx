@@ -17,6 +17,7 @@ import { ApproxPrice } from '@/components/approx-price';
 import { OfferTable } from '@/components/offers';
 import { SellerCard } from '@/components/seller-card';
 import { MobileBuyBar } from '@/components/mobile-buy-bar';
+import { LotGallery } from '@/components/lot-gallery';
 
 /** Параметры лота подписями раздела: «Звание: Gold Nova», а не «rank: Gold Nova». */
 function paramRows(defs: Attribute[], values: Record<string, unknown>): Array<[string, string]> {
@@ -311,16 +312,7 @@ export default async function ListingPage({
 
           {/* Фото — только настоящие. Без них страница не рисует заглушку на
               полэкрана: она выдавала себя за картинку товара. */}
-          {images.length > 0 && (
-            <div className="lot-gallery">
-              {images.slice(0, 8).map((src, i) => (
-                <a key={src} href={src} target="_blank" rel="noreferrer" data-main={i === 0 ? 'true' : undefined}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt={i === 0 ? listing.title : ''} />
-                </a>
-              ))}
-            </div>
-          )}
+          {images.length > 0 && <LotGallery images={images.slice(0, 12)} title={listing.title} />}
 
           {paramList.length > 0 && (
             <section>

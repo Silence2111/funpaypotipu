@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { ImagePlus, Star, X } from 'lucide-react';
 import { markupLabel, topupQuote, topupTermsError } from '@gamemarket/shared/topup';
 import { PRICE_PER_UNITS, qtyTermsError } from '@gamemarket/shared/quantity';
 import { apiFetch, getToken } from '@/lib/session';
@@ -54,6 +55,31 @@ const intOf = (v: string) => {
   return /^\d+$/.test(t) ? Number(t) : NaN;
 };
 
+const MAX_PHOTOS = 12;
+
+/**
+ * Фото с телефона весит 4–8 МБ и 4000 px по стороне: уменьшаем до 1600 px
+ * перед загрузкой — быстрее по мобильной сети и проходит лимит сервера.
+ * Не получилось уменьшить или вышло не меньше — уходит оригинал.
+ */
+async function shrink(file: File): Promise<Blob> {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 1_500_000 || typeof createImageBitmap !== 'function') {
+    return file;
+  }
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext('2d')?.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, 'image/webp', 0.86));
+    return blob && blob.size < file.size ? blob : file;
+  } catch {
+    return file;
+  }
+}
+
 /**
  * Форма лота: новый лот или изменение своего. Одна форма на оба случая —
  * иначе правила (характеристики, пополнение на сумму, превью «вы получите»)
@@ -99,7 +125,8 @@ export function ListingForm({
     }
     return out;
   });
-  const [uploadFailed, setUploadFailed] = useState(0);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
   // Ошибки у конкретных полей, показываются после ухода из поля или отправки
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const touch = (k: string) => setTouched((t) => ({ ...t, [k]: true }));
@@ -230,30 +257,35 @@ export function ListingForm({
   }
 
   async function onImages(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
+    const files = Array.from(e.target.files ?? []).slice(0, MAX_PHOTOS - images.length);
     e.target.value = '';
+    setUploadErr(null);
     setUploading(true);
     const token = getToken();
-    for (const f of files.slice(0, 12)) {
+    for (const [i, f] of files.entries()) {
+      setProgress(files.length > 1 ? `${i + 1} из ${files.length}` : null);
       try {
+        const body = await shrink(f);
         const fd = new FormData();
-        fd.append('file', f);
+        fd.append('file', body, body === f ? f.name : 'photo.webp');
         const res = await fetch(`${API_URL}/api/listings/uploads`, {
           method: 'POST',
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: fd,
         });
         if (!res.ok) {
-          setUploadFailed((n) => n + 1);
+          // Причину говорит сервер: «больше 8 МБ», «только изображения».
+          setUploadErr(apiErrorMessage(new Error(await res.text()), 'Фото не загрузилось. Попробуйте другое.'));
           continue;
         }
         const { key } = (await res.json()) as { key: string };
-        setImages((prev) => [...prev, { key, url: URL.createObjectURL(f) }]);
-      } catch {
-        setUploadFailed((n) => n + 1);
+        setImages((prev) => [...prev, { key, url: URL.createObjectURL(body) }]);
+      } catch (er) {
+        setUploadErr(apiErrorMessage(er, 'Фото не загрузилось. Проверьте связь и попробуйте ещё раз.'));
       }
     }
     setUploading(false);
+    setProgress(null);
   }
 
   const rubValue = parseFloat(price.replace(',', '.').replace(/\s/g, ''));
@@ -626,31 +658,52 @@ export function ListingForm({
 
         <div className="field">
           <span className="label">Фото — необязательно</span>
-          <label className="btn secondary" style={{ alignSelf: 'flex-start', cursor: 'pointer' }}>
-            {uploading ? 'Загружаем…' : 'Добавить фото'}
-            <input type="file" accept="image/*" multiple onChange={onImages} style={{ display: 'none' }} />
-          </label>
-          {uploadFailed > 0 && (
-            <p className="field-error">
-              Фото не загрузилось: хранилище картинок на стенде не подключено. Лот можно опубликовать без фото.
-            </p>
-          )}
+          <p className="hint" style={{ margin: '0 0 4px' }}>
+            До {MAX_PHOTOS} фото. Первое — обложка в разделе и на странице лота.
+          </p>
           {images.length > 0 && (
-            <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+            <div className="photo-grid">
               {images.map((im, i) => (
-                <span key={i} style={{ position: 'relative' }}>
+                <div key={im.key} className="photo-item">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={im.url} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8 }} />
+                  <img src={im.url} alt="" />
+                  {i === 0 ? (
+                    <span className="photo-cover">Обложка</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="photo-btn photo-make-cover"
+                      aria-label="Сделать обложкой"
+                      title="Сделать обложкой"
+                      onClick={() => setImages((prev) => [prev[i]!, ...prev.filter((_, j) => j !== i)])}
+                    >
+                      <Star size={15} strokeWidth={1.75} />
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
-                    className="chip"
-                    style={{ position: 'absolute', top: -10, right: -10, minHeight: 28, width: 28, padding: 0, justifyContent: 'center' }}
+                    className="photo-btn photo-remove"
                     aria-label="Убрать фото"
-                  >×</button>
-                </span>
+                    title="Убрать фото"
+                    onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    <X size={15} strokeWidth={1.75} />
+                  </button>
+                </div>
               ))}
             </div>
+          )}
+          {images.length < MAX_PHOTOS && (
+            <label className="btn secondary photo-add" aria-disabled={uploading || undefined}>
+              <ImagePlus size={18} strokeWidth={1.75} aria-hidden />
+              {uploading ? `Загружаем${progress ? ` ${progress}` : ''}…` : images.length ? 'Ещё фото' : 'Добавить фото'}
+              <input type="file" accept="image/*" multiple onChange={onImages} disabled={uploading} hidden />
+            </label>
+          )}
+          {uploadErr && (
+            <p className="field-error" role="alert">
+              {uploadErr}
+            </p>
           )}
         </div>
 

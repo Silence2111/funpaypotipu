@@ -121,35 +121,49 @@ function OfferRow({
 
   return (
     <Link href={`/lot/${l.id}`} className="offer-row">
-      <span className="offer-desc">
-        <span className="offer-title">{l.title}</span>
-        <span className="offer-meta">
-          {showSection && (
-            <span>
-              {l.game.title} · {l.category.title}
-            </span>
-          )}
-          {columnsText && <span className="only-mobile">{columnsText}</span>}
-          {extraText && <span>{extraText}</span>}
-          {stock != null && (
-            <span className={showStock ? 'only-mobile' : undefined}>
-              в наличии {formatQty(stock, l.unitName)}
-            </span>
-          )}
-          {instant && (
-            <span className="badge success">
-              <Zap size={12} strokeWidth={2} aria-hidden /> выдача сразу
-            </span>
-          )}
-          {isDemoSeller(l.seller.profile?.username) && (
-            <span
-              className="demo-mark"
-              title="Демонстрационный лот: показывает, как устроена сделка"
-            >
-              Пример
-            </span>
-          )}
-          {promoted && <span>продвижение</span>}
+      <span className={l.images?.[0] ? 'offer-desc with-thumb' : 'offer-desc'}>
+        {l.images?.[0] && (
+          // Фото лота — миниатюрой в строке, как карточки Playerok.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            className="offer-thumb"
+            src={l.images[0]}
+            alt=""
+            loading="lazy"
+            width={48}
+            height={48}
+          />
+        )}
+        <span className="offer-text">
+          <span className="offer-title">{l.title}</span>
+          <span className="offer-meta">
+            {showSection && (
+              <span>
+                {l.game.title} · {l.category.title}
+              </span>
+            )}
+            {columnsText && <span className="only-mobile">{columnsText}</span>}
+            {extraText && <span>{extraText}</span>}
+            {stock != null && (
+              <span className={showStock ? 'only-mobile' : undefined}>
+                в наличии {formatQty(stock, l.unitName)}
+              </span>
+            )}
+            {instant && (
+              <span className="badge success">
+                <Zap size={12} strokeWidth={2} aria-hidden /> выдача сразу
+              </span>
+            )}
+            {isDemoSeller(l.seller.profile?.username) && (
+              <span
+                className="demo-mark"
+                title="Демонстрационный лот: показывает, как устроена сделка"
+              >
+                Пример
+              </span>
+            )}
+            {promoted && <span>продвижение</span>}
+          </span>
         </span>
       </span>
       {columns.map((c) => (
