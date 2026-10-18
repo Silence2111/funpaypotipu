@@ -577,6 +577,37 @@ async function scenarioTwoFactor(rnd) {
   check('Подбор пароля упирается в паузу', last.status === 429, String(last.status));
 }
 
+async function scenarioFiles(rnd) {
+  console.log('\n— Файлы без S3: вложения в чате и фото лотов —');
+  const abs = (u) => new URL(u, API).toString();
+  const seller = await register('fls', rnd);
+  const buyer = await register('flb', rnd);
+  const lot = await createListing(seller.token, 'accounts', '30000');
+  const conv = await j(`/conversations/for-listing/${lot}`, { method: 'POST', token: buyer.token, body: JSON.stringify({ body: 'Пришлю скриншот' }) });
+  const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001', 'hex');
+  const up = await j(`/conversations/${conv.body.id}/uploads`, { method: 'POST', token: buyer.token, body: JSON.stringify({ mime: 'image/png' }) });
+  const put = await fetch(abs(up.body.uploadUrl), { method: 'PUT', body: png, headers: { 'Content-Type': 'image/png' } });
+  const att = await j(`/conversations/${conv.body.id}/attachments`, { method: 'POST', token: buyer.token, body: JSON.stringify({ key: up.body.key, mime: 'image/png', size: png.length }) });
+  const url = att.body.attachments?.[0]?.url;
+  const got = url ? await fetch(abs(url)) : null;
+  const bytes = got ? Buffer.from(await got.arrayBuffer()) : Buffer.alloc(0);
+  check('Вложение в чате: загрузка и чтение по подписанной ссылке', put.status === 200 && got?.status === 200 && bytes.equals(png), `${put.status} / ${got?.status}`);
+  const forged = url ? await fetch(abs(url).replace(/sig=[^&]+/, 'sig=forged')) : null;
+  check('Изменённая ссылка файл не открывает', forged?.status === 403, String(forged?.status));
+
+  const eicar = 'X5O!P%@AP[4\\PZX54(P^)7CC)7}' + '$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*';
+  const up2 = await j(`/conversations/${conv.body.id}/uploads`, { method: 'POST', token: buyer.token, body: JSON.stringify({ mime: 'text/plain' }) });
+  await fetch(abs(up2.body.uploadUrl), { method: 'PUT', body: eicar, headers: { 'Content-Type': 'text/plain' } });
+  const bad = await j(`/conversations/${conv.body.id}/attachments`, { method: 'POST', token: buyer.token, body: JSON.stringify({ key: up2.body.key, mime: 'text/plain', size: eicar.length }) });
+  check('Заражённый файл не проходит проверку', bad.status === 400 && /антивирус/.test(bad.body.message ?? ''), bad.body.message);
+
+  const form = new FormData();
+  form.append('file', new Blob([png], { type: 'image/png' }), 'shot.png');
+  const img = await fetch(`${API}/api/listings/uploads`, { method: 'POST', headers: { Authorization: 'Bearer ' + seller.token }, body: form }).then((r) => r.json());
+  const pub = img.key ? await fetch(`${API}/api/assets?key=${encodeURIComponent(img.key)}`) : null;
+  check('Фото лота загружается и видно на витрине', pub?.status === 200 && pub.headers.get('content-type') === 'image/png', JSON.stringify(img));
+}
+
 async function scenarioRates(rnd) {
   console.log('\n— Курсы для показа цен —');
   const admin = await register('rta', rnd);
@@ -644,6 +675,7 @@ async function scenarioPayout(rnd) {
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);
   await scenarioTwoFactor(rnd);
+  await scenarioFiles(rnd);
   await scenarioRates(rnd);
   await scenarioPayout(rnd);
 
