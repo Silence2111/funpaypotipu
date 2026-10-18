@@ -94,3 +94,39 @@ describe('ответ продавца', () => {
     await expect(svc.reply('r1', 's1', '   ')).rejects.toThrow(/Напишите ответ/);
   });
 });
+
+describe('отзывы на витрине продавца', () => {
+  it('игра, раздел и вилка суммы есть, точной суммы и id заказа нет', async () => {
+    const { svc } = setup(null);
+    const prisma = (svc as unknown as { prisma: { review: { findMany: ReturnType<typeof vi.fn> } } }).prisma;
+    prisma.review.findMany.mockResolvedValueOnce([
+      {
+        id: 'r1',
+        rating: 5,
+        comment: 'быстро',
+        sellerReply: null,
+        createdAt: new Date(),
+        editedAt: null,
+        order: {
+          amount: 340_000n,
+          currency: 'RUB',
+          listing: { game: { slug: 'cs2', title: 'Counter-Strike 2' }, category: { slug: 'accounts', title: 'Аккаунты' } },
+        },
+      },
+    ]);
+    const [r] = await svc.listForUser('s1', { rating: 5 });
+    expect(r).toMatchObject({ game: { title: 'Counter-Strike 2' }, section: { title: 'Аккаунты' } });
+    // тысячи разделяет неразрывный пробел — так их печатает Intl
+    expect(r!.amountRange).toMatch(/^1\s000–5\s000 ₽$/);
+    expect(r).not.toHaveProperty('order');
+    expect(r).not.toHaveProperty('orderId');
+    expect(prisma.review.findMany.mock.calls[0]![0]).toMatchObject({ where: { targetId: 's1', rating: 5 }, take: 20 });
+  });
+
+  it('вилки суммы: края попадают в верхний интервал', async () => {
+    const { amountRange } = await import('../src/modules/reviews/reviews.service');
+    expect(amountRange(10_000n, 'RUB')).toBe('до 500 ₽');
+    expect(amountRange(50_000n, 'RUB')).toMatch(/^500–1\s000 ₽$/);
+    expect(amountRange(5_000_000n, 'RUB')).toMatch(/^от 50\s000 ₽$/);
+  });
+});

@@ -376,7 +376,7 @@ export default async function ListingPage({
 
       <section style={{ marginTop: 48 }}>
         <h2 className="h2 lot-h2">Отзывы о продавце</h2>
-        <SellerReviews sellerId={listing.seller.id} />
+        <SellerReviews sellerId={listing.seller.id} preview={5} />
       </section>
     </div>
   );

@@ -62,7 +62,7 @@ export interface ListingCard {
   /** Параметры раздела: звание, регион, сервер; «да/нет» — булевы. */
   attributes?: Record<string, unknown>;
   seller: { id?: string; profile: SellerBrief | null };
-  category: { slug: string; title: string };
+  category: { id?: string; slug: string; title: string };
   game: { slug: string; title: string };
 }
 

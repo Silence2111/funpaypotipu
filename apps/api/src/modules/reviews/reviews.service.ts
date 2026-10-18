@@ -138,12 +138,62 @@ export class ReviewsService {
     return review;
   }
 
-  listForUser(userId: string, limit = 50) {
-    return this.prisma.review.findMany({
-      where: { targetId: userId },
+  /**
+   * Отзывы о продавце для витрины, как на FunPay: оценка, текст, ответ, игра
+   * и раздел сделки и вилка суммы. Точная сумма, заказ и покупатель наружу
+   * не уходят — раньше список отдавал строки отзывов целиком, с id заказа,
+   * id и ником покупателя.
+   */
+  async listForUser(userId: string, opts: { rating?: number; page?: number; limit?: number } = {}) {
+    const limit = Math.min(Math.max(opts.limit ?? 20, 1), 50);
+    const page = Math.max(opts.page ?? 1, 1);
+    const rows = await this.prisma.review.findMany({
+      where: { targetId: userId, ...(opts.rating ? { rating: opts.rating } : {}) },
       orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
       take: limit,
-      include: { author: { select: { profile: { select: { username: true } } } } },
+      select: {
+        id: true,
+        rating: true,
+        comment: true,
+        sellerReply: true,
+        createdAt: true,
+        editedAt: true,
+        order: {
+          select: {
+            amount: true,
+            currency: true,
+            listing: {
+              select: {
+                game: { select: { slug: true, title: true } },
+                category: { select: { slug: true, title: true } },
+              },
+            },
+          },
+        },
+      },
     });
+    return rows.map(({ order, ...r }) => ({
+      ...r,
+      game: order.listing.game,
+      section: order.listing.category,
+      amountRange: amountRange(order.amount, order.currency),
+    }));
   }
+}
+
+/**
+ * Сумма сделки вилкой: «1 000–5 000 ₽». Покупателю будущей сделки важен
+ * масштаб, а точная сумма чужой покупки — лишнее.
+ */
+export function amountRange(amount: bigint, currency: string): string {
+  const sign = currency === 'RUB' ? '₽' : currency;
+  const rub = Number(amount) / 100;
+  const edges = [500, 1_000, 5_000, 10_000, 50_000];
+  const n = (v: number) => new Intl.NumberFormat('ru-RU').format(v);
+  if (rub < edges[0]!) return `до ${n(edges[0]!)} ${sign}`;
+  for (let i = 1; i < edges.length; i++) {
+    if (rub < edges[i]!) return `${n(edges[i - 1]!)}–${n(edges[i]!)} ${sign}`;
+  }
+  return `от ${n(edges[edges.length - 1]!)} ${sign}`;
 }

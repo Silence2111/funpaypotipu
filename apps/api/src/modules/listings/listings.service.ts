@@ -83,7 +83,7 @@ const cardSelect = {
       },
     },
   },
-  category: { select: { slug: true, title: true } },
+  category: { select: { id: true, slug: true, title: true } },
   game: { select: { slug: true, title: true } },
 } satisfies Prisma.ListingSelect;
 

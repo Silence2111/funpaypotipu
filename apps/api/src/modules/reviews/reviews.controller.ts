@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -11,6 +11,11 @@ const createReviewSchema = z.object({
   comment: z.string().max(2000).optional(),
 });
 const replySchema = z.object({ text: z.string().min(1).max(2000) });
+const listQuerySchema = z.object({
+  rating: z.coerce.number().int().min(1).max(5).optional(),
+  page: z.coerce.number().int().min(1).max(500).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
 const updateReviewSchema = z
   .object({
     rating: z.number().int().min(1).max(5).optional(),
@@ -23,8 +28,11 @@ export class ReviewsController {
   constructor(private readonly reviews: ReviewsService) {}
 
   @Get('user/:userId')
-  forUser(@Param('userId') userId: string) {
-    return this.reviews.listForUser(userId);
+  forUser(
+    @Param('userId') userId: string,
+    @Query(new ZodValidationPipe(listQuerySchema)) q: { rating?: number; page: number; limit: number },
+  ) {
+    return this.reviews.listForUser(userId, q);
   }
 
   @Post()
