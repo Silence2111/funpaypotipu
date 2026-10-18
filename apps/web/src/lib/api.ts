@@ -59,9 +59,21 @@ export interface ListingCard {
   stock?: number | null;
   /** Платное продвижение до этого времени. */
   promotedUntil?: string | null;
-  seller: { profile: { username: string; ratingAvg: number; onlineAt?: string | null } | null };
+  /** Параметры раздела: звание, регион, сервер; «да/нет» — булевы. */
+  attributes?: Record<string, unknown>;
+  seller: { id?: string; profile: SellerBrief | null };
   category: { slug: string; title: string };
   game: { slug: string; title: string };
+}
+
+/** Продавец в строке выдачи: кто продаёт, его репутация и в сети ли он. */
+export interface SellerBrief {
+  username: string;
+  displayName?: string;
+  avatarUrl?: string | null;
+  ratingAvg: number;
+  ratingCount?: number;
+  onlineAt?: string | null;
 }
 
 export type ListingDetail = ListingCard & {

@@ -145,6 +145,8 @@ interface DemoListing {
   qty?: { unit: string; perUnits: number; minQty: number; stock: number };
   /** Прежнее название лота: стенды, поднятые до смены, получают его обновлённым. */
   legacyTitle?: string;
+  /** Параметры раздела (звание, регион) — колонки таблицы раздела. */
+  attributes?: Record<string, string | boolean>;
 }
 
 const LISTINGS: DemoListing[] = [
@@ -157,6 +159,7 @@ const LISTINGS: DemoListing[] = [
       'Прайм активирован, звание Gold Nova. Почта передаётся вместе с аккаунтом, ' +
       'привязок нет. Смена почты и пароля — при вас, в чате сделки.',
     priceRub: 3400,
+    attributes: { rank: 'Gold Nova', region: 'CIS', prime: true, delivery: 'Со сменой почты' },
   },
   {
     game: 'cs2',
@@ -174,6 +177,7 @@ const LISTINGS: DemoListing[] = [
     description: 'Выдача сразу после оплаты, из склада. Ключ не активирован.',
     priceRub: 219,
     auto: true,
+    attributes: { region: 'Global', platform: 'Steam' },
   },
   {
     game: 'dota2',
@@ -356,6 +360,7 @@ async function upsertListings() {
     });
     if (exists) {
       if (category.fulfillmentType === FulfillmentType.auto_key) await refillDemoKeys(exists.id);
+      if (l.attributes) await prisma.listing.update({ where: { id: exists.id }, data: { attributes: l.attributes } });
       if (terms) {
         // Условия пополнения держим в согласии с сидом: стенд, поднятый до
         // смены, получает лот «на любую сумму» вместо фиксированного.
@@ -395,6 +400,7 @@ async function upsertListings() {
         description: l.description,
         price,
         currency: 'RUB',
+        attributes: l.attributes ?? {},
         stock: l.stock ?? null,
         ...qty,
         status: ListingStatus.active,

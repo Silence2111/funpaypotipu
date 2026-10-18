@@ -54,7 +54,14 @@ const intOf = (v: string) => {
  * При изменении игра и раздел не меняются: от раздела зависят характеристики
  * и способ выдачи, а заказы и отзывы уже привязаны к лоту.
  */
-export function ListingForm({ initial }: { initial?: EditableListing }) {
+export function ListingForm({
+  initial,
+  preset,
+}: {
+  initial?: EditableListing;
+  /** «Продать в разделе»: игра и раздел (слаги) уже выбраны. */
+  preset?: { game: string; category?: string };
+}) {
   const router = useRouter();
   const editing = !!initial;
   const [games, setGames] = useState<Game[]>(
@@ -104,14 +111,32 @@ export function ListingForm({ initial }: { initial?: EditableListing }) {
   // Что спросить у покупателя до оплаты: ник, сервер — как поля лота на Playerok.
   const [buyerFields, setBuyerFields] = useState<Array<{ label: string; required: boolean }>>(initial?.buyerFields ?? []);
 
+  const presetGame = preset?.game;
+  const presetCategory = preset?.category;
   useEffect(() => {
     if (editing) return; // страница изменения сама проверяет вход и грузит лот
     if (!getToken()) {
-      router.replace(`/register?next=${encodeURIComponent('/cabinet/new')}&seller=1`);
+      const p = new URLSearchParams();
+      if (presetGame) p.set('game', presetGame);
+      if (presetCategory) p.set('category', presetCategory);
+      const qs = p.toString();
+      const here = qs ? `/cabinet/new?${qs}` : '/cabinet/new';
+      router.replace(`/register?next=${encodeURIComponent(here)}&seller=1`);
       return;
     }
-    apiFetch<Game[]>('/catalog/games').then(setGames).catch(() => {});
-  }, [router, editing]);
+    apiFetch<Game[]>('/catalog/games')
+      .then(async (list) => {
+        setGames(list);
+        const g = presetGame ? list.find((x) => x.slug === presetGame) : undefined;
+        if (!g) return;
+        setGameId(g.id);
+        const full = await apiFetch<Game & { categories: Category[] }>(`/catalog/games/${g.slug}`);
+        setCategories(full.categories);
+        const c = full.categories.find((x) => x.slug === presetCategory);
+        if (c) setCategoryId(c.id);
+      })
+      .catch(() => {});
+  }, [router, editing, presetGame, presetCategory]);
 
   const selected = categories.find((c) => c.id === categoryId);
   const variable = byAmount && selected?.fulfillmentType === 'provider';

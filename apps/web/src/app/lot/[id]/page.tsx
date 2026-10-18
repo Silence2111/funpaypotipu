@@ -147,7 +147,7 @@ export default async function ListingPage({
         </div>
       )}
       <div style={{ marginBottom: 20 }}>
-        <Link href={`/igra/${listing.game.slug}`} className="faint" style={{ fontSize: 14 }}>
+        <Link href={`/igra/${listing.game.slug}/${listing.category.slug}`} className="faint" style={{ fontSize: 14 }}>
           ← {listing.game.title} · {listing.category.title}
         </Link>
       </div>

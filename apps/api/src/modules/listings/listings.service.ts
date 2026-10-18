@@ -24,8 +24,8 @@ import { PRISMA } from '../../prisma/prisma.module';
 import { SearchService } from '../search/search.service';
 import { StorageService } from '../storage/storage.service';
 import { LedgerService } from '../ledger/ledger.service';
+import { assetUrl } from '../storage/asset-url';
 
-const ASSET_BASE = process.env.PUBLIC_ASSET_BASE ?? '';
 const BOOST_MS = 24 * 3600 * 1000; // лот держится в топе сутки
 // Цена суток продвижения, копейки. Решение площадки (ПЛАН.md), не код.
 export const PROMO_DAY_PRICE = BigInt(process.env.PROMO_DAY_PRICE ?? 9_900);
@@ -58,7 +58,25 @@ const cardSelect = {
   pricePerUnits: true,
   minQty: true,
   stock: true,
-  seller: { select: { profile: { select: { username: true, ratingAvg: true, onlineAt: true } } } },
+  // Параметры раздела (звание, регион, сервер) — колонки таблицы раздела.
+  attributes: true,
+  // Продавец в строке раздела, как на FunPay: имя, аватар, рейтинг с числом
+  // отзывов и «в сети». Без него выдача — список цен без людей.
+  seller: {
+    select: {
+      id: true,
+      profile: {
+        select: {
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+          ratingAvg: true,
+          ratingCount: true,
+          onlineAt: true,
+        },
+      },
+    },
+  },
   category: { select: { slug: true, title: true } },
   game: { select: { slug: true, title: true } },
 } satisfies Prisma.ListingSelect;
@@ -120,23 +138,32 @@ export class ListingsService {
     return { key };
   }
 
-  /** Ключи S3 → абсолютные URL для показа (или оставляем уже готовые http-ссылки). */
-  private resolveImages<T extends { images: unknown }>(row: T): T {
+  /** Ключи хранилища → адреса для показа: фото лота и аватар продавца. */
+  private resolveImages<T extends { images: unknown; seller?: unknown }>(row: T): T {
     const imgs = Array.isArray(row.images) ? (row.images as string[]) : [];
-    const resolved = imgs.map((k) =>
-      /^https?:\/\//.test(k) ? k : `${ASSET_BASE}/api/assets?key=${encodeURIComponent(k)}`,
-    );
-    return { ...row, images: resolved };
+    const out = { ...row, images: imgs.map((k) => assetUrl(k)) };
+    const seller = row.seller as { profile?: { avatarUrl?: string | null } | null } | undefined;
+    if (seller?.profile?.avatarUrl) {
+      const profile = { ...seller.profile, avatarUrl: assetUrl(seller.profile.avatarUrl) };
+      out.seller = { ...seller, profile } as T['seller'];
+    }
+    return out;
   }
 
-  private parseAttrs(raw?: string): Record<string, string> | undefined {
+  /**
+   * Фильтр по параметрам: {"rank":"Global Elite","prime":true}. Параметр
+   * «да/нет» лежит в лоте булевым, поэтому и в фильтре он булев: строка
+   * "true" с ним не совпала бы.
+   */
+  private parseAttrs(raw?: string): Record<string, string | boolean> | undefined {
     if (!raw) return undefined;
     try {
       const o: unknown = JSON.parse(raw);
       if (!o || typeof o !== 'object') return undefined;
-      const out: Record<string, string> = {};
+      const out: Record<string, string | boolean> = {};
       for (const [k, v] of Object.entries(o as Record<string, unknown>)) {
-        if (typeof v === 'string' && v) out[k] = v;
+        if (!/^[a-z0-9_]{1,40}$/i.test(k)) continue;
+        if ((typeof v === 'string' && v) || typeof v === 'boolean') out[k] = v;
       }
       return Object.keys(out).length ? out : undefined;
     } catch {

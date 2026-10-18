@@ -61,7 +61,7 @@ export default async function GamesIndexPage() {
                       <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'grid', gap: 4 }}>
                         {g.categories.map((c) => (
                           <li key={c.id} className="row" style={{ justifyContent: 'space-between', gap: 8, fontSize: 14 }}>
-                            <Link href={`/igra/${g.slug}?category=${c.slug}`} className="muted">{c.title}</Link>
+                            <Link href={`/igra/${g.slug}/${c.slug}`} className="muted">{c.title}</Link>
                             <span className="faint">{c.listingCount}</span>
                           </li>
                         ))}

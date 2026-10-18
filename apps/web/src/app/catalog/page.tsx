@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { browseListings, getGames, getGame, getCategoryAttributes, type Attribute } from '@/lib/api';
-import { ListingCardView } from '@/components/cards';
+import { OfferTable } from '@/components/offers';
 import { SearchBar } from '@/components/search-bar';
 
 export const metadata: Metadata = {
@@ -35,10 +35,9 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const game = sp.game ? await getGame(sp.game) : null;
   const categories = game?.categories ?? [];
   const selectedCat = categories.find((c) => c.slug === sp.category);
-  let attributes: Attribute[] = [];
-  if (selectedCat) {
-    attributes = (await getCategoryAttributes(selectedCat.id))?.filter((a) => a.isFilter && a.type === 'enum') ?? [];
-  }
+  let columns: Attribute[] = [];
+  if (selectedCat) columns = (await getCategoryAttributes(selectedCat.id)) ?? [];
+  const attributes = columns.filter((a) => a.isFilter && a.type === 'enum');
 
   const items = browse?.items ?? [];
   const total = browse?.total ?? 0;
@@ -129,9 +128,8 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       <div>
         <p className="faint" style={{ fontSize: 13, marginBottom: 16 }}>Найдено: {total}</p>
         {items.length ? (
-          <div className="grid cols-auto">
-            {items.map((l) => <ListingCardView key={l.id} listing={l} />)}
-          </div>
+          // Без выбранного раздела в выдаче смешаны разделы: пишем их в строке.
+          <OfferTable items={items} attributes={columns} showSection={!selectedCat} />
         ) : (
           <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
             <p className="muted" style={{ margin: 0 }}>Ничего не найдено.</p>
