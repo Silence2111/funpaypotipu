@@ -38,22 +38,28 @@ export function OfferTable({
   items,
   attributes = [],
   showSection = false,
+  compact = false,
+  hideSeller = false,
 }: {
   items: ListingCard[];
   /** Параметры раздела; без них таблица — описание, продавец, цена. */
   attributes?: Attribute[];
   /** Писать игру и раздел в строке: выдача поиска смешивает разделы. */
   showSection?: boolean;
+  /** Узкая колонка (страница лота): параметры строкой, без своих колонок. */
+  compact?: boolean;
+  /** Все строки одного продавца («Ещё у продавца») — колонка продавца лишняя. */
+  hideSeller?: boolean;
 }) {
-  const columns = attrColumns(attributes);
+  const columns = compact ? [] : attrColumns(attributes);
   const extra = attributes.filter((a) => !columns.includes(a));
   // Колонка наличия — у раздела, где продают количеством. В смешанной выдаче
   // поиска у большинства строк в ней стояло бы тире: там наличие идёт строкой.
-  const showStock = !showSection && items.some(hasStock);
+  const showStock = !showSection && !compact && items.some(hasStock);
   const template = [
     'minmax(0, 1fr)',
     ...columns.map(() => 'minmax(80px, 128px)'),
-    'minmax(168px, 208px)',
+    ...(hideSeller ? [] : ['minmax(168px, 208px)']),
     ...(showStock ? ['minmax(88px, 112px)'] : []),
     'minmax(104px, 132px)',
   ].join(' ');
@@ -65,7 +71,7 @@ export function OfferTable({
         {columns.map((c) => (
           <span key={c.key}>{c.label}</span>
         ))}
-        <span>Продавец</span>
+        {!hideSeller && <span>Продавец</span>}
         {showStock && <span className="num">Наличие</span>}
         <span className="num">Цена</span>
       </div>
@@ -77,6 +83,7 @@ export function OfferTable({
           extra={extra}
           showStock={showStock}
           showSection={showSection}
+          showSeller={!hideSeller}
         />
       ))}
     </div>
@@ -89,12 +96,14 @@ function OfferRow({
   extra,
   showStock,
   showSection,
+  showSeller,
 }: {
   listing: ListingCard;
   columns: Attribute[];
   extra: Attribute[];
   showStock: boolean;
   showSection: boolean;
+  showSeller: boolean;
 }) {
   const attrs = l.attributes ?? {};
   const instant = l.fulfillmentType === 'auto_key' || l.fulfillmentType === 'provider';
@@ -148,7 +157,7 @@ function OfferRow({
           {attrValue(c, attrs[c.key]) ?? <span className="faint">—</span>}
         </span>
       ))}
-      <SellerCell seller={l.seller.profile} />
+      {showSeller && <SellerCell seller={l.seller.profile} />}
       {/* Единица — в подписи цены («за 1 000 золота»), в колонке только число. */}
       {showStock && (
         <span className="offer-stock num">

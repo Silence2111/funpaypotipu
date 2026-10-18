@@ -83,6 +83,7 @@ export type ListingDetail = ListingCard & {
   buyerFields?: Array<{ label: string; required: boolean }> | null;
   fulfillmentType: string;
   salesCount: number;
+  category: { id: string; slug: string; title: string };
   seller: { id: string; profile: { username: string; ratingAvg: number; ratingCount: number } | null };
 };
 

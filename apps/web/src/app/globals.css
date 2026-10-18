@@ -594,28 +594,145 @@ summary:focus-visible {
 }
 
 /* Lot page layout */
-.lot-grid {
+/* Лот: слева название, параметры и описание, справа покупка и продавец.
+   Без «липкой» панели: с продавцом она выше экрана, низ было не увидеть. */
+.lot-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 1fr);
-  grid-template-areas: 'media aside' 'desc aside';
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  grid-template-areas: 'head aside' 'main aside';
   grid-template-rows: auto 1fr;
-  gap: 32px 40px;
+  gap: 24px 40px;
   align-items: start;
+  margin-top: 16px;
+}
+.lot-head {
+  grid-area: head;
+}
+.lot-main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  min-width: 0;
 }
 .lot-aside {
-  position: sticky;
-  top: 76px;
+  grid-area: aside;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.lot-title {
+  font-size: 32px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.lot-h2 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--fg-faint);
+}
+.crumbs a:hover {
+  color: var(--fg);
+}
+.params {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0 24px;
+  margin: 0;
+}
+.params > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.params dt {
+  color: var(--fg-faint);
+}
+.params dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+}
+.lot-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.lot-gallery a {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-subtle);
+}
+.lot-gallery a[data-main='true'] {
+  grid-column: 1 / -1;
+  aspect-ratio: 16 / 9;
+}
+.lot-gallery img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.seller-card {
+  padding: 20px;
+}
+.seller-card-name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.seller-card-name:hover {
+  color: var(--accent);
+}
+.seller-card-seen {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.seller-card-seen[data-online='true'] {
+  color: var(--success);
+}
+.seller-stats {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+.seller-stats > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+.seller-stats dt {
+  color: var(--fg-faint);
+}
+.seller-stats dd {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 860px) {
+  .lot-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'head' 'aside' 'main';
+  }
 }
 
 /* Responsive */
 @media (max-width: 720px) {
-  .lot-grid {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'media' 'aside' 'desc';
-    gap: 20px;
-  }
-  .lot-aside {
-    position: static;
+  .lot-title {
+    font-size: 26px !important;
   }
   .hide-mobile {
     display: none !important;
@@ -1144,6 +1261,9 @@ summary:focus-visible {
   }
   .offer-row > .seller-cell {
     grid-area: seller;
+  }
+  .offer-row:not(:has(> .seller-cell)) {
+    grid-template-areas: 'desc price';
   }
   .offer-price {
     grid-area: price;

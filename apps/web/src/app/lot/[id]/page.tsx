@@ -1,14 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Info, ShieldCheck, Star, User } from 'lucide-react';
-import { getListing, getPublicPricing } from '@/lib/api';
+import { Info, ShieldCheck } from 'lucide-react';
+import { browseListings, getCategoryAttributes, getListing, getPublicPricing, getSeller, type Attribute } from '@/lib/api';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
-import { tileFor } from '@/lib/tile';
 import { BuyButton } from '@/components/buy-button';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
-import { MessageSellerButton } from '@/components/message-seller-button';
 import { isDemoSeller, markupLabel, soldByQty, topupQuote } from '@gamemarket/shared';
 import { JsonLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
@@ -16,6 +14,19 @@ import { SellerReviews } from '@/components/seller-reviews';
 import { OwnerLotActions } from '@/components/owner-lot-actions';
 import { ReportButton } from '@/components/report-button';
 import { ApproxPrice } from '@/components/approx-price';
+import { OfferTable } from '@/components/offers';
+import { SellerCard } from '@/components/seller-card';
+
+/** Параметры лота подписями раздела: «Звание: Gold Nova», а не «rank: Gold Nova». */
+function paramRows(defs: Attribute[], values: Record<string, unknown>): Array<[string, string]> {
+  const rows: Array<[string, string]> = [];
+  for (const a of defs) {
+    const v = values[a.key];
+    if (v === undefined || v === null || v === '') continue;
+    rows.push([a.label, typeof v === 'boolean' ? (v ? 'да' : 'нет') : String(v)]);
+  }
+  return rows;
+}
 
 export async function generateMetadata({
   params,
@@ -50,6 +61,18 @@ export default async function ListingPage({
   const { created, updated, account, amount } = await searchParams;
   const [listing, pricing] = await Promise.all([getListing(id), getPublicPricing()]);
   if (!listing) notFound();
+  // Всё, что вокруг лота: продавец целиком, подписи параметров, его другие
+  // предложения и похожие у других продавцов — дешёвые сверху.
+  const [seller, defs, mine, section] = await Promise.all([
+    getSeller(listing.seller.id),
+    getCategoryAttributes(listing.category.id),
+    browseListings({ sellerId: listing.seller.id, limit: 7 }),
+    browseListings({ gameSlug: listing.game.slug, categorySlug: listing.category.slug, sort: 'price_asc', limit: 12 }),
+  ]);
+  const sellerOthers = (mine?.items ?? []).filter((l) => l.id !== listing.id).slice(0, 6);
+  const similar = (section?.items ?? [])
+    .filter((l) => l.id !== listing.id && l.seller.id !== listing.seller.id)
+    .slice(0, 6);
   const demo = isDemoSeller(listing.seller.profile?.username);
   const auto = listing.fulfillmentType === 'auto_key';
   const provider = listing.fulfillmentType === 'provider';
@@ -122,11 +145,12 @@ export default async function ListingPage({
       : {}),
   };
 
-  const attrs = Object.entries(listing.attributes ?? {});
-  const cover = listing.images?.[0];
+  const paramList = paramRows(defs ?? [], listing.attributes ?? {});
+  const images = listing.images ?? [];
+  const sectionHref = `/igra/${listing.game.slug}/${listing.category.slug}`;
 
   return (
-    <div className="container" style={{ paddingTop: 48 }}>
+    <div className="container" style={{ paddingTop: 32 }}>
       <JsonLd data={productLd} />
       {created && (
         <div className="alert success" role="status" style={{ marginBottom: 20 }}>
@@ -146,90 +170,18 @@ export default async function ListingPage({
           <span>Изменения сохранены и уже видны в каталоге.</span>
         </div>
       )}
-      <div style={{ marginBottom: 20 }}>
-        <Link href={`/igra/${listing.game.slug}/${listing.category.slug}`} className="faint" style={{ fontSize: 14 }}>
-          ← {listing.game.title} · {listing.category.title}
-        </Link>
-      </div>
+      <nav className="crumbs" aria-label="Путь">
+        <Link href="/igry">Все игры</Link>
+        <span aria-hidden>/</span>
+        <Link href={`/igra/${listing.game.slug}`}>{listing.game.title}</Link>
+        <span aria-hidden>/</span>
+        <Link href={sectionHref}>{listing.category.title}</Link>
+      </nav>
 
-      <div className="lot-grid">
-        {/* Медиа, панель покупки, описание: на телефоне панель сразу под картинкой */}
-        <div style={{ gridArea: 'media' }}>
-          <div className="thumb" style={{ aspectRatio: '16 / 9', marginBottom: 0 }}>
-            {cover ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={cover}
-                alt=""
-                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
-              />
-            ) : (
-              // Раньше здесь стояло «Нет изображения» посреди пустого блока
-              // 16:9 — страница выглядела сломанной. Плитка игры честнее:
-              // она не выдаёт себя за фотографию товара и не оставляет дыру.
-              <div
-                aria-hidden
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: 'inherit',
-                  background: tileFor(listing.game.title).background,
-                  color: tileFor(listing.game.title).color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 44,
-                  fontWeight: 800,
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                {tileFor(listing.game.title).initials}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="stack-lg" style={{ gridArea: 'desc' }}>
-          {demo && (
-            <div className="alert" role="note">
-              <Info size={18} strokeWidth={1.75} />
-              <span>
-                Это пример лота: по нему видно, как устроена сделка. Купить можно — оплата на стенде
-                демонстрационная{auto ? ', а ключ придёт с пометкой «ПРИМЕР» и в игре не активируется' : ''}.
-              </span>
-            </div>
-          )}
-          <section>
-            <h2 className="h2" style={{ fontSize: 20, marginBottom: 12 }}>
-              Описание
-            </h2>
-            <p className="muted" style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
-              {listing.description}
-            </p>
-          </section>
-
-          {attrs.length > 0 && (
-            <section>
-              <h2 className="h2" style={{ fontSize: 20, marginBottom: 12 }}>
-                Характеристики
-              </h2>
-              <div className="grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                {attrs.map(([k, v]) => (
-                  <div key={k} className="row" style={{ justifyContent: 'space-between' }}>
-                    <span className="faint" style={{ fontSize: 14 }}>{k}</span>
-                    <span style={{ fontSize: 14 }}>{String(v)}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-
-        <aside className="card lot-aside" style={{ gridArea: 'aside', padding: 24 }}>
-          <h1 className="h2" style={{ fontSize: 22, lineHeight: 1.25 }}>
-            {listing.title}
-          </h1>
-          <div className="row" style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+      <div className="lot-layout">
+        <div className="lot-head">
+          <h1 className="h1 lot-title">{listing.title}</h1>
+          <div className="row" style={{ gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
             <span className={auto ? 'badge success' : 'badge'}>
               {auto
                 ? 'Ключ сразу после оплаты'
@@ -242,111 +194,188 @@ export default async function ListingPage({
             {demo && <span className="demo-mark">Пример</span>}
             {soldOut && <span className="badge">Закончился</span>}
           </div>
-          <div className="price" style={{ fontSize: 28, margin: topup || pack ? '16px 0 4px' : '16px 0' }}>
-            {pack ? formatPrice(listing.price, listing.currency) : formatListingPrice(listing)}
-            {pack && (
-              <span className="faint" style={{ fontSize: 15, fontWeight: 500, letterSpacing: 0 }}> {pack}</span>
-            )}{' '}
-            <ApproxPrice minor={listing.price} currency={listing.currency} style={{ fontSize: 15 }} />
-          </div>
-          {topup && (
-            <p className="hint" style={{ marginBottom: 16 }}>
-              Сумму выбираете вы, наценка продавца — {markupLabel(topup.markupBps)}
-            </p>
-          )}
-          {pack && !soldOut && (
-            <p className="hint" style={{ marginBottom: 16 }}>
-              Количество выбираете вы
-              {listing.minQty && listing.minQty > 1 ? `, от ${formatQty(listing.minQty, listing.unitName)}` : ''}
-            </p>
-          )}
+        </div>
 
-          {soldOut ? (
-            <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
-              <p style={{ margin: 0, fontWeight: 600 }}>Лот закончился</p>
-              <p className="hint" style={{ margin: '4px 0 0' }}>
-                Продавец может пополнить наличие. Добавьте лот в избранное, чтобы не потерять его.
-              </p>
+        <aside className="lot-aside" aria-label="Покупка">
+          <div className="card" style={{ padding: 24 }}>
+            <div className="price" style={{ fontSize: 28, margin: topup || pack ? '0 0 4px' : '0 0 16px' }}>
+              {pack ? formatPrice(listing.price, listing.currency) : formatListingPrice(listing)}
+              {pack && (
+                <span className="faint" style={{ fontSize: 15, fontWeight: 500, letterSpacing: 0 }}> {pack}</span>
+              )}{' '}
+              <ApproxPrice minor={listing.price} currency={listing.currency} style={{ fontSize: 15 }} />
             </div>
-          ) : topup ? (
-            <GameTopupForm
-              variant="lot"
-              game={listing.game}
-              offers={[topup]}
-              returnPath={`/lot/${listing.id}`}
-              initialAccount={(account ?? '').slice(0, 120)}
-              initialAmount={amount ?? ''}
-            />
-          ) : (
-            <BuyButton
-              listingId={listing.id}
-              fulfillmentType={listing.fulfillmentType}
-              price={listing.price}
-              currency={listing.currency}
-              qtyOffer={qtyOffer}
-              buyerFields={listing.fulfillmentType === 'manual' ? listing.buyerFields ?? [] : []}
-            />
-          )}
-          {pricing?.paymentsDemo && !soldOut && (
-            <p className="hint" style={{ marginTop: 10, textAlign: 'center' }}>
-              Демо-оплата: платёжка не подключена, деньги не списываются.
-            </p>
-          )}
+            {topup && (
+              <p className="hint" style={{ marginBottom: 16 }}>
+                Сумму выбираете вы, наценка продавца — {markupLabel(topup.markupBps)}
+              </p>
+            )}
+            {pack && !soldOut && (
+              <p className="hint" style={{ marginBottom: 16 }}>
+                Количество выбираете вы
+                {listing.minQty && listing.minQty > 1 ? `, от ${formatQty(listing.minQty, listing.unitName)}` : ''}
+              </p>
+            )}
 
-          <div className="row" style={{ marginTop: 12, gap: 8, flexWrap: 'wrap' }}>
-            <FavoriteButton listingId={listing.id} />
-            <MessageSellerButton listingId={listing.id} />
+            {soldOut ? (
+              <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
+                <p style={{ margin: 0, fontWeight: 600 }}>Лот закончился</p>
+                <p className="hint" style={{ margin: '4px 0 0' }}>
+                  Продавец может пополнить наличие. Добавьте лот в избранное, чтобы не потерять его, или посмотрите
+                  похожие предложения ниже.
+                </p>
+              </div>
+            ) : topup ? (
+              <GameTopupForm
+                variant="lot"
+                game={listing.game}
+                offers={[topup]}
+                returnPath={`/lot/${listing.id}`}
+                initialAccount={(account ?? '').slice(0, 120)}
+                initialAmount={amount ?? ''}
+              />
+            ) : (
+              <BuyButton
+                listingId={listing.id}
+                fulfillmentType={listing.fulfillmentType}
+                price={listing.price}
+                currency={listing.currency}
+                qtyOffer={qtyOffer}
+                buyerFields={listing.fulfillmentType === 'manual' ? listing.buyerFields ?? [] : []}
+              />
+            )}
+            {pricing?.paymentsDemo && !soldOut && (
+              <p className="hint" style={{ marginTop: 10, textAlign: 'center' }}>
+                Демо-оплата: платёжка не подключена, деньги не списываются.
+              </p>
+            )}
+
+            <div className="row" style={{ marginTop: 12, gap: 8, flexWrap: 'wrap' }}>
+              <FavoriteButton listingId={listing.id} />
+            </div>
+            <OwnerLotActions listingId={listing.id} sellerId={listing.seller.id} />
+
+            <div className="card flat" style={{ marginTop: 16, padding: 16, background: 'var(--page)' }}>
+              <div className="row" style={{ gap: 8, fontWeight: 700, fontSize: 14 }}>
+                <ShieldCheck size={18} strokeWidth={1.75} color="var(--accent)" /> Как защищена покупка
+              </div>
+              <ul style={{ margin: '10px 0 0', paddingLeft: 18, display: 'grid', gap: 6, fontSize: 13 }} className="muted">
+                <li>Деньги лежат у площадки. Продавец получит их, только когда вы подтвердите получение.</li>
+                <li>
+                  {auto
+                    ? 'Ключ выдаётся сразу. Не выдался — деньги вернутся на баланс автоматически.'
+                    : provider
+                      ? 'Пополнение уходит сразу после оплаты. Не прошло — деньги вернутся на баланс автоматически.'
+                      : `Продавец не выдал товар за ${fulfillH} ч — деньги вернутся на баланс автоматически.`}
+                </li>
+                <li>После выдачи у вас {confirmH} ч на проверку: подтвердить или открыть спор с арбитром.</li>
+              </ul>
+              {pricing && (
+                <p className="hint" style={{ marginTop: 10 }}>
+                  +{Math.round(pricing.cashbackPct * 100)}% кэшбэк на баланс после подтверждения
+                </p>
+              )}
+            </div>
           </div>
-          <OwnerLotActions listingId={listing.id} sellerId={listing.seller.id} />
-          <div style={{ marginTop: 8 }}>
+
+          {seller && <SellerCard seller={seller} listingId={listing.id} />}
+          <div>
             <ReportButton targetType="listing" targetId={listing.id} ownerId={listing.seller.id} />
           </div>
-
-          <div className="card flat" style={{ marginTop: 16, padding: 16, background: 'var(--page)' }}>
-            <div className="row" style={{ gap: 8, fontWeight: 700, fontSize: 14 }}>
-              <ShieldCheck size={18} strokeWidth={1.75} color="var(--accent)" /> Как защищена покупка
-            </div>
-            <ul style={{ margin: '10px 0 0', paddingLeft: 18, display: 'grid', gap: 6, fontSize: 13 }} className="muted">
-              <li>Деньги лежат у площадки. Продавец получит их, только когда вы подтвердите получение.</li>
-              <li>
-                {auto
-                  ? 'Ключ выдаётся сразу. Не выдался — деньги вернутся на баланс автоматически.'
-                  : provider
-                    ? 'Пополнение уходит сразу после оплаты. Не прошло — деньги вернутся на баланс автоматически.'
-                    : `Продавец не выдал товар за ${fulfillH} ч — деньги вернутся на баланс автоматически.`}
-              </li>
-              <li>После выдачи у вас {confirmH} ч на проверку: подтвердить или открыть спор с арбитром.</li>
-            </ul>
-            {pricing && (
-              <p className="hint" style={{ marginTop: 10 }}>
-                +{Math.round(pricing.cashbackPct * 100)}% кэшбэк на баланс после подтверждения
-              </p>
-            )}
-          </div>
-
-          <hr className="divider" style={{ margin: '20px 0' }} />
-
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <Link href={`/prodavec/${listing.seller.id}`} className="row muted" style={{ gap: 8, fontSize: 14 }}>
-              <User size={16} strokeWidth={1.75} />
-              {listing.seller.profile?.username ?? 'продавец'}
-            </Link>
-            {listing.seller.profile && listing.seller.profile.ratingCount > 0 ? (
-              <span className="row faint" style={{ gap: 4, fontSize: 13 }}>
-                <Star size={13} strokeWidth={1.75} />
-                {listing.seller.profile.ratingAvg.toFixed(1)} · {listing.seller.profile.ratingCount}
-              </span>
-            ) : (
-              <span className="faint" style={{ fontSize: 13 }}>отзывов пока нет</span>
-            )}
-          </div>
         </aside>
+
+        <div className="lot-main">
+          {demo && (
+            <div className="alert" role="note">
+              <Info size={18} strokeWidth={1.75} />
+              <span>
+                Это пример лота: по нему видно, как устроена сделка. Купить можно — оплата на стенде
+                демонстрационная{auto ? ', а ключ придёт с пометкой «ПРИМЕР» и в игре не активируется' : ''}.
+              </span>
+            </div>
+          )}
+
+          {/* Фото — только настоящие. Без них страница не рисует заглушку на
+              полэкрана: она выдавала себя за картинку товара. */}
+          {images.length > 0 && (
+            <div className="lot-gallery">
+              {images.slice(0, 8).map((src, i) => (
+                <a key={src} href={src} target="_blank" rel="noreferrer" data-main={i === 0 ? 'true' : undefined}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt={i === 0 ? listing.title : ''} />
+                </a>
+              ))}
+            </div>
+          )}
+
+          {paramList.length > 0 && (
+            <section>
+              <h2 className="h2 lot-h2">Параметры</h2>
+              <dl className="params">
+                <div>
+                  <dt>Раздел</dt>
+                  <dd>
+                    <Link href={sectionHref} className="inline-link">
+                      {listing.game.title} · {listing.category.title}
+                    </Link>
+                  </dd>
+                </div>
+                {paramList.map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+
+          <section>
+            <h2 className="h2 lot-h2">Описание</h2>
+            <p className="muted" style={{ whiteSpace: 'pre-wrap', margin: 0, maxWidth: '68ch' }}>
+              {listing.description}
+            </p>
+          </section>
+
+          {/* Похожие и другие лоты продавца — здесь, а не под страницей: колонка
+              с покупкой и продавцом высокая, и слева оставалась пустота. */}
+          {similar.length > 0 && (
+            <section aria-labelledby="similar-title">
+              <div className="section-head" style={{ marginBottom: 6 }}>
+                <h2 className="h2 lot-h2" id="similar-title" style={{ margin: 0 }}>
+                  Похожие предложения
+                </h2>
+                <Link href={`${sectionHref}?sort=price_asc`} className="muted" style={{ fontSize: 14 }}>
+                  Весь раздел →
+                </Link>
+              </div>
+              <p className="faint" style={{ fontSize: 14, margin: '0 0 12px' }}>
+                У других продавцов этого раздела — сначала дешёвые
+              </p>
+              <OfferTable items={similar} attributes={defs ?? []} compact />
+            </section>
+          )}
+
+          {sellerOthers.length > 0 && (
+            <section aria-labelledby="seller-more-title">
+              <div className="section-head" style={{ marginBottom: 12 }}>
+                <h2 className="h2 lot-h2" id="seller-more-title" style={{ margin: 0 }}>
+                  Ещё у продавца
+                </h2>
+                <Link href={`/prodavec/${listing.seller.id}`} className="muted" style={{ fontSize: 14 }}>
+                  Все →
+                </Link>
+              </div>
+              <OfferTable items={sellerOthers} showSection compact hideSeller />
+            </section>
+          )}
+        </div>
       </div>
 
       <KeysManager listingId={listing.id} sellerId={listing.seller.id} auto={auto} />
 
       <section style={{ marginTop: 48 }}>
-        <h2 className="h2" style={{ fontSize: 20, marginBottom: 16 }}>Отзывы о продавце</h2>
+        <h2 className="h2 lot-h2">Отзывы о продавце</h2>
         <SellerReviews sellerId={listing.seller.id} />
       </section>
     </div>

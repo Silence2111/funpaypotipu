@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { ShieldCheck, Star, Package, Calendar } from 'lucide-react';
 import { isDemoSeller } from '@gamemarket/shared';
 import { getSeller, browseListings } from '@/lib/api';
+import { presenceText, sinceText } from '@/lib/presence';
 import { ListingCardView } from '@/components/cards';
 import { SellerReviews } from '@/components/seller-reviews';
 import { ReportButton } from '@/components/report-button';
@@ -22,18 +23,6 @@ export async function generateMetadata({
   };
 }
 
-function presence(online: boolean, onlineAt: string | null): string | null {
-  if (online) return 'в сети';
-  if (!onlineAt) return null;
-  const mins = Math.floor((Date.now() - new Date(onlineAt).getTime()) / 60000);
-  if (mins < 1) return 'был только что';
-  if (mins < 60) return `был ${mins} мин назад`;
-  const h = Math.floor(mins / 60);
-  if (h < 24) return `был ${h} ч назад`;
-  const d = Math.floor(h / 24);
-  return `был ${d} дн назад`;
-}
-
 export default async function SellerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const seller = await getSeller(id);
@@ -41,7 +30,7 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
 
   const browse = await browseListings({ sellerId: id, limit: 48 });
   const items = browse?.items ?? [];
-  const seen = presence(seller.online, seller.onlineAt);
+  const seen = presenceText(seller.onlineAt);
   const initial = (seller.displayName || seller.username || '?').charAt(0).toUpperCase();
 
   return (
@@ -97,7 +86,7 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
               </span>
               <span className="row faint" style={{ gap: 6, fontSize: 14 }}>
                 <Calendar size={15} strokeWidth={1.75} />
-                с {new Date(seller.memberSince).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' })}
+                {sinceText(seller.memberSince)}
               </span>
             </div>
 

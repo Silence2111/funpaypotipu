@@ -280,6 +280,9 @@ export class ListingsService {
         buyerFields: true,
         fulfillmentType: true,
         salesCount: true,
+        // id раздела — странице лота: по нему подписи параметров («Звание»,
+        // а не «rank») и похожие предложения.
+        category: { select: { id: true, slug: true, title: true } },
         seller: {
           select: {
             id: true,
