@@ -4,6 +4,7 @@ import { PrismaClient } from '@gamemarket/db';
 import { LOCKED_NOTIFY, maskContacts, notifyPrefs, type NotifyPrefs } from '@gamemarket/shared';
 import { Prisma } from '@gamemarket/db';
 import { TelegramService } from '../notifications/telegram.service';
+import { PushService } from '../notifications/push.service';
 import { PRISMA } from '../../prisma/prisma.module';
 import { StorageService } from '../storage/storage.service';
 import { assetUrl } from '../storage/asset-url';
@@ -19,6 +20,7 @@ export class AccountService {
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly storage: StorageService,
     private readonly telegram: TelegramService,
+    private readonly push: PushService,
   ) {}
 
   /**
@@ -63,6 +65,8 @@ export class AccountService {
       locked: LOCKED_NOTIFY,
       email: { address: user.email },
       telegram: { available: this.telegram.enabled, linked: !!user.telegramId, bot: this.telegram.botUsername || null },
+      // Ключ — браузеру для подписки; устройства — сколько уже подписано.
+      push: { available: this.push.enabled, publicKey: this.push.publicKey, devices: await this.push.devices(userId) },
     };
   }
 
@@ -72,6 +76,7 @@ export class AccountService {
     const next: NotifyPrefs = {
       email: { ...(saved.email ?? {}), ...(patch.email ?? {}) },
       telegram: { ...(saved.telegram ?? {}), ...(patch.telegram ?? {}) },
+      push: { ...(saved.push ?? {}), ...(patch.push ?? {}) },
     };
     await this.prisma.user.update({ where: { id: userId }, data: { notifyPrefs: next as Prisma.InputJsonValue } });
     return this.notifications(userId);

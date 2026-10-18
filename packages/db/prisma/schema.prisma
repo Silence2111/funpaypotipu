@@ -216,6 +216,7 @@ model User {
   reviewsReceived Review[]          @relation("ReviewTarget")
   messages       Message[]
   notifications  Notification[]
+  pushSubscriptions PushSubscription[]
   favorites      Favorite[]
   roles          UserRole[]
   riskSignals    RiskSignal[]
@@ -828,6 +829,24 @@ model Notification {
 
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+// Пуш-подписка устройства (Web Push): одна на браузер. Адрес выдаёт служба
+// пушей браузера, ключи шифруют содержимое — сама служба его не видит.
+model PushSubscription {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?   @map("user_agent")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model Favorite {

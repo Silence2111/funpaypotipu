@@ -115,7 +115,11 @@ export class ChatService {
       data: { lastMessageAt: message.createdAt },
     });
     const recipientId = conv.buyerId === senderId ? conv.sellerId : conv.buyerId;
-    await this.notifications.notify(recipientId, 'new_message', { conversationId, preview: 'Вложение' });
+    await this.notifications.notify(recipientId, 'new_message', {
+      conversationId,
+      preview: 'Вложение',
+      from: await this.nameOf(senderId),
+    });
 
     const dto: ChatMessageDto = {
       id: message.id,
@@ -384,9 +388,13 @@ export class ChatService {
     }
 
     const recipientId = conv.buyerId === senderId ? conv.sellerId : conv.buyerId;
-    // Превью — замаскированный текст: в Telegram контакты не утекают тоже.
+    // Превью — замаскированный текст: в Telegram и пушах контакты не утекают тоже.
     const preview = masked.length > 140 ? `${masked.slice(0, 140)}…` : masked;
-    await this.notifications.notify(recipientId, 'new_message', { conversationId, preview });
+    await this.notifications.notify(recipientId, 'new_message', {
+      conversationId,
+      preview,
+      from: await this.nameOf(senderId),
+    });
 
     const dto: ChatMessageDto = {
       id: message.id,
@@ -440,6 +448,12 @@ export class ChatService {
       },
       [conv.buyerId, conv.sellerId],
     );
+  }
+
+  /** Ник отправителя — для пуша «Сообщение от …». */
+  private async nameOf(userId: string): Promise<string | null> {
+    const p = await this.prisma.profile.findUnique({ where: { userId }, select: { username: true } });
+    return p?.username ?? null;
   }
 
   /** Системное сообщение о событии сделки в чат заказа (senderId = null). */

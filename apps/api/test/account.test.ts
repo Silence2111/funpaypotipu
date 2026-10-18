@@ -50,6 +50,7 @@ describe('чёрный список', () => {
         },
         message: { create: vi.fn(async ({ data }: { data: object }) => ({ id: 'm1', createdAt: new Date(), ...data })) },
         riskSignal: { create: vi.fn(async () => ({})) },
+        profile: { findUnique: vi.fn(async () => ({ username: 'buyer' })) },
       };
       const { svc: blocks } = blocksWith([{ blockerId: 'seller' }]);
       return new ChatService(prisma as never, { notify: vi.fn() } as never, {} as never, {} as never, blocks);

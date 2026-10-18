@@ -1,11 +1,11 @@
 /**
  * Уведомления: что о чём, куда ведёт и в какие каналы уходит.
  *
- * Один источник для колокольчика на сайте, писем и Telegram: раньше подписи
- * жили отдельно в вебе и в API и расходились при первой правке.
+ * Один источник для колокольчика на сайте, писем, Telegram и пушей: раньше
+ * подписи жили отдельно в вебе и в API и расходились при первой правке.
  */
 
-export type NotifyChannel = 'email' | 'telegram';
+export type NotifyChannel = 'email' | 'telegram' | 'push';
 
 export const NOTIFY_GROUPS = [
   {
@@ -40,12 +40,13 @@ export type NotifyGroup = (typeof NOTIFY_GROUPS)[number]['key'];
 export type NotifyPrefs = Partial<Record<NotifyChannel, Partial<Record<NotifyGroup, boolean>>>>;
 
 /**
- * По умолчанию письмом — то, где решаются деньги; в Telegram — всё: его
- * подключают ради быстрых уведомлений о заказах и сообщениях.
+ * По умолчанию письмом — то, где решаются деньги; в Telegram и пушами — всё:
+ * их включают ради быстрых уведомлений о заказах и сообщениях.
  */
 export const DEFAULT_NOTIFY: Record<NotifyChannel, Record<NotifyGroup, boolean>> = {
   email: { orders: true, messages: false, disputes: true, reviews: false, finance: true, support: true, moderation: true },
   telegram: { orders: true, messages: true, disputes: true, reviews: true, finance: true, support: true, moderation: true },
+  push: { orders: true, messages: true, disputes: true, reviews: true, finance: true, support: true, moderation: true },
 };
 
 /** Решения модерации доходят письмом всегда: человек должен знать, почему его ограничили. */
@@ -59,7 +60,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   order_cancelled: 'Заказ отменён',
   order_refunded: 'Возврат по заказу',
   payment_to_balance: 'Повторная оплата заказа зачислена на баланс',
-  listing_out_of_stock: 'Закончились ключи по лоту — заказ возвращён',
+  listing_out_of_stock: 'Склад лота опустел — заказ возвращён',
   review_received: 'Новый отзыв',
   review_reply: 'Продавец ответил на ваш отзыв',
   cashback: 'Кэшбэк за покупку зачислен на баланс',
@@ -84,6 +85,7 @@ export function notifyPrefs(saved: NotifyPrefs | null | undefined): Record<Notif
   return {
     email: { ...DEFAULT_NOTIFY.email, ...(saved?.email ?? {}) },
     telegram: { ...DEFAULT_NOTIFY.telegram, ...(saved?.telegram ?? {}) },
+    push: { ...DEFAULT_NOTIFY.push, ...(saved?.push ?? {}) },
   };
 }
 

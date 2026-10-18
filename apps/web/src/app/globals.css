@@ -3137,6 +3137,35 @@ a.my-lot-title:hover {
   font-size: 15px;
 }
 
+/* Настройки уведомлений: каналы строками, группы — таблицей с галочками. */
+.notify-channel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.notify-channel:first-child {
+  padding-top: 0;
+}
+.notify-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 14px;
+}
+.notify-col {
+  width: 84px;
+  font-weight: 500;
+}
+@media (max-width: 640px) {
+  .notify-col {
+    width: 64px;
+  }
+}
+
 /* Склад автовыдачи: строка — одна штука, моноширинно, чтобы видеть опечатки. */
 .store-lines {
   min-height: 120px;

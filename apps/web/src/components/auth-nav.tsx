@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { ChevronDown, LogOut, MessagesSquare } from 'lucide-react';
-import { clearSession, getUser, isStaff, type SessionUser } from '@/lib/session';
+import { getUser, isStaff, type SessionUser } from '@/lib/session';
+import { logout } from '@/lib/logout';
 import { formatPrice } from '@/lib/format';
 import { useSummary, type Summary } from '@/lib/summary';
 import { NotificationsBell } from './notifications-bell';
@@ -121,7 +122,7 @@ export function ProfileLinks({ user, sum, extra }: { user: SessionUser; sum: Sum
         </Link>
       )}
       {extra}
-      <button role="menuitem" type="button" onClick={() => clearSession()}>
+      <button role="menuitem" type="button" onClick={() => void logout()}>
         <LogOut size={16} strokeWidth={1.75} aria-hidden /> Выйти
       </button>
     </>

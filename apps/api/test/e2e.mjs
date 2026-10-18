@@ -5,9 +5,11 @@
  * продажа поштучно (наличие, перепродажа последней штуки), способы оплаты (надбавка карты,
  * второй платёж по заказу), модерация (жалобы, бан, заморозка, спор у арбитра),
  * аккаунт (чёрный список, профиль, пароль, сеансы), вход с кодом из приложения и защита от подбора,
+ * подписка на пуш-уведомления,
  * поддержка, выплаты (с холдом и ролью finance).
  * Выход 0 — все проверки пройдены, иначе 1.
  */
+import { createECDH, randomBytes } from 'node:crypto';
 import { authenticator } from 'otplib';
 import db from '../../../packages/db/dist/index.js';
 
@@ -616,6 +618,35 @@ async function scenarioTwoFactor(rnd) {
   check('Подбор пароля упирается в паузу', last.status === 429, String(last.status));
 }
 
+// Пуши на телефон: подписка устройства, только от служб пушей браузеров,
+// своя галочка в группах уведомлений. Ни одного пуша наружу сценарий не шлёт.
+async function scenarioPush(rnd) {
+  console.log('\n— Пуш-уведомления: подписка устройства —');
+  const user = await register('psh', rnd);
+  const s0 = await j('/account/notifications', { token: user.token });
+  check('Ключ сервера для подписки есть, устройств нет', /^[A-Za-z0-9_-]{80,}$/.test(s0.body.push?.publicKey ?? '') && s0.body.push?.devices === 0, JSON.stringify(s0.body.push));
+  check('Пуши по умолчанию включены во всех группах', Object.values(s0.body.prefs?.push ?? {}).every(Boolean) && Object.keys(s0.body.prefs?.push ?? {}).length === 7);
+  const ecdh = createECDH('prime256v1');
+  const keys = { p256dh: ecdh.generateKeys().toString('base64url'), auth: randomBytes(16).toString('base64url') };
+  const endpoint = `https://fcm.googleapis.com/fcm/send/e2e-${rnd}`;
+  const sub = await j('/account/push', { method: 'POST', token: user.token, body: JSON.stringify({ endpoint, expirationTime: null, keys }) });
+  check('Подписка браузера принята', sub.status === 201 && sub.body.devices === 1, JSON.stringify(sub.body));
+  const again = await j('/account/push', { method: 'POST', token: user.token, body: JSON.stringify({ endpoint, keys }) });
+  check('Та же подписка второй раз — то же устройство', again.body.devices === 1, JSON.stringify(again.body));
+  const evil = await j('/account/push', { method: 'POST', token: user.token, body: JSON.stringify({ endpoint: 'https://evil.example.com/push', keys }) });
+  check('Адрес не службы пушей → 400', evil.status === 400, String(evil.status));
+  const badKey = await j('/account/push', { method: 'POST', token: user.token, body: JSON.stringify({ endpoint, keys: { p256dh: 'abc', auth: keys.auth } }) });
+  check('Испорченный ключ → 400', badKey.status === 400, String(badKey.status));
+  const prefs = await j('/account/notifications', { method: 'PATCH', token: user.token, body: JSON.stringify({ push: { messages: false } }) });
+  check('Группу пушей можно выключить', prefs.body.prefs?.push?.messages === false && prefs.body.prefs?.push?.orders === true);
+  const other = await register('psh2', rnd);
+  await j('/account/push', { method: 'POST', token: other.token, body: JSON.stringify({ endpoint, keys }) });
+  const moved = await j('/account/notifications', { token: user.token });
+  check('Браузер у другого пользователя — устройство переходит к нему', moved.body.push?.devices === 0, JSON.stringify(moved.body.push));
+  const off = await j('/account/push', { method: 'DELETE', token: other.token, body: JSON.stringify({ endpoint }) });
+  check('Выключить на устройстве', off.status === 200 && off.body.devices === 0, JSON.stringify(off.body));
+}
+
 async function scenarioFiles(rnd) {
   console.log('\n— Файлы без S3: вложения в чате и фото лотов —');
   const abs = (u) => new URL(u, API).toString();
@@ -715,6 +746,7 @@ async function scenarioPayout(rnd) {
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);
   await scenarioTwoFactor(rnd);
+  await scenarioPush(rnd);
   await scenarioFiles(rnd);
   await scenarioRates(rnd);
   await scenarioPayout(rnd);

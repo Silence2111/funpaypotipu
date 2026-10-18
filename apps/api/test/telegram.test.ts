@@ -92,7 +92,7 @@ describe('уведомление в Telegram', () => {
       user: { findUnique: vi.fn(async () => ({ email: null, telegramId: '555', notifyPrefs: prefs })) },
     };
     const telegram = { enabled: true, send: vi.fn(async () => true) };
-    const svc = new NotificationsService(prisma as never, { enabled: false } as never, telegram as never);
+    const svc = new NotificationsService(prisma as never, { enabled: false } as never, telegram as never, { enabled: false } as never);
     return { svc, telegram };
   }
 

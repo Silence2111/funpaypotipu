@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
@@ -6,13 +6,25 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { BlocksService } from '../access/blocks.service';
 import { AccountService } from './account.service';
+import { PushService, type PushSubscriptionInput } from '../notifications/push.service';
 import { NOTIFY_GROUPS } from '@gamemarket/shared';
 
 // Группы — ровно те, что в shared/notify.ts: лишний ключ не попадёт в базу.
 const groupFlags = z
   .object(Object.fromEntries(NOTIFY_GROUPS.map((g) => [g.key, z.boolean().optional()])) as Record<string, z.ZodOptional<z.ZodBoolean>>)
   .strict();
-const notifySchema = z.object({ email: groupFlags.optional(), telegram: groupFlags.optional() });
+const notifySchema = z.object({ email: groupFlags.optional(), telegram: groupFlags.optional(), push: groupFlags.optional() });
+
+// Подписка браузера, как её отдаёт PushSubscription.toJSON(): адрес службы
+// пушей и ключи шифрования — точка P-256 (65 байт) и секрет (16 байт).
+const endpointSchema = z.string().url().max(1000);
+const pushSchema = z.object({
+  endpoint: endpointSchema,
+  keys: z.object({
+    p256dh: z.string().regex(/^[A-Za-z0-9_-]{86,88}={0,2}$/, 'Неверный ключ подписки'),
+    auth: z.string().regex(/^[A-Za-z0-9_-]{22,24}={0,2}$/, 'Неверный ключ подписки'),
+  }),
+});
 
 const profileSchema = z.object({
   displayName: z.string().trim().min(2, 'Имя — от 2 символов').max(40, 'Имя — до 40 символов').optional(),
@@ -25,6 +37,7 @@ export class AccountController {
   constructor(
     private readonly account: AccountService,
     private readonly blocks: BlocksService,
+    private readonly push: PushService,
   ) {}
 
   @Get('profile')
@@ -66,7 +79,8 @@ export class AccountController {
   @Patch('notifications')
   updateNotifications(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(notifySchema)) body: { email?: Record<string, boolean>; telegram?: Record<string, boolean> },
+    @Body(new ZodValidationPipe(notifySchema))
+    body: { email?: Record<string, boolean>; telegram?: Record<string, boolean>; push?: Record<string, boolean> },
   ) {
     return this.account.updateNotifications(user.userId, body);
   }
@@ -79,6 +93,25 @@ export class AccountController {
   @Delete('telegram')
   telegramUnlink(@CurrentUser() user: AuthUser) {
     return this.account.telegramUnlink(user.userId);
+  }
+
+  /** Пуши на это устройство: браузер присылает свою подписку. */
+  @Post('push')
+  pushSubscribe(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(pushSchema)) body: PushSubscriptionInput,
+    @Headers('user-agent') userAgent?: string,
+  ) {
+    return this.push.subscribe(user.userId, body, userAgent);
+  }
+
+  /** Выключить пуши на устройстве — в настройках и при выходе из аккаунта. */
+  @Delete('push')
+  pushUnsubscribe(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(z.object({ endpoint: endpointSchema }))) body: { endpoint: string },
+  ) {
+    return this.push.unsubscribe(user.userId, body.endpoint);
   }
 
   // ── Чёрный список ──

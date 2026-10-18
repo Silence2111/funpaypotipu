@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Wallet, Package, Tag } from 'lucide-react';
-import { apiFetch, clearSession, getToken, getUser } from '@/lib/session';
+import { apiFetch, getToken, getUser } from '@/lib/session';
+import { logout } from '@/lib/logout';
 import { formatListingPrice, formatPrice } from '@/lib/format';
 import { TopUpForm } from '@/components/topup-form';
 import { PayoutForm } from '@/components/payout-form';
@@ -151,7 +152,7 @@ export default function CabinetPage() {
         <WalletTransactions />
       </section>
 
-      <button className="btn ghost" type="button" onClick={() => { clearSession(); router.push('/'); }}>
+      <button className="btn ghost" type="button" onClick={() => void logout().then(() => router.push('/'))}>
         Выйти из аккаунта
       </button>
     </div>

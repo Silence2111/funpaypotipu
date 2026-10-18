@@ -12,6 +12,13 @@ describe('уведомления', () => {
     expect(wantsNotify(null, 'telegram', 'new_message')).toBe(true);
   });
 
+  it('пуши по умолчанию — как Telegram: их включают ради скорости', () => {
+    expect(wantsNotify(null, 'push', 'new_message')).toBe(true);
+    expect(wantsNotify(null, 'push', 'order_paid')).toBe(true);
+    expect(wantsNotify({ push: { messages: false } }, 'push', 'new_message')).toBe(false);
+    expect(wantsNotify({ push: { messages: false } }, 'telegram', 'new_message')).toBe(true);
+  });
+
   it('пользователь выключил группу — канал молчит', () => {
     expect(wantsNotify({ telegram: { messages: false } }, 'telegram', 'new_message')).toBe(false);
     expect(wantsNotify({ telegram: { messages: false } }, 'telegram', 'order_paid')).toBe(true);

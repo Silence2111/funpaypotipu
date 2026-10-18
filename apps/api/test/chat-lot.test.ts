@@ -26,6 +26,7 @@ function setup({ lastSystem = null as string | null, existing = true } = {}) {
       })),
     },
     riskSignal: { create: vi.fn(async () => ({})) },
+    profile: { findUnique: vi.fn(async () => ({ username: 'buyer' })) },
   };
   const notifications = { notify: vi.fn(async () => undefined) };
   const blocks = { assertCanContact: vi.fn(async () => undefined) };
