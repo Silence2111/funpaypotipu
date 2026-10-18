@@ -303,7 +303,7 @@ export class ListingsService {
     const rows = await this.prisma.listing.findMany({
       where: { sellerId, status: { not: 'archived' } },
       orderBy: { createdAt: 'desc' },
-      select: { ...cardSelect, categoryId: true },
+      select: { ...cardSelect, categoryId: true, pausedForAway: true },
     });
     return rows.map((r) => this.resolveImages(r));
   }
@@ -363,10 +363,15 @@ export class ListingsService {
    * FunPay. У каждого лота свой кулдаун: поднимаются те, чей срок прошёл,
    * остальные ждут, и ответ говорит, через сколько можно следующим.
    */
-  async bumpAll(sellerId: string, categoryId?: string) {
+  async bumpAll(sellerId: string, only: { categoryId?: string; ids?: string[] } = {}) {
     const [listings, profile] = await Promise.all([
       this.prisma.listing.findMany({
-        where: { sellerId, status: 'active', ...(categoryId ? { categoryId } : {}) },
+        where: {
+          sellerId,
+          status: 'active',
+          ...(only.categoryId ? { categoryId: only.categoryId } : {}),
+          ...(only.ids ? { id: { in: only.ids } } : {}),
+        },
         select: { id: true, boostUntil: true },
       }),
       this.prisma.profile.findUnique({ where: { userId: sellerId }, select: { salesCount: true } }),
@@ -391,6 +396,80 @@ export class ListingsService {
       waiting: waits.length,
       nextInMinutes: waits.length ? Math.ceil(Math.min(...waits) / 60000) : null,
     };
+  }
+
+  /**
+   * Действие над выбранными лотами — галочки в «Моих предложениях» FunPay.
+   * Лоты не в том статусе пропускаются: снять можно продающийся, вернуть —
+   * снятый и с наличием. Заблокированный модератором не трогается.
+   */
+  async bulk(sellerId: string, ids: string[], action: 'pause' | 'activate' | 'bump') {
+    if (action === 'bump') {
+      const r = await this.bumpAll(sellerId, { ids });
+      return { done: r.bumped, skipped: ids.length - r.bumped - r.waiting, ...r };
+    }
+    const where: Prisma.ListingWhereInput =
+      action === 'pause'
+        ? { id: { in: ids }, sellerId, status: 'active' }
+        : { id: { in: ids }, sellerId, status: { in: ['paused', 'draft'] }, OR: [{ stock: null }, { stock: { gt: 0 } }] };
+    const found = await this.prisma.listing.findMany({ where, select: { id: true } });
+    const changed = found.length
+      ? await this.prisma.listing.updateMany({
+          where: { ...where, id: { in: found.map((l) => l.id) } },
+          // Снятое или возвращённое вручную — уже не «на время отпуска».
+          data: { status: action === 'pause' ? 'paused' : 'active', pausedForAway: false },
+        })
+      : { count: 0 };
+    for (const l of found) await this.search.indexListing(l.id);
+    return { done: changed.count, skipped: ids.length - changed.count };
+  }
+
+  /** Отпуск продавца: с какого времени и сколько лотов ждут возвращения. */
+  async getAway(sellerId: string) {
+    const [profile, paused] = await Promise.all([
+      this.prisma.profile.findUnique({ where: { userId: sellerId }, select: { awaySince: true } }),
+      this.prisma.listing.count({ where: { sellerId, pausedForAway: true } }),
+    ]);
+    return { awaySince: profile?.awaySince ?? null, paused };
+  }
+
+  /**
+   * «Отпуск»: продающиеся лоты снимаются разом и помечаются. По возвращении
+   * в продажу идут только они — снятые раньше вручную остаются снятыми.
+   * Открытые заказы отпуск не трогает: их нужно довести.
+   */
+  async setAway(sellerId: string, away: boolean) {
+    const profile = await this.prisma.profile.findUnique({ where: { userId: sellerId }, select: { awaySince: true } });
+    if (!profile) throw new NotFoundException('Профиль не найден');
+    if (away) {
+      const rows = await this.prisma.listing.findMany({ where: { sellerId, status: 'active' }, select: { id: true } });
+      const awaySince = profile.awaySince ?? new Date();
+      await this.prisma.$transaction([
+        this.prisma.profile.update({ where: { userId: sellerId }, data: { awaySince } }),
+        this.prisma.listing.updateMany({
+          where: { id: { in: rows.map((r) => r.id) }, status: 'active' },
+          data: { status: 'paused', pausedForAway: true },
+        }),
+      ]);
+      for (const r of rows) await this.search.indexListing(r.id);
+      return { awaySince, paused: rows.length };
+    }
+    const rows = await this.prisma.listing.findMany({ where: { sellerId, pausedForAway: true }, select: { id: true } });
+    const [, restored] = await this.prisma.$transaction([
+      this.prisma.profile.update({ where: { userId: sellerId }, data: { awaySince: null } }),
+      this.prisma.listing.updateMany({
+        where: { sellerId, pausedForAway: true, status: 'paused', OR: [{ stock: null }, { stock: { gt: 0 } }] },
+        data: { status: 'active', pausedForAway: false },
+      }),
+      // Наличие обнулили, пока продавец отдыхал, — лот возвращается закончившимся.
+      this.prisma.listing.updateMany({
+        where: { sellerId, pausedForAway: true, status: 'paused', stock: 0 },
+        data: { status: 'sold_out', pausedForAway: false },
+      }),
+      this.prisma.listing.updateMany({ where: { sellerId, pausedForAway: true }, data: { pausedForAway: false } }),
+    ]);
+    for (const r of rows) await this.search.indexListing(r.id);
+    return { awaySince: null, restored: restored.count };
   }
 
   async create(sellerId: string, input: CreateListingInput) {
@@ -588,8 +667,12 @@ export class ListingsService {
     if (input.attributes !== undefined) data.attributes = input.attributes as Prisma.InputJsonValue;
     if (input.images !== undefined) data.images = input.images as Prisma.InputJsonValue;
     // Наличие обычного лота — выше, вместе с условиями поштучной продажи;
-    // наличие авто-лота меняет только склад ключей.
-    if (input.status !== undefined) data.status = input.status;
+    // наличие авто-лота меняет только склад ключей. Снятый или возвращённый
+    // вручную лот — уже не «на время отпуска».
+    if (input.status !== undefined) {
+      data.status = input.status;
+      data.pausedForAway = false;
+    }
     // Вернуть в продажу лот без наличия нельзя: заказ на него сразу упадёт.
     if (input.status === 'active') {
       const stock = data.stock !== undefined ? (data.stock as number | null) : current.stock;

@@ -505,6 +505,42 @@ async function scenarioPromotion(rnd) {
   check('Истёкшее продвижение обнулено', after.promotedUntil === null);
 }
 
+async function scenarioMyLots(rnd) {
+  console.log('\n— Мои лоты: цена в строке, галочки, отпуск —');
+  const seller = await register('mls', rnd);
+  const a = await createListing(seller.token, 'accounts', '50000');
+  const b = await createListing(seller.token, 'accounts', '60000');
+  const c = await createListing(seller.token, 'accounts', '70000');
+  await j(`/listings/${c}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
+  const price = await j(`/listings/${a}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ price: '55000' }) });
+  check('Цена из списка лотов сохраняется', price.status === 200 && price.body.price === '55000', String(price.body.price));
+
+  const off = await j('/listings/bulk', { method: 'POST', token: seller.token, body: JSON.stringify({ ids: [a, b, c], action: 'pause' }) });
+  check('Снять выбранные: снимаются только продающиеся', off.body.done === 2 && off.body.skipped === 1, JSON.stringify(off.body));
+  const on = await j('/listings/bulk', { method: 'POST', token: seller.token, body: JSON.stringify({ ids: [a, b], action: 'activate' }) });
+  check('Вернуть выбранные в продажу', on.body.done === 2, JSON.stringify(on.body));
+  const other = await register('mlo', rnd);
+  const foreign = await j('/listings/bulk', { method: 'POST', token: other.token, body: JSON.stringify({ ids: [a], action: 'pause' }) });
+  check('Чужой лот галочкой не снять', foreign.body.done === 0, JSON.stringify(foreign.body));
+
+  const away = await j('/listings/away', { method: 'POST', token: seller.token, body: JSON.stringify({ away: true }) });
+  const pub = await j(`/sellers/${seller.id}`);
+  const shown = await j(`/listings?sellerId=${seller.id}`);
+  check(
+    'Отпуск: лоты ушли с витрины, в профиле пометка',
+    away.body.paused === 2 && pub.body.away === true && shown.body.items?.length === 0,
+    JSON.stringify(away.body),
+  );
+  const back = await j('/listings/away', { method: 'POST', token: seller.token, body: JSON.stringify({ away: false }) });
+  const mine = await j('/listings/mine', { token: seller.token });
+  const status = Object.fromEntries(mine.body.map((l) => [l.id, l.status]));
+  check(
+    'Из отпуска вернулись только снятые на время отпуска',
+    back.body.restored === 2 && status[a] === 'active' && status[b] === 'active' && status[c] === 'paused',
+    JSON.stringify(status),
+  );
+}
+
 async function scenarioRates(rnd) {
   console.log('\n— Курсы для показа цен —');
   const admin = await register('rta', rnd);
@@ -562,6 +598,7 @@ async function scenarioPayout(rnd) {
   await scenarioCatalog(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
+  await scenarioMyLots(rnd);
   await scenarioRates(rnd);
   await scenarioPayout(rnd);
 

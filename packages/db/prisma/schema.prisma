@@ -234,6 +234,8 @@ model Profile {
   ratingCount Int      @default(0) @map("rating_count")
   salesCount  Int      @default(0) @map("sales_count")
   onlineAt    DateTime? @map("online_at")
+  // «Отпуск»: продавец снял лоты разом и вернёт их одной кнопкой. null — работает.
+  awaySince   DateTime? @map("away_since")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -417,6 +419,9 @@ model Listing {
   unitName        String?         @map("unit_name")
   pricePerUnits   Int             @default(1) @map("price_per_units")
   minQty          Int             @default(1) @map("min_qty")
+  // Снят на время отпуска продавца — вернётся в продажу вместе с остальными,
+  // а снятые раньше вручную останутся снятыми.
+  pausedForAway   Boolean         @default(false) @map("paused_for_away")
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
 

@@ -23,6 +23,7 @@ export class SellersService {
         ratingCount: true,
         salesCount: true,
         onlineAt: true,
+        awaySince: true,
         createdAt: true,
         user: { select: { status: true } },
       },
@@ -70,6 +71,8 @@ export class SellersService {
       memberSince: profile.createdAt,
       onlineAt: profile.onlineAt,
       online,
+      // В отпуске: лоты сняты до возвращения — покупатель видит почему.
+      away: profile.awaySince !== null,
       verified,
       level: { key: level.key, label: level.label },
       ratingBreakdown,

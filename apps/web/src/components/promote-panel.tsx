@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TrendingUp } from 'lucide-react';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
@@ -14,17 +13,19 @@ const until = (iso: string) =>
 /**
  * «Продвинуть» в «Моих лотах»: лот выше в своём разделе на оплаченный
  * срок, оплата с баланса. Продление добавляется к оставшемуся сроку.
+ * Панель раскрывается под строкой лота, кнопку рисует сама строка.
  */
-export function PromoteButton({
+export function PromotePanel({
   listingId,
   promotedUntil,
   onDone,
+  onClose,
 }: {
   listingId: string;
   promotedUntil?: string | null;
   onDone: () => void;
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [dayPrice, setDayPrice] = useState<bigint | null>(null);
   const [balance, setBalance] = useState<bigint | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,21 +33,20 @@ export function PromoteButton({
   const active = !!promotedUntil && new Date(promotedUntil).getTime() > Date.now();
 
   useEffect(() => {
-    if (!open) return;
     apiFetch<{ promoDayPrice?: string }>('/fees/public')
       .then((p) => setDayPrice(BigInt(p.promoDayPrice ?? '0')))
       .catch(() => {});
     apiFetch<{ balance: string }>('/wallet')
       .then((w) => setBalance(BigInt(w.balance)))
       .catch(() => {});
-  }, [open]);
+  }, []);
 
   async function buy(days: number) {
     setBusy(true);
     setErr(null);
     try {
       await apiFetch(`/listings/${listingId}/promote`, { method: 'POST', body: JSON.stringify({ days }) });
-      setOpen(false);
+      onClose();
       onDone();
     } catch (e) {
       setErr(apiErrorMessage(e, 'Не удалось продвинуть лот.'));
@@ -55,17 +55,8 @@ export function PromoteButton({
     }
   }
 
-  if (!open) {
-    return (
-      <button type="button" className="chip" onClick={() => setOpen(true)}
-        title={active ? `В продвижении до ${until(promotedUntil!)}` : undefined}>
-        <TrendingUp size={14} strokeWidth={1.75} /> {active ? 'Продлить продвижение' : 'Продвинуть'}
-      </button>
-    );
-  }
-
   return (
-    <div className="card flat" style={{ padding: 14, background: 'var(--page)', flexBasis: '100%' }}>
+    <div className="card flat" style={{ padding: 14, background: 'var(--page)' }}>
       <p style={{ margin: 0, fontSize: 14 }}>
         {active ? `В продвижении до ${until(promotedUntil!)}. Продление добавится к сроку.` : 'Лот будет выше в своём разделе каталога.'}
       </p>
@@ -79,7 +70,7 @@ export function PromoteButton({
             </button>
           );
         })}
-        <button type="button" className="btn ghost" onClick={() => setOpen(false)}>Отмена</button>
+        <button type="button" className="btn ghost" onClick={onClose}>Отмена</button>
       </div>
       <p className="hint" style={{ margin: '8px 0 0' }}>
         Оплата с баланса{balance != null ? ` · на балансе ${formatPrice(balance.toString())}` : ''}. Покупатели видят пометку

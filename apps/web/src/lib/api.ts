@@ -147,6 +147,8 @@ export interface SellerProfile {
   memberSince: string;
   onlineAt: string | null;
   online: boolean;
+  /** В отпуске: лоты сняты до возвращения продавца. */
+  away?: boolean;
   verified: boolean;
   level: { key: string; label: string };
   ratingBreakdown: { star: number; count: number }[];

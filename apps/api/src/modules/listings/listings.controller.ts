@@ -29,6 +29,11 @@ import { AccountStatusService } from '../access/account-status.service';
 import { ListingsService } from './listings.service';
 
 const bumpAllSchema = z.object({ categoryId: z.string().uuid().optional() });
+const bulkSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(500),
+  action: z.enum(['pause', 'activate', 'bump']),
+});
+const awaySchema = z.object({ away: z.boolean() });
 
 @Controller('listings')
 export class ListingsController {
@@ -63,7 +68,33 @@ export class ListingsController {
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(bumpAllSchema)) body: { categoryId?: string },
   ) {
-    return this.listings.bumpAll(user.userId, body.categoryId);
+    return this.listings.bumpAll(user.userId, { categoryId: body.categoryId });
+  }
+
+  /** Выбранные лоты разом: снять, вернуть в продажу, поднять. */
+  @Post('bulk')
+  @UseGuards(JwtAuthGuard)
+  async bulk(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(bulkSchema)) body: { ids: string[]; action: 'pause' | 'activate' | 'bump' },
+  ) {
+    // Как и у одного лота: снять можно и в заморозке, вернуть в продажу — нет.
+    if (body.action === 'activate') await this.account.assertCanTrade(user.userId);
+    return this.listings.bulk(user.userId, [...new Set(body.ids)], body.action);
+  }
+
+  @Get('away')
+  @UseGuards(JwtAuthGuard)
+  away(@CurrentUser() user: AuthUser) {
+    return this.listings.getAway(user.userId);
+  }
+
+  /** Отпуск: { away: true } — снять все лоты разом, { away: false } — вернуть их. */
+  @Post('away')
+  @UseGuards(JwtAuthGuard)
+  async setAway(@CurrentUser() user: AuthUser, @Body(new ZodValidationPipe(awaySchema)) body: { away: boolean }) {
+    if (!body.away) await this.account.assertCanTrade(user.userId);
+    return this.listings.setAway(user.userId, body.away);
   }
 
   /** Загрузка изображения лота (multipart через API; MinIO приватный). */

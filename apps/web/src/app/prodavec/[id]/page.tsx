@@ -64,6 +64,7 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
             <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
               <h1 className="h1 profile-name">{seller.displayName}</h1>
               <span className="badge">{seller.level.label}</span>
+              {seller.away && <span className="badge warning">в отпуске</span>}
               {seller.verified && (
                 <span className="badge accent">
                   <ShieldCheck size={13} strokeWidth={1.75} aria-hidden /> Документы проверены
@@ -136,7 +137,11 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
           Предложения
         </h2>
         <p className="faint" style={{ margin: '0 0 20px', fontSize: 14 }}>
-          {total > 0 ? offersCount(total) : 'Сейчас у продавца нет активных предложений.'}
+          {total > 0
+            ? offersCount(total)
+            : seller.away
+              ? 'Продавец в отпуске — предложения вернутся вместе с ним.'
+              : 'Сейчас у продавца нет активных предложений.'}
           {total > items.length ? ` · показаны первые ${items.length}` : ''}
         </p>
         {groups.map((g, i) => (

@@ -45,6 +45,7 @@ export function SellerCard({
 
       <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 14 }}>
         <span className="badge">{seller.level.label}</span>
+        {seller.away && <span className="badge warning">в отпуске</span>}
         {seller.verified && (
           <span className="badge accent">
             <ShieldCheck size={13} strokeWidth={1.75} aria-hidden /> Документы проверены

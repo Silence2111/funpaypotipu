@@ -14,6 +14,24 @@ export function formatPrice(minor: string, currency = 'RUB'): string {
   return `${num} ${SYMBOLS[currency] ?? currency}`;
 }
 
+export const currencySymbol = (currency: string) => SYMBOLS[currency] ?? currency;
+
+/** Цена для поля ввода: "120050" → «1200,50», "120000" → «1200». */
+export function minorToInput(minor: string): string {
+  const v = BigInt(minor);
+  const kop = v % 100n;
+  return kop ? `${v / 100n},${kop.toString().padStart(2, '0')}` : String(v / 100n);
+}
+
+/** Ввод цены: «1 200,50» → 120050n копеек; null — не цена или не больше нуля. */
+export function parseMoneyInput(raw: string): bigint | null {
+  const t = raw.replace(/\s/g, '').replace(',', '.');
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return null;
+  const [whole, frac = ''] = t.split('.');
+  const minor = BigInt(whole!) * 100n + BigInt(`${frac}00`.slice(0, 2));
+  return minor > 0n ? minor : null;
+}
+
 /** Количество с единицей лота: «25 000 золота», «3 шт.». */
 export function formatQty(qty: number, unitName?: string | null): string {
   return `${new Intl.NumberFormat('ru-RU').format(qty)} ${unitName ?? 'шт.'}`;

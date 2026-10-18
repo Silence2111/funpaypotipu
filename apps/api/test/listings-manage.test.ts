@@ -16,7 +16,13 @@ const HOUR = 3600 * 1000;
 
 function setup(
   listing: Record<string, unknown> | null,
-  opts: { orders?: number; attrs?: unknown[]; fulfillmentType?: string; pack?: { unitName: string; pricePerUnits: number } } = {},
+  opts: {
+    orders?: number;
+    attrs?: unknown[];
+    fulfillmentType?: string;
+    pack?: { unitName: string; pricePerUnits: number };
+    awaySince?: Date | null;
+  } = {},
 ) {
   const calls = { update: [] as unknown[], delete: [] as unknown[], updateMany: [] as unknown[], create: [] as unknown[] };
   const prisma = {
@@ -48,7 +54,11 @@ function setup(
     order: { count: vi.fn(async () => opts.orders ?? 0) },
     favorite: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     attribute: { findMany: vi.fn(async () => opts.attrs ?? []) },
-    profile: { findUnique: vi.fn(async () => ({ salesCount: 0 })) },
+    profile: {
+      findUnique: vi.fn(async () => ({ salesCount: 0, awaySince: opts.awaySince ?? null })),
+      update: vi.fn(async (a: { data: Record<string, unknown> }) => a.data),
+    },
+    $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
   };
   const search = { indexListing: vi.fn(async () => {}), removeListing: vi.fn(async () => {}) };
   const svc = new ListingsService(prisma as never, search as never, {} as never);
@@ -189,7 +199,7 @@ describe('удаление лота', () => {
 describe('поднять все лоты раздела', () => {
   it('поднимает лоты, у которых прошёл кулдаун', async () => {
     const { svc, calls } = setup({ id: 'l1', boostUntil: new Date(Date.now() - 24 * HOUR) });
-    const r = await svc.bumpAll('s1', 'c1');
+    const r = await svc.bumpAll('s1', { categoryId: 'c1' });
     expect(r.bumped).toBe(1);
     expect(calls.updateMany).toHaveLength(1);
   });
@@ -203,5 +213,66 @@ describe('поднять все лоты раздела', () => {
     expect(r.nextInMinutes).toBeGreaterThan(200);
     expect(r.nextInMinutes).toBeLessThanOrEqual(210);
     expect(calls.updateMany).toHaveLength(0);
+  });
+});
+
+describe('выбранные лоты и отпуск', () => {
+  it('снять выбранные: только продающиеся, и это уже не «на время отпуска»', async () => {
+    const { svc, calls } = setup({ id: 'l1' });
+    const r = await svc.bulk('s1', ['l1', 'l2'], 'pause');
+    expect(r).toEqual({ done: 1, skipped: 1 });
+    expect(calls.updateMany[0]).toMatchObject({
+      where: { sellerId: 's1', status: 'active' },
+      data: { status: 'paused', pausedForAway: false },
+    });
+  });
+
+  it('вернуть выбранные: снятые и только с наличием', async () => {
+    const { svc, calls } = setup({ id: 'l1' });
+    await svc.bulk('s1', ['l1'], 'activate');
+    expect(calls.updateMany[0]).toMatchObject({
+      where: { status: { in: ['paused', 'draft'] }, OR: [{ stock: null }, { stock: { gt: 0 } }] },
+      data: { status: 'active' },
+    });
+  });
+
+  it('поднять выбранные — с кулдауном каждого лота', async () => {
+    const { svc, prisma } = setup({ id: 'l1', boostUntil: null });
+    const r = await svc.bulk('s1', ['l1'], 'bump');
+    expect(r.done).toBe(1);
+    expect(prisma.listing.findMany.mock.calls[0]).toMatchObject([{ where: { id: { in: ['l1'] }, status: 'active' } }]);
+  });
+
+  it('отпуск: продающиеся снимаются с пометкой, профиль помнит начало', async () => {
+    const { svc, calls, prisma } = setup({ id: 'l1' });
+    const r = await svc.setAway('s1', true);
+    expect(r.paused).toBe(1);
+    expect(prisma.profile.update.mock.calls[0]![0].data.awaySince).toBeInstanceOf(Date);
+    expect(calls.updateMany[0]).toMatchObject({ data: { status: 'paused', pausedForAway: true } });
+  });
+
+  it('повторное «в отпуск» не сдвигает дату начала', async () => {
+    const since = new Date('2026-10-10T10:00:00Z');
+    const { svc, prisma } = setup({ id: 'l1' }, { awaySince: since });
+    await svc.setAway('s1', true);
+    expect(prisma.profile.update.mock.calls[0]![0].data.awaySince).toBe(since);
+  });
+
+  it('возвращение: в продажу идут только снятые на время отпуска', async () => {
+    const { svc, calls, prisma } = setup({ id: 'l1' }, { awaySince: new Date() });
+    await svc.setAway('s1', false);
+    expect(prisma.profile.update.mock.calls[0]![0].data).toEqual({ awaySince: null });
+    expect(calls.updateMany[0]).toMatchObject({
+      where: { pausedForAway: true, status: 'paused', OR: [{ stock: null }, { stock: { gt: 0 } }] },
+      data: { status: 'active', pausedForAway: false },
+    });
+    // без наличия — закончившимся, а не в продажу
+    expect(calls.updateMany[1]).toMatchObject({ where: { stock: 0 }, data: { status: 'sold_out' } });
+  });
+
+  it('снять или вернуть лот вручную — пометка отпуска снимается', async () => {
+    const { svc, calls } = setup({ ...MINE, status: 'paused' });
+    await svc.update('s1', 'l1', { status: 'paused' });
+    expect(calls.update[0]).toMatchObject({ data: { status: 'paused', pausedForAway: false } });
   });
 });
