@@ -20,7 +20,11 @@ export async function uploadViaPresignedUrl(path: string, file: File): Promise<U
     body: JSON.stringify({ mime }),
   });
   // Не загрузилось — не создаём сообщение со ссылкой на пустоту.
-  const res = await fetch(up.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': mime } });
+  const res = await fetch(up.uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: { 'Content-Type': mime },
+  });
   if (!res.ok) throw new Error((await res.text().catch(() => '')) || `HTTP ${res.status}`);
   return { key: up.key, mime, size: file.size };
 }

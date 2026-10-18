@@ -49,7 +49,9 @@ export function TwoFactorCard() {
 
   const start = () =>
     act(async () => {
-      setSetup(await apiFetch<{ secret: string; qrSvg: string }>('/auth/2fa/setup', { method: 'POST' }));
+      setSetup(
+        await apiFetch<{ secret: string; qrSvg: string }>('/auth/2fa/setup', { method: 'POST' }),
+      );
       return null;
     }, 'Не удалось начать подключение.');
 
@@ -81,9 +83,12 @@ export function TwoFactorCard() {
     }, 'Код не подошёл.');
 
   function download(list: string[]) {
-    const blob = new Blob([`Резервные коды GameMarket — каждый работает один раз\n\n${list.join('\n')}\n`], {
-      type: 'text/plain;charset=utf-8',
-    });
+    const blob = new Blob(
+      [`Резервные коды GameMarket — каждый работает один раз\n\n${list.join('\n')}\n`],
+      {
+        type: 'text/plain;charset=utf-8',
+      },
+    );
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'gamemarket-reserve-codes.txt';
@@ -110,11 +115,16 @@ export function TwoFactorCard() {
         <ShieldCheck size={18} strokeWidth={1.75} /> Двухфакторная защита
       </h2>
       <p className="muted" style={{ fontSize: 14, margin: '8px 0 14px' }}>
-        При входе, кроме пароля, нужен код из приложения-аутентификатора: Google Authenticator, 1Password и похожих.
+        При входе, кроме пароля, нужен код из приложения-аутентификатора: Google Authenticator,
+        1Password и похожих.
       </p>
 
       {msg && (
-        <div className={msg.ok ? 'alert success' : 'alert error'} role={msg.ok ? 'status' : 'alert'} style={{ marginBottom: 14 }}>
+        <div
+          className={msg.ok ? 'alert success' : 'alert error'}
+          role={msg.ok ? 'status' : 'alert'}
+          style={{ marginBottom: 14 }}
+        >
           {msg.text}
         </div>
       )}
@@ -128,10 +138,15 @@ export function TwoFactorCard() {
             ))}
           </ol>
           <p className="hint" style={{ margin: 0 }}>
-            Сохраните их там, где нет телефона: в менеджере паролей или на бумаге. Больше мы их не покажем.
+            Сохраните их там, где нет телефона: в менеджере паролей или на бумаге. Больше мы их не
+            покажем.
           </p>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-            <button type="button" className="chip" onClick={() => void navigator.clipboard?.writeText(codes.join('\n'))}>
+            <button
+              type="button"
+              className="chip"
+              onClick={() => void navigator.clipboard?.writeText(codes.join('\n'))}
+            >
               <Copy size={14} strokeWidth={1.75} aria-hidden /> Скопировать
             </button>
             <button type="button" className="chip" onClick={() => download(codes)}>
@@ -146,23 +161,40 @@ export function TwoFactorCard() {
         <div className="stack-form" style={{ gap: 12 }}>
           <p style={{ margin: 0 }}>
             <span className="badge success">включена</span>{' '}
-            <span className={status.recoveryLeft <= 2 ? 'field-error' : 'faint'} style={{ fontSize: 13 }}>
+            <span
+              className={status.recoveryLeft <= 2 ? 'field-error' : 'faint'}
+              style={{ fontSize: 13 }}
+            >
               резервных кодов осталось: {status.recoveryLeft}
             </span>
           </p>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
             {codeInput('Код из приложения', 'Код из приложения')}
-            <button type="button" className="chip" disabled={busy || !code.trim()} onClick={() => void regenerate()}>
+            <button
+              type="button"
+              className="chip"
+              disabled={busy || !code.trim()}
+              onClick={() => void regenerate()}
+            >
               Новые резервные коды
             </button>
-            <button type="button" className="chip" disabled={busy || !code.trim()} onClick={() => void disable()}>
+            <button
+              type="button"
+              className="chip"
+              disabled={busy || !code.trim()}
+              onClick={() => void disable()}
+            >
               Отключить
             </button>
           </div>
         </div>
       ) : setup ? (
         <div className="two-factor-setup">
-          <div className="qr" aria-label="QR-код для приложения" dangerouslySetInnerHTML={{ __html: setup.qrSvg }} />
+          <div
+            className="qr"
+            aria-label="QR-код для приложения"
+            dangerouslySetInnerHTML={{ __html: setup.qrSvg }}
+          />
           <div className="stack-form" style={{ gap: 10, minWidth: 0 }}>
             <p style={{ margin: 0 }}>1. Отсканируйте QR-код в приложении-аутентификаторе.</p>
             <p className="hint" style={{ margin: 0 }}>
@@ -172,14 +204,24 @@ export function TwoFactorCard() {
             <p style={{ margin: 0 }}>2. Введите шесть цифр, которые покажет приложение.</p>
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
               {codeInput('Код из приложения', '123456')}
-              <button type="button" className="btn" disabled={busy || !code.trim()} onClick={() => void enable()}>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy || !code.trim()}
+                onClick={() => void enable()}
+              >
                 Включить
               </button>
             </div>
           </div>
         </div>
       ) : (
-        <button className="btn secondary" type="button" disabled={busy} onClick={() => void start()}>
+        <button
+          className="btn secondary"
+          type="button"
+          disabled={busy}
+          onClick={() => void start()}
+        >
           Подключить
         </button>
       )}

@@ -13,11 +13,15 @@ const RECOVERY_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
 
 /** «ABCDE FGHJK», «abcde-fghjk» → «abcdefghjk»: резервный код вводят как угодно. */
 export const normalizeRecovery = (code: string) => code.toLowerCase().replace(/[^a-z0-9]/g, '');
-const hashRecovery = (code: string) => createHash('sha256').update(normalizeRecovery(code)).digest('hex');
+const hashRecovery = (code: string) =>
+  createHash('sha256').update(normalizeRecovery(code)).digest('hex');
 
 export function newRecoveryCodes(n = RECOVERY_COUNT): string[] {
   return Array.from({ length: n }, () => {
-    const raw = Array.from({ length: 10 }, () => RECOVERY_ALPHABET[randomInt(RECOVERY_ALPHABET.length)]).join('');
+    const raw = Array.from(
+      { length: 10 },
+      () => RECOVERY_ALPHABET[randomInt(RECOVERY_ALPHABET.length)],
+    ).join('');
     return `${raw.slice(0, 5)}-${raw.slice(5)}`;
   });
 }
@@ -45,11 +49,19 @@ export class TwoFactorService {
     const secret = authenticator.generateSecret();
     await this.prisma.twoFactor.upsert({
       where: { userId },
-      update: { secretEnc: this.encryption.encrypt(secret), enabledAt: null, recoveryCodesEnc: null },
+      update: {
+        secretEnc: this.encryption.encrypt(secret),
+        enabledAt: null,
+        recoveryCodesEnc: null,
+      },
       create: { userId, secretEnc: this.encryption.encrypt(secret) },
     });
     const otpauth = authenticator.keyuri(username, 'GameMarket', secret);
-    const qrSvg = await QRCode.toString(otpauth, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' });
+    const qrSvg = await QRCode.toString(otpauth, {
+      type: 'svg',
+      margin: 0,
+      errorCorrectionLevel: 'M',
+    });
     return { otpauth, secret, qrSvg };
   }
 
@@ -63,7 +75,10 @@ export class TwoFactorService {
     const recoveryCodes = newRecoveryCodes();
     await this.prisma.twoFactor.update({
       where: { userId },
-      data: { enabledAt: new Date(), recoveryCodesEnc: this.sealCodes(recoveryCodes.map(hashRecovery)) },
+      data: {
+        enabledAt: new Date(),
+        recoveryCodesEnc: this.sealCodes(recoveryCodes.map(hashRecovery)),
+      },
     });
     return { ok: true, recoveryCodes };
   }
@@ -94,7 +109,10 @@ export class TwoFactorService {
 
   async status(userId: string) {
     const tf = await this.prisma.twoFactor.findUnique({ where: { userId } });
-    return { enabled: !!tf?.enabledAt, recoveryLeft: tf?.enabledAt ? this.openCodes(tf.recoveryCodesEnc).length : 0 };
+    return {
+      enabled: !!tf?.enabledAt,
+      recoveryLeft: tf?.enabledAt ? this.openCodes(tf.recoveryCodesEnc).length : 0,
+    };
   }
 
   async isEnabled(userId: string): Promise<boolean> {
@@ -112,7 +130,10 @@ export class TwoFactorService {
     if (this.attempts.wait(userId)) return 'locked';
 
     const totp = code.replace(/\s/g, '');
-    if (/^\d{6}$/.test(totp) && authenticator.verify({ token: totp, secret: this.encryption.decrypt(tf.secretEnc) })) {
+    if (
+      /^\d{6}$/.test(totp) &&
+      authenticator.verify({ token: totp, secret: this.encryption.decrypt(tf.secretEnc) })
+    ) {
       this.attempts.reset(userId);
       return 'ok';
     }
@@ -120,7 +141,10 @@ export class TwoFactorService {
     const hit = hashes.indexOf(hashRecovery(code));
     if (hit >= 0) {
       hashes.splice(hit, 1);
-      await this.prisma.twoFactor.update({ where: { userId }, data: { recoveryCodesEnc: this.sealCodes(hashes) } });
+      await this.prisma.twoFactor.update({
+        where: { userId },
+        data: { recoveryCodesEnc: this.sealCodes(hashes) },
+      });
       this.attempts.reset(userId);
       return 'ok';
     }
@@ -136,7 +160,10 @@ export class TwoFactorService {
         : result === 'invalid'
           ? [401, 'Код не подошёл. Проверьте время на телефоне или введите резервный код']
           : [429, 'Слишком много неверных кодов. Попробуйте через 15 минут'];
-    return new HttpException({ statusCode: status, message, error: `two_factor_${result}` }, status);
+    return new HttpException(
+      { statusCode: status, message, error: `two_factor_${result}` },
+      status,
+    );
   }
 
   private sealCodes(hashes: string[]): string {

@@ -34,7 +34,8 @@ const MIME: Record<string, string> = {
 /** Больше — не вложение, а повод перейти на S3. */
 const MAX_UPLOAD = 15 * 1024 * 1024;
 
-const mimeOf = (key: string) => MIME[key.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream';
+const mimeOf = (key: string) =>
+  MIME[key.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream';
 
 /**
  * Файл отдаётся с адреса API, где живёт cookie входа: загруженный HTML или
@@ -47,7 +48,10 @@ function sendFile(res: Response, key: string, bytes: Buffer, cache: string) {
   res.setHeader('Content-Type', mime);
   res.setHeader('Content-Disposition', inline ? 'inline' : 'attachment');
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'");
+  res.setHeader(
+    'Content-Security-Policy',
+    "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'",
+  );
   res.setHeader('Cache-Control', cache);
   res.send(bytes);
 }
@@ -79,7 +83,8 @@ export class AssetsController {
     @Query('sig') sig: string,
     @Res() res: Response,
   ) {
-    if (!this.storage.verifyLocal('file', key, exp, sig)) throw new ForbiddenException('Ссылка недействительна');
+    if (!this.storage.verifyLocal('file', key, exp, sig))
+      throw new ForbiddenException('Ссылка недействительна');
     const bytes = await this.storage.getBytes(key).catch(() => null);
     if (!bytes) throw new NotFoundException();
     sendFile(res, key, bytes, 'private, max-age=3600');
@@ -94,7 +99,8 @@ export class AssetsController {
     @Query('sig') sig: string,
     @Req() req: Request,
   ) {
-    if (!this.storage.verifyLocal('upload', key, exp, sig)) throw new ForbiddenException('Ссылка недействительна');
+    if (!this.storage.verifyLocal('upload', key, exp, sig))
+      throw new ForbiddenException('Ссылка недействительна');
     // JSON и формы разбирает общий парсер — файлом они не придут.
     if (req.readableEnded) throw new UnsupportedMediaTypeException('Этот тип файла не загрузить');
     const chunks: Buffer[] = [];

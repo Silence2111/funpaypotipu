@@ -29,7 +29,9 @@ export function CabinetNav() {
   const links = isStaff(user) ? [...LINKS, { href: '/admin', label: 'Консоль' }] : LINKS;
 
   useEffect(() => {
-    nav.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    nav.current
+      ?.querySelector('[aria-current="page"]')
+      ?.scrollIntoView({ inline: 'center', block: 'nearest' });
   }, [path]);
 
   return (

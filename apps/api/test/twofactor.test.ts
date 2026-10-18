@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { authenticator } from 'otplib';
 import { AttemptLimiter } from '../src/modules/auth/attempts';
-import { TwoFactorService, newRecoveryCodes, normalizeRecovery } from '../src/modules/auth/twofactor.service';
+import {
+  TwoFactorService,
+  newRecoveryCodes,
+  normalizeRecovery,
+} from '../src/modules/auth/twofactor.service';
 
 /**
  * Вход с кодом из приложения. Раньше форма входа не спрашивала код вовсе:
@@ -62,7 +66,9 @@ describe('вход с кодом из приложения', () => {
   });
 
   it('ошибки входа различимы для формы', () => {
-    expect(TwoFactorService.loginError('required').getResponse()).toMatchObject({ error: 'two_factor_required' });
+    expect(TwoFactorService.loginError('required').getResponse()).toMatchObject({
+      error: 'two_factor_required',
+    });
     expect(TwoFactorService.loginError('locked').getStatus()).toBe(429);
   });
 });

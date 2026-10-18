@@ -25,7 +25,9 @@ export function MobileBuyBar({
   useEffect(() => {
     const el = document.querySelector(target);
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => setShow(!e!.isIntersecting && e!.boundingClientRect.top < 0));
+    const io = new IntersectionObserver(([e]) =>
+      setShow(!e!.isIntersecting && e!.boundingClientRect.top < 0),
+    );
     io.observe(el);
     return () => io.disconnect();
   }, [target]);
@@ -40,7 +42,9 @@ export function MobileBuyBar({
       <button
         type="button"
         className="btn"
-        onClick={() => document.querySelector(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        onClick={() =>
+          document.querySelector(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
       >
         {label}
       </button>

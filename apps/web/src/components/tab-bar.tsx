@@ -36,7 +36,8 @@ export function TabBar() {
       el instanceof HTMLElement &&
       (el.tagName === 'TEXTAREA' ||
         el.tagName === 'SELECT' ||
-        (el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit'].includes((el as HTMLInputElement).type)));
+        (el.tagName === 'INPUT' &&
+          !['checkbox', 'radio', 'button', 'submit'].includes((el as HTMLInputElement).type)));
     const onIn = (e: FocusEvent) => {
       if (typing(e.target)) document.documentElement.dataset.typing = 'true';
     };
@@ -51,7 +52,8 @@ export function TabBar() {
 
   if (FULLSCREEN.some((r) => r.test(pathname))) return null;
 
-  const at = (...prefixes: string[]) => prefixes.some((p) => (p === '/' ? pathname === '/' : pathname.startsWith(p)));
+  const at = (...prefixes: string[]) =>
+    prefixes.some((p) => (p === '/' ? pathname === '/' : pathname.startsWith(p)));
   const current = (on: boolean) => (on ? ('page' as const) : undefined);
   const unread = sum?.unreadMessages ?? 0;
   const waiting = waitingCount(sum);
@@ -63,7 +65,11 @@ export function TabBar() {
           <House size={22} strokeWidth={1.75} aria-hidden />
           <span>Главная</span>
         </Link>
-        <Link href="/igry" className="tab-item" aria-current={current(at('/igry', '/igra', '/catalog', '/lot'))}>
+        <Link
+          href="/igry"
+          className="tab-item"
+          aria-current={current(at('/igry', '/igra', '/catalog', '/lot'))}
+        >
           <LayoutGrid size={22} strokeWidth={1.75} aria-hidden />
           <span>Каталог</span>
         </Link>
@@ -87,7 +93,11 @@ export function TabBar() {
             className="tab-item"
             aria-haspopup="dialog"
             aria-expanded={sheet}
-            data-active={at('/cabinet', '/orders', `/prodavec/${user.id}`) && !at('/cabinet/new') ? 'true' : undefined}
+            data-active={
+              at('/cabinet', '/orders', `/prodavec/${user.id}`) && !at('/cabinet/new')
+                ? 'true'
+                : undefined
+            }
             aria-label={waiting ? `Профиль: ${waiting} ждут действия` : 'Профиль'}
             onClick={() => setSheet(true)}
           >
@@ -96,7 +106,11 @@ export function TabBar() {
             {waiting > 0 && <span className="notif-badge tab-badge">{badge(waiting)}</span>}
           </button>
         ) : (
-          <Link href="/login" className="tab-item" aria-current={current(at('/login', '/register'))}>
+          <Link
+            href="/login"
+            className="tab-item"
+            aria-current={current(at('/login', '/register'))}
+          >
             <UserRound size={22} strokeWidth={1.75} aria-hidden />
             <span>Войти</span>
           </Link>
@@ -108,7 +122,15 @@ export function TabBar() {
 }
 
 /** Шторка профиля: пункты меню шапки и тема. */
-function ProfileSheet({ user, sum, onClose }: { user: SessionUser; sum: Summary | null; onClose: () => void }) {
+function ProfileSheet({
+  user,
+  sum,
+  onClose,
+}: {
+  user: SessionUser;
+  sum: Summary | null;
+  onClose: () => void;
+}) {
   const [theme, toggleTheme] = useTheme();
   return (
     <BottomSheet label="Профиль" onClose={onClose}>

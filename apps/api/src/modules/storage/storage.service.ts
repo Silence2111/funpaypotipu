@@ -27,7 +27,9 @@ export class StorageService implements OnModuleInit {
   private dir: string | null = null;
   // Ключ подписи ссылок диска; без настроек — случайный на время работы процесса.
   private readonly signingKey =
-    process.env.STORAGE_SIGNING_SECRET ?? process.env.DATA_ENCRYPTION_KEY ?? randomBytes(32).toString('hex');
+    process.env.STORAGE_SIGNING_SECRET ??
+    process.env.DATA_ENCRYPTION_KEY ??
+    randomBytes(32).toString('hex');
 
   constructor() {
     const endpoint = process.env.S3_ENDPOINT;
@@ -138,7 +140,9 @@ export class StorageService implements OnModuleInit {
   }
 
   private sign(op: string, key: string, exp: string): string {
-    return createHmac('sha256', this.signingKey).update(`${op}\n${key}\n${exp}`).digest('base64url');
+    return createHmac('sha256', this.signingKey)
+      .update(`${op}\n${key}\n${exp}`)
+      .digest('base64url');
   }
 
   /** Путь файла внутри папки хранилища; ключ с выходом за её пределы — ошибка. */

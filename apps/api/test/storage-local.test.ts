@@ -24,7 +24,12 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 const parts = (url: string) => {
   const u = new URL(url, 'http://x');
-  return { path: u.pathname, key: u.searchParams.get('key')!, exp: u.searchParams.get('exp')!, sig: u.searchParams.get('sig')! };
+  return {
+    path: u.pathname,
+    key: u.searchParams.get('key')!,
+    exp: u.searchParams.get('exp')!,
+    sig: u.searchParams.get('sig')!,
+  };
 };
 
 describe('хранилище на диске', () => {
@@ -45,7 +50,9 @@ describe('хранилище на диске', () => {
     expect(storage.verifyLocal('upload', put.key, put.exp, put.sig)).toBe(true);
     expect(storage.verifyLocal('file', put.key, put.exp, put.sig)).toBe(false);
     expect(storage.verifyLocal('upload', 'chat/c1/other.png', put.exp, put.sig)).toBe(false);
-    expect(storage.verifyLocal('upload', put.key, String(Number(put.exp) + 60), put.sig)).toBe(false);
+    expect(storage.verifyLocal('upload', put.key, String(Number(put.exp) + 60), put.sig)).toBe(
+      false,
+    );
   });
 
   it('истёкшая ссылка не проходит', async () => {
@@ -54,7 +61,9 @@ describe('хранилище на диске', () => {
   });
 
   it('ключ не выводит за пределы папки', async () => {
-    await expect(storage.put('chat/../../etc/passwd', Buffer.from('x'), 'text/plain')).rejects.toThrow();
+    await expect(
+      storage.put('chat/../../etc/passwd', Buffer.from('x'), 'text/plain'),
+    ).rejects.toThrow();
     await expect(storage.getBytes('/etc/passwd')).rejects.toThrow();
     expect(storage.verifyLocal('file', 'chat/../x', String(Date.now()), 'sig')).toBe(false);
   });
