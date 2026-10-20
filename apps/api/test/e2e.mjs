@@ -947,6 +947,7 @@ async function scenarioYooKassa(rnd) {
   const base = 'http://localhost:4100';
   const yk = await startYooKassaMock('http://localhost:4998/v3', { shopId: 'e2e-shop', secretKey: 'e2e-secret' });
   yk.notifyTo(`${base}/api/payments/webhook/yookassa`);
+  yk.notifyPayoutsTo(`${base}/api/payouts/webhook/yookassa`);
   const child = spawn(process.execPath, [fileURLToPath(new URL('../dist/main.js', import.meta.url))], {
     env: {
       ...process.env,
@@ -956,6 +957,10 @@ async function scenarioYooKassa(rnd) {
       YOOKASSA_SHOP_ID: 'e2e-shop',
       YOOKASSA_SECRET_KEY: 'e2e-secret',
       YOOKASSA_API_URL: 'http://localhost:4998/v3',
+      PAYOUT_PROVIDER: 'yookassa',
+      YOOKASSA_PAYOUT_AGENT_ID: 'e2e-agent',
+      YOOKASSA_PAYOUT_SECRET_KEY: 'e2e-agent-secret',
+      PAYOUT_SWEEP_INTERVAL_MS: '3600000',
       WEB_URL: 'http://localhost:3000',
       ORDER_SWEEP_INTERVAL_MS: '3600000',
       SKIP_DOTENV: '1',
@@ -985,7 +990,7 @@ async function scenarioYooKassa(rnd) {
         method: 'POST',
         body: JSON.stringify({ email: `${p}${rnd}@e2e.local`, password: 'password123', username: `${p}${rnd}` }),
       });
-      return { token: r.body.accessToken };
+      return { token: r.body.accessToken, id: r.body.user?.id };
     };
     const seller = await reg('yks');
     const buyer = await reg('ykb');
@@ -1065,6 +1070,54 @@ async function scenarioYooKassa(rnd) {
       top.body.redirect === true && pt.confirmation.return_url.endsWith('/cabinet?topup=1') && wallet.body.balance === '50000',
       wallet.body.balance,
     );
+
+    // ── Выплаты продавцу через ЮKassa ──
+    await k(`/orders/${o1.id}/deliver`, { method: 'POST', token: seller.token });
+    await k(`/orders/${o1.id}/confirm`, { method: 'POST', token: buyer.token });
+    const fin = await reg('ykf');
+    await grant(fin.id, 'finance');
+    const balance = async () => (await k('/wallet', { token: seller.token })).body.balance;
+    const methods = (await k('/payouts/methods', { token: seller.token })).body;
+    const banks = (await k('/payouts/sbp-banks', { token: seller.token })).body;
+    check(
+      'Вывод: СБП и ЮMoney — автоматически, карта — вручную; банки СБП от ЮKassa',
+      methods.find((m) => m.key === 'sbp')?.auto === true && methods.find((m) => m.key === 'card')?.auto === false &&
+        banks.some((b) => b.id === '100000000111'),
+      `${await balance()}`,
+    );
+    const ask = (body) => k('/payouts', { method: 'POST', token: seller.token, body: JSON.stringify(body) });
+    const noBank = await ask({ amount: '50000', method: 'sbp', destination: '+7 900 123-45-67' });
+    check('СБП без банка не принимается', noBank.status === 400, noBank.body.message);
+    const sbp = await ask({ amount: '50000', method: 'sbp', destination: '+7 900 123-45-67', bankId: '100000000111' });
+    const approve = (id) => k(`/payouts/${id}/approve`, { method: 'POST', token: fin.token, body: '{}' });
+    const sent = await approve(sbp.body.id);
+    const po = [...yk.payouts.values()].find((p) => p.metadata?.payoutId === sbp.body.id);
+    check(
+      'Одобрено — выплата ушла в ЮKassa: на руки без комиссии, телефон и банк; статус «отправляется»',
+      sent.body.status === 'processing' && po?.amount.value === '475.00' && po.payout_destination.phone === '79001234567' &&
+        po.payout_destination.bank_id === '100000000111',
+      JSON.stringify({ status: sent.body.status, amount: po?.amount }),
+    );
+    const twice = await approve(sbp.body.id);
+    check('Повторное одобрение — отказ, вторая выплата не уходит', twice.status === 409 && yk.payouts.size === 1);
+    await yk.settlePayout(po.id, 'succeeded');
+    const mine = async (id) => (await k('/payouts/mine', { token: seller.token })).body.find((p) => p.id === id);
+    check('ЮKassa подтвердила — «выплачено»', (await mine(sbp.body.id))?.status === 'paid');
+
+    const ym = await ask({ amount: '40000', method: 'yoomoney', destination: '4100 1234 5678 901' });
+    await approve(ym.body.id);
+    const before = await balance();
+    const pym = [...yk.payouts.values()].find((p) => p.metadata?.payoutId === ym.body.id);
+    await yk.settlePayout(pym.id, 'canceled', { reason: 'rejected_by_payee' });
+    const back = await mine(ym.body.id);
+    check(
+      'ЮKassa отменила — деньги вернулись на баланс, причина в заявке',
+      back?.status === 'rejected' && back.failureReason === 'rejected_by_payee' && BigInt(await balance()) === BigInt(before) + 40000n,
+      `${before} → ${await balance()}`,
+    );
+    const card = await ask({ amount: '30000', method: 'card', destination: '4111111111111111' });
+    const manual = await approve(card.body.id);
+    check('Карта — вручную: одобрение сразу «выплачено», в ЮKassa не уходит', manual.body.status === 'paid' && yk.payouts.size === 2);
   } finally {
     child.kill();
     yk.close();

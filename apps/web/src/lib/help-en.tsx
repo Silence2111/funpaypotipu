@@ -327,6 +327,10 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           If you haven’t made any sales yet, a withdrawal waits {days(c.newbieHoldDays)} — this is
           how the marketplace protects against money laundering through top-ups.
         </li>
+        <li>
+          The request’s status is under the withdrawal form: being checked, being sent, paid out. If
+          the transfer doesn’t go through, the money returns to your balance.
+        </li>
       </ul>
     </>
   ),

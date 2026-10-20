@@ -41,13 +41,25 @@ export function TabBar() {
         el.tagName === 'SELECT' ||
         (el.tagName === 'INPUT' &&
           !['checkbox', 'radio', 'button', 'submit'].includes((el as HTMLInputElement).type)));
+    // Панель возвращается с задержкой: нажатие на кнопку у нижнего края
+    // уводит фокус из поля, и мгновенно вернувшаяся панель оказывалась под
+    // пальцем и забирала нажатие — кнопку приходилось жать дважды.
+    let back: ReturnType<typeof setTimeout> | undefined;
     const onIn = (e: FocusEvent) => {
-      if (typing(e.target)) document.documentElement.dataset.typing = 'true';
+      if (!typing(e.target)) return;
+      clearTimeout(back);
+      document.documentElement.dataset.typing = 'true';
     };
-    const onOut = () => delete document.documentElement.dataset.typing;
+    const onOut = () => {
+      clearTimeout(back);
+      back = setTimeout(() => {
+        if (!typing(document.activeElement)) delete document.documentElement.dataset.typing;
+      }, 300);
+    };
     document.addEventListener('focusin', onIn);
     document.addEventListener('focusout', onOut);
     return () => {
+      clearTimeout(back);
       document.removeEventListener('focusin', onIn);
       document.removeEventListener('focusout', onOut);
     };

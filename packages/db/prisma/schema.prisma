@@ -625,6 +625,10 @@ model Payout {
   status         PayoutStatus @default(requested)
   holdUntil      DateTime?    @map("hold_until")
   approvedBy     String?      @map("approved_by") @db.Uuid
+  // Номер выплаты у шлюза (у ЮKassa — id выплаты): сверка и поиск в кабинете.
+  externalId     String?      @map("external_id")
+  // Почему шлюз не выплатил — показать продавцу и сотруднику.
+  failureReason  String?      @map("failure_reason")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 

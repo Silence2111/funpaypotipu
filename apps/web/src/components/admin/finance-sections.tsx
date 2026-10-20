@@ -7,7 +7,15 @@ import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
 import { Empty, when } from './shared';
 
-interface Payout { id: string; amount: string; currency: string; method: string; status: string; createdAt?: string }
+interface Payout {
+  id: string;
+  amount: string;
+  currency: string;
+  method: string;
+  status: string;
+  createdAt?: string;
+  externalId?: string | null;
+}
 interface Kyc {
   id: string;
   userId: string;
@@ -18,14 +26,27 @@ interface Kyc {
   files?: Array<{ kind: 'document' | 'selfie'; pdf: boolean; url: string }>;
 }
 
-const METHOD: Record<string, string> = { card: 'на карту', sbp: 'по СБП', crypto: 'в USDT' };
+const METHOD: Record<string, string> = { card: 'на карту', sbp: 'по СБП', yoomoney: 'на ЮMoney', usdt: 'в USDT' };
 
-/** Заявки на вывод: одобрить или отклонить — деньги двигает API с ролью «финансы». */
+/**
+ * Заявки на вывод: одобрить или отклонить — деньги двигает API с ролью
+ * «финансы». Способы, которые выплачивает ЮKassa, уходят сами после
+ * одобрения и висят в «Отправляются», пока шлюз не подтвердит; остальные
+ * переводятся вручную — одобрение значит «перевёл».
+ */
 export function PayoutsSection() {
   const [rows, setRows] = useState<Payout[] | null>(null);
+  const [sending, setSending] = useState<Payout[]>([]);
+  const [auto, setAuto] = useState<Record<string, boolean>>({});
   const [err, setErr] = useState<string | null>(null);
   const load = useCallback(async () => {
     setRows(await apiFetch<Payout[]>('/payouts?status=requested').catch(() => []));
+    setSending(await apiFetch<Payout[]>('/payouts?status=processing').catch(() => []));
+  }, []);
+  useEffect(() => {
+    apiFetch<Array<{ key: string; auto?: boolean }>>('/payouts/methods')
+      .then((m) => setAuto(Object.fromEntries(m.map((x) => [x.key, !!x.auto]))))
+      .catch(() => {});
   }, []);
   useEffect(() => {
     void load();
@@ -52,14 +73,37 @@ export function PayoutsSection() {
           <div key={p.id} className="card row" style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
             <span>
               <span className="price" style={{ fontSize: 16 }}>{formatPrice(p.amount, p.currency)}</span>{' '}
-              <span className="faint" style={{ fontSize: 13 }}>{METHOD[p.method] ?? p.method}{p.createdAt ? ` · ${when(p.createdAt)}` : ''}</span>
+              <span className="faint" style={{ fontSize: 13 }}>
+                {METHOD[p.method] ?? p.method}
+                {auto[p.method] ? ' · через ЮKassa' : ' · вручную'}
+                {p.createdAt ? ` · ${when(p.createdAt)}` : ''}
+              </span>
             </span>
             <span className="row" style={{ gap: 8 }}>
-              <button className="btn" onClick={() => void act(p.id, 'approve')} type="button">Одобрить</button>
+              <button className="btn" onClick={() => void act(p.id, 'approve')} type="button">
+                {auto[p.method] ? 'Отправить' : 'Одобрить'}
+              </button>
               <button className="chip" onClick={() => void act(p.id, 'reject')} type="button">Отклонить</button>
             </span>
           </div>
         ))
+      )}
+      {sending.length > 0 && (
+        <>
+          <h3 className="h2" style={{ fontSize: 16, marginTop: 12 }}>Отправляются через ЮKassa</h3>
+          {sending.map((p) => (
+            <div key={p.id} className="card row" style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
+              <span>
+                <span className="price" style={{ fontSize: 16 }}>{formatPrice(p.amount, p.currency)}</span>{' '}
+                <span className="faint" style={{ fontSize: 13 }}>
+                  {METHOD[p.method] ?? p.method}
+                  {p.externalId ? ` · ${p.externalId}` : ''}
+                </span>
+              </span>
+              <span className="faint" style={{ fontSize: 13 }}>ждём подтверждения ЮKassa</span>
+            </div>
+          ))}
+        </>
       )}
     </section>
   );

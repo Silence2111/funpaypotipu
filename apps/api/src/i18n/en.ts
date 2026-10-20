@@ -184,6 +184,16 @@ export const EN_API: Phrasebook = {
   'Платёжный провайдер "{key}" не найден': 'Payment provider "{key}" not found',
 
   // Баланс и вывод
+  'Телефон для СБП — российский номер, например +7 900 000-00-00':
+    'The SBP phone must be a Russian number, for example +7 900 000-00-00',
+  'Выберите банк, в который придёт перевод по СБП':
+    'Choose the bank that will receive the SBP transfer',
+  'Номер кошелька ЮMoney — от 11 до 20 цифр': 'A YooMoney wallet number has 11 to 20 digits',
+  'Реквизиты заявки не подходят для автоматической выплаты — отклоните её':
+    'The request’s details don’t fit an automatic payout — reject it',
+  'Платёжный шлюз не принял выплату. Попробуйте ещё раз.':
+    'The payment gateway didn’t accept the payout. Try again.',
+  'Сумма выплаты не совпадает с заявкой': 'The payout amount doesn’t match the request',
   'Недостаточно средств на балансе': 'Insufficient balance',
   'Неизвестный способ вывода': 'Unknown withdrawal method',
   'Минимальная сумма вывода для «{method}» — {sum} ₽':

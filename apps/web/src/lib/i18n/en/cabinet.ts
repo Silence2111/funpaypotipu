@@ -131,4 +131,17 @@ export const CABINET: Record<string, string> = {
   'Вопрос решён': 'Issue resolved',
   'Пополнение зачислится, как только банк подтвердит оплату, — обычно за несколько секунд.':
     'The top-up will be credited as soon as the bank confirms the payment — usually within a few seconds.',
+  'Телефон, +7 900 000-00-00': 'Phone, +7 900 000-00-00',
+  'Номер карты': 'Card number',
+  'Номер кошелька ЮMoney': 'YooMoney wallet number',
+  'Адрес кошелька USDT (TRC20)': 'USDT wallet address (TRC20)',
+  отправляется: 'being sent',
+  выплачено: 'paid out',
+  'отклонена, деньги на балансе': 'rejected, money back on balance',
+  'Выберите банк для перевода по СБП': 'Choose a bank for the SBP transfer',
+  'Банк для СБП': 'Bank for SBP',
+  'Банк получателя': 'Recipient’s bank',
+  'Деньги придут автоматически через ЮKassa после проверки заявки.':
+    'The money will arrive automatically via YooKassa once the request is checked.',
+  'Заявки на вывод': 'Withdrawal requests',
 };
