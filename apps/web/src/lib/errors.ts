@@ -21,3 +21,19 @@ export function apiErrorMessage(e: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+/** Тело ошибки API целиком: код ошибки и подсказки вроде предложенного ника. */
+export function errorBody(
+  e: unknown,
+): { error?: string; message?: string; [k: string]: unknown } | null {
+  try {
+    return JSON.parse(e instanceof Error ? e.message : '') as { error?: string };
+  } catch {
+    return null;
+  }
+}
+
+/** Код ошибки из тела ответа: two_factor_required, too_many_attempts… */
+export function errorCode(e: unknown): string | null {
+  return errorBody(e)?.error ?? null;
+}

@@ -4,7 +4,8 @@ import { Suspense, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch, setSession, type SessionUser } from '@/lib/session';
-import { apiErrorMessage } from '@/lib/errors';
+import { apiErrorMessage, errorCode } from '@/lib/errors';
+import { SocialLogin } from '@/components/social-login';
 
 interface AuthResponse {
   user: SessionUser;
@@ -13,14 +14,15 @@ interface AuthResponse {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Код ошибки входа из тела ответа: two_factor_required, too_many_attempts… */
-function errorCode(e: unknown): string | null {
-  try {
-    return (JSON.parse(e instanceof Error ? e.message : '') as { error?: string }).error ?? null;
-  } catch {
-    return null;
-  }
-}
+/** Почему не получился вход через сервис — код из адреса возврата API. */
+const SOCIAL_ERRORS: Record<string, string> = {
+  expired: 'Вход через сервис занял больше 10 минут. Начните заново.',
+  state: 'Вход начали в другой вкладке или браузере. Начните заново здесь.',
+  cancelled: 'Вход отменён в сервисе.',
+  provider: 'Сервис не подтвердил вход. Попробуйте ещё раз или войдите по почте.',
+  network: 'Сервис не ответил. Попробуйте ещё раз или войдите по почте.',
+  disabled: 'Этот способ входа сейчас недоступен.',
+};
 
 /** Куда вернуть после входа: только свой путь, не внешний адрес. */
 function safeNext(raw: string | null, fallback: string) {
@@ -46,7 +48,10 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const socialError = params.get('social_error');
+  const [error, setError] = useState<string | null>(
+    socialError ? (SOCIAL_ERRORS[socialError] ?? SOCIAL_ERRORS.disabled!) : null,
+  );
   const [busy, setBusy] = useState(false);
   // Второй шаг входа: код из приложения или резервный.
   const [codeStep, setCodeStep] = useState(false);
@@ -195,6 +200,7 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
           </button>
         )}
       </form>
+      {!codeStep && <SocialLogin next={next} />}
       <p className="muted" style={{ fontSize: 14, marginTop: 20, textAlign: 'center' }}>
         {isRegister ? (
           <>Уже есть аккаунт? <Link href={`/login${q}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>Войти</Link></>

@@ -61,6 +61,11 @@ jobs:
       API_URL: http://localhost:4000
       # Таймеры сделок раз в 2 с: e2e проверяет, что фоновая задача снимает истёкшее продвижение.
       ORDER_SWEEP_INTERVAL_MS: 2000
+      # Вход через Google и VK ID — против тестового сервера из e2e (apps/api/test/oauth-mock.mjs).
+      OAUTH_TEST_ISSUER: http://localhost:4999
+      GOOGLE_CLIENT_ID: ci-google
+      GOOGLE_CLIENT_SECRET: ci-google-secret
+      VK_CLIENT_ID: ci-vk
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

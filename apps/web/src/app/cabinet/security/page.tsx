@@ -1,13 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { KeyRound, MonitorSmartphone } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { TwoFactorCard } from '@/components/two-factor-card';
 import { KycCard } from '@/components/kyc-card';
+import { SocialAccounts, type LoginWays } from '@/components/social-accounts';
 
 interface Session {
   id: string;
@@ -31,10 +32,27 @@ function deviceOf(ua: string | null): string {
 const when = (iso: string) =>
   new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
-/** Безопасность: пароль, где выполнен вход, двухфакторная защита, проверка личности. */
+/** Чем закончилось подключение Google или VK — адрес возврата от API. */
+const LINKED: Record<string, { ok: boolean; text: string }> = {
+  linked: { ok: true, text: 'Сервис подключён: теперь можно входить через него.' },
+  conflict: { ok: false, text: 'Этот аккаунт сервиса уже привязан к другому пользователю площадки.' },
+  error: { ok: false, text: 'Не удалось подключить сервис. Попробуйте ещё раз.' },
+};
+
+/** Безопасность: пароль, вход через сервисы, где выполнен вход, двухфакторная защита, проверка личности. */
 export default function SecurityPage() {
+  return (
+    <Suspense fallback={null}>
+      <Security />
+    </Suspense>
+  );
+}
+
+function Security() {
   const router = useRouter();
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const linked = useSearchParams().get('social');
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(linked ? (LINKED[linked] ?? null) : null);
+  const [ways, setWays] = useState<LoginWays | null>(null);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,6 +60,7 @@ export default function SecurityPage() {
 
   const load = useCallback(async () => {
     setSessions(await apiFetch<Session[]>('/auth/sessions').catch(() => []));
+    setWays(await apiFetch<LoginWays>('/auth/social/accounts').catch(() => null));
   }, []);
 
   useEffect(() => {
@@ -65,16 +84,20 @@ export default function SecurityPage() {
     }
   }
 
+  // Аккаунт из Telegram, VK или Google: пароля нет, его задают без текущего.
+  const firstPassword = ways !== null && !ways.hasPassword;
+
   function changePassword(e: FormEvent) {
     e.preventDefault();
     if (next.length < 8) return setMsg({ ok: false, text: 'Новый пароль — от 8 символов' });
     void run(async () => {
       const r = await apiFetch<{ closedSessions: number }>('/auth/password', {
         method: 'POST',
-        body: JSON.stringify({ current, next }),
+        body: JSON.stringify(firstPassword ? { next } : { current, next }),
       });
       setCurrent('');
       setNext('');
+      if (firstPassword) return 'Пароль задан: теперь можно входить и по почте с паролем.';
       return r.closedSessions
         ? `Пароль изменён. Другие устройства вышли из аккаунта: ${r.closedSessions}.`
         : 'Пароль изменён.';
@@ -102,23 +125,42 @@ export default function SecurityPage() {
         <h2 className="h2 row" style={{ fontSize: 18, gap: 8 }}>
           <KeyRound size={18} strokeWidth={1.75} /> Пароль
         </h2>
-        <form onSubmit={changePassword} className="stack-form" style={{ gap: 14, marginTop: 14 }}>
-          <div className="field">
-            <label className="label" htmlFor="pwd-current">Текущий пароль</label>
-            <input id="pwd-current" className="input" type="password" autoComplete="current-password"
-              value={current} onChange={(e) => setCurrent(e.target.value)} />
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="pwd-next">Новый пароль</label>
-            <input id="pwd-next" className="input" type="password" autoComplete="new-password"
-              value={next} onChange={(e) => setNext(e.target.value)} />
-            <p className="hint">От 8 символов. Другие устройства выйдут из аккаунта сразу.</p>
-          </div>
-          <div>
-            <button className="btn" type="submit" disabled={busy || !current || !next}>Сменить пароль</button>
-          </div>
-        </form>
+        {firstPassword && !ways?.email ? (
+          <p className="muted" style={{ fontSize: 14, margin: '10px 0 0' }}>
+            Вход по паролю — это почта и пароль, а у аккаунта нет почты: он заведён через сервис. Подключите второй
+            сервис ниже, чтобы не зависеть от одного.
+          </p>
+        ) : (
+          <form onSubmit={changePassword} className="stack-form" style={{ gap: 14, marginTop: 14 }}>
+            {firstPassword ? (
+              <p className="muted" style={{ fontSize: 14, margin: 0 }}>
+                Пароля нет — аккаунт заведён через сервис. Задайте пароль, чтобы входить и по почте {ways?.email}.
+              </p>
+            ) : (
+              <div className="field">
+                <label className="label" htmlFor="pwd-current">Текущий пароль</label>
+                <input id="pwd-current" className="input" type="password" autoComplete="current-password"
+                  value={current} onChange={(e) => setCurrent(e.target.value)} />
+              </div>
+            )}
+            <div className="field">
+              <label className="label" htmlFor="pwd-next">{firstPassword ? 'Пароль' : 'Новый пароль'}</label>
+              <input id="pwd-next" className="input" type="password" autoComplete="new-password"
+                value={next} onChange={(e) => setNext(e.target.value)} />
+              <p className="hint">
+                {firstPassword ? 'От 8 символов.' : 'От 8 символов. Другие устройства выйдут из аккаунта сразу.'}
+              </p>
+            </div>
+            <div>
+              <button className="btn" type="submit" disabled={busy || (!firstPassword && !current) || !next}>
+                {firstPassword ? 'Задать пароль' : 'Сменить пароль'}
+              </button>
+            </div>
+          </form>
+        )}
       </section>
+
+      {ways && <SocialAccounts ways={ways} onChange={setWays} />}
 
       <section className="card" style={{ padding: 24, maxWidth: 600 }}>
         <div className="row" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>

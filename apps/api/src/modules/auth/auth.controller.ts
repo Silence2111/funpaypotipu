@@ -20,7 +20,8 @@ import {
 } from '@gamemarket/shared';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
-import { AuthService, type IssuedAuth, type RequestCtx } from './auth.service';
+import { AuthService } from './auth.service';
+import { REFRESH_COOKIE, REFRESH_PATH, completeLogin, ctxOf } from './auth-http';
 import { TwoFactorService } from './twofactor.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser, type AuthUser } from './current-user.decorator';
@@ -28,13 +29,11 @@ import { CurrentUser, type AuthUser } from './current-user.decorator';
 // Код из приложения — 6 цифр, резервный — «abcde-fghjk».
 const codeSchema = z.object({ code: z.string().trim().min(6).max(20) });
 const passwordSchema = z.object({
-  current: z.string().min(1, 'Введите текущий пароль'),
+  // Нет у аккаунта, заведённого через сервис: там пароль задают впервые.
+  current: z.string().optional(),
   // Те же правила, что при регистрации.
   next: z.string().min(8, 'Новый пароль — от 8 символов').max(128),
 });
-
-const REFRESH_COOKIE = 'refresh_token';
-const REFRESH_PATH = '/api/auth';
 
 @Controller('auth')
 export class AuthController {
@@ -116,7 +115,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   changePassword(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(passwordSchema)) body: { current: string; next: string },
+    @Body(new ZodValidationPipe(passwordSchema)) body: { current?: string; next: string },
   ) {
     return this.auth.changePassword(user.userId, body.current, body.next, user.sessionFamily);
   }
@@ -189,23 +188,5 @@ export class AuthController {
     return this.twoFactor.regenerate(user.userId, body.code);
   }
 
-  /** Refresh — в httpOnly cookie, access — в теле ответа. */
-  private complete(issued: IssuedAuth, res: Response): AuthResponse {
-    res.cookie(REFRESH_COOKIE, issued.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: REFRESH_PATH,
-      maxAge: Number(process.env.JWT_REFRESH_TTL ?? 2592000) * 1000,
-    });
-    return { user: issued.user, accessToken: issued.accessToken };
-  }
-}
-
-function ctxOf(req: Request): RequestCtx {
-  return {
-    userAgent: req.headers['user-agent'],
-    ip: req.ip,
-    fingerprint: (req.headers['x-device-fingerprint'] as string | undefined) ?? undefined,
-  };
+  private complete = completeLogin;
 }

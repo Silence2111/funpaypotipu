@@ -153,6 +153,20 @@ export class AuthService {
     return this.issue(user.id, user.email, user.profile.username, ctx);
   }
 
+  /**
+   * Вход, когда личность уже подтвердил сервис (Telegram, VK, Google): те же
+   * блокировка и код из приложения, что у входа по паролю, — иначе кнопка
+   * «Войти через Google» обходила бы двухфакторную защиту.
+   */
+  async loginVerified(userId: string, code: string | undefined, ctx: RequestCtx): Promise<IssuedAuth> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { profile: true } });
+    if (!user?.profile) throw new UnauthorizedException('Пользователь не найден');
+    if (user.status === 'banned') throw new ForbiddenException(BANNED);
+    const second = await this.twoFactor.check(user.id, code);
+    if (second !== 'ok') throw TwoFactorService.loginError(second);
+    return this.issue(user.id, user.email, user.profile.username, ctx);
+  }
+
   /** Ротация refresh: проверка сессии, отзыв старой, выдача новой пары. */
   async refresh(refreshToken: string, ctx: RequestCtx): Promise<IssuedAuth> {
     const payload = (() => {
@@ -243,15 +257,18 @@ export class AuthService {
 
   /**
    * Смена пароля: нужен текущий. Остальные устройства выходят сразу —
-   * смену пароля делают, когда подозревают чужой вход.
+   * смену пароля делают, когда подозревают чужой вход. Аккаунт, заведённый
+   * через Telegram, VK или Google, пароля не имеет — его задают без текущего.
    */
-  async changePassword(userId: string, current: string, next: string, keepFamily?: string) {
+  async changePassword(userId: string, current: string | undefined, next: string, keepFamily?: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true, email: true } });
-    if (!user?.passwordHash) {
-      throw new BadRequestException('У аккаунта нет пароля — задайте его через «Забыли пароль»');
+    if (!user) throw new UnauthorizedException('Пользователь не найден');
+    if (user.passwordHash) {
+      if (!current || !(await bcrypt.compare(current, user.passwordHash))) {
+        throw new BadRequestException('Текущий пароль неверный');
+      }
+      if (current === next) throw new BadRequestException('Новый пароль совпадает с текущим');
     }
-    if (!(await bcrypt.compare(current, user.passwordHash))) throw new BadRequestException('Текущий пароль неверный');
-    if (current === next) throw new BadRequestException('Новый пароль совпадает с текущим');
     await this.prisma.user.update({ where: { id: userId }, data: { passwordHash: await bcrypt.hash(next, 12) } });
     const closed = await this.closeSessions(userId, keepFamily);
     if (user.email && this.mail.enabled) {

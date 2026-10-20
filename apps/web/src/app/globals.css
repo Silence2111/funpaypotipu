@@ -3166,6 +3166,41 @@ a.my-lot-title:hover {
   }
 }
 
+/* Вход через сервисы: «или» между формой и кнопками, строки способов входа. */
+.social-login {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+.social-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--fg-faint);
+  font-size: 13px;
+}
+.social-divider::before,
+.social-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.tg-login {
+  display: flex;
+  justify-content: center;
+  min-height: 40px;
+}
+.social-way {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
 /* Проверка личности: что даёт — списком с галочками, PDF — значком с именем. */
 .kyc-perks {
   display: grid;

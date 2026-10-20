@@ -32,8 +32,15 @@ export class TokenService {
     });
   }
 
+  /**
+   * Токены из писем и состояния входа подписаны тем же ключом, но входом не
+   * являются. Раньше ссылка подтверждения почты три дня работала как токен
+   * входа в API, а ссылка сброса пароля — час.
+   */
   verifyAccess(token: string): AccessPayload {
-    return this.jwt.verify<AccessPayload>(token, { secret: process.env.JWT_ACCESS_SECRET });
+    const p = this.jwt.verify<AccessPayload & { purpose?: unknown }>(token, { secret: process.env.JWT_ACCESS_SECRET });
+    if (p.purpose !== undefined || typeof p.sub !== 'string') throw new Error('Это не токен входа');
+    return p;
   }
 
   verifyRefresh(token: string): RefreshPayload {
@@ -46,6 +53,21 @@ export class TokenService {
       secret: process.env.JWT_ACCESS_SECRET,
       expiresIn: ttlSec,
     });
+  }
+
+  /**
+   * Подписанные данные с назначением: состояние входа через сервис, билет
+   * завершения входа. Живут в httpOnly cookie, поэтому подделать или
+   * подсмотреть их со страницы нельзя.
+   */
+  signData(data: Record<string, unknown>, purpose: string, ttlSec: number): string {
+    return this.jwt.sign({ data, purpose }, { secret: process.env.JWT_ACCESS_SECRET, expiresIn: ttlSec });
+  }
+
+  verifyData<T>(token: string, purpose: string): T {
+    const p = this.jwt.verify<{ data: T; purpose: string }>(token, { secret: process.env.JWT_ACCESS_SECRET });
+    if (p.purpose !== purpose) throw new Error('Неверное назначение токена');
+    return p.data;
   }
 
   verifyPurpose(token: string, purpose: string): string {

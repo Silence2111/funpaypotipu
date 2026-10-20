@@ -5,13 +5,14 @@
  * продажа поштучно (наличие, перепродажа последней штуки), способы оплаты (надбавка карты,
  * второй платёж по заказу), модерация (жалобы, бан, заморозка, спор у арбитра),
  * аккаунт (чёрный список, профиль, пароль, сеансы), вход с кодом из приложения и защита от подбора,
- * подписка на пуш-уведомления, проверка личности,
+ * подписка на пуш-уведомления, проверка личности, вход через Google и VK ID,
  * поддержка, выплаты (с холдом и ролью finance).
  * Выход 0 — все проверки пройдены, иначе 1.
  */
-import { createECDH, randomBytes } from 'node:crypto';
+import { createECDH, createHmac, randomBytes } from 'node:crypto';
 import { authenticator } from 'otplib';
 import db from '../../../packages/db/dist/index.js';
+import { startOAuthMock } from './oauth-mock.mjs';
 
 const { prisma } = db;
 const API = process.env.API_URL ?? 'http://localhost:4090';
@@ -721,6 +722,88 @@ async function scenarioKyc(rnd) {
   check('Переснял — одобрено, в профиле «Документы проверены»', again.status === 201 && profile.body.verified === true, JSON.stringify({ s: again.status, v: profile.body.verified }));
 }
 
+// Вход через Google и VK ID — весь обмен кодом против тестового сервера
+// (oauth-mock.mjs): state, PKCE, выбор ника, привязка в «Безопасности»,
+// код из приложения и для входа через сервис.
+async function scenarioSocial(rnd, mock) {
+  console.log('\n— Вход через Google и VK ID —');
+  const cookieOf = (res, name) =>
+    res.headers.getSetCookie().map((c) => c.split(';')[0]).find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
+  const go = (url, cookie) => fetch(url, { redirect: 'manual', headers: cookie ? { cookie } : {} });
+  // Браузер: начало → сервис → возврат на API → билет в cookie
+  async function signIn(provider, next = '/', linkCookie) {
+    const start = await go(`${API}/api/auth/oauth/${provider}/start?next=${encodeURIComponent(next)}`, linkCookie && `gm_link=${linkCookie}`);
+    const state = cookieOf(start, 'gm_oauth');
+    const back = await go(start.headers.get('location'));
+    const cb = await go(back.headers.get('location'), state && `gm_oauth=${state}`);
+    return { location: cb.headers.get('location') ?? '', ticket: cookieOf(cb, 'gm_social'), back: back.headers.get('location'), state };
+  }
+  const complete = async (ticket, body = {}) => {
+    const r = await fetch(`${API}/api/auth/social/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: `gm_social=${ticket}` },
+      body: JSON.stringify(body),
+    });
+    return { status: r.status, body: await r.json() };
+  };
+
+  const on = await j('/auth/social');
+  check('Кнопки — у подключённых сервисов: Google и VK есть, Telegram без бота нет', on.body.google && on.body.vk && on.body.telegram === null, JSON.stringify(on.body));
+
+  mock.as('google', { sub: `g-${rnd}`, email: `anna${rnd}@gmail.test`, email_verified: true, name: 'Анна Смирнова' });
+  const first = await signIn('google', '/lot/abc');
+  check('Google вернул в браузер билет и страницу завершения с адресом возврата', !!first.ticket && first.location.endsWith('/login/social?next=%2Flot%2Fabc'), first.location);
+  const nick = await complete(first.ticket);
+  check('Новый человек — сначала ник, подсказка из имени', nick.status === 400 && nick.body.error === 'username_required' && nick.body.suggested === 'anna_smirnova', JSON.stringify(nick.body));
+  const made = await complete(first.ticket, { username: `anna_${rnd}` });
+  check('С ником — вход, почта от Google подтверждена', made.status === 200 && !!made.body.accessToken && made.body.user.email === `anna${rnd}@gmail.test`, String(made.status));
+  const again = await complete((await signIn('google')).ticket);
+  check('Второй вход через Google — тот же аккаунт без вопросов', again.status === 200 && again.body.user.id === made.body.user.id, String(again.status));
+  const ways = await j('/auth/social/accounts', { token: made.body.accessToken });
+  check('В «Безопасности»: Google подключён, пароля нет', ways.body.hasPassword === false && ways.body.accounts?.[0]?.provider === 'google', JSON.stringify(ways.body));
+  const lastWay = await j('/auth/social/google', { method: 'DELETE', token: made.body.accessToken });
+  check('Единственный способ входа без пароля не отключается', lastWay.status === 400, String(lastWay.status));
+  const pwd = await j('/auth/password', { method: 'POST', token: made.body.accessToken, body: JSON.stringify({ next: 'password-from-google' }) });
+  const off = await j('/auth/social/google', { method: 'DELETE', token: made.body.accessToken });
+  check('Задал пароль — Google отключается', pwd.status === 200 && off.status === 200 && off.body.accounts.length === 0, `${pwd.status} / ${off.status}`);
+
+  const forged = await signIn('google');
+  const tampered = await go(forged.back.replace(/state=[^&]+/, 'state=forged'), `gm_oauth=${forged.state}`);
+  check('Чужой state — ни входа, ни билета', /social_error=state$/.test(tampered.headers.get('location') ?? '') && !cookieOf(tampered, 'gm_social'), tampered.headers.get('location'));
+
+  // VK: почта совпала с аккаунтом без подтверждённой почты — только вручную
+  const owner = await register('vko', rnd);
+  mock.as('vk', { user_id: 5000000 + (rnd % 1000000), first_name: 'Олег', last_name: 'Ким', email: `vko${rnd}@e2e.local` });
+  const clash = await complete((await signIn('vk')).ticket);
+  check('Почта VK совпала с чужим аккаунтом — он не отдаётся', clash.status === 409 && clash.body.error === 'social_email_taken', JSON.stringify(clash.body));
+  const intent = await fetch(`${API}/api/auth/social/link-intent`, { method: 'POST', headers: { Authorization: `Bearer ${owner.token}` } });
+  const linked = await signIn('vk', '/', cookieOf(intent, 'gm_link'));
+  check('Вошёл по паролю и подключил VK в «Безопасности»', /\/cabinet\/security\?social=linked&provider=vk$/.test(linked.location), linked.location);
+  const viaVk = await complete((await signIn('vk')).ticket);
+  check('Теперь вход через VK — в этот аккаунт', viaVk.status === 200 && viaVk.body.user.id === owner.id, String(viaVk.status));
+
+  const setup = await j('/auth/2fa/setup', { method: 'POST', token: owner.token });
+  await j('/auth/2fa/enable', { method: 'POST', token: owner.token, body: JSON.stringify({ code: authenticator.generate(setup.body.secret) }) });
+  const ticket = (await signIn('vk')).ticket;
+  const ask = await complete(ticket);
+  const withCode = await complete(ticket, { code: authenticator.generate(setup.body.secret) });
+  check('С защитой входа и через VK спрашивается код из приложения', ask.status === 401 && ask.body.error === 'two_factor_required' && withCode.status === 200, `${ask.body.error} / ${withCode.status}`);
+
+  // Ссылка из письма подписана тем же ключом, что вход, — но входом не является
+  const secret = process.env.JWT_ACCESS_SECRET;
+  if (secret) {
+    const hs256 = (payload) => {
+      const b = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+      const t = Math.floor(Date.now() / 1000);
+      const body = `${b({ alg: 'HS256', typ: 'JWT' })}.${b({ ...payload, iat: t, exp: t + 600 })}`;
+      return `${body}.${createHmac('sha256', secret).update(body).digest('base64url')}`;
+    };
+    const letter = await j('/auth/me', { token: hs256({ sub: owner.id, purpose: 'email_verify' }) });
+    const control = await j('/auth/me', { token: hs256({ sub: owner.id, username: `vko${rnd}` }) });
+    check('Ссылка подтверждения почты — не вход в API', letter.status === 401 && control.status === 200, `${letter.status} / ${control.status}`);
+  }
+}
+
 async function scenarioRates(rnd) {
   console.log('\n— Курсы для показа цен —');
   const admin = await register('rta', rnd);
@@ -792,6 +875,14 @@ async function scenarioPayout(rnd) {
   await scenarioPush(rnd);
   await scenarioFiles(rnd);
   await scenarioKyc(rnd);
+  // Вход через сервисы — только если API запущен с тестовым сервером входа
+  if (process.env.OAUTH_TEST_ISSUER) {
+    const mock = await startOAuthMock(process.env.OAUTH_TEST_ISSUER);
+    await scenarioSocial(rnd, mock);
+    mock.close();
+  } else {
+    console.log('\n— Вход через Google и VK ID — пропущен: нет OAUTH_TEST_ISSUER —');
+  }
   await scenarioRates(rnd);
   await scenarioPayout(rnd);
 
