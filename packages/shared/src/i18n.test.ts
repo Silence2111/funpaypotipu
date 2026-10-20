@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EN_SHARED, translateText } from './i18n';
+import { EN_SHARED, preferredLang, translateText } from './i18n';
 import { NOTIFY_GROUPS, NOTIFY_LABELS } from './notify';
 import { PAYMENT_METHODS } from './payment';
 import { WITHDRAWAL_METHODS } from './withdrawal';
@@ -58,5 +58,20 @@ describe('EN_SHARED', () => {
     expect(err && tr(err)).toBe('Fill in “Ник в игре”');
     const report = benchmark([], { demoOnly: true });
     expect(tr(report.verdict)).toMatch(/^Can’t measure: the database has only demo orders/);
+  });
+});
+
+describe('preferredLang', () => {
+  it('русский среди языков браузера — русский, иначе английский', () => {
+    expect(preferredLang('en-US,en;q=0.9,ru;q=0.8')).toBe('ru');
+    expect(preferredLang('kk-KZ')).toBe('ru');
+    expect(preferredLang('de-DE,en;q=0.8')).toBe('en');
+  });
+
+  it('без языка — русский: роботы, вебхуки, fetch в Node', () => {
+    expect(preferredLang(undefined)).toBe('ru');
+    expect(preferredLang('')).toBe('ru');
+    expect(preferredLang('*')).toBe('ru');
+    expect(preferredLang(['en', 'ru'])).toBe('ru');
   });
 });

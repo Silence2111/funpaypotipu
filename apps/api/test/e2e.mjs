@@ -6,7 +6,7 @@
  * второй платёж по заказу), модерация (жалобы, бан, заморозка, спор у арбитра),
  * аккаунт (чёрный список, профиль, пароль, сеансы), вход с кодом из приложения и защита от подбора,
  * подписка на пуш-уведомления, проверка личности, вход через Google и VK ID,
- * поддержка, выплаты (с холдом и ролью finance).
+ * поддержка, ошибки на языке сайта, выплаты (с холдом и ролью finance).
  * Выход 0 — все проверки пройдены, иначе 1.
  */
 import { createECDH, createHmac, randomBytes } from 'node:crypto';
@@ -25,7 +25,7 @@ function check(name, cond, detail = '') {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function j(path, opts = {}) {
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = { 'Content-Type': 'application/json', ...opts.headers };
   if (opts.token) headers.Authorization = 'Bearer ' + opts.token;
   const res = await fetch(`${API}/api${path}`, { method: opts.method || 'GET', headers, body: opts.body });
   const t = await res.text();
@@ -804,6 +804,23 @@ async function scenarioSocial(rnd, mock) {
   }
 }
 
+async function scenarioLanguage(rnd) {
+  console.log('\n— Ошибки на языке сайта —');
+  const login = (headers) =>
+    j('/auth/login', { method: 'POST', headers, body: JSON.stringify({ email: `nobody${rnd}@e2e.local`, password: 'password123' }) });
+  const en = await login({ 'Accept-Language': 'en' });
+  check('Английский сайт — ошибка входа по-английски и lang: en', en.status === 401 && en.body.message === 'Incorrect email or password' && en.body.lang === 'en', JSON.stringify(en.body));
+  const ru = await login({});
+  check('Без языка — по-русски, как раньше', ru.status === 401 && ru.body.message === 'Неверные данные' && !('lang' in ru.body), JSON.stringify(ru.body));
+  const user = await register('lng', rnd);
+  const ticket = (headers) =>
+    j('/support/tickets', { method: 'POST', token: user.token, headers, body: JSON.stringify({ subject: 'Hi', category: 'other', body: 'short' }) });
+  const fields = await ticket({ 'Accept-Language': 'en-US,en;q=0.9' });
+  check('Поля проверки переведены, lang: en', fields.status === 400 && fields.body.subject?.[0] === 'Subject must be at least 3 characters' && fields.body.lang === 'en', JSON.stringify(fields.body));
+  const ruFields = await ticket({ 'Accept-Language': 'ru' });
+  check('Русский сайт — поля проверки по-русски', ruFields.body.subject?.[0] === 'Тема — от 3 символов' && !('lang' in ruFields.body));
+}
+
 async function scenarioRates(rnd) {
   console.log('\n— Курсы для показа цен —');
   const admin = await register('rta', rnd);
@@ -883,6 +900,7 @@ async function scenarioPayout(rnd) {
   } else {
     console.log('\n— Вход через Google и VK ID — пропущен: нет OAUTH_TEST_ISSUER —');
   }
+  await scenarioLanguage(rnd);
   await scenarioRates(rnd);
   await scenarioPayout(rnd);
 

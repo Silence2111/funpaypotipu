@@ -10,6 +10,21 @@
  */
 export type Phrasebook = Record<string, string>;
 
+/**
+ * Язык по заголовку Accept-Language — одно правило для сайта и API:
+ * русский, если он есть среди языков (или украинский, белорусский,
+ * казахский — у нас покупают из СНГ), иначе английский. Без заголовка или
+ * с «*» (так шлёт fetch в Node, так ходят роботы и вебхуки) — русский.
+ */
+export function preferredLang(header: string | string[] | null | undefined): 'ru' | 'en' {
+  const tags = (Array.isArray(header) ? header.join(',') : (header ?? ''))
+    .split(',')
+    .map((part) => part.split(';')[0]!.trim().toLowerCase())
+    .filter((tag) => tag && tag !== '*');
+  if (!tags.length) return 'ru';
+  return tags.some((tag) => /^(ru|uk|be|kk)\b/.test(tag)) ? 'ru' : 'en';
+}
+
 interface Pattern {
   re: RegExp;
   names: string[];

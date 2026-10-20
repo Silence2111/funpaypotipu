@@ -7,7 +7,7 @@
  * он приходит от сервера только на английском — русский посетитель его не
  * скачивает.
  */
-import { translateText } from '@gamemarket/shared/i18n';
+import { preferredLang, translateText } from '@gamemarket/shared/i18n';
 
 export type Lang = 'ru' | 'en';
 
@@ -27,15 +27,8 @@ export interface Dict {
 
 export const NO_DICT: Dict = { phrases: {}, data: {}, plural: {} };
 
-/**
- * Язык без выбора: русский, если он есть среди языков браузера (или
- * украинский, белорусский, казахский — у нас покупают из СНГ), иначе
- * английский. Без заголовка — русский: так приходят поисковые роботы.
- */
-export function preferredLang(acceptLanguage: string | null | undefined): Lang {
-  if (!acceptLanguage?.trim()) return 'ru';
-  return /(^|[\s,])(ru|uk|be|kk)\b/i.test(acceptLanguage) ? 'ru' : 'en';
-}
+/** Язык без выбора — по языкам браузера; правило общее с API. */
+export { preferredLang };
 
 export const isLang = (v: unknown): v is Lang => v === 'ru' || v === 'en';
 
