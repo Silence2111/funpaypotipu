@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
+import { useT } from '@/lib/i18n/client';
+import type { T } from '@/lib/i18n/lang';
 
 const DAYS = [1, 3, 7] as const;
-const dayWord = (d: number) => (d === 1 ? 'сутки' : `${d} суток`);
-const until = (iso: string) =>
-  new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+const dayWord = (d: number, t: T) => (d === 1 ? t('сутки') : t('{n} суток', { n: d }));
+const until = (iso: string, t: T) =>
+  new Date(iso).toLocaleString(t.locale, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
 /**
  * «Продвинуть» в «Моих лотах»: лот выше в своём разделе на оплаченный
@@ -26,6 +28,7 @@ export function PromotePanel({
   onDone: () => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const [dayPrice, setDayPrice] = useState<bigint | null>(null);
   const [balance, setBalance] = useState<bigint | null>(null);
   const [busy, setBusy] = useState(false);
@@ -49,7 +52,7 @@ export function PromotePanel({
       onClose();
       onDone();
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не удалось продвинуть лот.'));
+      setErr(apiErrorMessage(e, t('Не удалось продвинуть лот.')));
     } finally {
       setBusy(false);
     }
@@ -58,7 +61,9 @@ export function PromotePanel({
   return (
     <div className="card flat" style={{ padding: 14, background: 'var(--page)' }}>
       <p style={{ margin: 0, fontSize: 14 }}>
-        {active ? `В продвижении до ${until(promotedUntil!)}. Продление добавится к сроку.` : 'Лот будет выше в своём разделе каталога.'}
+        {active
+          ? t('В продвижении до {date}. Продление добавится к сроку.', { date: until(promotedUntil!, t) })
+          : t('Лот будет выше в своём разделе каталога.')}
       </p>
       <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
         {DAYS.map((d) => {
@@ -66,15 +71,18 @@ export function PromotePanel({
           const short = cost != null && balance != null && balance < cost;
           return (
             <button key={d} type="button" className="chip" disabled={busy || cost == null || short} onClick={() => void buy(d)}>
-              {dayWord(d)}{cost != null ? ` · ${formatPrice(cost.toString())}` : ''}
+              {dayWord(d, t)}
+              {cost != null ? ` · ${formatPrice(cost.toString(), 'RUB', t)}` : ''}
             </button>
           );
         })}
-        <button type="button" className="btn ghost" onClick={onClose}>Отмена</button>
+        <button type="button" className="btn ghost" onClick={onClose}>{t('Отмена')}</button>
       </div>
       <p className="hint" style={{ margin: '8px 0 0' }}>
-        Оплата с баланса{balance != null ? ` · на балансе ${formatPrice(balance.toString())}` : ''}. Покупатели видят пометку
-        «продвижение».
+        {balance != null
+          ? t('Оплата с баланса · на балансе {sum}.', { sum: formatPrice(balance.toString(), 'RUB', t) })
+          : t('Оплата с баланса.')}{' '}
+        {t('Покупатели видят пометку «продвижение».')}
       </p>
       {err && <p className="field-error" role="alert" style={{ marginTop: 6 }}>{err}</p>}
     </div>

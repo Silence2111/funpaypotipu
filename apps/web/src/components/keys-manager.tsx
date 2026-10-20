@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { KeyRound, Package } from 'lucide-react';
 import { apiFetch, getToken, getUser } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { useT } from '@/lib/i18n/client';
 
 interface Stock {
   available: number;
@@ -37,6 +38,7 @@ export function KeysManager({
   /** Склад ключей раздела «Ключи»; иначе — строки любого товара. */
   keys: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [stock, setStock] = useState<Stock | null>(null);
   const [visible, setVisible] = useState(false);
@@ -73,15 +75,21 @@ export function KeysManager({
         body: JSON.stringify({ keys: lines }),
       });
       // Повторы сервер не кладёт: одна строка — одному покупателю.
-      const skipped = r.skipped ? ` Повторы пропущены: ${r.skipped}.` : '';
-      setMsg({ ok: true, text: `На склад добавлено: ${r.added}.${skipped}` });
+      const added = t('На склад добавлено: {n}.', { n: r.added });
+      setMsg({
+        ok: true,
+        text: r.skipped ? `${added} ${t('Повторы пропущены: {n}.', { n: r.skipped })}` : added,
+      });
       setText('');
       await load();
       // Первая загрузка возвращает закончившийся лот в продажу — страница
       // лота должна показать кнопку покупки без ручного обновления.
       router.refresh();
     } catch (e) {
-      setMsg({ ok: false, text: apiErrorMessage(e, 'Не удалось загрузить. Попробуйте ещё раз.') });
+      setMsg({
+        ok: false,
+        text: apiErrorMessage(e, t('Не удалось загрузить. Попробуйте ещё раз.')),
+      });
     } finally {
       setBusy(false);
     }
@@ -92,25 +100,27 @@ export function KeysManager({
     <section id="keys" className="card" style={{ marginTop: 40, scrollMarginTop: 80 }}>
       <h2 className="h2 row" style={{ fontSize: 18, gap: 8, marginBottom: 4 }}>
         <Icon size={18} strokeWidth={1.75} aria-hidden />{' '}
-        {keys ? 'Склад ключей' : 'Склад автовыдачи'}
+        {keys ? t('Склад ключей') : t('Склад автовыдачи')}
       </h2>
       <p className="faint" style={{ fontSize: 13, marginTop: 0 }}>
-        Видите только вы. Каждая строка — одна штука: покупатель получает свою сразу после оплаты.
+        {t(
+          'Видите только вы. Каждая строка — одна штука: покупатель получает свою сразу после оплаты.',
+        )}
       </p>
       {stock && (
         <div className="row" style={{ gap: 8, margin: '12px 0', flexWrap: 'wrap' }}>
-          <span className="badge">в наличии: {stock.available}</span>
-          <span className="badge">зарезервировано: {stock.reserved}</span>
-          <span className="badge">выдано: {stock.delivered}</span>
+          <span className="badge">{t('в наличии: {n}', { n: stock.available })}</span>
+          <span className="badge">{t('зарезервировано: {n}', { n: stock.reserved })}</span>
+          <span className="badge">{t('выдано: {n}', { n: stock.delivered })}</span>
         </div>
       )}
       <textarea
         className="input store-lines"
-        aria-label={keys ? 'Ключи, по одному в строке' : 'Товар, по одной штуке в строке'}
+        aria-label={keys ? t('Ключи, по одному в строке') : t('Товар, по одной штуке в строке')}
         placeholder={
           keys
-            ? 'Ключи по одному в строке:\nSTEAM-AAAA-BBBB\nSTEAM-CCCC-DDDD'
-            : 'По одной штуке в строке:\nлогин:пароль\nпромокод или ссылка'
+            ? `${t('Ключи по одному в строке:')}\nSTEAM-AAAA-BBBB\nSTEAM-CCCC-DDDD`
+            : `${t('По одной штуке в строке:')}\n${t('логин:пароль')}\n${t('промокод или ссылка')}`
         }
         autoCapitalize="off"
         autoCorrect="off"
@@ -132,7 +142,7 @@ export function KeysManager({
           </span>
         ) : (
           <span className="hint" style={{ margin: 0 }}>
-            Повторы не ложатся на склад: одна строка — одному покупателю.
+            {t('Повторы не ложатся на склад: одна строка — одному покупателю.')}
           </span>
         )}
         <button
@@ -141,7 +151,11 @@ export function KeysManager({
           disabled={busy || !lines.length}
           onClick={() => void add()}
         >
-          {busy ? 'Загружаем…' : lines.length ? `Загрузить ${lines.length}` : 'Загрузить'}
+          {busy
+            ? t('Загружаем…')
+            : lines.length
+              ? t('Загрузить {n}', { n: lines.length })
+              : t('Загрузить')}
         </button>
       </div>
     </section>

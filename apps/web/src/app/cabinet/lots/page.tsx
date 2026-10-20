@@ -8,6 +8,8 @@ import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { MyLotRow, type MyLot } from '@/components/my-lot-row';
+import { useT } from '@/lib/i18n/client';
+import { msg, type T } from '@/lib/i18n/lang';
 
 /** Отпуск продавца — ответ `GET /listings/away`. */
 interface Away {
@@ -25,27 +27,31 @@ interface BulkResult {
 type Filter = 'all' | 'active' | 'paused' | 'sold_out' | 'blocked';
 
 const FILTERS: Array<[Filter, string]> = [
-  ['all', 'Все'],
-  ['active', 'В продаже'],
-  ['paused', 'Сняты'],
-  ['sold_out', 'Закончились'],
-  ['blocked', 'Заблокированы'],
+  ['all', msg('Все')],
+  ['active', msg('В продаже')],
+  ['paused', msg('Сняты')],
+  ['sold_out', msg('Закончились')],
+  ['blocked', msg('Заблокированы')],
 ];
 
 const inFilter = (l: MyLot, f: Filter) =>
   f === 'all' || (f === 'paused' ? l.status === 'paused' || l.status === 'draft' : l.status === f);
 
-function bulkNote(action: 'pause' | 'activate' | 'bump', r: BulkResult): string {
+function bulkNote(action: 'pause' | 'activate' | 'bump', r: BulkResult, t: T): string {
   if (action === 'bump') {
-    const parts = [`Подняли: ${r.done}`];
-    if (r.waiting && r.nextInMinutes != null) parts.push(`остальные — через ${r.nextInMinutes} мин`);
-    if (r.skipped) parts.push(`не в продаже: ${r.skipped}`);
+    const parts = [t('Подняли: {n}', { n: r.done })];
+    if (r.waiting && r.nextInMinutes != null) parts.push(t('остальные — через {n} мин', { n: r.nextInMinutes }));
+    if (r.skipped) parts.push(t('не в продаже: {n}', { n: r.skipped }));
     return `${parts.join(', ')}.`;
   }
   if (action === 'pause') {
-    return `Сняли с продажи: ${r.done}.${r.skipped ? ` Пропустили ${r.skipped} — уже сняты или закончились.` : ''}`;
+    const done = t('Сняли с продажи: {n}.', { n: r.done });
+    return r.skipped ? `${done} ${t('Пропустили {n} — уже сняты или закончились.', { n: r.skipped })}` : done;
   }
-  return `Вернули в продажу: ${r.done}.${r.skipped ? ` Пропустили ${r.skipped} — уже в продаже, без наличия или заблокированы.` : ''}`;
+  const done = t('Вернули в продажу: {n}.', { n: r.done });
+  return r.skipped
+    ? `${done} ${t('Пропустили {n} — уже в продаже, без наличия или заблокированы.', { n: r.skipped })}`
+    : done;
 }
 
 export default function MyLotsPage() {
@@ -62,6 +68,7 @@ export default function MyLotsPage() {
  * над несколькими лотами и «Отпуск» — снять всё разом и вернуть одной кнопкой.
  */
 function MyLots() {
+  const t = useT();
   const router = useRouter();
   const params = useSearchParams();
   const [rows, setRows] = useState<MyLot[] | null>(null);
@@ -101,15 +108,15 @@ function MyLots() {
 
   // Группы «игра · раздел» в порядке первого лота: свежие разделы сверху.
   const groups = useMemo(() => {
-    const t = q.trim().toLowerCase();
+    const needle = q.trim().toLowerCase();
     const out: Array<{ categoryId: string; title: string; href: string; items: MyLot[] }> = [];
     for (const r of rows ?? []) {
-      if (!inFilter(r, filter) || (t && !r.title.toLowerCase().includes(t))) continue;
+      if (!inFilter(r, filter) || (needle && !r.title.toLowerCase().includes(needle))) continue;
       let g = out.find((x) => x.categoryId === r.categoryId);
       if (!g) {
         g = {
           categoryId: r.categoryId,
-          title: `${r.game.title} · ${r.category.title}`,
+          title: `${t.d(r.game.title)} · ${t.d(r.category.title)}`,
           href: `/igra/${r.game.slug}/${r.category.slug}`,
           items: [],
         };
@@ -118,7 +125,7 @@ function MyLots() {
       g.items.push(r);
     }
     return out;
-  }, [rows, filter, q]);
+  }, [rows, filter, q, t]);
 
   function pick(ids: string[], on: boolean) {
     setSelected((s) => {
@@ -140,11 +147,11 @@ function MyLots() {
         method: 'POST',
         body: JSON.stringify({ ids: [...selected], action }),
       });
-      setFlash(bulkNote(action, r));
+      setFlash(bulkNote(action, r, t));
       setSelected(new Set());
       await load();
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не получилось. Попробуйте ещё раз.'));
+      setErr(apiErrorMessage(e, t('Не получилось. Попробуйте ещё раз.')));
     } finally {
       setBusy(false);
     }
@@ -154,7 +161,10 @@ function MyLots() {
     if (
       on &&
       !window.confirm(
-        `Снять с продажи все лоты в продаже (${counts.active})? Вернуть их можно одной кнопкой. Открытые заказы отпуск не отменяет — их нужно довести.`,
+        t(
+          'Снять с продажи все лоты в продаже ({n})? Вернуть их можно одной кнопкой. Открытые заказы отпуск не отменяет — их нужно довести.',
+          { n: counts.active },
+        ),
       )
     ) {
       return;
@@ -167,11 +177,15 @@ function MyLots() {
         method: 'POST',
         body: JSON.stringify({ away: on }),
       });
-      setFlash(on ? `Вы в отпуске: сняли с продажи ${r.paused ?? 0}.` : `С возвращением: вернули в продажу ${r.restored ?? 0}.`);
+      setFlash(
+        on
+          ? t('Вы в отпуске: сняли с продажи {n}.', { n: r.paused ?? 0 })
+          : t('С возвращением: вернули в продажу {n}.', { n: r.restored ?? 0 }),
+      );
       setSelected(new Set());
       await load();
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не получилось. Попробуйте ещё раз.'));
+      setErr(apiErrorMessage(e, t('Не получилось. Попробуйте ещё раз.')));
     } finally {
       setBusy(false);
     }
@@ -185,28 +199,30 @@ function MyLots() {
         body: JSON.stringify({ categoryId }),
       });
       const parts: string[] = [];
-      if (r.bumped) parts.push(`поднято: ${r.bumped}`);
-      if (r.waiting && r.nextInMinutes != null) parts.push(`остальные — через ${r.nextInMinutes} мин`);
-      setNotes((n) => ({ ...n, [categoryId]: parts.join(', ') || 'нечего поднимать' }));
+      if (r.bumped) parts.push(t('поднято: {n}', { n: r.bumped }));
+      if (r.waiting && r.nextInMinutes != null) parts.push(t('остальные — через {n} мин', { n: r.nextInMinutes }));
+      setNotes((n) => ({ ...n, [categoryId]: parts.join(', ') || t('нечего поднимать') }));
       await load();
     } catch (e) {
-      setNotes((n) => ({ ...n, [categoryId]: apiErrorMessage(e, 'не удалось поднять') }));
+      setNotes((n) => ({ ...n, [categoryId]: apiErrorMessage(e, t('не удалось поднять')) }));
     } finally {
       setBusy(false);
     }
   }
 
-  const awaySince = away?.awaySince ? new Date(away.awaySince).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : null;
+  const awaySince = away?.awaySince
+    ? new Date(away.awaySince).toLocaleDateString(t.locale, { day: 'numeric', month: 'long' })
+    : null;
 
   return (
     <div className="container stack-lg" style={{ paddingTop: 40 }}>
       <div>
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
           <h1 className="h1" style={{ fontSize: 32 }}>
-            Мои лоты
+            {t('Мои лоты')}
           </h1>
           <Link href="/cabinet/new" className="btn">
-            Продать лот
+            {t('Продать лот')}
           </Link>
         </div>
         <div style={{ marginTop: 16 }}>
@@ -217,21 +233,23 @@ function MyLots() {
       {params.get('updated') && (
         <div className="alert success" role="status">
           <CheckCircle2 size={18} strokeWidth={1.75} />
-          <span>Изменения сохранены.</span>
+          <span>{t('Изменения сохранены.')}</span>
         </div>
       )}
       {awaySince && (
         <div className="away-banner" role="status">
           <Palmtree size={22} strokeWidth={1.75} aria-hidden />
           <div style={{ flex: 1, minWidth: 220 }}>
-            <div style={{ fontWeight: 700 }}>Вы в отпуске с {awaySince}</div>
+            <div style={{ fontWeight: 700 }}>{t('Вы в отпуске с {date}', { date: awaySince })}</div>
             <p>
-              Снятые на время отпуска лоты ({away?.paused ?? 0}) вернутся в продажу одной кнопкой. В профиле покупатели
-              видят пометку «в отпуске».
+              {t(
+                'Снятые на время отпуска лоты ({n}) вернутся в продажу одной кнопкой. В профиле покупатели видят пометку «в отпуске».',
+                { n: away?.paused ?? 0 },
+              )}
             </p>
           </div>
           <button type="button" className="btn secondary" disabled={busy} onClick={() => void goAway(false)}>
-            Вернуться к продажам
+            {t('Вернуться к продажам')}
           </button>
         </div>
       )}
@@ -248,20 +266,20 @@ function MyLots() {
       )}
 
       {rows === null ? (
-        <div aria-busy="true" aria-label="Загружаем лоты">
+        <div aria-busy="true" aria-label={t('Загружаем лоты')}>
           <div className="skeleton" style={{ height: 120 }} />
         </div>
       ) : rows.length === 0 ? (
         <div className="card flat row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <span className="muted">Лотов пока нет. Выставить первый — пара минут.</span>
+          <span className="muted">{t('Лотов пока нет. Выставить первый — пара минут.')}</span>
           <Link href="/cabinet/new" className="btn secondary">
-            Создать лот
+            {t('Создать лот')}
           </Link>
         </div>
       ) : (
         <>
           <div className="lots-toolbar">
-            <div className="lots-filter" role="group" aria-label="Какие лоты показать">
+            <div className="lots-filter" role="group" aria-label={t('Какие лоты показать')}>
               {FILTERS.filter(([f]) => f === 'all' || counts[f] > 0).map(([f, label]) => (
                 <button
                   key={f}
@@ -273,7 +291,7 @@ function MyLots() {
                     setSelected(new Set());
                   }}
                 >
-                  {label} <span className="faint">{counts[f]}</span>
+                  {t(label)} <span className="faint">{counts[f]}</span>
                 </button>
               ))}
             </div>
@@ -285,8 +303,8 @@ function MyLots() {
                   type="search"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Найти лот"
-                  aria-label="Найти лот по названию"
+                  placeholder={t('Найти лот')}
+                  aria-label={t('Найти лот по названию')}
                 />
               </div>
               {!awaySince && (
@@ -294,16 +312,16 @@ function MyLots() {
                   type="button"
                   className="chip"
                   disabled={busy || counts.active === 0}
-                  title="Снять все лоты разом и вернуть их одной кнопкой"
+                  title={t('Снять все лоты разом и вернуть их одной кнопкой')}
                   onClick={() => void goAway(true)}
                 >
-                  <Palmtree size={16} strokeWidth={1.75} aria-hidden /> В отпуск
+                  <Palmtree size={16} strokeWidth={1.75} aria-hidden /> {t('В отпуск')}
                 </button>
               )}
             </div>
           </div>
 
-          {groups.length === 0 && <p className="muted">Ничего не нашлось.</p>}
+          {groups.length === 0 && <p className="muted">{t('Ничего не нашлось.')}</p>}
           {groups.map((g) => {
             const ids = g.items.map((l) => l.id);
             const chosen = ids.filter((id) => selected.has(id)).length;
@@ -317,7 +335,7 @@ function MyLots() {
                       if (el) el.indeterminate = chosen > 0 && chosen < ids.length;
                     }}
                     onChange={(e) => pick(ids, e.target.checked)}
-                    aria-label={`Выбрать все: ${g.title}`}
+                    aria-label={t('Выбрать все: {name}', { name: g.title })}
                   />
                   <h2 className="my-lots-title" id={`g-${g.categoryId}`}>
                     {g.title} <span className="faint">· {g.items.length}</span>
@@ -326,11 +344,11 @@ function MyLots() {
                     {notes[g.categoryId] && <span className="faint" style={{ fontSize: 13 }}>{notes[g.categoryId]}</span>}
                     {g.items.some((l) => l.status === 'active') && (
                       <button type="button" className="chip" disabled={busy} onClick={() => void bumpAll(g.categoryId)}>
-                        <ArrowUp size={14} strokeWidth={1.75} /> Поднять все
+                        <ArrowUp size={14} strokeWidth={1.75} /> {t('Поднять все')}
                       </button>
                     )}
-                    <Link href={g.href} className="chip" title="Раздел на витрине">
-                      Раздел <ArrowUpRight size={14} strokeWidth={1.75} aria-hidden />
+                    <Link href={g.href} className="chip" title={t('Раздел на витрине')}>
+                      {t('Раздел')} <ArrowUpRight size={14} strokeWidth={1.75} aria-hidden />
                     </Link>
                   </span>
                 </div>
@@ -351,18 +369,24 @@ function MyLots() {
           })}
 
           {selected.size > 0 && (
-            <div className="bulk-bar" role="region" aria-label="Действия с выбранными лотами">
-              <span className="bulk-count">Выбрано {selected.size}</span>
+            <div className="bulk-bar" role="region" aria-label={t('Действия с выбранными лотами')}>
+              <span className="bulk-count">{t('Выбрано {n}', { n: selected.size })}</span>
               <button type="button" className="chip" disabled={busy} onClick={() => void bulk('activate')}>
-                Вернуть в продажу
+                {t('Вернуть в продажу')}
               </button>
               <button type="button" className="chip" disabled={busy} onClick={() => void bulk('pause')}>
-                Снять с продажи
+                {t('Снять с продажи')}
               </button>
               <button type="button" className="chip" disabled={busy} onClick={() => void bulk('bump')}>
-                <ArrowUp size={14} strokeWidth={1.75} /> Поднять
+                <ArrowUp size={14} strokeWidth={1.75} /> {t('Поднять')}
               </button>
-              <button type="button" className="icon-btn" aria-label="Снять выбор" title="Снять выбор" onClick={() => setSelected(new Set())}>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={t('Снять выбор')}
+                title={t('Снять выбор')}
+                onClick={() => setSelected(new Set())}
+              >
                 <X size={16} strokeWidth={1.75} />
               </button>
             </div>

@@ -6,9 +6,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { ListingForm, type EditableListing } from '@/components/listing-form';
+import { useT } from '@/lib/i18n/client';
 
 /** Изменение своего лота: та же форма, что при создании, с сохранёнными значениями. */
 export default function EditListingPage() {
+  const t = useT();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [listing, setListing] = useState<EditableListing | null>(null);
@@ -21,8 +23,8 @@ export default function EditListingPage() {
     }
     apiFetch<EditableListing>(`/listings/mine/${id}`)
       .then(setListing)
-      .catch((e) => setErr(apiErrorMessage(e, 'Лот не найден или он не ваш.')));
-  }, [id, router]);
+      .catch((e) => setErr(apiErrorMessage(e, t('Лот не найден или он не ваш.'))));
+  }, [id, router, t]);
 
   if (err || listing?.status === 'blocked')
     return (
@@ -30,11 +32,11 @@ export default function EditListingPage() {
         <div className="card" style={{ padding: 24 }}>
           <p style={{ margin: '0 0 12px' }}>
             {listing?.status === 'blocked'
-              ? 'Лот заблокирован модератором — изменить его нельзя. Если это ошибка, напишите в поддержку.'
+              ? t('Лот заблокирован модератором — изменить его нельзя. Если это ошибка, напишите в поддержку.')
               : err}
           </p>
           <Link href="/cabinet/lots" className="btn secondary">
-            К моим лотам
+            {t('К моим лотам')}
           </Link>
         </div>
       </div>
@@ -42,7 +44,7 @@ export default function EditListingPage() {
 
   if (!listing)
     return (
-      <div className="container" style={{ paddingTop: 48, maxWidth: 600 }} aria-busy="true" aria-label="Загружаем лот">
+      <div className="container" style={{ paddingTop: 48, maxWidth: 600 }} aria-busy="true" aria-label={t('Загружаем лот')}>
         <div className="skeleton" style={{ height: 34, width: 220 }} />
         <div className="skeleton" style={{ height: 420, marginTop: 24 }} />
       </div>

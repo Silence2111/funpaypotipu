@@ -9,6 +9,7 @@ import { PRICE_PER_UNITS, qtyTermsError } from '@gamemarket/shared/quantity';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice, formatQty } from '@/lib/format';
+import { useT } from '@/lib/i18n/client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -100,6 +101,7 @@ export function ListingForm({
   /** «Продать в разделе»: игра и раздел (слаги) уже выбраны. */
   preset?: { game: string; category?: string };
 }) {
+  const t = useT();
   const router = useRouter();
   const editing = !!initial;
   const [games, setGames] = useState<Game[]>(
@@ -133,7 +135,7 @@ export function ListingForm({
   const [progress, setProgress] = useState<string | null>(null);
   // Ошибки у конкретных полей, показываются после ухода из поля или отправки
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const touch = (k: string) => setTouched((t) => ({ ...t, [k]: true }));
+  const touch = (k: string) => setTouched((prev) => ({ ...prev, [k]: true }));
   // Пополнение на сумму покупателя: продавец задаёт наценку и границы, а не цену.
   const [byAmount, setByAmount] = useState(initial?.topupMarkupBps != null);
   const [markup, setMarkup] = useState(
@@ -209,13 +211,15 @@ export function ListingForm({
     minQty: intOf(minQty),
     stock: stock.trim() ? intOf(stock) : null,
   };
-  const unitLabel = (n: number) => formatQty(n, unitName.trim() || 'ед.');
+  const unitLabel = (n: number) => formatQty(n, unitName.trim() || t('ед.'), t);
+  // «7,5%» по-английски — «7.5%».
+  const pct = (bps: number) => (t.lang === 'en' ? markupLabel(bps).replace(',', '.') : markupLabel(bps));
   const markupPct = parseFloat(markup.replace(',', '.'));
   const terms =
     /^\d{1,6}$/.test(minRub) && /^\d{1,6}$/.test(maxRub) && Number.isFinite(markupPct)
       ? { markupBps: Math.round(markupPct * 100), min: BigInt(minRub) * 100n, max: BigInt(maxRub) * 100n }
       : null;
-  const termsError = terms ? topupTermsError(terms) : 'Укажите наценку и границы суммы целыми рублями';
+  const termsError = terms ? topupTermsError(terms) : t('Укажите наценку и границы суммы целыми рублями');
   // Превью считаем на понятном примере — 1 000 ₽, если он в границах, иначе на минимуме.
   const example =
     terms && !termsError
@@ -236,13 +240,13 @@ export function ListingForm({
       setQuote(null);
       return;
     }
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       const p = new URLSearchParams({ categoryId, price: String(previewMinor), currency: 'RUB' });
       apiFetch<{ feeSeller: string; sellerPayout: string; level: { label: string } | null }>(`/fees/quote?${p}`)
         .then(setQuote)
         .catch(() => setQuote(null));
     }, 400);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [categoryId, previewMinor]);
 
   // Атрибуты выбранной категории (характеристики/фильтры как на FunPay).
@@ -277,25 +281,26 @@ export function ListingForm({
     setUploading(true);
     const token = getToken();
     for (const [i, f] of files.entries()) {
-      setProgress(files.length > 1 ? `${i + 1} из ${files.length}` : null);
+      setProgress(files.length > 1 ? t('{i} из {n}', { i: i + 1, n: files.length }) : null);
       try {
         const body = await shrink(f);
         const fd = new FormData();
         fd.append('file', body, body === f ? f.name : 'photo.webp');
         const res = await fetch(`${API_URL}/api/listings/uploads`, {
           method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          // Причина отказа — на языке сайта.
+          headers: { 'Accept-Language': t.lang, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: fd,
         });
         if (!res.ok) {
           // Причину говорит сервер: «больше 8 МБ», «только изображения».
-          setUploadErr(apiErrorMessage(new Error(await res.text()), 'Фото не загрузилось. Попробуйте другое.'));
+          setUploadErr(apiErrorMessage(new Error(await res.text()), t('Фото не загрузилось. Попробуйте другое.')));
           continue;
         }
         const { key } = (await res.json()) as { key: string };
         setImages((prev) => [...prev, { key, url: URL.createObjectURL(body) }]);
       } catch (er) {
-        setUploadErr(apiErrorMessage(er, 'Фото не загрузилось. Проверьте связь и попробуйте ещё раз.'));
+        setUploadErr(apiErrorMessage(er, t('Фото не загрузилось. Проверьте связь и попробуйте ещё раз.')));
       }
     }
     setUploading(false);
@@ -303,21 +308,23 @@ export function ListingForm({
   }
 
   const rubValue = parseFloat(price.replace(',', '.').replace(/\s/g, ''));
+  // Проверки общих модулей (пополнение, количество) — русской строкой; t.d переводит.
+  const qtyError = perPiece ? qtyTermsError(qtyTerms) : null;
   const fieldErrors: Record<string, string | null> = {
-    game: gameId ? null : 'Выберите игру',
-    category: categoryId ? null : 'Выберите, что продаёте',
-    title: title.trim().length >= 3 ? null : 'Название — от 3 знаков: его видят в каталоге',
-    description: description.trim() ? null : 'Опишите, что получит покупатель и как передаёте',
-    price: variable ? null : rubValue > 0 ? null : 'Цена в рублях, например 490',
-    topup: variable ? termsError : null,
-    qty: perPiece ? qtyTermsError(qtyTerms) : null,
+    game: gameId ? null : t('Выберите игру'),
+    category: categoryId ? null : t('Выберите, что продаёте'),
+    title: title.trim().length >= 3 ? null : t('Название — от 3 знаков: его видят в каталоге'),
+    description: description.trim() ? null : t('Опишите, что получит покупатель и как передаёте'),
+    price: variable ? null : rubValue > 0 ? null : t('Цена в рублях, например 490'),
+    topup: variable && termsError ? t.d(termsError) : null,
+    qty: qtyError ? t.d(qtyError) : null,
     buyer:
       !manualLot
         ? null
         : buyerFields.some((f) => f.label.trim().length < 2)
-          ? 'Название поля — от 2 символов'
+          ? t('Название поля — от 2 символов')
           : new Set(buyerFields.map((f) => f.label.trim().toLowerCase())).size !== buyerFields.length
-            ? 'Названия полей не должны повторяться'
+            ? t('Названия полей не должны повторяться')
             : null,
   };
   const cleanTemplate = template.trim();
@@ -329,12 +336,16 @@ export function ListingForm({
     setErr(null);
     setTouched({ game: true, category: true, title: true, description: true, price: true, topup: true, qty: true, buyer: true });
     if (Object.values(fieldErrors).some(Boolean)) {
-      setErr(editing ? 'Изменения не сохранены — поправьте отмеченные поля.' : 'Лот не опубликован — поправьте отмеченные поля.');
+      setErr(
+        editing
+          ? t('Изменения не сохранены — поправьте отмеченные поля.')
+          : t('Лот не опубликован — поправьте отмеченные поля.'),
+      );
       return;
     }
     const missing = attrs.find((a) => a.isRequired && !attrValues[a.key]);
     if (missing) {
-      setErr(`Укажите характеристику «${missing.label}»`);
+      setErr(t('Укажите характеристику «{name}»', { name: t.d(missing.label) }));
       return;
     }
     const cleanAttrs: Record<string, string | boolean> = {};
@@ -385,7 +396,7 @@ export function ListingForm({
               : '/cabinet/lots?updated=1',
         );
       } catch (e) {
-        setErr(apiErrorMessage(e, 'Не удалось сохранить изменения. Попробуйте ещё раз через минуту.'));
+        setErr(apiErrorMessage(e, t('Не удалось сохранить изменения. Попробуйте ещё раз через минуту.')));
         setBusy(false);
       }
       return;
@@ -414,7 +425,7 @@ export function ListingForm({
       });
       router.push(`/lot/${created.id}?created=1`);
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не удалось опубликовать лот. Попробуйте ещё раз через минуту.'));
+      setErr(apiErrorMessage(e, t('Не удалось опубликовать лот. Попробуйте ещё раз через минуту.')));
       setBusy(false);
     }
   }
@@ -423,42 +434,43 @@ export function ListingForm({
 
   return (
     <div className="container" style={{ maxWidth: 600, paddingTop: 40 }}>
-      <h1 className="h1" style={{ fontSize: 32 }}>{editing ? 'Изменить лот' : 'Новый лот'}</h1>
+      <h1 className="h1" style={{ fontSize: 32 }}>{editing ? t('Изменить лот') : t('Новый лот')}</h1>
       <p className="muted" style={{ margin: '8px 0 24px' }}>
         {editing
-          ? 'Изменения видны в каталоге сразу. Уже оформленные заказы идут по прежней цене.'
-          : 'Лот появится в каталоге сразу. Деньги за продажу придут на баланс, когда покупатель подтвердит получение.'}
+          ? t('Изменения видны в каталоге сразу. Уже оформленные заказы идут по прежней цене.')
+          : t('Лот появится в каталоге сразу. Деньги за продажу придут на баланс, когда покупатель подтвердит получение.')}
       </p>
       <form onSubmit={submit} className="card stack-form" style={{ gap: 18, padding: 24 }} noValidate>
         <div className="field">
-          <label className="label" htmlFor="game">Игра</label>
+          <label className="label" htmlFor="game">{t('Игра')}</label>
           <select id="game" className="input" value={games.find((g) => g.id === gameId)?.slug ?? ''} disabled={editing}
             onChange={(e) => onGame(e.target.value)} onBlur={() => touch('game')} aria-invalid={!!showErr('game')}>
-            <option value="">Выберите игру</option>
+            <option value="">{t('Выберите игру')}</option>
             {games.map((g) => (
-              <option key={g.id} value={g.slug}>{g.title}</option>
+              <option key={g.id} value={g.slug}>{t.d(g.title)}</option>
             ))}
           </select>
           {showErr('game') && <p className="field-error">{showErr('game')}</p>}
         </div>
 
         <div className="field">
-          <label className="label" htmlFor="category">Что продаёте</label>
+          <label className="label" htmlFor="category">{t('Что продаёте')}</label>
           <select id="category" className="input" value={categoryId} onChange={(e) => onCategory(e.target.value)}
             onBlur={() => touch('category')} disabled={editing || !categories.length} aria-invalid={!!showErr('category')}>
-            <option value="">{categories.length ? 'Выберите категорию' : 'Сначала выберите игру'}</option>
+            <option value="">{categories.length ? t('Выберите категорию') : t('Сначала выберите игру')}</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.title}</option>
+              <option key={c.id} value={c.id}>{t.d(c.title)}</option>
             ))}
           </select>
           {showErr('category') ? (
             <p className="field-error">{showErr('category')}</p>
           ) : editing ? (
-            <p className="hint">Игру и раздел у выставленного лота не меняют: к ним привязаны характеристики и заказы.</p>
+            <p className="hint">{t('Игру и раздел у выставленного лота не меняют: к ним привязаны характеристики и заказы.')}</p>
           ) : selectedCategory?.fulfillmentType === 'auto_key' ? (
             <p className="hint">
-              Ключи загрузите на склад после публикации: с первым ключом лот появится в каталоге. Покупатель получит
-              ключи сразу после оплаты, можно несколько в одном заказе.
+              {t(
+                'Ключи загрузите на склад после публикации: с первым ключом лот появится в каталоге. Покупатель получит ключи сразу после оплаты, можно несколько в одном заказе.',
+              )}
             </p>
           ) : null}
         </div>
@@ -468,19 +480,19 @@ export function ListingForm({
             {attrs.map((a) => (
               <div key={a.key} className="field">
                 <label className="label" htmlFor={`attr-${a.key}`}>
-                  {a.label}{a.isRequired ? '' : ' — необязательно'}
+                  {a.isRequired ? t.d(a.label) : t('{label} — необязательно', { label: t.d(a.label) })}
                 </label>
                 {a.type === 'enum' && a.options ? (
                   <select id={`attr-${a.key}`} className="input" value={String(attrValues[a.key] ?? '')}
                     onChange={(e) => setAttrValues((v) => ({ ...v, [a.key]: e.target.value }))}>
-                    <option value="">Выберите</option>
-                    {a.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                    <option value="">{t('Выберите')}</option>
+                    {a.options.map((o) => <option key={o} value={o}>{t.d(o)}</option>)}
                   </select>
                 ) : a.type === 'bool' ? (
                   <label className="row" style={{ gap: 8, fontSize: 14, minHeight: 44 }}>
                     <input id={`attr-${a.key}`} type="checkbox" checked={!!attrValues[a.key]}
                       style={{ width: 18, height: 18, accentColor: 'var(--accent)' }}
-                      onChange={(e) => setAttrValues((v) => ({ ...v, [a.key]: e.target.checked }))} /> Да
+                      onChange={(e) => setAttrValues((v) => ({ ...v, [a.key]: e.target.checked }))} /> {t('Да')}
                   </label>
                 ) : (
                   <input id={`attr-${a.key}`} className="input" value={String(attrValues[a.key] ?? '')}
@@ -492,16 +504,16 @@ export function ListingForm({
         )}
 
         <div className="field">
-          <label className="label" htmlFor="title">Название</label>
-          <input id="title" className="input" placeholder="Например, Аккаунт CS2, Prime, 800 часов" value={title} maxLength={120}
+          <label className="label" htmlFor="title">{t('Название')}</label>
+          <input id="title" className="input" placeholder={t('Например, Аккаунт CS2, Prime, 800 часов')} value={title} maxLength={120}
             onChange={(e) => setTitle(e.target.value)} onBlur={() => touch('title')} aria-invalid={!!showErr('title')} />
           {showErr('title') && <p className="field-error">{showErr('title')}</p>}
         </div>
 
         <div className="field">
-          <label className="label" htmlFor="description">Описание</label>
+          <label className="label" htmlFor="description">{t('Описание')}</label>
           <textarea id="description" className="input" style={{ minHeight: 120, resize: 'vertical' }}
-            placeholder="Что входит, как передаёте, сколько ждать. Чем точнее — тем меньше споров."
+            placeholder={t('Что входит, как передаёте, сколько ждать. Чем точнее — тем меньше споров.')}
             value={description} onChange={(e) => setDescription(e.target.value)} onBlur={() => touch('description')}
             aria-invalid={!!showErr('description')} />
           {showErr('description') && <p className="field-error">{showErr('description')}</p>}
@@ -509,10 +521,14 @@ export function ListingForm({
 
         {selectedCategory?.fulfillmentType === 'provider' && (
           <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend className="label" style={{ marginBottom: 6, padding: 0 }}>Как продаёте</legend>
+            <legend className="label" style={{ marginBottom: 6, padding: 0 }}>{t('Как продаёте')}</legend>
             {[
-              { v: false, t: 'Фиксированная цена', d: 'Один номинал за одну цену, например «3280 кристаллов»' },
-              { v: true, t: 'На сумму покупателя', d: 'Покупатель вводит сумму, вы задаёте наценку и границы — как пополнение Steam' },
+              { v: false, t: t('Фиксированная цена'), d: t('Один номинал за одну цену, например «3280 кристаллов»') },
+              {
+                v: true,
+                t: t('На сумму покупателя'),
+                d: t('Покупатель вводит сумму, вы задаёте наценку и границы — как пополнение Steam'),
+              },
             ].map((o) => (
               <label key={o.t} className="row" style={{ gap: 10, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>
                 <input type="radio" name="pricing" checked={byAmount === o.v} onChange={() => setByAmount(o.v)}
@@ -528,13 +544,15 @@ export function ListingForm({
 
         {canAuto && (
           <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend className="label" style={{ marginBottom: 6, padding: 0 }}>Как выдаёте</legend>
+            <legend className="label" style={{ marginBottom: 6, padding: 0 }}>{t('Как выдаёте')}</legend>
             {[
-              { v: false, t: 'Вручную', d: 'Передаёте товар в чате заказа и отмечаете выдачу' },
+              { v: false, t: t('Вручную'), d: t('Передаёте товар в чате заказа и отмечаете выдачу') },
               {
                 v: true,
-                t: 'Автоматически со склада',
-                d: 'Загружаете товар строками: логин и пароль, промокод, ссылка. Покупатель получает свою строку сразу после оплаты',
+                t: t('Автоматически со склада'),
+                d: t(
+                  'Загружаете товар строками: логин и пароль, промокод, ссылка. Покупатель получает свою строку сразу после оплаты',
+                ),
               },
             ].map((o) => (
               <label key={o.t} className="row" style={{ gap: 10, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>
@@ -550,16 +568,20 @@ export function ListingForm({
               <p className="hint" style={{ margin: '4px 0 0' }}>
                 {initial?.fulfillmentType === 'auto_key' ? (
                   <>
-                    Склад — на <Link href={`/lot/${initial.id}#keys`} className="inline-link">странице лота</Link>, внизу.
+                    {t('Склад — внизу,')}{' '}
+                    <Link href={`/lot/${initial.id}#keys`} className="inline-link">
+                      {t('на странице лота')}
+                    </Link>
+                    .
                   </>
                 ) : (
-                  'Товар загрузите на склад после сохранения: с первой строкой лот появится в каталоге.'
+                  t('Товар загрузите на склад после сохранения: с первой строкой лот появится в каталоге.')
                 )}{' '}
-                Каждая строка — одна штука: покупатель может взять несколько, наличие считает склад.
+                {t('Каждая строка — одна штука: покупатель может взять несколько, наличие считает склад.')}
               </p>
             ) : initial?.fulfillmentType === 'auto_key' ? (
               <p className="hint" style={{ margin: '4px 0 0' }}>
-                Строки на складе останутся: включите автовыдачу снова — и они вернутся в продажу.
+                {t('Строки на складе останутся: включите автовыдачу снова — и они вернутся в продажу.')}
               </p>
             ) : null}
           </fieldset>
@@ -567,73 +589,81 @@ export function ListingForm({
 
         {manualLot && (
           <div className="field">
-            <span className="label">Что спросить у покупателя — необязательно</span>
+            <span className="label">{t('Что спросить у покупателя — необязательно')}</span>
             {buyerFields.map((f, i) => (
               <div key={i} className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                 <input className="input" style={{ flex: 1, minWidth: 160 }} maxLength={40} value={f.label}
-                  aria-label={`Поле ${i + 1}`} placeholder="Например, ник в игре" onBlur={() => touch('buyer')}
+                  aria-label={t('Поле {n}', { n: i + 1 })} placeholder={t('Например, ник в игре')} onBlur={() => touch('buyer')}
                   onChange={(e) => setBuyerFields((list) => list.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
                 <label className="row hint" style={{ gap: 6, cursor: 'pointer', minHeight: 44 }}>
                   <input type="checkbox" checked={f.required} style={{ width: 16, height: 16, accentColor: 'var(--accent)' }}
                     onChange={(e) => setBuyerFields((list) => list.map((x, j) => (j === i ? { ...x, required: e.target.checked } : x)))} />
-                  обязательно
+                  {t('обязательно')}
                 </label>
-                <button type="button" className="chip" aria-label={`Убрать поле ${f.label || i + 1}`}
-                  onClick={() => setBuyerFields((list) => list.filter((_, j) => j !== i))}>Убрать</button>
+                <button type="button" className="chip" aria-label={t('Убрать поле {name}', { name: f.label || i + 1 })}
+                  onClick={() => setBuyerFields((list) => list.filter((_, j) => j !== i))}>{t('Убрать')}</button>
               </div>
             ))}
             {buyerFields.length < 3 && (
               <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                {['Ник в игре', 'Сервер', 'ID персонажа']
+                {[t('Ник в игре'), t('Сервер'), t('ID персонажа')]
                   .filter((l) => !buyerFields.some((f) => f.label.trim().toLowerCase() === l.toLowerCase()))
                   .map((l) => (
                     <button key={l} type="button" className="chip"
                       onClick={() => setBuyerFields((list) => [...list, { label: l, required: true }])}>+ {l}</button>
                   ))}
                 <button type="button" className="chip" onClick={() => setBuyerFields((list) => [...list, { label: '', required: true }])}>
-                  + Своё поле
+                  + {t('Своё поле')}
                 </button>
               </div>
             )}
             {showErr('buyer') ? (
               <p className="field-error">{showErr('buyer')}</p>
             ) : (
-              <p className="hint">Покупатель заполнит это до оплаты, ответы будут в заказе. Пароли и коды не спрашивайте.</p>
+              <p className="hint">
+                {t('Покупатель заполнит это до оплаты, ответы будут в заказе. Пароли и коды не спрашивайте.')}
+              </p>
             )}
           </div>
         )}
 
         {withNote && (
           <div className="field">
-            <label className="label" htmlFor="note">Сообщение покупателю после оплаты — необязательно</label>
+            <label className="label" htmlFor="note">{t('Сообщение покупателю после оплаты — необязательно')}</label>
             <textarea id="note" className="input" style={{ minHeight: 96, resize: 'vertical' }} maxLength={2000}
               placeholder={
                 selected?.fulfillmentType === 'auto_key'
-                  ? 'Например: активируйте ключ в Steam — «Игры», затем «Активировать в Steam»'
+                  ? t('Например: активируйте ключ в Steam — «Игры», затем «Активировать в Steam»')
                   : autoLines
-                    ? 'Например: войдите по данным из заказа и сразу смените пароль и почту'
-                    : 'Например: спасибо за заказ, передам товар за 15 минут — будьте в сети'
+                    ? t('Например: войдите по данным из заказа и сразу смените пароль и почту')
+                    : t('Например: спасибо за заказ, передам товар за 15 минут — будьте в сети')
               }
               value={template} onChange={(e) => setTemplate(e.target.value)} />
             <p className="hint">
-              Придёт в чат заказа от вашего имени сразу после оплаты. Контакты и ссылки скрываются, как в любом сообщении.
+              {t('Придёт в чат заказа от вашего имени сразу после оплаты. Контакты и ссылки скрываются, как в любом сообщении.')}
             </p>
           </div>
         )}
 
         {pack && (
           <p className="hint" style={{ margin: 0 }}>
-            В этом разделе продают количеством: цена — за {formatQty(pack.pricePerUnits, pack.unitName)}, одинаково у
-            всех продавцов, чтобы покупатель сравнивал цены.
+            {t(
+              'В этом разделе продают количеством: цена — за {qty}, одинаково у всех продавцов, чтобы покупатель сравнивал цены.',
+              { qty: formatQty(pack.pricePerUnits, pack.unitName, t) },
+            )}
           </p>
         )}
 
         {manualLot && !pack && (
           <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend className="label" style={{ marginBottom: 6, padding: 0 }}>Как продаёте</legend>
+            <legend className="label" style={{ marginBottom: 6, padding: 0 }}>{t('Как продаёте')}</legend>
             {[
-              { v: false, t: 'Целиком', d: 'Один товар или услуга за одну цену: аккаунт, буст, предмет' },
-              { v: true, t: 'Поштучно', d: 'Валюта или одинаковые предметы: цена за пачку, количество выбирает покупатель' },
+              { v: false, t: t('Целиком'), d: t('Один товар или услуга за одну цену: аккаунт, буст, предмет') },
+              {
+                v: true,
+                t: t('Поштучно'),
+                d: t('Валюта или одинаковые предметы: цена за пачку, количество выбирает покупатель'),
+              },
             ].map((o) => (
               <label key={o.t} className="row" style={{ gap: 10, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>
                 <input type="radio" name="selling" checked={byQty === o.v} onChange={() => setByQty(o.v)}
@@ -651,12 +681,12 @@ export function ListingForm({
           <div className="field">
             <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
               <div className="field">
-                <label className="label" htmlFor="qty-unit">Единица</label>
-                <input id="qty-unit" className="input" placeholder="золота" maxLength={24} value={unitName}
+                <label className="label" htmlFor="qty-unit">{t('Единица')}</label>
+                <input id="qty-unit" className="input" placeholder={t('золота')} maxLength={24} value={unitName}
                   readOnly={!!pack} onChange={(e) => setUnitName(e.target.value)} onBlur={() => touch('qty')} />
               </div>
               <div className="field">
-                <label className="label" htmlFor="qty-per">Цена за</label>
+                <label className="label" htmlFor="qty-per">{t('Цена за')}</label>
                 <select id="qty-per" className="input" value={perUnits} disabled={!!pack}
                   onChange={(e) => setPerUnits(Number(e.target.value))}>
                   {PRICE_PER_UNITS.map((n) => (
@@ -665,12 +695,12 @@ export function ListingForm({
                 </select>
               </div>
               <div className="field">
-                <label className="label" htmlFor="qty-stock">В наличии</label>
+                <label className="label" htmlFor="qty-stock">{t('В наличии')}</label>
                 <input id="qty-stock" className="input" inputMode="numeric" placeholder="250000" value={stock}
                   onChange={(e) => setStock(e.target.value)} onBlur={() => touch('qty')} />
               </div>
               <div className="field">
-                <label className="label" htmlFor="qty-min">Минимум за заказ</label>
+                <label className="label" htmlFor="qty-min">{t('Минимум за заказ')}</label>
                 <input id="qty-min" className="input" inputMode="numeric" placeholder="1" value={minQty}
                   onChange={(e) => setMinQty(e.target.value)} onBlur={() => touch('qty')} />
               </div>
@@ -679,8 +709,8 @@ export function ListingForm({
               <p className="field-error">{showErr('qty')}</p>
             ) : (
               <p className="hint">
-                {pack ? '' : 'Единицу пишите так, как она стоит после числа: 1 000 золота, 5 шт. '}
-                Наличие уменьшается с каждой оплатой; на нуле лот уходит из каталога.
+                {pack ? null : <>{t('Единицу пишите так, как она стоит после числа: 1 000 золота, 5 шт.')} </>}
+                {t('Наличие уменьшается с каждой оплатой; на нуле лот уходит из каталога.')}
               </p>
             )}
           </div>
@@ -690,9 +720,9 @@ export function ListingForm({
           <div className="field">
             <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
               {[
-                { id: 'markup', label: 'Наценка, %', value: markup, set: setMarkup, ph: '8', mode: 'decimal' as const },
-                { id: 'min', label: 'От, ₽', value: minRub, set: setMinRub, ph: '100', mode: 'numeric' as const },
-                { id: 'max', label: 'До, ₽', value: maxRub, set: setMaxRub, ph: '15000', mode: 'numeric' as const },
+                { id: 'markup', label: t('Наценка, %'), value: markup, set: setMarkup, ph: '8', mode: 'decimal' as const },
+                { id: 'min', label: t('От, ₽'), value: minRub, set: setMinRub, ph: '100', mode: 'numeric' as const },
+                { id: 'max', label: t('До, ₽'), value: maxRub, set: setMaxRub, ph: '15000', mode: 'numeric' as const },
               ].map((f) => (
                 <div key={f.id} className="field">
                   <label className="label" htmlFor={`topup-${f.id}`}>{f.label}</label>
@@ -705,12 +735,14 @@ export function ListingForm({
             {showErr('topup') ? (
               <p className="field-error">{showErr('topup')}</p>
             ) : (
-              <p className="hint">Покупатель вводит сумму в этих границах и платит её плюс вашу наценку.</p>
+              <p className="hint">{t('Покупатель вводит сумму в этих границах и платит её плюс вашу наценку.')}</p>
             )}
           </div>
         ) : (
           <div className="field">
-            <label className="label" htmlFor="price">{perPiece ? `Цена за ${unitLabel(perUnits)}, ₽` : 'Цена, ₽'}</label>
+            <label className="label" htmlFor="price">
+              {perPiece ? t('Цена за {qty}, ₽', { qty: unitLabel(perUnits) }) : t('Цена, ₽')}
+            </label>
             <input id="price" className="input" placeholder="490" inputMode="decimal" value={price} style={{ maxWidth: 220 }}
               onChange={(e) => setPrice(e.target.value)} onBlur={() => touch('price')} aria-invalid={!!showErr('price')} />
             {showErr('price') && <p className="field-error">{showErr('price')}</p>}
@@ -721,28 +753,35 @@ export function ListingForm({
           <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
             {variable && example && terms && (
               <p className="muted" style={{ margin: '0 0 8px', fontSize: 14 }}>
-                Покупатель пополняет {formatPrice(example.nominal.toString())} и платит{' '}
-                {formatPrice(example.price.toString())} с наценкой {markupLabel(terms.markupBps)}
+                {t('Покупатель пополняет {nominal} и платит {price} с наценкой {markup}', {
+                  nominal: formatPrice(example.nominal.toString(), 'RUB', t),
+                  price: formatPrice(example.price.toString(), 'RUB', t),
+                  markup: pct(terms.markupBps),
+                })}
               </p>
             )}
             <div className="row" style={{ justifyContent: 'space-between', fontSize: 14 }}>
-              <span className="muted">Комиссия площадки</span>
-              <span>−{formatPrice(quote.feeSeller)}</span>
+              <span className="muted">{t('Комиссия площадки')}</span>
+              <span>−{formatPrice(quote.feeSeller, 'RUB', t)}</span>
             </div>
             <div className="row" style={{ justifyContent: 'space-between', fontSize: 15, fontWeight: 700, marginTop: 6 }}>
-              <span>{perPiece ? `Вы получите за ${unitLabel(perUnits)}` : 'Вы получите'}</span>
-              <span style={{ color: 'var(--success)' }}>{formatPrice(quote.sellerPayout)}</span>
+              <span>{perPiece ? t('Вы получите за {qty}', { qty: unitLabel(perUnits) }) : t('Вы получите')}</span>
+              <span style={{ color: 'var(--success)' }}>{formatPrice(quote.sellerPayout, 'RUB', t)}</span>
             </div>
-            {quote.level && <p className="hint" style={{ marginTop: 6 }}>Ваш уровень: {quote.level.label}</p>}
+            {quote.level && (
+              <p className="hint" style={{ marginTop: 6 }}>
+                {t('Ваш уровень: {level}', { level: t.d(quote.level.label) })}
+              </p>
+            )}
           </div>
         ) : (
-          <p className="hint">Укажите категорию и цену — покажем комиссию и сумму, которую вы получите.</p>
+          <p className="hint">{t('Укажите категорию и цену — покажем комиссию и сумму, которую вы получите.')}</p>
         )}
 
         <div className="field">
-          <span className="label">Фото — необязательно</span>
+          <span className="label">{t('Фото — необязательно')}</span>
           <p className="hint" style={{ margin: '0 0 4px' }}>
-            До {MAX_PHOTOS} фото. Первое — обложка в разделе и на странице лота.
+            {t('До {n} фото. Первое — обложка в разделе и на странице лота.', { n: MAX_PHOTOS })}
           </p>
           {images.length > 0 && (
             <div className="photo-grid">
@@ -751,13 +790,13 @@ export function ListingForm({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={im.url} alt="" />
                   {i === 0 ? (
-                    <span className="photo-cover">Обложка</span>
+                    <span className="photo-cover">{t('Обложка')}</span>
                   ) : (
                     <button
                       type="button"
                       className="photo-btn photo-make-cover"
-                      aria-label="Сделать обложкой"
-                      title="Сделать обложкой"
+                      aria-label={t('Сделать обложкой')}
+                      title={t('Сделать обложкой')}
                       onClick={() => setImages((prev) => [prev[i]!, ...prev.filter((_, j) => j !== i)])}
                     >
                       <Star size={15} strokeWidth={1.75} />
@@ -766,8 +805,8 @@ export function ListingForm({
                   <button
                     type="button"
                     className="photo-btn photo-remove"
-                    aria-label="Убрать фото"
-                    title="Убрать фото"
+                    aria-label={t('Убрать фото')}
+                    title={t('Убрать фото')}
                     onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
                   >
                     <X size={15} strokeWidth={1.75} />
@@ -779,7 +818,13 @@ export function ListingForm({
           {images.length < MAX_PHOTOS && (
             <label className="btn secondary photo-add" aria-disabled={uploading || undefined}>
               <ImagePlus size={18} strokeWidth={1.75} aria-hidden />
-              {uploading ? `Загружаем${progress ? ` ${progress}` : ''}…` : images.length ? 'Ещё фото' : 'Добавить фото'}
+              {uploading
+                ? progress
+                  ? t('Загружаем {progress}…', { progress })
+                  : t('Загружаем…')
+                : images.length
+                  ? t('Ещё фото')
+                  : t('Добавить фото')}
               <input type="file" accept="image/*" multiple onChange={onImages} disabled={uploading} hidden />
             </label>
           )}
@@ -792,7 +837,13 @@ export function ListingForm({
 
         {err && <div className="alert error" role="alert">{err}</div>}
         <button className="btn lg block" type="submit" disabled={busy}>
-          {busy ? (editing ? 'Сохраняем…' : 'Публикуем…') : editing ? 'Сохранить изменения' : 'Опубликовать лот'}
+          {busy
+            ? editing
+              ? t('Сохраняем…')
+              : t('Публикуем…')
+            : editing
+              ? t('Сохранить изменения')
+              : t('Опубликовать лот')}
         </button>
       </form>
     </div>
