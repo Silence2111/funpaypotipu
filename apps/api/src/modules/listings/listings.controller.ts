@@ -27,6 +27,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { AccountStatusService } from '../access/account-status.service';
 import { ListingsService } from './listings.service';
+import { RateLimit } from '../../common/rate-limit';
 
 const bumpAllSchema = z.object({ categoryId: z.string().uuid().optional() });
 const bulkSchema = z.object({
@@ -99,6 +100,7 @@ export class ListingsController {
 
   /** Загрузка изображения лота (multipart через API; MinIO приватный). */
   @Post('uploads')
+  @RateLimit('uploads', 30, 600)
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
   upload(

@@ -4,6 +4,7 @@ import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { ChatService } from './chat.service';
+import { RateLimit } from '../../common/rate-limit';
 
 const sendSchema = z.object({ body: z.string().min(1).max(4000) });
 const startSchema = z.object({ body: z.string().min(1).max(4000).optional() }).default({});
@@ -36,6 +37,7 @@ export class ChatController {
 
   /** Начать/открыть предпродажный диалог с продавцом лота; с { body } — и написать о лоте. */
   @Post('for-listing/:listingId')
+  @RateLimit('chat-send', 60, 60)
   startWithSeller(
     @CurrentUser() user: AuthUser,
     @Param('listingId') listingId: string,
@@ -65,6 +67,7 @@ export class ChatController {
   }
 
   @Post(':id/messages')
+  @RateLimit('chat-send', 60, 60)
   send(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -75,6 +78,7 @@ export class ChatController {
 
   /** Получить presigned PUT-URL для загрузки вложения. */
   @Post(':id/uploads')
+  @RateLimit('uploads', 30, 600)
   upload(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,

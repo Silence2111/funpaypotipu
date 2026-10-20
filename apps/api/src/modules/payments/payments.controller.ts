@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { AccountStatusService } from '../access/account-status.service';
 import { PaymentsService } from './payments.service';
+import { RateLimit } from '../../common/rate-limit';
 
 // Способ оплаты через шлюз; без него — СБП, как платили до выбора способа.
 const methodSchema = z.enum(GATEWAY_METHOD_KEYS).default('sbp');
@@ -24,6 +25,7 @@ export class PaymentsController {
   ) {}
 
   @Post('deposit')
+  @RateLimit('payments', 30, 600)
   @UseGuards(JwtAuthGuard)
   deposit(
     @CurrentUser() user: AuthUser,
@@ -34,6 +36,7 @@ export class PaymentsController {
 
   /** Пополнение баланса пользователя. */
   @Post('topup')
+  @RateLimit('payments', 30, 600)
   @UseGuards(JwtAuthGuard)
   async topup(
     @CurrentUser() user: AuthUser,

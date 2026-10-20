@@ -892,6 +892,50 @@ async function scenarioPayout(rnd) {
 }
 
 /**
+ * Защита перед запуском: заголовки, CORS только для сайта, лимит запросов
+ * с адреса. Адрес покупателя приходит в X-Forwarded-For — API верит ему
+ * от локального прокси, как за ingress.
+ */
+async function scenarioSecurity(rnd) {
+  console.log('\n— Защита: заголовки, CORS, лимиты —');
+  const raw = (path, headers = {}, init = {}) => fetch(`${API}/api${path}`, { ...init, headers });
+  const ready = await raw('/health/ready');
+  check('Готовность: база доступна — 200', ready.status === 200);
+  const h = await raw('/health');
+  check(
+    'Заголовки безопасности, без X-Powered-By',
+    h.headers.get('x-content-type-options') === 'nosniff' && h.headers.get('x-frame-options') === 'DENY' && !h.headers.get('x-powered-by'),
+  );
+  const evil = await raw('/health', { Origin: 'https://evil.example' });
+  const site = await raw('/health', { Origin: 'http://localhost:3000' });
+  check(
+    'CORS: чужой сайт не получает доступа, сайт площадки — получает',
+    !evil.headers.get('access-control-allow-origin') && site.headers.get('access-control-allow-origin') === 'http://localhost:3000',
+  );
+  const ip = `10.${(rnd >> 8) % 250}.${rnd % 250}.7`;
+  const forgot = (from, lang) =>
+    j('/auth/forgot', {
+      method: 'POST',
+      headers: { 'X-Forwarded-For': from, ...(lang ? { 'Accept-Language': lang } : {}) },
+      body: JSON.stringify({ email: `nobody${rnd}@e2e.local` }),
+    });
+  const first = [];
+  for (let i = 0; i < 5; i++) first.push((await forgot(ip)).status);
+  const sixth = await raw('/auth/forgot', { 'Content-Type': 'application/json', 'X-Forwarded-For': ip, 'Accept-Language': 'en' }, {
+    method: 'POST',
+    body: JSON.stringify({ email: `nobody${rnd}@e2e.local` }),
+  });
+  const body = await sixth.json();
+  check(
+    'Письма сброса с одного адреса — пять за 15 минут, дальше 429 с Retry-After',
+    first.every((st) => st === 200) && sixth.status === 429 && Number(sixth.headers.get('retry-after')) > 0 && body.error === 'rate_limited',
+    `${first.join(',')} → ${sixth.status}`,
+  );
+  check('Отказ по лимиту — на языке сайта', /^Too many requests/.test(body.message) && body.lang === 'en', body.message);
+  check('Другой адрес — свой счётчик', (await forgot(`${ip.slice(0, -2)}.8`)).status === 200);
+}
+
+/**
  * Оплата через ЮKassa. Платёжный провайдер выбирается при запуске API, а
  * остальные сценарии платят заглушкой, — поэтому здесь поднимается второй
  * API (порт 4100) с PAYMENT_PROVIDER=yookassa против тестового сервера
@@ -1063,6 +1107,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioLanguage(rnd);
   await scenarioRates(rnd);
   await scenarioPayout(rnd);
+  await scenarioSecurity(rnd);
   await scenarioYooKassa(rnd);
 
   const passed = results.filter(Boolean).length;

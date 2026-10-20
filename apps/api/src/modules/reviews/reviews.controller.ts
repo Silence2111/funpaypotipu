@@ -4,6 +4,7 @@ import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { ReviewsService } from './reviews.service';
+import { RateLimit } from '../../common/rate-limit';
 
 const createReviewSchema = z.object({
   orderId: z.string().uuid(),
@@ -36,6 +37,7 @@ export class ReviewsController {
   }
 
   @Post()
+  @RateLimit('reviews', 30, 3600)
   @UseGuards(JwtAuthGuard)
   create(
     @CurrentUser() user: AuthUser,

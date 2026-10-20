@@ -8,6 +8,7 @@ import { BlocksService } from '../access/blocks.service';
 import { AccountService } from './account.service';
 import { PushService, type PushSubscriptionInput } from '../notifications/push.service';
 import { NOTIFY_GROUPS } from '@gamemarket/shared';
+import { RateLimit } from '../../common/rate-limit';
 
 // Группы — ровно те, что в shared/notify.ts: лишний ключ не попадёт в базу.
 const groupFlags = z
@@ -62,6 +63,7 @@ export class AccountController {
   }
 
   @Post('avatar')
+  @RateLimit('uploads', 30, 600)
   @UseInterceptors(FileInterceptor('file'))
   avatar(@CurrentUser() user: AuthUser, @UploadedFile() file: { buffer: Buffer; mimetype: string; size: number }) {
     return this.account.setAvatar(user.userId, file);

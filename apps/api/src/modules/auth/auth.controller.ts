@@ -25,6 +25,7 @@ import { REFRESH_COOKIE, REFRESH_PATH, completeLogin, ctxOf } from './auth-http'
 import { TwoFactorService } from './twofactor.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser, type AuthUser } from './current-user.decorator';
+import { RateLimit } from '../../common/rate-limit';
 
 // Код из приложения — 6 цифр, резервный — «abcde-fghjk».
 const codeSchema = z.object({ code: z.string().trim().min(6).max(20) });
@@ -43,6 +44,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @RateLimit('auth-register', 10, 3600)
   @UsePipes(new ZodValidationPipe(registerSchema))
   async register(
     @Body() body: RegisterInput,
@@ -53,6 +55,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @RateLimit('auth-login', 30, 600)
   @HttpCode(200)
   @UsePipes(new ZodValidationPipe(loginSchema))
   async login(
@@ -64,6 +67,7 @@ export class AuthController {
   }
 
   @Post('forgot')
+  @RateLimit('auth-forgot', 5, 900)
   @HttpCode(200)
   async forgot(
     @Body(new ZodValidationPipe(z.object({ email: z.string().email() }))) body: { email: string },
@@ -74,6 +78,7 @@ export class AuthController {
   }
 
   @Post('reset')
+  @RateLimit('auth-reset', 10, 900)
   @HttpCode(200)
   async reset(
     @Body(new ZodValidationPipe(z.object({ token: z.string().min(10), password: z.string().min(8).max(200) })))
@@ -84,6 +89,7 @@ export class AuthController {
   }
 
   @Post('verify-email')
+  @RateLimit('auth-verify', 20, 900)
   @HttpCode(200)
   async verifyEmail(
     @Body(new ZodValidationPipe(z.object({ token: z.string().min(10) }))) body: { token: string },
@@ -156,12 +162,14 @@ export class AuthController {
   }
 
   @Post('2fa/setup')
+  @RateLimit('auth-2fa', 20, 600)
   @UseGuards(JwtAuthGuard)
   setup2fa(@CurrentUser() user: AuthUser) {
     return this.twoFactor.setup(user.userId, user.username);
   }
 
   @Post('2fa/enable')
+  @RateLimit('auth-2fa', 20, 600)
   @UseGuards(JwtAuthGuard)
   enable2fa(
     @CurrentUser() user: AuthUser,
@@ -171,6 +179,7 @@ export class AuthController {
   }
 
   @Post('2fa/disable')
+  @RateLimit('auth-2fa', 20, 600)
   @UseGuards(JwtAuthGuard)
   disable2fa(
     @CurrentUser() user: AuthUser,
@@ -181,6 +190,7 @@ export class AuthController {
 
   /** Новые резервные коды взамен старых — по коду из приложения. */
   @Post('2fa/recovery')
+  @RateLimit('auth-2fa', 20, 600)
   @UseGuards(JwtAuthGuard)
   regenerate2fa(
     @CurrentUser() user: AuthUser,

@@ -14,6 +14,7 @@ import { PRISMA } from '../../prisma/prisma.module';
 import { TokenService } from '../auth/token.service';
 import { ChatService } from './chat.service';
 import { toEnglish } from '../../i18n/translate';
+import { corsOrigin } from '../../common/http-security';
 
 const room = (conversationId: string) => `conv:${conversationId}`;
 /** Личная комната: список диалогов и счётчик непрочитанных обновляются без перезагрузки. */
@@ -24,7 +25,8 @@ const userRoom = (userId: string) => `user:${userId}`;
  * комнаты по диалогам, persist-then-broadcast через ChatService.
  * Масштабирование на несколько инстансов — через Redis-адаптер (позже).
  */
-@WebSocketGateway({ namespace: '/chat', cors: { origin: true, credentials: true } })
+// Сокет — с тех же сайтов, что и HTTP (common/http-security.ts).
+@WebSocketGateway({ namespace: '/chat', cors: { origin: corsOrigin, credentials: true } })
 export class ChatGateway implements OnGatewayConnection, OnGatewayInit {
   @WebSocketServer() server!: Server;
 

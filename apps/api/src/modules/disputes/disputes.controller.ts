@@ -6,6 +6,7 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { DisputesService } from './disputes.service';
+import { RateLimit } from '../../common/rate-limit';
 
 const openSchema = z.object({ orderId: z.string().uuid(), reason: z.string().min(3).max(2000) });
 const attachmentSchema = z.object({
@@ -55,6 +56,7 @@ export class DisputesController {
   }
 
   @Post(':id/uploads')
+  @RateLimit('uploads', 30, 600)
   upload(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,

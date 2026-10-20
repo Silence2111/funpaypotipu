@@ -6,6 +6,7 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { KycService } from './kyc.service';
+import { RateLimit } from '../../common/rate-limit';
 
 const uploadSchema = z.object({ mime: z.string().min(3).max(100) });
 const key = z.string().min(3).max(200);
@@ -24,6 +25,7 @@ export class KycController {
   constructor(private readonly kyc: KycService) {}
 
   @Post('uploads')
+  @RateLimit('uploads', 30, 600)
   @UseGuards(JwtAuthGuard)
   upload(
     @CurrentUser() user: AuthUser,

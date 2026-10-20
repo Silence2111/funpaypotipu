@@ -10,6 +10,11 @@ import type { Phrasebook } from '@gamemarket/shared';
  * находит тексты исключений и проверок в apps/api/src.
  */
 export const EN_API: Phrasebook = {
+  // Лимиты запросов и готовность сервиса
+  'Слишком много запросов. Подождите {n} сек. и попробуйте снова.':
+    'Too many requests. Wait {n} s and try again.',
+  'База данных недоступна': 'The database is unavailable',
+
   // Доступ и статус аккаунта
   'Аккаунт заморожен модератором: покупки, продажи и вывод недоступны. Напишите в поддержку.':
     'Your account has been frozen by a moderator: purchases, sales and withdrawals are unavailable. Contact support.',

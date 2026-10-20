@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { PresenceInterceptor } from './common/presence.interceptor';
 import { I18nExceptionFilter } from './common/i18n-exception.filter';
+import { RateLimitGuard } from './common/rate-limit';
 import { SellersModule } from './modules/sellers/sellers.module';
 import { AccessModule } from './modules/access/access.module';
 import { CryptoModule } from './modules/crypto/crypto.module';
@@ -78,6 +79,8 @@ import { SupportModule } from './modules/support/support.module';
     { provide: APP_INTERCEPTOR, useClass: PresenceInterceptor },
     // Ошибки на языке сайта: Accept-Language en → английский текст и lang: 'en'.
     { provide: APP_FILTER, useClass: I18nExceptionFilter },
+    // Лимиты частоты запросов с адреса — до любых других проверок маршрута.
+    { provide: APP_GUARD, useClass: RateLimitGuard },
   ],
 })
 export class AppModule {}

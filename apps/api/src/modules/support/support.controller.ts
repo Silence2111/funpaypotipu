@@ -6,6 +6,7 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { SUPPORT_CATEGORIES, SupportService, type SupportCategory, type TicketStatus } from './support.service';
+import { RateLimit } from '../../common/rate-limit';
 
 const createSchema = z.object({
   subject: z.string().trim().min(3, 'Тема — от 3 символов').max(120),
@@ -21,6 +22,7 @@ export class SupportController {
   constructor(private readonly support: SupportService) {}
 
   @Post('tickets')
+  @RateLimit('support', 10, 3600)
   create(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createSchema)) body: { subject: string; category: SupportCategory; orderId?: string; body: string },
@@ -47,6 +49,7 @@ export class SupportController {
   }
 
   @Post('tickets/:id/messages')
+  @RateLimit('support-msg', 60, 600)
   reply(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body(new ZodValidationPipe(replySchema)) body: { body: string }) {
     return this.support.reply(id, user.userId, body.body);
   }

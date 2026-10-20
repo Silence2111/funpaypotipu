@@ -7,6 +7,7 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { ModerationService, type ReportAction, type ReportTarget } from './moderation.service';
+import { RateLimit } from '../../common/rate-limit';
 
 const reportSchema = z.object({
   targetType: z.enum(['listing', 'user', 'message']),
@@ -35,6 +36,7 @@ export class ModerationController {
 
   // Любой авторизованный — подать жалобу
   @Post('reports')
+  @RateLimit('reports', 20, 3600)
   report(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(reportSchema))

@@ -27,6 +27,7 @@ import {
   SocialService,
   TICKET_COOKIE,
 } from './social.service';
+import { RateLimit } from '../../../common/rate-limit';
 
 const webUrl = () => (process.env.WEB_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
@@ -71,6 +72,7 @@ export class SocialController {
   }
 
   @Get('oauth/:provider/start')
+  @RateLimit('auth-oauth', 30, 600)
   start(
     @Param('provider') provider: string,
     @Query('next') next: string,
@@ -101,6 +103,7 @@ export class SocialController {
   }
 
   @Post('social/telegram')
+  @RateLimit('auth-oauth', 30, 600)
   @HttpCode(200)
   telegram(
     @Body(new ZodValidationPipe(telegramSchema)) data: Record<string, string | number>,
@@ -122,6 +125,7 @@ export class SocialController {
 
   /** Завершить вход по билету: ник для нового аккаунта, код — если включена защита. */
   @Post('social/complete')
+  @RateLimit('auth-social', 20, 600)
   @HttpCode(200)
   async complete(
     @Body(new ZodValidationPipe(completeSchema)) body: { code?: string; username?: string },
