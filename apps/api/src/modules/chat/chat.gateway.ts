@@ -13,6 +13,7 @@ import { PrismaClient } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import { TokenService } from '../auth/token.service';
 import { ChatService } from './chat.service';
+import { toEnglish } from '../../i18n/translate';
 
 const room = (conversationId: string) => `conv:${conversationId}`;
 /** Личная комната: список диалогов и счётчик непрочитанных обновляются без перезагрузки. */
@@ -102,7 +103,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayInit {
   @SubscribeMessage('message:send')
   async onMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { conversationId: string; body: string },
+    @MessageBody() data: { conversationId: string; body: string; lang?: string },
   ) {
     const userId = client.data.userId as string | undefined;
     if (!userId) return { error: 'unauthorized' };
@@ -116,7 +117,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayInit {
     try {
       return await this.chat.sendMessage(data.conversationId, userId, data.body);
     } catch (e) {
-      return { error: e instanceof Error ? e.message : 'Сообщение не отправлено' };
+      const error = e instanceof Error ? e.message : 'Сообщение не отправлено';
+      // Глобальный фильтр ошибок сокет не проходит — переводим здесь,
+      // на языке, который прислал сайт.
+      const en = data?.lang === 'en' ? toEnglish(error) : undefined;
+      return en ? { error: en, lang: 'en' } : { error };
     }
   }
 }

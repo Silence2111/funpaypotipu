@@ -4,6 +4,7 @@ import { isDemoSeller } from '@gamemarket/shared';
 import type { Attribute, ListingCard, SellerBrief } from '@/lib/api';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { isOnline } from '@/lib/presence';
+import { RU, type T } from '@/lib/i18n/lang';
 import { ApproxPrice } from './approx-price';
 
 /** Сколько параметров раздела выносить в колонки; остальные — строкой под названием. */
@@ -15,10 +16,10 @@ export function attrColumns(attributes: Attribute[]): Attribute[] {
 }
 
 /** Значение параметра словами; «да/нет» — названием параметра, когда «да». */
-function attrValue(a: Attribute, v: unknown): string | null {
+function attrValue(a: Attribute, v: unknown, t: T): string | null {
   if (v === undefined || v === null || v === '') return null;
-  if (typeof v === 'boolean') return v ? a.label : null;
-  return String(v);
+  if (typeof v === 'boolean') return v ? t.d(a.label) : null;
+  return t.d(String(v));
 }
 
 /** Наличие показываем у того, что продаётся количеством: валюта и ключи. */
@@ -33,6 +34,8 @@ function hasStock(l: ListingCard): l is ListingCard & { stock: number } {
  *
  * Вся строка — одна ссылка на лот. На телефоне колонок нет: параметры идут
  * строкой под названием, продавец и цена — под ними.
+ *
+ * Таблицу рисуют и серверные страницы, поэтому язык приходит пропом `t`.
  */
 export function OfferTable({
   items,
@@ -40,6 +43,7 @@ export function OfferTable({
   showSection = false,
   compact = false,
   hideSeller = false,
+  t = RU,
 }: {
   items: ListingCard[];
   /** Параметры раздела; без них таблица — описание, продавец, цена. */
@@ -50,6 +54,8 @@ export function OfferTable({
   compact?: boolean;
   /** Все строки одного продавца («Ещё у продавца») — колонка продавца лишняя. */
   hideSeller?: boolean;
+  /** Переводчик страницы: `await getT()` на сервере, `useT()` в браузере. */
+  t?: T;
 }) {
   const columns = compact ? [] : attrColumns(attributes);
   const extra = attributes.filter((a) => !columns.includes(a));
@@ -67,13 +73,13 @@ export function OfferTable({
   return (
     <div className="offers" style={{ ['--offer-cols' as string]: template }}>
       <div className="offer-head" aria-hidden>
-        <span>Описание</span>
+        <span>{t('Описание')}</span>
         {columns.map((c) => (
-          <span key={c.key}>{c.label}</span>
+          <span key={c.key}>{t.d(c.label)}</span>
         ))}
-        {!hideSeller && <span>Продавец</span>}
-        {showStock && <span className="num">Наличие</span>}
-        <span className="num">Цена</span>
+        {!hideSeller && <span>{t('Продавец')}</span>}
+        {showStock && <span className="num">{t('Наличие')}</span>}
+        <span className="num">{t('Цена')}</span>
       </div>
       {items.map((l) => (
         <OfferRow
@@ -84,6 +90,7 @@ export function OfferTable({
           showStock={showStock}
           showSection={showSection}
           showSeller={!hideSeller}
+          t={t}
         />
       ))}
     </div>
@@ -97,6 +104,7 @@ function OfferRow({
   showStock,
   showSection,
   showSeller,
+  t,
 }: {
   listing: ListingCard;
   columns: Attribute[];
@@ -104,16 +112,17 @@ function OfferRow({
   showStock: boolean;
   showSection: boolean;
   showSeller: boolean;
+  t: T;
 }) {
   const attrs = l.attributes ?? {};
   const instant = l.fulfillmentType === 'auto_key' || l.fulfillmentType === 'provider';
   // Оплаченное продвижение помечается: покупатель должен видеть, почему лот выше.
   const promoted = !!l.promotedUntil && new Date(l.promotedUntil).getTime() > Date.now();
-  const pack = perPackLabel(l);
+  const pack = perPackLabel(l, t);
   const stock = hasStock(l) ? l.stock : null;
   const inline = (list: Attribute[]) =>
     list
-      .map((a) => attrValue(a, attrs[a.key]))
+      .map((a) => attrValue(a, attrs[a.key], t))
       .filter((v): v is string => !!v)
       .join(' · ');
   const extraText = inline(extra);
@@ -139,52 +148,48 @@ function OfferRow({
           <span className="offer-meta">
             {showSection && (
               <span>
-                {l.game.title} · {l.category.title}
+                {t.d(l.game.title)} · {t.d(l.category.title)}
               </span>
             )}
             {columnsText && <span className="only-mobile">{columnsText}</span>}
             {extraText && <span>{extraText}</span>}
             {stock != null && (
               <span className={showStock ? 'only-mobile' : undefined}>
-                в наличии {formatQty(stock, l.unitName)}
+                {t('в наличии {qty}', { qty: formatQty(stock, l.unitName, t) })}
               </span>
             )}
             {instant && (
               <span className="badge success">
-                <Zap size={12} strokeWidth={2} aria-hidden /> выдача сразу
+                <Zap size={12} strokeWidth={2} aria-hidden /> {t('выдача сразу')}
               </span>
             )}
             {isDemoSeller(l.seller.profile?.username) && (
               <span
                 className="demo-mark"
-                title="Демонстрационный лот: показывает, как устроена сделка"
+                title={t('Демонстрационный лот: показывает, как устроена сделка')}
               >
-                Пример
+                {t('Пример')}
               </span>
             )}
-            {promoted && <span>продвижение</span>}
+            {promoted && <span>{t('продвижение')}</span>}
           </span>
         </span>
       </span>
       {columns.map((c) => (
         <span key={c.key} className="offer-attr">
-          {attrValue(c, attrs[c.key]) ?? <span className="faint">—</span>}
+          {attrValue(c, attrs[c.key], t) ?? <span className="faint">—</span>}
         </span>
       ))}
-      {showSeller && <SellerCell seller={l.seller.profile} />}
+      {showSeller && <SellerCell seller={l.seller.profile} t={t} />}
       {/* Единица — в подписи цены («за 1 000 золота»), в колонке только число. */}
       {showStock && (
         <span className="offer-stock num">
-          {stock != null ? (
-            new Intl.NumberFormat('ru-RU').format(stock)
-          ) : (
-            <span className="faint">—</span>
-          )}
+          {stock != null ? t.num(stock) : <span className="faint">—</span>}
         </span>
       )}
       <span className="offer-price num">
         <span className="price">
-          {pack ? formatPrice(l.price, l.currency) : formatListingPrice(l)}
+          {pack ? formatPrice(l.price, l.currency, t) : formatListingPrice(l, t)}
         </span>
         {pack ? (
           <span className="faint">{pack}</span>
@@ -197,13 +202,13 @@ function OfferRow({
 }
 
 /** Продавец: аватар с точкой «в сети», имя, рейтинг с числом отзывов. */
-export function SellerCell({ seller }: { seller: SellerBrief | null }) {
+export function SellerCell({ seller, t = RU }: { seller: SellerBrief | null; t?: T }) {
   if (!seller) return <span className="seller-cell faint">—</span>;
   const online = isOnline(seller.onlineAt);
   const reviews = seller.ratingCount ?? 0;
   return (
     <span className="seller-cell">
-      <Avatar name={seller.username} url={seller.avatarUrl} online={online} />
+      <Avatar name={seller.username} url={seller.avatarUrl} online={online} t={t} />
       <span className="seller-text">
         <span className="seller-name">{seller.username}</span>
         <span className="seller-rating">
@@ -212,12 +217,12 @@ export function SellerCell({ seller }: { seller: SellerBrief | null }) {
             <>
               <Star size={13} strokeWidth={1.75} className="star" aria-hidden />
               {seller.ratingAvg.toFixed(1)}
-              <span className="faint">· {reviews} отз.</span>
+              <span className="faint">· {t.n(reviews, 'отз.', 'отз.', 'отз.')}</span>
             </>
           ) : (
-            <span className="faint">нет отзывов</span>
+            <span className="faint">{t('нет отзывов')}</span>
           )}
-          {online && <span className="sr-only">, в сети</span>}
+          {online && <span className="sr-only">, {t('в сети')}</span>}
         </span>
       </span>
     </span>
@@ -229,11 +234,14 @@ export function Avatar({
   url,
   online = false,
   size = 36,
+  t = RU,
 }: {
   name: string;
   url?: string | null;
   online?: boolean;
   size?: number;
+  /** Переводчик — для подсказки «в сети». */
+  t?: T;
 }) {
   return (
     <span
@@ -247,7 +255,7 @@ export function Avatar({
       ) : (
         (name || '?').charAt(0).toUpperCase()
       )}
-      {online && <span className="presence" title="в сети" />}
+      {online && <span className="presence" title={t('в сети')} />}
     </span>
   );
 }

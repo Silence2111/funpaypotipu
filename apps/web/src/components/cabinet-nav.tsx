@@ -4,17 +4,19 @@ import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { isStaff, useSession } from '@/lib/session';
+import { useT } from '@/lib/i18n/client';
+import { msg } from '@/lib/i18n/lang';
 
 /** Разделы кабинета — как у FunPay: продажи, лоты, финансы и настройки отдельно. */
 const LINKS = [
-  { href: '/cabinet', label: 'Обзор' },
-  { href: '/cabinet/orders', label: 'Заказы' },
-  { href: '/cabinet/lots', label: 'Мои лоты' },
-  { href: '/chat', label: 'Сообщения' },
-  { href: '/cabinet/favorites', label: 'Избранное' },
-  { href: '/cabinet/settings', label: 'Профиль' },
-  { href: '/cabinet/security', label: 'Безопасность' },
-  { href: '/cabinet/support', label: 'Поддержка' },
+  { href: '/cabinet', label: msg('Обзор') },
+  { href: '/cabinet/orders', label: msg('Заказы') },
+  { href: '/cabinet/lots', label: msg('Мои лоты') },
+  { href: '/chat', label: msg('Сообщения') },
+  { href: '/cabinet/favorites', label: msg('Избранное') },
+  { href: '/cabinet/settings', label: msg('Профиль') },
+  { href: '/cabinet/security', label: msg('Безопасность') },
+  { href: '/cabinet/support', label: msg('Поддержка') },
 ];
 
 /**
@@ -22,11 +24,12 @@ const LINKS = [
  * страницей кабинета; текущий раздел прокручен в видимую часть.
  */
 export function CabinetNav() {
+  const t = useT();
   const path = usePathname();
   const { user } = useSession();
   const nav = useRef<HTMLElement>(null);
   // Сотруднику — вход в консоль: на телефоне в шапке для него нет места.
-  const links = isStaff(user) ? [...LINKS, { href: '/admin', label: 'Консоль' }] : LINKS;
+  const links = isStaff(user) ? [...LINKS, { href: '/admin', label: msg('Консоль') }] : LINKS;
 
   useEffect(() => {
     nav.current
@@ -35,7 +38,7 @@ export function CabinetNav() {
   }, [path]);
 
   return (
-    <nav ref={nav} aria-label="Разделы кабинета" className="row cabinet-nav">
+    <nav ref={nav} aria-label={t('Разделы кабинета')} className="row cabinet-nav">
       {links.map((l) => (
         <Link
           key={l.href}
@@ -43,7 +46,7 @@ export function CabinetNav() {
           className="chip"
           aria-current={path === l.href ? 'page' : undefined}
         >
-          {l.label}
+          {t(l.label)}
         </Link>
       ))}
     </nav>

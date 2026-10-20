@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { browseListings, getCategoryAttributes, type Category, type GameWithCategories } from '@/lib/api';
 import { offersCount, sellersCount } from '@/lib/format';
+import { getT } from '@/lib/i18n/server';
 import { OfferTable } from './offers';
 import { SectionFilters } from './section-filters';
 import { JsonLd, breadcrumbLd } from './json-ld';
@@ -29,6 +30,7 @@ export async function SectionView({
   section: Category;
   sp: SectionSearch;
 }) {
+  const t = await getT();
   const attributes = (await getCategoryAttributes(section.id)) ?? [];
   const filterable = attributes.filter((a) => a.isFilter);
 
@@ -82,36 +84,36 @@ export async function SectionView({
     <div className="container" style={{ paddingTop: 40, paddingBottom: 24 }}>
       <JsonLd
         data={breadcrumbLd([
-          ['Все игры', '/igry'],
-          [game.title, `/igra/${game.slug}`],
-          [section.title, base],
+          [t('Все игры'), '/igry'],
+          [t.d(game.title), `/igra/${game.slug}`],
+          [t.d(section.title), base],
         ])}
       />
       <Link href="/igry" className="faint back-link" style={{ fontSize: 14 }}>
-        ← Все игры
+        ← {t('Все игры')}
       </Link>
       <div className="section-top" style={{ marginTop: 12 }}>
         <div>
-          <h1 className="h1">{game.title}</h1>
+          <h1 className="h1">{t.d(game.title)}</h1>
           <p className="muted section-meta">
-            {section.title} · {offersCount(section.listingCount ?? total)}
-            {people && people.sellers > 0 && <> · {sellersCount(people.sellers)}</>}
+            {t.d(section.title)} · {offersCount(section.listingCount ?? total, t)}
+            {people && people.sellers > 0 && <> · {sellersCount(people.sellers, t)}</>}
             {people && people.online > 0 && (
               <>
                 {' · '}
                 <span className="section-online">
-                  <span className="dot-online" aria-hidden /> {people.online} в сети
+                  <span className="dot-online" aria-hidden /> {t('{n} в сети', { n: people.online })}
                 </span>
               </>
             )}
           </p>
         </div>
         <Link href={sellHref} className="btn secondary">
-          Продать в разделе
+          {t('Продать в разделе')}
         </Link>
       </div>
 
-      <nav className="tabs" aria-label="Разделы игры" style={{ marginTop: 24 }}>
+      <nav className="tabs" aria-label={t('Разделы игры')} style={{ marginTop: 24 }}>
         {game.categories.map((c) => (
           <Link
             key={c.id}
@@ -119,7 +121,7 @@ export async function SectionView({
             className="tab"
             aria-current={c.id === section.id ? 'page' : undefined}
           >
-            {c.title}
+            {t.d(c.title)}
             <span className="count">{c.listingCount ?? 0}</span>
           </Link>
         ))}
@@ -129,26 +131,27 @@ export async function SectionView({
         <SectionFilters key={base} attributes={filterable} values={values} defaultSort={defaultSort} />
       </div>
 
-      <section style={{ marginTop: 20 }} aria-label={`Предложения: ${section.title}`}>
+      <section style={{ marginTop: 20 }} aria-label={t('Предложения: {category}', { category: t.d(section.title) })}>
         {items.length > 0 ? (
-          <OfferTable items={items} attributes={attributes} />
+          <OfferTable items={items} attributes={attributes} t={t} />
         ) : (
           <div className="card flat empty-state">
             {filtered ? (
               <>
-                <p className="muted">По этим условиям предложений нет.</p>
+                <p className="muted">{t('По этим условиям предложений нет.')}</p>
                 <Link href={base} className="btn secondary">
-                  Сбросить фильтры
+                  {t('Сбросить фильтры')}
                 </Link>
               </>
             ) : (
               <>
                 <p className="muted">
-                  В разделе «{section.title}» пока нет предложений. Выставьте своё — покупатели этого раздела увидят его
-                  первым.
+                  {t('В разделе «{category}» пока нет предложений. Выставьте своё — покупатели этого раздела увидят его первым.', {
+                    category: t.d(section.title),
+                  })}
                 </p>
                 <Link href={sellHref} className="btn secondary">
-                  Продать первым
+                  {t('Продать первым')}
                 </Link>
               </>
             )}
@@ -157,18 +160,18 @@ export async function SectionView({
       </section>
 
       {pages > 1 && (
-        <nav className="row" aria-label="Страницы" style={{ justifyContent: 'center', gap: 8, marginTop: 24 }}>
+        <nav className="row" aria-label={t('Страницы')} style={{ justifyContent: 'center', gap: 8, marginTop: 24 }}>
           {page > 1 && (
             <Link href={pageHref(page - 1)} className="chip">
-              ← Назад
+              ← {t('Назад')}
             </Link>
           )}
           <span className="faint" style={{ fontSize: 14 }}>
-            {page} из {pages}
+            {t('{page} из {pages}', { page, pages })}
           </span>
           {page < pages && (
             <Link href={pageHref(page + 1)} className="chip">
-              Дальше →
+              {t('Дальше')} →
             </Link>
           )}
         </nav>

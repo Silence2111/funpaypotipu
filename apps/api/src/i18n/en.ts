@@ -183,6 +183,7 @@ export const EN_API: Phrasebook = {
   'Процент должен быть в диапазоне 1..100': 'The percentage must be between 1 and 100',
 
   // Сообщения и файлы
+  'Сообщение не отправлено': 'Message not sent',
   'Хранилище недоступно': 'Storage is unavailable',
   'Диалог не найден': 'Conversation not found',
   'Нет доступа к диалогу': 'No access to this conversation',

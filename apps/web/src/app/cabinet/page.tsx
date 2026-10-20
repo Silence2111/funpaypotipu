@@ -13,21 +13,24 @@ import { WalletTransactions } from '@/components/wallet-transactions';
 import { BumpButton } from '@/components/bump-button';
 import { SellerDashboard } from '@/components/seller-dashboard';
 import { CabinetNav } from '@/components/cabinet-nav';
+import { useT } from '@/lib/i18n/client';
+import { msg } from '@/lib/i18n/lang';
 
 interface WalletDto { currency: string; balance: string }
 interface OrderRow { id: string; publicNumber: string; status: string; amount: string; currency: string }
 interface ListingRow { id: string; title: string; price: string; currency: string; status: string; boostUntil?: string | null; topupMarkupBps?: number | null }
 
-const STATUS_RU: Record<string, string> = {
-  created: 'ждёт оплаты', paid: 'оплачен', delivered: 'выдан', completed: 'завершён',
-  disputed: 'спор', refunded: 'возврат', cancelled: 'отменён', expired: 'истёк',
+const STATUS: Record<string, string> = {
+  created: msg('ждёт оплаты'), paid: msg('оплачен'), delivered: msg('выдан'), completed: msg('завершён'),
+  disputed: msg('спор'), refunded: msg('возврат'), cancelled: msg('отменён'), expired: msg('истёк'),
 };
-const LISTING_RU: Record<string, string> = {
-  active: 'в продаже', draft: 'черновик', paused: 'снят', sold_out: 'распродан', blocked: 'заблокирован',
+const LISTING_STATUS: Record<string, string> = {
+  active: msg('в продаже'), draft: msg('черновик'), paused: msg('снят'), sold_out: msg('распродан'), blocked: msg('заблокирован'),
 };
 
 export default function CabinetPage() {
   const router = useRouter();
+  const t = useT();
   const [wallet, setWallet] = useState<WalletDto | null>(null);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [listings, setListings] = useState<ListingRow[]>([]);
@@ -53,7 +56,7 @@ export default function CabinetPage() {
   const user = getUser();
   if (loading)
     return (
-      <div className="container" style={{ paddingTop: 48 }} aria-busy="true" aria-label="Загружаем кабинет">
+      <div className="container" style={{ paddingTop: 48 }} aria-busy="true" aria-label={t('Загружаем кабинет')}>
         <div className="skeleton" style={{ height: 34, width: 200 }} />
         <div className="skeleton" style={{ height: 96, marginTop: 28 }} />
         <div className="skeleton" style={{ height: 160, marginTop: 20 }} />
@@ -65,15 +68,15 @@ export default function CabinetPage() {
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
         <div>
           <p className="faint" style={{ margin: 0, fontSize: 14 }}>{user?.username}</p>
-          <h1 className="h1" style={{ fontSize: 32 }}>Кабинет</h1>
+          <h1 className="h1" style={{ fontSize: 32 }}>{t('Кабинет')}</h1>
         </div>
-        <Link href="/cabinet/new" className="btn">Продать лот</Link>
+        <Link href="/cabinet/new" className="btn">{t('Продать лот')}</Link>
       </div>
       <CabinetNav />
 
       <section>
         <div className="section-head">
-          <h2 className="h2 row" style={{ fontSize: 20, gap: 8 }}><Package size={18} strokeWidth={1.75} /> Мои заказы</h2>
+          <h2 className="h2 row" style={{ fontSize: 20, gap: 8 }}><Package size={18} strokeWidth={1.75} /> {t('Мои заказы')}</h2>
         </div>
         {orders.length ? (
           <div className="grid" style={{ gap: 8 }}>
@@ -82,28 +85,28 @@ export default function CabinetPage() {
                 style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
                 <span className="muted" style={{ fontSize: 14 }}>{o.publicNumber}</span>
                 <span className="row" style={{ gap: 12 }}>
-                  <span className="price">{formatPrice(o.amount, o.currency)}</span>
+                  <span className="price">{formatPrice(o.amount, o.currency, t)}</span>
                   <span className={o.status === 'completed' ? 'badge success' : o.status === 'paid' || o.status === 'delivered' ? 'badge accent' : 'badge'}>
-                    {STATUS_RU[o.status] ?? o.status}
+                    {STATUS[o.status] ? t(STATUS[o.status]!) : o.status}
                   </span>
                 </span>
               </Link>
             ))}
             <Link href="/cabinet/orders" className="muted" style={{ fontSize: 14, minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
-              Все покупки и продажи →
+              {t('Все покупки и продажи →')}
             </Link>
           </div>
         ) : (
           <div className="card flat row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <span className="muted">Заказов пока нет. Оплата хранится у площадки, пока вы не подтвердите получение.</span>
-            <Link href="/catalog" className="btn secondary">В каталог</Link>
+            <span className="muted">{t('Заказов пока нет. Оплата хранится у площадки, пока вы не подтвердите получение.')}</span>
+            <Link href="/catalog" className="btn secondary">{t('В каталог')}</Link>
           </div>
         )}
       </section>
 
       <section>
         <div className="section-head">
-          <h2 className="h2 row" style={{ fontSize: 20, gap: 8 }}><Tag size={18} strokeWidth={1.75} /> Мои лоты</h2>
+          <h2 className="h2 row" style={{ fontSize: 20, gap: 8 }}><Tag size={18} strokeWidth={1.75} /> {t('Мои лоты')}</h2>
         </div>
         {listings.length ? (
           <div className="grid" style={{ gap: 8 }}>
@@ -112,20 +115,22 @@ export default function CabinetPage() {
                 style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
                 <Link href={`/cabinet/lot/${l.id}`} style={{ flex: 1, minWidth: 140, fontWeight: 600 }}>{l.title}</Link>
                 <span className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
-                  <span className="price">{formatListingPrice(l)}</span>
-                  <span className={l.status === 'active' ? 'badge success' : 'badge'}>{LISTING_RU[l.status] ?? l.status}</span>
+                  <span className="price">{formatListingPrice(l, t)}</span>
+                  <span className={l.status === 'active' ? 'badge success' : 'badge'}>
+                    {LISTING_STATUS[l.status] ? t(LISTING_STATUS[l.status]!) : l.status}
+                  </span>
                   {l.status === 'active' && <BumpButton listingId={l.id} boostUntil={l.boostUntil} />}
                 </span>
               </div>
             ))}
             <Link href="/cabinet/lots" className="muted" style={{ fontSize: 14, minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
-              {listings.length > 5 ? `Все лоты (${listings.length}) →` : 'Управлять лотами →'}
+              {listings.length > 5 ? t('Все лоты ({n}) →', { n: listings.length }) : t('Управлять лотами →')}
             </Link>
           </div>
         ) : (
           <div className="card flat row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <span className="muted">Лотов пока нет. Выставить первый — пара минут.</span>
-            <Link href="/cabinet/new" className="btn secondary">Создать лот</Link>
+            <span className="muted">{t('Лотов пока нет. Выставить первый — пара минут.')}</span>
+            <Link href="/cabinet/new" className="btn secondary">{t('Создать лот')}</Link>
           </div>
         )}
       </section>
@@ -136,24 +141,24 @@ export default function CabinetPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <Wallet size={22} strokeWidth={1.75} color="var(--accent)" />
           <div>
-            <div className="faint" style={{ fontSize: 13 }}>Баланс</div>
+            <div className="faint" style={{ fontSize: 13 }}>{t('Баланс')}</div>
             <div className="price" style={{ fontSize: 26 }}>
-              {wallet ? formatPrice(wallet.balance, wallet.currency) : '—'}
+              {wallet ? formatPrice(wallet.balance, wallet.currency, t) : '—'}
             </div>
           </div>
         </div>
         <TopUpForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
-        <p className="hint" style={{ marginTop: 6 }}>На демо-стенде пополнение проходит без списания денег.</p>
+        <p className="hint" style={{ marginTop: 6 }}>{t('На демо-стенде пополнение проходит без списания денег.')}</p>
         <hr className="divider" style={{ margin: '20px 0' }} />
-        <div className="label">Вывод средств</div>
+        <div className="label">{t('Вывод средств')}</div>
         <PayoutForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
         <hr className="divider" style={{ margin: '20px 0' }} />
-        <div className="label">История операций</div>
+        <div className="label">{t('История операций')}</div>
         <WalletTransactions />
       </section>
 
       <button className="btn ghost" type="button" onClick={() => void logout().then(() => router.push('/'))}>
-        Выйти из аккаунта
+        {t('Выйти из аккаунта')}
       </button>
     </div>
   );

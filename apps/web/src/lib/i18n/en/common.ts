@@ -26,6 +26,8 @@ export const COMMON: Record<string, string> = {
   'Светлая тема': 'Light theme',
   'Тёмная тема': 'Dark theme',
 
+  'Черновик до регистрации юрлица. Места с пометкой «[заполнить]» — реквизиты, которых пока нет.':
+    'Draft until the company is registered. Highlighted placeholders are details we don’t have yet.',
   'Этот документ — только на русском. Действует русская версия.':
     'This document is available in Russian only. The Russian version is the one that applies.',
 
@@ -80,7 +82,6 @@ export const COMMON: Record<string, string> = {
   'Приложения и сервисы': 'Apps and services',
 
   // Цены и количество
-  'шт.': 'pcs',
   'за {qty}': 'per {qty}',
   'от {price}': 'from {price}',
 

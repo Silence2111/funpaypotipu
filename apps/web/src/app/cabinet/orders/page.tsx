@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { formatPrice, formatQty } from '@/lib/format';
 import { CabinetNav } from '@/components/cabinet-nav';
+import { useT } from '@/lib/i18n/client';
+import { msg } from '@/lib/i18n/lang';
 
 interface Row {
   id: string;
@@ -22,25 +24,25 @@ interface Row {
   role: 'buyer' | 'seller';
 }
 
-const STATUS_RU: Record<string, string> = {
-  created: 'ждёт оплаты',
-  paid: 'оплачен',
-  delivered: 'выдан',
-  completed: 'завершён',
-  disputed: 'спор',
-  refunded: 'возврат',
-  cancelled: 'отменён',
-  expired: 'истёк',
+const STATUS: Record<string, string> = {
+  created: msg('ждёт оплаты'),
+  paid: msg('оплачен'),
+  delivered: msg('выдан'),
+  completed: msg('завершён'),
+  disputed: msg('спор'),
+  refunded: msg('возврат'),
+  cancelled: msg('отменён'),
+  expired: msg('истёк'),
 };
 
 /** Фильтры как на FunPay: по смыслу для человека, а не по каждому статусу базы. */
 const FILTERS: Array<{ key: string; label: string; status: string[] }> = [
-  { key: 'all', label: 'Все', status: [] },
-  { key: 'work', label: 'В работе', status: ['paid', 'delivered'] },
-  { key: 'dispute', label: 'Споры', status: ['disputed'] },
-  { key: 'done', label: 'Завершены', status: ['completed'] },
-  { key: 'closed', label: 'Возвраты и отмены', status: ['refunded', 'cancelled', 'expired'] },
-  { key: 'unpaid', label: 'Ждут оплаты', status: ['created'] },
+  { key: 'all', label: msg('Все'), status: [] },
+  { key: 'work', label: msg('В работе'), status: ['paid', 'delivered'] },
+  { key: 'dispute', label: msg('Споры'), status: ['disputed'] },
+  { key: 'done', label: msg('Завершены'), status: ['completed'] },
+  { key: 'closed', label: msg('Возвраты и отмены'), status: ['refunded', 'cancelled', 'expired'] },
+  { key: 'unpaid', label: msg('Ждут оплаты'), status: ['created'] },
 ];
 
 export default function OrdersPage() {
@@ -52,6 +54,7 @@ export default function OrdersPage() {
 }
 
 function Orders() {
+  const t = useT();
   const router = useRouter();
   const params = useSearchParams();
   const role = params.get('role') === 'seller' ? 'seller' : 'buyer';
@@ -84,35 +87,36 @@ function Orders() {
   return (
     <div className="container stack-lg" style={{ paddingTop: 40 }}>
       <div>
-        <h1 className="h1" style={{ fontSize: 32 }}>Заказы</h1>
+        <h1 className="h1" style={{ fontSize: 32 }}>{t('Заказы')}</h1>
         <div style={{ marginTop: 16 }}>
           <CabinetNav />
         </div>
       </div>
 
       <div className="stack-form" style={{ gap: 12 }}>
-        <div className="row" role="tablist" aria-label="Покупки или продажи" style={{ gap: 8 }}>
+        <div className="row" role="tablist" aria-label={t('Покупки или продажи')} style={{ gap: 8 }}>
           <Link href={href('buyer', filter.key)} className="chip" role="tab" aria-selected={role === 'buyer'}
             aria-current={role === 'buyer' ? 'page' : undefined}>
-            Покупки
+            {t('Покупки')}
           </Link>
           <Link href={href('seller', filter.key)} className="chip" role="tab" aria-selected={role === 'seller'}
             aria-current={role === 'seller' ? 'page' : undefined}>
-            Продажи{toShip > 0 ? ` · ${toShip} ждут выдачи` : ''}
+            {t('Продажи')}
+            {toShip > 0 ? ` · ${t('{n} ждут выдачи', { n: toShip })}` : ''}
           </Link>
         </div>
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }} aria-label="Статус">
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }} aria-label={t('Статус')}>
           {FILTERS.map((f) => (
             <Link key={f.key} href={href(role, f.key)} className="chip" style={{ fontSize: 13, minHeight: 36 }}
               aria-current={f.key === filter.key ? 'page' : undefined}>
-              {f.label}
+              {t(f.label)}
             </Link>
           ))}
         </div>
       </div>
 
       {rows === null ? (
-        <div aria-busy="true" aria-label="Загружаем заказы">
+        <div aria-busy="true" aria-label={t('Загружаем заказы')}>
           <div className="skeleton" style={{ height: 72 }} />
           <div className="skeleton" style={{ height: 72, marginTop: 8 }} />
         </div>
@@ -121,13 +125,13 @@ function Orders() {
           <span className="muted">
             {filter.key === 'all'
               ? role === 'buyer'
-                ? 'Покупок пока нет. Деньги будут у площадки, пока вы не подтвердите получение.'
-                : 'Продаж пока нет. Лот с понятным описанием и честной ценой продаётся быстрее.'
-              : 'Заказов с таким статусом нет.'}
+                ? t('Покупок пока нет. Деньги будут у площадки, пока вы не подтвердите получение.')
+                : t('Продаж пока нет. Лот с понятным описанием и честной ценой продаётся быстрее.')
+              : t('Заказов с таким статусом нет.')}
           </span>
           {filter.key === 'all' && (
             <Link href={role === 'buyer' ? '/catalog' : '/cabinet/new'} className="btn secondary">
-              {role === 'buyer' ? 'В каталог' : 'Продать лот'}
+              {role === 'buyer' ? t('В каталог') : t('Продать лот')}
             </Link>
           )}
         </div>
@@ -136,10 +140,10 @@ function Orders() {
         // стороне, статус, сумма — строки одной высоты читаются быстрее карточек.
         <div className="offers" style={{ ['--offer-cols' as string]: 'minmax(0, 1fr) minmax(120px, 180px) minmax(120px, 150px) minmax(96px, 120px)' }}>
           <div className="offer-head" aria-hidden>
-            <span>Заказ</span>
-            <span>{role === 'buyer' ? 'Продавец' : 'Покупатель'}</span>
-            <span>Статус</span>
-            <span className="num">Сумма</span>
+            <span>{t('Заказ')}</span>
+            <span>{role === 'buyer' ? t('Продавец') : t('Покупатель')}</span>
+            <span>{t('Статус')}</span>
+            <span className="num">{t('Сумма')}</span>
           </div>
           {rows.map((o) => {
             const ship = o.status === 'paid' && o.role === 'seller';
@@ -150,13 +154,15 @@ function Orders() {
                   <span className="offer-title">{o.title ?? o.publicNumber}</span>
                   <span className="offer-meta">
                     <span>
-                      {o.unitName && (o.qty > 1 || o.unitName !== 'шт.') ? `${formatQty(o.qty, o.unitName)} · ` : ''}
+                      {o.unitName && (o.qty > 1 || o.unitName !== 'шт.') ? `${formatQty(o.qty, o.unitName, t)} · ` : ''} {/* i18n-ignore */}
                       {o.publicNumber} ·{' '}
-                      {new Date(o.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                      {new Date(o.createdAt).toLocaleDateString(t.locale, { day: 'numeric', month: 'short' })}
                     </span>
                     {o.counterparty && (
                       <span className="only-mobile">
-                        {o.role === 'buyer' ? 'продавец' : 'покупатель'} {o.counterparty}
+                        {o.role === 'buyer'
+                          ? t('продавец {name}', { name: o.counterparty })
+                          : t('покупатель {name}', { name: o.counterparty })}
                       </span>
                     )}
                   </span>
@@ -174,11 +180,17 @@ function Orders() {
                             : 'badge'
                     }
                   >
-                    {ship ? 'нужно выдать' : confirm ? 'подтвердите получение' : (STATUS_RU[o.status] ?? o.status)}
+                    {ship
+                      ? t('нужно выдать')
+                      : confirm
+                        ? t('подтвердите получение')
+                        : STATUS[o.status]
+                          ? t(STATUS[o.status]!)
+                          : o.status}
                   </span>
                 </span>
                 <span className="offer-price num">
-                  <span className="price">{formatPrice(o.amount, o.currency)}</span>
+                  <span className="price">{formatPrice(o.amount, o.currency, t)}</span>
                 </span>
               </Link>
             );

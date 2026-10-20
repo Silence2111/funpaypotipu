@@ -1,6 +1,7 @@
 'use client';
 
 import { apiFetch } from './session';
+import { documentLang } from './i18n/lang';
 
 /** Метаданные загруженного файла — форма, которую ожидают attachments API. */
 export interface UploadedAttachment {
@@ -23,7 +24,8 @@ export async function uploadViaPresignedUrl(path: string, file: File): Promise<U
   const res = await fetch(up.uploadUrl, {
     method: 'PUT',
     body: file,
-    headers: { 'Content-Type': mime },
+    // Ошибка хранилища на API — на языке сайта.
+    headers: { 'Content-Type': mime, 'Accept-Language': documentLang() },
   });
   if (!res.ok) throw new Error((await res.text().catch(() => '')) || `HTTP ${res.status}`);
   return { key: up.key, mime, size: file.size };

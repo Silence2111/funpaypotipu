@@ -2,4 +2,5 @@
 export const PLURAL: Record<string, readonly [string, string]> = {
   предложение: ['offer', 'offers'],
   продавец: ['seller', 'sellers'],
+  'шт.': ['pc', 'pcs'],
 };

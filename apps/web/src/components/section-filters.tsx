@@ -4,13 +4,15 @@ import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import type { Attribute } from '@/lib/api';
+import { useT } from '@/lib/i18n/client';
+import { msg } from '@/lib/i18n/lang';
 import { BottomSheet } from './bottom-sheet';
 
 const SORTS: Array<[string, string]> = [
-  ['new', 'Сначала поднятые'],
-  ['price_asc', 'Сначала дешёвые'],
-  ['price_desc', 'Сначала дорогие'],
-  ['popular', 'Часто покупают'],
+  ['new', msg('Сначала поднятые')],
+  ['price_asc', msg('Сначала дешёвые')],
+  ['price_desc', msg('Сначала дорогие')],
+  ['popular', msg('Часто покупают')],
 ];
 
 /**
@@ -32,6 +34,7 @@ export function SectionFilters({
   /** Сортировка раздела без параметра в адресе: у валюты — сначала дешёвые. */
   defaultSort?: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const pathname = usePathname();
   const [q, setQ] = useState(values.q ?? '');
@@ -65,15 +68,15 @@ export function SectionFilters({
           <select
             key={a.key}
             className="input filter-select"
-            aria-label={a.label}
+            aria-label={t.d(a.label)}
             data-active={v ? 'true' : undefined}
             value={v}
             onChange={(e) => go({ [`f_${a.key}`]: e.target.value || undefined })}
           >
-            <option value="">{a.label}</option>
+            <option value="">{t.d(a.label)}</option>
             {(a.options ?? []).map((o) => (
               <option key={o} value={o}>
-                {o}
+                {t.d(o)}
               </option>
             ))}
           </select>
@@ -89,7 +92,7 @@ export function SectionFilters({
             aria-pressed={on}
             onClick={() => go({ [`f_${a.key}`]: on ? undefined : '1' })}
           >
-            {a.label}
+            {t.d(a.label)}
           </button>
         );
       })}
@@ -100,7 +103,7 @@ export function SectionFilters({
         onClick={() => go({ online: values.online === '1' ? undefined : '1' })}
       >
         <span className="dot-online" aria-hidden />
-        Продавец в сети
+        {t('Продавец в сети')}
       </button>
     </>
   );
@@ -124,8 +127,8 @@ export function SectionFilters({
             enterKeyHint="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Поиск по предложениям"
-            aria-label="Поиск по предложениям раздела"
+            placeholder={t('Поиск по предложениям')}
+            aria-label={t('Поиск по предложениям раздела')}
             maxLength={100}
           />
         </form>
@@ -137,40 +140,40 @@ export function SectionFilters({
           onClick={() => setSheet(true)}
         >
           <SlidersHorizontal size={16} strokeWidth={1.75} aria-hidden />
-          Фильтры
+          {t('Фильтры')}
           {chosen > 0 && <span className="filters-count">{chosen}</span>}
         </button>
         <select
           className="input filter-select"
-          aria-label="Сортировка"
+          aria-label={t('Сортировка')}
           value={values.sort ?? defaultSort}
           onChange={(e) => go({ sort: e.target.value === defaultSort ? undefined : e.target.value })}
         >
           {SORTS.map(([v, label]) => (
             <option key={v} value={v}>
-              {label}
+              {t(label)}
             </option>
           ))}
         </select>
         {active && (
           <button type="button" className="btn ghost filter-reset" onClick={reset}>
-            Сбросить
+            {t('Сбросить')}
           </button>
         )}
       </div>
 
       {sheet && (
-        <BottomSheet label="Фильтры" onClose={() => setSheet(false)}>
-          <div className="sheet-title">Фильтры</div>
+        <BottomSheet label={t('Фильтры')} onClose={() => setSheet(false)}>
+          <div className="sheet-title">{t('Фильтры')}</div>
           <div className="filters-sheet">{params}</div>
           <div className="filters-sheet-actions">
             {chosen > 0 && (
               <button type="button" className="btn secondary" onClick={reset}>
-                Сбросить
+                {t('Сбросить')}
               </button>
             )}
             <button type="button" className="btn" onClick={() => setSheet(false)}>
-              Показать
+              {t('Показать')}
             </button>
           </div>
         </BottomSheet>

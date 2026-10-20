@@ -5,14 +5,25 @@ import { browseListings, getGameIndex, getCategoryAttributes, SEGMENTS, type Att
 import { OfferTable } from '@/components/offers';
 import { SearchBar } from '@/components/search-bar';
 import { ParamSelect } from '@/components/param-select';
+import { getT } from '@/lib/i18n/server';
+import { msg } from '@/lib/i18n/lang';
 
-export const metadata: Metadata = {
-  title: 'Все предложения — поиск игровых товаров',
-  description: 'Поиск по предложениям продавцов: аккаунты, валюта, предметы, ключи, донат и услуги во всех играх.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    title: t('Все предложения — поиск игровых товаров'),
+    description: t('Поиск по предложениям продавцов: аккаунты, валюта, предметы, ключи, донат и услуги во всех играх.'),
+  };
+}
 
 type SP = Record<string, string | undefined>;
 const PAGE_SIZE = 30;
+const SORTS: Array<[string, string]> = [
+  ['new', msg('Сначала поднятые')],
+  ['price_asc', msg('Дешевле')],
+  ['price_desc', msg('Дороже')],
+  ['popular', msg('Часто покупают')],
+];
 
 /**
  * Поиск по предложениям во всех играх: по словам, по типу товара («все
@@ -21,6 +32,7 @@ const PAGE_SIZE = 30;
  */
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
+  const t = await getT();
   if (sp.game && sp.category && !sp.q) {
     const rest = new URLSearchParams();
     for (const [k, v] of Object.entries(sp)) if (v && (k.startsWith('f_') || k === 'online' || k === 'sort')) rest.set(k, v);
@@ -72,12 +84,12 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   };
 
   const title = segment
-    ? `${segment[1]} во всех играх`
+    ? t('{type} во всех играх', { type: t(segment[1]) })
     : game
-      ? `${game.title}: поиск`
+      ? t('{game}: поиск', { game: t.d(game.title) })
       : sp.q
-        ? `Поиск: «${sp.q}»`
-        : 'Все предложения';
+        ? t('Поиск: «{q}»', { q: sp.q })
+        : t('Все предложения');
 
   return (
     <div className="container" style={{ paddingTop: 40, paddingBottom: 24 }}>
@@ -88,13 +100,13 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         <SearchBar initial={sp.q ?? ''} game={sp.game} />
       </div>
 
-      <nav className="type-chips" aria-label="Тип товара" style={{ marginTop: 20 }}>
+      <nav className="type-chips" aria-label={t('Тип товара')} style={{ marginTop: 20 }}>
         <Link href={qs({ segment: undefined })} className="chip" aria-current={!segment ? 'page' : undefined}>
-          Все типы
+          {t('Все типы')}
         </Link>
         {SEGMENTS.map(([key, label]) => (
           <Link key={key} href={qs({ segment: key })} className="chip" aria-current={segment?.[0] === key ? 'page' : undefined}>
-            {label}
+            {t(label)}
           </Link>
         ))}
       </nav>
@@ -103,9 +115,11 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         <div className="filters-group">
           <ParamSelect
             name="game"
-            label="Игра"
+            label={t('Игра')}
             value={game?.slug}
-            options={[...games].sort((a, b) => a.title.localeCompare(b.title, 'ru')).map((g) => [g.slug, g.title])}
+            options={games
+              .map((g): [string, string] => [g.slug, t.d(g.title)])
+              .sort((a, b) => a[1].localeCompare(b[1], t.locale))}
             reset={['category']}
           />
           <Link
@@ -114,33 +128,28 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             aria-pressed={sp.online === '1'}
           >
             <span className="dot-online" aria-hidden />
-            Продавец в сети
+            {t('Продавец в сети')}
           </Link>
         </div>
         <div className="filters-group filters-side">
-          {[
-            ['new', 'Сначала поднятые'],
-            ['price_asc', 'Дешевле'],
-            ['price_desc', 'Дороже'],
-            ['popular', 'Часто покупают'],
-          ].map(([v, label]) => (
+          {SORTS.map(([v, label]) => (
             <Link
               key={v}
               href={qs({ sort: v === 'new' ? undefined : v })}
               className="chip"
               aria-current={sort === v ? 'page' : undefined}
             >
-              {label}
+              {t(label)}
             </Link>
           ))}
         </div>
       </div>
 
       {game && game.categories.length > 0 && (
-        <nav className="tabs" aria-label={`Разделы: ${game.title}`} style={{ marginTop: 20 }}>
+        <nav className="tabs" aria-label={t('Разделы: {game}', { game: t.d(game.title) })} style={{ marginTop: 20 }}>
           {game.categories.map((c) => (
             <Link key={c.id} href={`/igra/${game.slug}/${c.slug}`} className="tab">
-              {c.title}
+              {t.d(c.title)}
               <span className="count">{c.listingCount}</span>
             </Link>
           ))}
@@ -148,33 +157,33 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       )}
 
       <p className="faint" style={{ fontSize: 13, margin: '20px 0 12px' }}>
-        Найдено: {total}
+        {t('Найдено: {n}', { n: total })}
       </p>
       {items.length ? (
         // Без выбранного раздела в выдаче смешаны разделы: пишем их в строке.
-        <OfferTable items={items} attributes={columns} showSection={!selectedCat} />
+        <OfferTable items={items} attributes={columns} showSection={!selectedCat} t={t} />
       ) : (
         <div className="card flat empty-state">
-          <p className="muted">Ничего не нашлось. Попробуйте другие слова или уберите фильтры.</p>
+          <p className="muted">{t('Ничего не нашлось. Попробуйте другие слова или уберите фильтры.')}</p>
           <Link href="/catalog" className="btn secondary">
-            Сбросить
+            {t('Сбросить')}
           </Link>
         </div>
       )}
 
       {pages > 1 && (
-        <nav className="row" aria-label="Страницы" style={{ justifyContent: 'center', gap: 8, marginTop: 24 }}>
+        <nav className="row" aria-label={t('Страницы')} style={{ justifyContent: 'center', gap: 8, marginTop: 24 }}>
           {page > 1 && (
             <Link href={qs({ page: String(page - 1) })} className="chip">
-              ← Назад
+              ← {t('Назад')}
             </Link>
           )}
           <span className="faint" style={{ fontSize: 14 }}>
-            {page} из {pages}
+            {t('{page} из {pages}', { page, pages })}
           </span>
           {page < pages && (
             <Link href={qs({ page: String(page + 1) })} className="chip">
-              Дальше →
+              {t('Дальше')} →
             </Link>
           )}
         </nav>

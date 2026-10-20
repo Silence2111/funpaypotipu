@@ -5,6 +5,14 @@ import { GameTopupForm } from '@/components/game-topup-form';
 import { GameSearch } from '@/components/game-search';
 import { GameDirectory, PopularGames } from '@/components/game-directory';
 import { OfferTable } from '@/components/offers';
+import { getT } from '@/lib/i18n/server';
+import type { T } from '@/lib/i18n/lang';
+
+/** Процент для витрины: «2,5%», по-английски — «2.5%». */
+const pctOf = (t: T) => (v: number) => {
+  const s = String(+(v * 100).toFixed(1));
+  return `${t.lang === 'en' ? s : s.replace('.', ',')}%`;
+};
 
 /**
  * Главная — каталог, как у бирж: поиск по играм, популярные игры, свежие
@@ -17,12 +25,13 @@ export default async function HomePage({
   // Логин и сумма возвращаются сюда после входа: виджет открывается заполненным.
   searchParams: Promise<{ account?: string; amount?: string }>;
 }) {
-  const [index, browse, pricing, steam, query] = await Promise.all([
+  const [index, browse, pricing, steam, query, t] = await Promise.all([
     getGameIndex(),
     browseListings({ limit: 8, sort: 'new' }),
     getPublicPricing(),
     getTopupOffers('steam'),
     searchParams,
+    getT(),
   ]);
   const games = index ?? [];
   const listings = browse?.items ?? [];
@@ -30,7 +39,7 @@ export default async function HomePage({
 
   // Проценты берём из API, а не пишем в разметке. Не ответил — не обещаем.
   // 2,5% — не «3%»: округление до целого на витрине завышало ставку вывода
-  const pct = (v: number) => `${String(+(v * 100).toFixed(1)).replace('.', ',')}%`;
+  const pct = pctOf(t);
   const feeRange =
     pricing && pricing.sellerFeeMinPct > 0
       ? pricing.sellerFeeMinPct === pricing.sellerFeeMaxPct
@@ -45,26 +54,36 @@ export default async function HomePage({
           к первой покупке. «Оплатить» в виджете — единственный акцент экрана. */}
       <section className={topup ? 'home-hero' : undefined}>
         <div>
-          <h1 className="h1">Игровые товары. Безопасно.</h1>
+          <h1 className="h1">{t('Игровые товары. Безопасно.')}</h1>
           <p className="lead">
-            {games.length > 0 ? `${games.length} игр и сервисов: ` : ''}аккаунты, валюта, предметы, ключи и донат.
-            Деньги лежат у площадки, пока вы не подтвердите, что получили товар.
+            {games.length > 0
+              ? t('{n} игр и сервисов: аккаунты, валюта, предметы, ключи и донат.', { n: games.length })
+              : t('Аккаунты, валюта, предметы, ключи и донат.')}{' '}
+            {t('Деньги лежат у площадки, пока вы не подтвердите, что получили товар.')}
           </p>
           <div style={{ marginTop: 24 }}>
             <GameSearch index={games} size="lg" />
           </div>
-          <nav className="type-chips" aria-label="Типы товаров">
+          <nav className="type-chips" aria-label={t('Типы товаров')}>
             {SEGMENTS.map(([key, label]) => (
               <Link key={key} href={`/catalog?segment=${key}`} className="chip">
-                {label}
+                {t(label)}
               </Link>
             ))}
           </nav>
           <p className="muted" style={{ fontSize: 14, marginTop: 20 }}>
-            Покупателю — без комиссии.
-            {feeRange && <> Продавцу — {feeRange}, вывод от {payoutFee != null ? pct(payoutFee) : '—'}.</>}{' '}
+            {t('Покупателю — без комиссии.')}
+            {feeRange && (
+              <>
+                {' '}
+                {t('Продавцу — {fee}, вывод от {payout}.', {
+                  fee: feeRange,
+                  payout: payoutFee != null ? pct(payoutFee) : '—',
+                })}
+              </>
+            )}{' '}
             <Link href="/cabinet/new" className="inline-link">
-              Продать свой лот
+              {t('Продать свой лот')}
             </Link>
           </p>
         </div>
@@ -86,8 +105,9 @@ export default async function HomePage({
         <div className="alert" role="note" style={{ maxWidth: 760, margin: '32px auto 0' }}>
           <Info size={18} strokeWidth={1.75} />
           <span>
-            Это демо-стенд. Лоты с пометкой «Пример» — демонстрационные, а оплата
-            проходит без списания денег: платёжный провайдер ещё не подключён.
+            {t(
+              'Это демо-стенд. Лоты с пометкой «Пример» — демонстрационные, а оплата проходит без списания денег: платёжный провайдер ещё не подключён.',
+            )}
           </span>
         </div>
       )}
@@ -96,10 +116,10 @@ export default async function HomePage({
         <section aria-labelledby="popular-title">
           <div className="section-head">
             <h2 className="h2" id="popular-title">
-              Популярные
+              {t('Популярные')}
             </h2>
             <a href="#catalog" className="muted" style={{ fontSize: 14 }}>
-              Все игры →
+              {t('Все игры')} →
             </a>
           </div>
           <PopularGames games={games} />
@@ -110,13 +130,13 @@ export default async function HomePage({
         <section aria-labelledby="fresh-title">
           <div className="section-head">
             <h2 className="h2" id="fresh-title">
-              Новые предложения
+              {t('Новые предложения')}
             </h2>
             <Link href="/catalog" className="muted" style={{ fontSize: 14 }}>
-              Все →
+              {t('Все')} →
             </Link>
           </div>
-          <OfferTable items={listings} showSection />
+          <OfferTable items={listings} showSection t={t} />
         </section>
       )}
 
@@ -124,17 +144,17 @@ export default async function HomePage({
         <section id="catalog" aria-labelledby="catalog-title" style={{ scrollMarginTop: 80 }}>
           <div className="section-head" style={{ flexWrap: 'wrap', gap: 12 }}>
             <h2 className="h2" id="catalog-title">
-              Все игры от А до Я
+              {t('Все игры от А до Я')}
             </h2>
             <div className="kind-links">
               <Link href="/igry?vid=game" className="chip">
-                Игры
+                {t('Игры')}
               </Link>
               <Link href="/igry?vid=mobile" className="chip">
-                Мобильные
+                {t('Мобильные')}
               </Link>
               <Link href="/igry?vid=app" className="chip">
-                Приложения
+                {t('Приложения')}
               </Link>
             </div>
           </div>
@@ -144,37 +164,43 @@ export default async function HomePage({
 
       <section aria-labelledby="trust-title">
         <h2 className="h2" id="trust-title" style={{ marginBottom: 20 }}>
-          Как защищена сделка
+          {t('Как защищена сделка')}
         </h2>
         <div className="trust-row">
           <div>
             <h3>
-              <ShieldCheck size={18} strokeWidth={1.75} aria-hidden /> Деньги у площадки
+              <ShieldCheck size={18} strokeWidth={1.75} aria-hidden /> {t('Деньги у площадки')}
             </h3>
             <p>
-              Продавец получит оплату, когда вы подтвердите получение
-              {pricing?.autoConfirmHours ? ` или через ${pricing.autoConfirmHours} ч без спора` : ''}.
+              {pricing?.autoConfirmHours
+                ? t('Продавец получит оплату, когда вы подтвердите получение или через {n} ч без спора.', {
+                    n: pricing.autoConfirmHours,
+                  })
+                : t('Продавец получит оплату, когда вы подтвердите получение.')}
             </p>
           </div>
           <div>
             <h3>
-              <MessagesSquare size={18} strokeWidth={1.75} aria-hidden /> Спор с арбитром
+              <MessagesSquare size={18} strokeWidth={1.75} aria-hidden /> {t('Спор с арбитром')}
             </h3>
-            <p>Не получили или товар не как в описании — открываете спор, деньги замораживаются до решения.</p>
+            <p>{t('Не получили или товар не как в описании — открываете спор, деньги замораживаются до решения.')}</p>
           </div>
           <div>
             <h3>
-              <Zap size={18} strokeWidth={1.75} aria-hidden /> Ключи сразу
+              <Zap size={18} strokeWidth={1.75} aria-hidden /> {t('Ключи сразу')}
             </h3>
             <p>
-              Ключи и пополнения выдаются автоматически после оплаты
-              {pricing ? `, а с каждой покупки — ${pct(pricing.cashbackPct)} кэшбэка на баланс` : ''}.
+              {pricing
+                ? t('Ключи и пополнения выдаются автоматически после оплаты, а с каждой покупки — {pct} кэшбэка на баланс.', {
+                    pct: pct(pricing.cashbackPct),
+                  })
+                : t('Ключи и пополнения выдаются автоматически после оплаты.')}
             </p>
           </div>
         </div>
         <p style={{ marginTop: 16, fontSize: 14 }}>
           <Link href="/rules" className="inline-link">
-            Правила и гарантии
+            {t('Правила и гарантии')}
           </Link>
         </p>
       </section>
@@ -183,17 +209,18 @@ export default async function HomePage({
         <section id="pricing" aria-labelledby="pricing-title">
           <div className="section-head">
             <h2 className="h2" id="pricing-title">
-              Сколько это стоит
+              {t('Сколько это стоит')}
             </h2>
           </div>
           <p className="muted" style={{ fontSize: 14, marginTop: -8, marginBottom: 16 }}>
-            Ставки конкурентов сверены с их сайтами и справкой 26 сентября 2026 года.
+            {t('Ставки конкурентов сверены с их сайтами и справкой 26 сентября 2026 года.')}
           </p>
-          <PricingTable pricing={pricing} />
+          <PricingTable pricing={pricing} t={t} />
           <p className="faint" style={{ fontSize: 13, marginTop: 14 }}>
-            Комиссия продавца снижается за продажи, рейтинг и подтверждённые
-            документы — до {pricing.levelDiscountMaxPp} процентных пунктов.
-            Покупатель комиссию площадки не платит.
+            {t(
+              'Комиссия продавца снижается за продажи, рейтинг и подтверждённые документы — до {n} процентных пунктов. Покупатель комиссию площадки не платит.',
+              { n: pricing.levelDiscountMaxPp },
+            )}
           </p>
         </section>
       )}
@@ -203,10 +230,12 @@ export default async function HomePage({
 
 function PricingTable({
   pricing,
+  t,
 }: {
   pricing: NonNullable<Awaited<ReturnType<typeof getPublicPricing>>>;
+  t: T;
 }) {
-  const pct = (v: number) => `${String(+(v * 100).toFixed(1)).replace('.', ',')}%`;
+  const pct = pctOf(t);
   const range =
     pricing.sellerFeeMinPct === pricing.sellerFeeMaxPct
       ? pct(pricing.sellerFeeMinPct)
@@ -215,11 +244,11 @@ function PricingTable({
   const usdt = pricing.withdrawal.find((w) => w.key === 'usdt');
 
   const rows: Array<[string, string, string, string]> = [
-    ['Комиссия продавца', range, 'в среднем 9%, от 3%', '10% и 20%'],
-    ['Вывод на карту и СБП', sbp ? pct(sbp.feePct) : '—', '3%, минимум 30 ₽', '6%, минимум 60 ₽'],
-    ['Вывод в USDT', usdt ? pct(usdt.feePct) : '—', '—', '4% плюс 1 $'],
-    ['Кэшбэк покупателю', pct(pricing.cashbackPct) + ' деньгами', 'нет', 'баллы'],
-    ['Комиссия с покупателя', 'нет', 'нет', 'нет'],
+    [t('Комиссия продавца'), range, t('в среднем 9%, от 3%'), t('10% и 20%')],
+    [t('Вывод на карту и СБП'), sbp ? pct(sbp.feePct) : '—', t('3%, минимум 30 ₽'), t('6%, минимум 60 ₽')],
+    [t('Вывод в USDT'), usdt ? pct(usdt.feePct) : '—', '—', t('4% плюс 1 $')],
+    [t('Кэшбэк покупателю'), t('{pct} деньгами', { pct: pct(pricing.cashbackPct) }), t('нет'), t('баллы')],
+    [t('Комиссия с покупателя'), t('нет'), t('нет'), t('нет')],
   ];
 
   return (

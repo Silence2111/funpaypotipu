@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ImageIcon } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
 import { formatListingPrice } from '@/lib/format';
+import { useT } from '@/lib/i18n/client';
 
 interface FavListing {
   id: string;
@@ -21,6 +22,7 @@ interface FavListing {
 
 export default function FavoritesPage() {
   const router = useRouter();
+  const t = useT();
   const [items, setItems] = useState<FavListing[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,8 +42,8 @@ export default function FavoritesPage() {
   return (
     <div className="container" style={{ paddingTop: 48 }}>
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 24 }}>
-        <h1 className="h1" style={{ fontSize: 30 }}>Избранное</h1>
-        <Link href="/cabinet" className="chip">← Кабинет</Link>
+        <h1 className="h1" style={{ fontSize: 30 }}>{t('Избранное')}</h1>
+        <Link href="/cabinet" className="chip">← {t('Кабинет')}</Link>
       </div>
       {items.length ? (
         <div className="grid cols-auto">
@@ -57,14 +59,14 @@ export default function FavoritesPage() {
               </div>
               <div style={{ fontSize: 15, fontWeight: 500 }}>{l.title}</div>
               <div className="row" style={{ marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
-                <span className="price">{formatListingPrice(l)}</span>
-                {l.status === 'sold_out' && <span className="badge">закончился</span>}
+                <span className="price">{formatListingPrice(l, t)}</span>
+                {l.status === 'sold_out' && <span className="badge">{t('закончился')}</span>}
               </div>
             </Link>
           ))}
         </div>
       ) : (
-        <p className="muted">В избранном пока пусто.</p>
+        <p className="muted">{t('В избранном пока пусто.')}</p>
       )}
     </div>
   );

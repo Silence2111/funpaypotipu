@@ -21,9 +21,15 @@ export async function LegalPage({ title, children }: { title: string; children: 
       <h1 className="h1" style={{ fontSize: 32 }} lang="ru">{title}</h1>
       <div className="alert" style={{ marginTop: 20 }}>
         <Info size={18} strokeWidth={1.75} />
-        <span>
-          Черновик до регистрации юрлица. Места с пометкой <Fill /> — реквизиты, которых пока нет.
-        </span>
+        {t.lang === 'en' ? (
+          <span>
+            {t('Черновик до регистрации юрлица. Места с пометкой «[заполнить]» — реквизиты, которых пока нет.')}
+          </span>
+        ) : (
+          <span>
+            Черновик до регистрации юрлица. Места с пометкой <Fill /> — реквизиты, которых пока нет.
+          </span>
+        )}
       </div>
       <div className="card legal" style={{ marginTop: 20, padding: 28 }} lang="ru">{children}</div>
     </div>

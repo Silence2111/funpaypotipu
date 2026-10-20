@@ -37,7 +37,7 @@ export function parseMoneyInput(raw: string): bigint | null {
 
 /** Количество с единицей лота: «25 000 золота», «3 шт.». */
 export function formatQty(qty: number, unitName?: string | null, t: T = RU): string {
-  return `${t.num(qty)} ${unitName ? t.d(unitName) : t('шт.')}`;
+  return unitName ? `${t.num(qty)} ${t.d(unitName)}` : t.n(qty, 'шт.', 'шт.', 'шт.');
 }
 
 /** Подпись к цене поштучного лота: «за 1 000 золота». null — лот продаётся целиком. */

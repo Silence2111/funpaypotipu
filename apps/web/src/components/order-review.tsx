@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { StarInput, Stars } from '@/components/stars';
+import { useT } from '@/lib/i18n/client';
 
 interface Review {
   id: string;
@@ -23,6 +24,7 @@ interface Review {
  * оставленном отзыве: после перезагрузки форма появлялась снова и падала на 409.
  */
 export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' | 'seller' }) {
+  const t = useT();
   const [review, setReview] = useState<Review | null | undefined>(undefined);
   const [editing, setEditing] = useState(false);
   const [rating, setRating] = useState(0);
@@ -63,7 +65,7 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
   if (!review && role === 'seller')
     return (
       <p className="hint" style={{ marginTop: 16 }}>
-        Покупатель ещё не оставил отзыв.
+        {t('Покупатель ещё не оставил отзыв.')}
       </p>
     );
 
@@ -72,7 +74,7 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
       {form && role === 'buyer' ? (
         <>
           <div className="label" style={{ marginBottom: 8 }}>
-            {review ? 'Изменить отзыв' : 'Оцените продавца'}
+            {review ? t('Изменить отзыв') : t('Оцените продавца')}
           </div>
           <StarInput value={rating} onChange={setRating} />
           <textarea
@@ -80,7 +82,7 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
             rows={2}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Что понравилось, что нет — необязательно"
+            placeholder={t('Что понравилось, что нет — необязательно')}
             style={{ resize: 'vertical', marginTop: 10 }}
           />
           <div className="row" style={{ gap: 8, marginTop: 12 }}>
@@ -89,7 +91,7 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
               type="button"
               disabled={busy}
               onClick={() => {
-                if (rating < 1) return setErr('Поставьте оценку');
+                if (rating < 1) return setErr(t('Поставьте оценку'));
                 void run(
                   () =>
                     review
@@ -101,15 +103,15 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
                           method: 'POST',
                           body: JSON.stringify({ orderId, rating, comment: comment.trim() || undefined }),
                         }),
-                  'Не удалось сохранить отзыв.',
+                  t('Не удалось сохранить отзыв.'),
                 );
               }}
             >
-              {review ? 'Сохранить' : 'Оставить отзыв'}
+              {review ? t('Сохранить') : t('Оставить отзыв')}
             </button>
             {review && (
               <button className="btn ghost" type="button" onClick={() => setEditing(false)}>
-                Отмена
+                {t('Отмена')}
               </button>
             )}
           </div>
@@ -117,17 +119,17 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
       ) : review ? (
         <>
           <div className="row" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <span className="label">{role === 'buyer' ? 'Ваш отзыв' : 'Отзыв покупателя'}</span>
+            <span className="label">{role === 'buyer' ? t('Ваш отзыв') : t('Отзыв покупателя')}</span>
             <span className="row faint" style={{ gap: 8, fontSize: 12 }}>
               <Stars n={review.rating} />
-              {new Date(review.createdAt).toLocaleDateString('ru-RU')}
-              {review.editedAt ? ' · изменён' : ''}
+              {new Date(review.createdAt).toLocaleDateString(t.locale)}
+              {review.editedAt ? ` · ${t('изменён')}` : ''}
             </span>
           </div>
           {review.comment && <p style={{ margin: '8px 0 0', fontSize: 15 }}>{review.comment}</p>}
           {review.sellerReply && !replying && (
             <p className="muted" style={{ fontSize: 14, margin: '10px 0 0', paddingLeft: 12, borderLeft: '2px solid var(--border)' }}>
-              Ответ продавца: {review.sellerReply}
+              {t('Ответ продавца:')} {review.sellerReply}
             </p>
           )}
           {canEdit && (
@@ -141,21 +143,23 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
                   setEditing(true);
                 }}
               >
-                Изменить
+                {t('Изменить')}
               </button>
               <button
                 className="chip"
                 type="button"
                 disabled={busy}
                 onClick={() => {
-                  if (window.confirm('Удалить отзыв? Рейтинг продавца пересчитается без него.'))
-                    void run(() => apiFetch(`/reviews/${review.id}`, { method: 'DELETE' }), 'Не удалось удалить отзыв.');
+                  if (window.confirm(t('Удалить отзыв? Рейтинг продавца пересчитается без него.')))
+                    void run(() => apiFetch(`/reviews/${review.id}`, { method: 'DELETE' }), t('Не удалось удалить отзыв.'));
                 }}
               >
-                Удалить
+                {t('Удалить')}
               </button>
               <span className="hint">
-                Можно до {new Date(review.editableUntil).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+                {t('Можно до {date}', {
+                  date: new Date(review.editableUntil).toLocaleDateString(t.locale, { day: 'numeric', month: 'long' }),
+                })}
               </span>
             </div>
           )}
@@ -167,7 +171,7 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
                   rows={2}
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
-                  placeholder="Ответ увидят все покупатели. Контакты скроются."
+                  placeholder={t('Ответ увидят все покупатели. Контакты скроются.')}
                   style={{ resize: 'vertical' }}
                 />
                 <div className="row" style={{ gap: 8, marginTop: 8 }}>
@@ -178,14 +182,14 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
                     onClick={() =>
                       void run(
                         () => apiFetch(`/reviews/${review.id}/reply`, { method: 'POST', body: JSON.stringify({ text: reply }) }),
-                        'Не удалось сохранить ответ.',
+                        t('Не удалось сохранить ответ.'),
                       )
                     }
                   >
-                    Опубликовать ответ
+                    {t('Опубликовать ответ')}
                   </button>
                   <button className="btn ghost" type="button" onClick={() => setReplying(false)}>
-                    Отмена
+                    {t('Отмена')}
                   </button>
                 </div>
               </div>
@@ -199,7 +203,7 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
                   setReplying(true);
                 }}
               >
-                {review.sellerReply ? 'Изменить ответ' : 'Ответить на отзыв'}
+                {review.sellerReply ? t('Изменить ответ') : t('Ответить на отзыв')}
               </button>
             ))}
         </>

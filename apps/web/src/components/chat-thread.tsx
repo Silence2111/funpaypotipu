@@ -10,12 +10,14 @@ import { isOnline, presenceText } from '@/lib/presence';
 import {
   dayLabel,
   ORDER_STATUS_LABELS,
+  systemText,
   useChatSocket,
   useSocketLive,
   type ChatMsg,
   type ConversationItem,
 } from '@/lib/chat';
 import { Avatar } from './offers';
+import { useT } from '@/lib/i18n/client';
 
 const PAGE = 50;
 const TYPING_MS = 4000;
@@ -40,6 +42,7 @@ export function ChatThread({
   embedded?: boolean;
   aboutListingId?: string;
 }) {
+  const t = useT();
   const socket = useChatSocket();
   const live = useSocketLive(socket);
   const [info, setInfo] = useState<ConversationItem | null>(null);
@@ -81,14 +84,14 @@ export function ChatThread({
       })
       .catch((e) => {
         setMessages([]);
-        setErr(apiErrorMessage(e, 'Диалог не открылся. Обновите страницу.'));
+        setErr(apiErrorMessage(e, t('Диалог не открылся. Обновите страницу.')));
       });
     if (!embedded) {
       apiFetch<ConversationItem>(`/conversations/${conversationId}`)
         .then(setInfo)
         .catch(() => {});
     }
-  }, [conversationId, embedded, markRead]);
+  }, [conversationId, embedded, markRead, t]);
 
   useEffect(() => {
     if (!socket) return;
@@ -124,8 +127,8 @@ export function ChatThread({
   // «Печатает…» гаснет само, если собеседник замолчал.
   useEffect(() => {
     if (!typingAt) return;
-    const t = setTimeout(() => setTypingAt(0), TYPING_MS);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setTypingAt(0), TYPING_MS);
+    return () => clearTimeout(timer);
   }, [typingAt]);
 
   // Прокрутка: к последнему сообщению — если пользователь и так был внизу;
@@ -174,14 +177,17 @@ export function ChatThread({
         });
         add(res.messages ?? []);
       } catch (er) {
-        fail(apiErrorMessage(er, 'Сообщение не отправлено. Попробуйте ещё раз.'));
+        fail(apiErrorMessage(er, t('Сообщение не отправлено. Попробуйте ещё раз.')));
       }
       return;
     }
     if (socket && live) {
       // Само сообщение придёт как message:new, в ответе — только отказ.
-      socket.emit('message:send', { conversationId, body: text }, (res?: { error?: string }) => {
-        if (res?.error) fail(res.error);
+      // Язык — чтобы отказ пришёл на языке сайта: фильтр ошибок API сокет не проходит.
+      socket.emit('message:send', { conversationId, body: text, lang: t.lang }, (res?: { error?: string; lang?: string }) => {
+        if (!res?.error) return;
+        const readable = res.error !== 'unauthorized' && (t.lang === 'en' ? res.lang === 'en' : true);
+        fail(readable ? res.error : t('Сообщение не отправлено. Попробуйте ещё раз.'));
       });
       return;
     }
@@ -192,7 +198,7 @@ export function ChatThread({
       });
       add([msg]);
     } catch (er) {
-      fail(apiErrorMessage(er, 'Сообщение не отправлено. Попробуйте ещё раз.'));
+      fail(apiErrorMessage(er, t('Сообщение не отправлено. Попробуйте ещё раз.')));
     }
   }
 
@@ -210,7 +216,7 @@ export function ChatThread({
       stick.current = true;
       add([msg]);
     } catch (er) {
-      setErr(apiErrorMessage(er, 'Файл не отправлен: хранилище недоступно или файл не прошёл проверку.'));
+      setErr(apiErrorMessage(er, t('Файл не отправлен: хранилище недоступно или файл не прошёл проверку.')));
     }
   }
 
@@ -231,24 +237,29 @@ export function ChatThread({
     <div className={embedded ? 'thread embedded' : 'thread'}>
       {!embedded && (
         <header className="thread-head">
-          <Link href="/chat" className="chip only-mobile-flex" aria-label="Все диалоги">
+          <Link href="/chat" className="chip only-mobile-flex" aria-label={t('Все диалоги')}>
             <ArrowLeft size={16} strokeWidth={1.75} />
           </Link>
           {other ? (
             <>
-              <Avatar name={other.username} url={other.avatarUrl} online={isOnline(other.onlineAt)} size={40} />
+              <Avatar name={other.username} url={other.avatarUrl} online={isOnline(other.onlineAt)} size={40} t={t} />
               <div style={{ minWidth: 0, flex: 1 }}>
                 <Link href={`/prodavec/${other.id}`} className="thread-name">
                   {other.username}
                 </Link>
                 <div className="thread-sub">
-                  {typing ? 'печатает…' : (presenceText(other.onlineAt) ?? 'не в сети')}
+                  {typing ? t('печатает…') : (presenceText(other.onlineAt, Date.now(), t) ?? t('не в сети'))}
                 </div>
               </div>
               {info?.order && info.orderId && (
                 <Link href={`/orders/${info.orderId}`} className="chip thread-order">
-                  {info.role === 'buyer' ? 'Покупка' : 'Продажа'} {info.order.publicNumber} ·{' '}
-                  {ORDER_STATUS_LABELS[info.order.status] ?? info.order.status}
+                  {info.role === 'buyer'
+                    ? t('Покупка {n}', { n: info.order.publicNumber })
+                    : t('Продажа {n}', { n: info.order.publicNumber })}{' '}
+                  ·{' '}
+                  {ORDER_STATUS_LABELS[info.order.status]
+                    ? t(ORDER_STATUS_LABELS[info.order.status]!)
+                    : info.order.status}
                 </Link>
               )}
             </>
@@ -269,35 +280,35 @@ export function ChatThread({
       >
         {hasMore && (
           <button type="button" className="chip" style={{ alignSelf: 'center' }} onClick={() => void older()}>
-            Показать раньше
+            {t('Показать раньше')}
           </button>
         )}
         {messages?.length === 0 && (
           <p className="muted" style={{ textAlign: 'center', fontSize: 14, margin: 'auto 0' }}>
-            Сообщений пока нет. Всё, что написано здесь, увидит арбитр при споре.
+            {t('Сообщений пока нет. Всё, что написано здесь, увидит арбитр при споре.')}
           </p>
         )}
         {messages?.map((m) => {
-          const day = dayLabel(m.createdAt);
+          const day = dayLabel(m.createdAt, new Date(), t);
           const sep = day !== lastDay;
           lastDay = day;
-          const time = new Date(m.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+          const time = new Date(m.createdAt).toLocaleTimeString(t.locale, { hour: '2-digit', minute: '2-digit' });
           const mine = m.senderId === meId;
           return (
             <Fragment key={m.id}>
               {sep && <div className="day-sep">{day}</div>}
               {m.senderId === null ? (
-                <div className="sys-msg">{m.body}</div>
+                <div className="sys-msg">{systemText(t, m.body)}</div>
               ) : (
                 <div className={`bubble ${mine ? 'mine' : 'their'}`}>
                   {m.attachments?.length ? (
                     m.attachments.map((a, i) =>
                       a.mime.startsWith('image/') ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img key={i} src={a.url} alt="вложение" className="bubble-img" />
+                        <img key={i} src={a.url} alt={t('вложение')} className="bubble-img" />
                       ) : (
                         <a key={i} href={a.url} target="_blank" rel="noreferrer" className="bubble-file">
-                          Вложение
+                          {t('Вложение')}
                         </a>
                       ),
                     )
@@ -307,7 +318,10 @@ export function ChatThread({
                   <span className="bubble-time">
                     {time}
                     {mine && (
-                      <span aria-label={m.readAt ? 'прочитано' : 'доставлено'} title={m.readAt ? 'прочитано' : 'доставлено'}>
+                      <span
+                        aria-label={m.readAt ? t('прочитано') : t('доставлено')}
+                        title={m.readAt ? t('прочитано') : t('доставлено')}
+                      >
                         {' '}
                         {m.readAt ? '✓✓' : '✓'}
                       </span>
@@ -318,7 +332,7 @@ export function ChatThread({
             </Fragment>
           );
         })}
-        {typing && embedded && <div className="typing">печатает…</div>}
+        {typing && embedded && <div className="typing">{t('печатает…')}</div>}
       </div>
 
       {err && (
@@ -327,7 +341,7 @@ export function ChatThread({
         </p>
       )}
       <form className="thread-compose" onSubmit={send}>
-        <label className="chip" style={{ cursor: 'pointer' }} aria-label="Прикрепить файл" title="Прикрепить файл">
+        <label className="chip" style={{ cursor: 'pointer' }} aria-label={t('Прикрепить файл')} title={t('Прикрепить файл')}>
           <Paperclip size={16} strokeWidth={1.75} />
           <input type="file" onChange={onFile} style={{ display: 'none' }} />
         </label>
@@ -337,8 +351,8 @@ export function ChatThread({
           enterKeyHint="send"
           value={draft}
           maxLength={4000}
-          placeholder={live || !socket ? 'Сообщение' : 'Переподключение… сообщение уйдёт через сайт'}
-          aria-label="Сообщение"
+          placeholder={live || !socket ? t('Сообщение') : t('Переподключение… сообщение уйдёт через сайт')}
+          aria-label={t('Сообщение')}
           onChange={(e) => onType(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -347,11 +361,11 @@ export function ChatThread({
             }
           }}
         />
-        <button className="btn" type="submit" aria-label="Отправить" disabled={!draft.trim()}>
+        <button className="btn" type="submit" aria-label={t('Отправить')} disabled={!draft.trim()}>
           <SendHorizontal size={18} strokeWidth={1.75} />
         </button>
       </form>
-      <p className="thread-note">Телефоны, ники в мессенджерах и ссылки скрываются автоматически.</p>
+      <p className="thread-note">{t('Телефоны, ники в мессенджерах и ссылки скрываются автоматически.')}</p>
     </div>
   );
 }

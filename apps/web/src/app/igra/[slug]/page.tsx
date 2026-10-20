@@ -3,15 +3,23 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { getGame } from '@/lib/api';
 import { defaultSection, SectionView, type SectionSearch } from '@/components/section-view';
+import { getT } from '@/lib/i18n/server';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const game = await getGame(slug);
-  if (!game) return { title: 'Игра не найдена' };
-  const sections = game.categories.map((c) => c.title.toLowerCase()).join(', ');
+  const [game, t] = await Promise.all([getGame(slug), getT()]);
+  if (!game) return { title: t('Игра не найдена') };
+  // По-русски разделы строчными («аккаунты, ключи»), по-английски — как названы.
+  const sections = game.categories
+    .map((c) => (t.lang === 'ru' ? c.title.toLowerCase() : t.d(c.title)))
+    .join(', ');
+  const name = t.d(game.title);
   return {
-    title: `${game.title} — купить у продавцов`,
-    description: `${game.title}: ${sections || 'предложения продавцов'}. Деньги у площадки, пока вы не подтвердите получение.`,
+    title: t('{game} — купить у продавцов', { game: name }),
+    description: t('{game}: {sections}. Деньги у площадки, пока вы не подтвердите получение.', {
+      game: name,
+      sections: sections || t('предложения продавцов'),
+    }),
     alternates: { canonical: `/igra/${slug}` },
   };
 }
@@ -42,15 +50,16 @@ export default async function GamePage({
 
   const section = defaultSection(game);
   if (!section) {
+    const t = await getT();
     return (
       <div className="container" style={{ paddingTop: 40 }}>
         <Link href="/igry" className="faint back-link" style={{ fontSize: 14 }}>
-          ← Все игры
+          ← {t('Все игры')}
         </Link>
         <h1 className="h1" style={{ fontSize: 34, marginTop: 12 }}>
-          {game.title}
+          {t.d(game.title)}
         </h1>
-        <p className="muted">Разделов у игры пока нет.</p>
+        <p className="muted">{t('Разделов у игры пока нет.')}</p>
       </div>
     );
   }

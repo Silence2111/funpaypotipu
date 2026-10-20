@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from '@/lib/session';
 import { ChatSocketProvider } from '@/lib/chat';
 import { ChatList } from './chat-list';
+import { useT } from '@/lib/i18n/client';
 
 /**
  * Мессенджер в две колонки, как у FunPay: слева диалоги, справа открытый.
@@ -12,6 +13,7 @@ import { ChatList } from './chat-list';
  * диалогами. На телефоне — список, затем диалог во весь экран.
  */
 export function Messenger({ children }: { children: React.ReactNode }) {
+  const t = useT();
   const { ready, user } = useSession();
   const pathname = usePathname();
   const activeId = pathname.startsWith('/chat/') ? pathname.split('/')[2] : undefined;
@@ -20,10 +22,12 @@ export function Messenger({ children }: { children: React.ReactNode }) {
   if (!user) {
     return (
       <div className="container" style={{ paddingTop: 48 }}>
-        <h1 className="h2">Сообщения</h1>
-        <p className="muted">Войдите, чтобы открыть переписку с продавцами и покупателями.</p>
+        <h1 className="h2">{t('Сообщения')}</h1>
+        <p className="muted">
+          {t('Войдите, чтобы открыть переписку с продавцами и покупателями.')}
+        </p>
         <Link href={`/login?next=${encodeURIComponent(pathname)}`} className="btn">
-          Войти
+          {t('Войти')}
         </Link>
       </div>
     );

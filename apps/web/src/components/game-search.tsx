@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { getGameIndex, KIND_LABELS, type GameIndexEntry } from '@/lib/api';
 import { hitHref, searchGames } from '@/lib/game-search';
+import { useT } from '@/lib/i18n/client';
 
 /**
  * Поиск по играм с подсказками. Указатель игр приходит готовым со страницы
@@ -24,6 +25,7 @@ export function GameSearch({
   size?: 'md' | 'lg';
   autoFocus?: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const listId = useId();
   const box = useRef<HTMLDivElement>(null);
@@ -84,12 +86,12 @@ export function GameSearch({
         type="search"
         enterKeyHint="search"
         role="combobox"
-        aria-label="Поиск по играм"
+        aria-label={t('Поиск по играм')}
         aria-expanded={shown}
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={shown && active >= 0 ? `${listId}-${active}` : undefined}
-        placeholder={count ? `Поиск по ${count} играм и сервисам` : 'Поиск по играм'}
+        placeholder={count ? t('Поиск по {n} играм и сервисам', { n: count }) : t('Поиск по играм')}
         value={q}
         autoFocus={autoFocus}
         maxLength={60}
@@ -105,10 +107,10 @@ export function GameSearch({
         onKeyDown={onKey}
       />
       {shown && (
-        <ul className="search-pop" role="listbox" id={listId} aria-label="Подсказки">
+        <ul className="search-pop" role="listbox" id={listId} aria-label={t('Подсказки')}>
           {index && hits.length === 0 && (
             <li className="search-empty" role="presentation">
-              Игры с таким названием нет — поищем среди предложений.
+              {t('Игры с таким названием нет — поищем среди предложений.')}
             </li>
           )}
           {options.map((o, i) => (
@@ -123,20 +125,18 @@ export function GameSearch({
                 {o.hit ? (
                   <>
                     <span className="search-title">
-                      {o.hit.game.title}
-                      {o.hit.section && <span className="muted"> · {o.hit.section.title}</span>}
+                      {t.d(o.hit.game.title)}
+                      {o.hit.section && <span className="muted"> · {t.d(o.hit.section.title)}</span>}
                     </span>
                     <span className="search-sub">
-                      {KIND_LABELS[o.hit.game.kind]}
+                      {t(KIND_LABELS[o.hit.game.kind])}
                       {!o.hit.section && o.hit.game.categories.length > 0 && (
-                        <> · {o.hit.game.categories.map((c) => c.title).join(', ')}</>
+                        <> · {o.hit.game.categories.map((c) => t.d(c.title)).join(', ')}</>
                       )}
                     </span>
                   </>
                 ) : (
-                  <span className="search-title">
-                    Искать «{query}» в предложениях
-                  </span>
+                  <span className="search-title">{t('Искать «{q}» в предложениях', { q: query })}</span>
                 )}
               </Link>
             </li>

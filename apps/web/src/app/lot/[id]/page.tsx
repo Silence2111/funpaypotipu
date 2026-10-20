@@ -390,7 +390,7 @@ export default async function ListingPage({
               <p className="faint" style={{ fontSize: 14, margin: '0 0 12px' }}>
                 {t('У других продавцов этого раздела — сначала дешёвые')}
               </p>
-              <OfferTable items={similar} attributes={defs ?? []} compact />
+              <OfferTable items={similar} attributes={defs ?? []} compact t={t} />
             </section>
           )}
 
@@ -404,7 +404,7 @@ export default async function ListingPage({
                   {t('Все →')}
                 </Link>
               </div>
-              <OfferTable items={sellerOthers} showSection compact hideSeller />
+              <OfferTable items={sellerOthers} showSection compact hideSeller t={t} />
             </section>
           )}
         </div>

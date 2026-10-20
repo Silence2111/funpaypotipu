@@ -11,6 +11,8 @@ import { OrderChat } from '@/components/order-chat';
 import { OrderReview } from '@/components/order-review';
 import { PayMethods, priceFor, type PayMethod } from '@/components/pay-methods';
 import { payOrder } from '@/lib/checkout';
+import { useT } from '@/lib/i18n/client';
+import { msg, type T } from '@/lib/i18n/lang';
 
 interface Order {
   id: string; publicNumber: string; status: string; amount: string; currency: string;
@@ -31,50 +33,54 @@ interface Order {
 }
 interface Conversation { id: string; orderId: string | null }
 
-const STATUS_RU: Record<string, string> = {
-  created: 'Ждёт оплаты', paid: 'Оплачен, деньги у площадки', delivered: 'Выдан, идёт проверка',
-  completed: 'Завершён', disputed: 'Спор', refunded: 'Деньги возвращены', cancelled: 'Отменён',
-  expired: 'Истёк без оплаты',
+const STATUS: Record<string, string> = {
+  created: msg('Ждёт оплаты'), paid: msg('Оплачен, деньги у площадки'), delivered: msg('Выдан, идёт проверка'),
+  completed: msg('Завершён'), disputed: msg('Спор'), refunded: msg('Деньги возвращены'), cancelled: msg('Отменён'),
+  expired: msg('Истёк без оплаты'),
 };
 
 const STEP_OF: Record<string, number> = { created: 0, paid: 1, delivered: 2, disputed: 2, completed: 3 };
 
 const PAID_BY: Record<string, string> = {
-  balance: 'с баланса', sbp: 'по СБП', card: 'картой', applepay: 'через Apple Pay',
-  googlepay: 'через Google Pay', crypto: 'криптовалютой',
+  balance: msg('с баланса'), sbp: msg('по СБП'), card: msg('картой'), applepay: msg('через Apple Pay'),
+  googlepay: msg('через Google Pay'), crypto: msg('криптовалютой'),
 };
+
+const STEPS = [msg('Оплачен'), msg('Выдан'), msg('Подтверждён')];
 
 type Kind = 'key' | 'item' | 'topup' | 'manual';
 
 /** Что сейчас происходит и что делать — отдельно для покупателя и продавца. */
-function explain(status: string, role: 'buyer' | 'seller', kind: Kind, confirmUntil: string | null) {
-  const until = confirmUntil ? new Date(confirmUntil).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : null;
-  const autoConfirm = until ? ` Если не подтвердите и не откроете спор до ${until}, заказ подтвердится сам.` : '';
+function explain(t: T, status: string, role: 'buyer' | 'seller', kind: Kind, confirmUntil: string | null) {
+  const until = confirmUntil ? new Date(confirmUntil).toLocaleString(t.locale, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : null;
+  const autoConfirm = until ? ` ${t('Если не подтвердите и не откроете спор до {until}, заказ подтвердится сам.', { until })}` : '';
   if (role === 'buyer') {
     switch (status) {
-      case 'created': return 'Заказ создан, но не оплачен. Без оплаты он истечёт через 30 минут.';
-      case 'paid': return kind === 'key' || kind === 'item'
-        ? `Оплата получена, ${kind === 'key' ? 'ключ' : 'товар'} выдаётся. Обновите страницу через пару секунд.`
-        : kind === 'topup'
-          ? 'Оплата получена, пополнение отправляется. Обновите страницу через пару секунд.'
-          : 'Оплата у площадки, продавец её не получит до вашего подтверждения. Ждём, когда он передаст товар; напишите ему в чат ниже. Не выдаст за 24 ч — деньги вернутся на баланс.';
+      case 'created': return t('Заказ создан, но не оплачен. Без оплаты он истечёт через 30 минут.');
+      case 'paid': return kind === 'key'
+        ? t('Оплата получена, ключ выдаётся. Обновите страницу через пару секунд.')
+        : kind === 'item'
+          ? t('Оплата получена, товар выдаётся. Обновите страницу через пару секунд.')
+          : kind === 'topup'
+            ? t('Оплата получена, пополнение отправляется. Обновите страницу через пару секунд.')
+            : t('Оплата у площадки, продавец её не получит до вашего подтверждения. Ждём, когда он передаст товар; напишите ему в чат ниже. Не выдаст за 24 ч — деньги вернутся на баланс.');
       case 'delivered': return kind === 'topup'
-        ? `Пополнение отправлено. Проверьте баланс и подтвердите зачисление — тогда продавец получит оплату. Не пришло — откройте спор.${autoConfirm}`
-        : `Товар выдан. Проверьте его и подтвердите получение — тогда продавец получит оплату.${autoConfirm}`;
-      case 'completed': return 'Сделка закрыта: продавец получил оплату, кэшбэк зачислен на ваш баланс.';
-      case 'disputed': return 'Открыт спор. Деньги заморожены, пока арбитр не примет решение.';
-      case 'refunded': return 'Деньги вернулись на ваш баланс на площадке.';
+        ? t('Пополнение отправлено. Проверьте баланс и подтвердите зачисление — тогда продавец получит оплату. Не пришло — откройте спор.') + autoConfirm
+        : t('Товар выдан. Проверьте его и подтвердите получение — тогда продавец получит оплату.') + autoConfirm;
+      case 'completed': return t('Сделка закрыта: продавец получил оплату, кэшбэк зачислен на ваш баланс.');
+      case 'disputed': return t('Открыт спор. Деньги заморожены, пока арбитр не примет решение.');
+      case 'refunded': return t('Деньги вернулись на ваш баланс на площадке.');
       default: return '';
     }
   }
   switch (status) {
     case 'paid': return kind === 'manual'
-      ? 'Покупатель оплатил, деньги у площадки. Передайте товар и нажмите «Отметить выдачу» — у вас 24 ч.'
-      : 'Покупатель оплатил, деньги у площадки. Выдача идёт автоматически.';
-    case 'delivered': return `${kind === 'manual' ? 'Вы отметили выдачу.' : 'Выдано автоматически.'} Деньги придут на баланс, когда покупатель подтвердит получение или истечёт срок проверки.`;
-    case 'completed': return 'Сделка закрыта, оплата зачислена на ваш баланс.';
-    case 'disputed': return 'Покупатель открыл спор. Ответьте в споре и приложите доказательства передачи — или верните деньги сами.';
-    case 'refunded': return 'Деньги вернулись покупателю на баланс. Сделка закрыта.';
+      ? t('Покупатель оплатил, деньги у площадки. Передайте товар и нажмите «Отметить выдачу» — у вас 24 ч.')
+      : t('Покупатель оплатил, деньги у площадки. Выдача идёт автоматически.');
+    case 'delivered': return `${kind === 'manual' ? t('Вы отметили выдачу.') : t('Выдано автоматически.')} ${t('Деньги придут на баланс, когда покупатель подтвердит получение или истечёт срок проверки.')}`;
+    case 'completed': return t('Сделка закрыта, оплата зачислена на ваш баланс.');
+    case 'disputed': return t('Покупатель открыл спор. Ответьте в споре и приложите доказательства передачи — или верните деньги сами.');
+    case 'refunded': return t('Деньги вернулись покупателю на баланс. Сделка закрыта.');
     default: return '';
   }
 }
@@ -83,6 +89,7 @@ export default function OrderPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const id = params.id;
+  const t = useT();
   const [order, setOrder] = useState<Order | null>(null);
   const [conv, setConv] = useState<Conversation | null>(null);
   const [keys, setKeys] = useState<string[] | null>(null);
@@ -107,9 +114,9 @@ export default function OrderPage() {
 
   useEffect(() => {
     if (!getToken()) return;
-    loadOrder().catch(() => setErr('Заказ не найден'));
+    loadOrder().catch(() => setErr(t('Заказ не найден')));
     loadConv();
-  }, [loadOrder, loadConv]);
+  }, [loadOrder, loadConv, t]);
 
   // Оформление с лота: заказ создан, а оплата не прошла — платим отсюда.
   useEffect(() => {
@@ -131,7 +138,7 @@ export default function OrderPage() {
       await apiFetch(`/orders/${id}/${path}`, { method: 'POST' });
       await loadOrder();
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не получилось. Обновите страницу — возможно, статус заказа уже изменился.'));
+      setErr(apiErrorMessage(e, t('Не получилось. Обновите страницу — возможно, статус заказа уже изменился.')));
     } finally {
       setBusy(false);
     }
@@ -139,7 +146,7 @@ export default function OrderPage() {
 
   async function openDispute() {
     if (reason.trim().length < 3) {
-      setErr('Опишите проблему: что не так с товаром или передачей');
+      setErr(t('Опишите проблему: что не так с товаром или передачей'));
       return;
     }
     setErr(null);
@@ -153,7 +160,7 @@ export default function OrderPage() {
       setReason('');
       router.push(`/disputes/${created.id}`);
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не удалось открыть спор. Попробуйте ещё раз.'));
+      setErr(apiErrorMessage(e, t('Не удалось открыть спор. Попробуйте ещё раз.')));
     } finally {
       setBusy(false);
     }
@@ -167,7 +174,7 @@ export default function OrderPage() {
       setPayFailed(false);
       await loadOrder();
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Оплата не прошла. Выберите другой способ или попробуйте ещё раз.'));
+      setErr(apiErrorMessage(e, t('Оплата не прошла. Выберите другой способ или попробуйте ещё раз.')));
     } finally {
       setBusy(false);
     }
@@ -176,7 +183,7 @@ export default function OrderPage() {
   /** Продавец возвращает деньги сам — после оплаты, после выдачи или в споре. */
   async function refund() {
     const reason = window.prompt(
-      'Вернуть всю сумму покупателю на баланс? Отменить возврат будет нельзя.\nПричину увидит покупатель — можно оставить пустой.',
+      `${t('Вернуть всю сумму покупателю на баланс? Отменить возврат будет нельзя.')}\n${t('Причину увидит покупатель — можно оставить пустой.')}`,
       '',
     );
     if (reason === null) return;
@@ -189,7 +196,7 @@ export default function OrderPage() {
       });
       await loadOrder();
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не удалось вернуть деньги. Обновите страницу — возможно, статус заказа уже изменился.'));
+      setErr(apiErrorMessage(e, t('Не удалось вернуть деньги. Обновите страницу — возможно, статус заказа уже изменился.')));
     } finally {
       setBusy(false);
     }
@@ -200,13 +207,13 @@ export default function OrderPage() {
       const r = await apiFetch<{ key: string; keys?: string[] }>(`/orders/${id}/key`);
       setKeys(r.keys ?? [r.key]);
     } catch {
-      setErr('Ключ ещё не выдан');
+      setErr(t('Ключ ещё не выдан'));
     }
   }
 
   if (!ready)
     return (
-      <div className="container" style={{ paddingTop: 48, maxWidth: 720 }} aria-busy="true" aria-label="Загружаем заказ">
+      <div className="container" style={{ paddingTop: 48, maxWidth: 720 }} aria-busy="true" aria-label={t('Загружаем заказ')}>
         <div className="skeleton" style={{ height: 32, width: '60%' }} />
         <div className="skeleton" style={{ height: 120, marginTop: 24 }} />
       </div>
@@ -215,8 +222,8 @@ export default function OrderPage() {
     return (
       <div className="container" style={{ padding: '48px 16px', maxWidth: 720 }}>
         <div className="card" style={{ padding: 24 }}>
-          <p style={{ margin: '0 0 12px' }}>Заказ виден только его участникам. Войдите, чтобы открыть его.</p>
-          <Link href={`/login?next=${encodeURIComponent(`/orders/${id}`)}`} className="btn">Войти</Link>
+          <p style={{ margin: '0 0 12px' }}>{t('Заказ виден только его участникам. Войдите, чтобы открыть его.')}</p>
+          <Link href={`/login?next=${encodeURIComponent(`/orders/${id}`)}`} className="btn">{t('Войти')}</Link>
         </div>
       </div>
     );
@@ -225,11 +232,11 @@ export default function OrderPage() {
       <div className="container" style={{ paddingTop: 48, maxWidth: 720 }}>
         {err ? (
           <div className="card" style={{ padding: 24 }}>
-            <p style={{ margin: '0 0 12px' }}>Заказ не найден или он не ваш.</p>
-            <Link href="/cabinet" className="btn secondary">В кабинет</Link>
+            <p style={{ margin: '0 0 12px' }}>{t('Заказ не найден или он не ваш.')}</p>
+            <Link href="/cabinet" className="btn secondary">{t('В кабинет')}</Link>
           </div>
         ) : (
-          <div aria-busy="true" aria-label="Загружаем заказ">
+          <div aria-busy="true" aria-label={t('Загружаем заказ')}>
             <div className="skeleton" style={{ height: 32, width: '60%' }} />
             <div className="skeleton" style={{ height: 28, width: 140, marginTop: 16 }} />
             <div className="skeleton" style={{ height: 120, marginTop: 24 }} />
@@ -247,36 +254,38 @@ export default function OrderPage() {
   const many = (order.qty ?? 1) > 1;
   const step = STEP_OF[order.status] ?? -1;
   const closed = ['refunded', 'cancelled', 'expired'].includes(order.status);
-  const text = explain(order.status, role, kind, order.autoConfirmAt ?? null);
+  const text = explain(t, order.status, role, kind, order.autoConfirmAt ?? null);
   const title = order.listingSnapshot?.title;
   const topupAccount = order.listingSnapshot?.account;
   const topupAmount = order.listingSnapshot?.topupAmount;
   const unit = order.listingSnapshot?.unitName;
   const unitPrice = order.listingSnapshot?.unitPrice;
-  const pack = unit ? perPackLabel({ unitName: unit, pricePerUnits: order.listingSnapshot?.pricePerUnits }) : null;
+  const pack = unit ? perPackLabel({ unitName: unit, pricePerUnits: order.listingSnapshot?.pricePerUnits }, t) : null;
 
   return (
     <div className="container" style={{ paddingTop: 40, maxWidth: 720 }}>
       <p className="faint" style={{ fontSize: 13, margin: 0 }}>
-        Заказ {order.publicNumber} · вы {role === 'buyer' ? 'покупатель' : 'продавец'}
+        {role === 'buyer'
+          ? t('Заказ {n} · вы покупатель', { n: order.publicNumber })
+          : t('Заказ {n} · вы продавец', { n: order.publicNumber })}
       </p>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginTop: 6 }}>
         <h1 className="h2" style={{ lineHeight: 1.25 }}>
-          {title && order.listingId ? <Link href={`/lot/${order.listingId}`}>{title}</Link> : title ?? 'Заказ'}
+          {title && order.listingId ? <Link href={`/lot/${order.listingId}`}>{title}</Link> : title ?? t('Заказ')}
         </h1>
-        <div className="price" style={{ fontSize: 22, whiteSpace: 'nowrap' }}>{formatPrice(order.amount, order.currency)}</div>
+        <div className="price" style={{ fontSize: 22, whiteSpace: 'nowrap' }}>{formatPrice(order.amount, order.currency, t)}</div>
       </div>
       {role === 'buyer' && order.paymentMethod && (
         <p className="faint" style={{ fontSize: 13, margin: '4px 0 0', textAlign: 'right' }}>
-          Оплачено {PAID_BY[order.paymentMethod] ?? order.paymentMethod}
+          {t('Оплачено {method}', { method: PAID_BY[order.paymentMethod] ? t(PAID_BY[order.paymentMethod]!) : order.paymentMethod })}
           {order.paymentSurcharge && order.paymentSurcharge !== '0'
-            ? ` — ${formatPrice((BigInt(order.amount) + BigInt(order.paymentSurcharge)).toString(), order.currency)} с комиссией способа`
+            ? ` — ${t('{sum} с комиссией способа', { sum: formatPrice((BigInt(order.amount) + BigInt(order.paymentSurcharge)).toString(), order.currency, t) })}`
             : ''}
         </p>
       )}
       {payFailed && order.status === 'created' && (
         <div className="alert error" role="alert" style={{ marginTop: 16 }}>
-          Оплата не прошла. Заказ создан — выберите способ ниже и попробуйте ещё раз.
+          {t('Оплата не прошла. Заказ создан — выберите способ ниже и попробуйте ещё раз.')}
         </div>
       )}
 
@@ -286,27 +295,27 @@ export default function OrderPage() {
             order.status === 'completed' ? 'badge success'
               : order.status === 'disputed' ? 'badge warning'
                 : closed ? 'badge' : 'badge accent'}>
-            {STATUS_RU[order.status] ?? order.status}
+            {STATUS[order.status] ? t(STATUS[order.status]!) : order.status}
           </span>
           <span className="row faint" style={{ gap: 6, fontSize: 13 }}>
-            <ShieldCheck size={15} strokeWidth={1.75} /> Защита сделки
+            <ShieldCheck size={15} strokeWidth={1.75} /> {t('Защита сделки')}
           </span>
         </div>
         {!closed && (
-          <ol className="steps" style={{ marginTop: 16 }} aria-label="Этапы сделки">
-            {['Оплачен', 'Выдан', 'Подтверждён'].map((t, i) => (
-              <li key={t} className={i + 1 < step || (i + 1 === step && order.status === 'completed') ? 'done' : i + 1 === step ? 'now' : ''}>
-                {t}
+          <ol className="steps" style={{ marginTop: 16 }} aria-label={t('Этапы сделки')}>
+            {STEPS.map((s, i) => (
+              <li key={s} className={i + 1 < step || (i + 1 === step && order.status === 'completed') ? 'done' : i + 1 === step ? 'now' : ''}>
+                {t(s)}
               </li>
             ))}
           </ol>
         )}
         {/* «1 шт.» у обычного ключа — шум; количество важно у валюты и нескольких штук */}
-        {unit && order.qty != null && (order.qty > 1 || unit !== 'шт.') && (
+        {unit && order.qty != null && (order.qty > 1 || unit !== 'шт.') && ( // i18n-ignore
           <p style={{ margin: '14px 0 0', fontSize: 15 }}>
-            <strong>{formatQty(order.qty, unit)}</strong>
+            <strong>{formatQty(order.qty, unit, t)}</strong>
             {unitPrice && pack && (
-              <span className="faint"> · {formatPrice(unitPrice, order.currency)} {pack}</span>
+              <span className="faint"> · {formatPrice(unitPrice, order.currency, t)} {pack}</span>
             )}
           </p>
         )}
@@ -322,7 +331,9 @@ export default function OrderPage() {
         )}
         {kind === 'topup' && topupAccount && (
           <p style={{ margin: '14px 0 0', fontSize: 15 }}>
-            {topupAmount ? <>Зачисление {formatPrice(topupAmount, order.currency)} на аккаунт </> : <>Пополнение на аккаунт </>}
+            {topupAmount
+              ? t('Зачисление {sum} на аккаунт', { sum: formatPrice(topupAmount, order.currency, t) })
+              : t('Пополнение на аккаунт')}{' '}
             <strong style={{ wordBreak: 'break-all' }}>{topupAccount}</strong>
           </p>
         )}
@@ -337,39 +348,39 @@ export default function OrderPage() {
         <div className="row" style={{ gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
           {role === 'buyer' && order.status === 'created' && (
             <button className="btn" onClick={pay} disabled={busy} type="button">
-              Оплатить {formatPrice(priceFor(BigInt(order.amount), method).toString(), order.currency)}
+              {t('Оплатить {sum}', { sum: formatPrice(priceFor(BigInt(order.amount), method).toString(), order.currency, t) })}
             </button>
           )}
           {role === 'seller' && order.status === 'paid' && (
-            <button className="btn" onClick={() => act('deliver')} disabled={busy} type="button">Отметить выдачу</button>
+            <button className="btn" onClick={() => act('deliver')} disabled={busy} type="button">{t('Отметить выдачу')}</button>
           )}
           {role === 'buyer' && auto && (order.status === 'delivered' || order.status === 'completed') && !keys && (
             <button className={order.status === 'delivered' ? 'btn secondary' : 'btn'} onClick={revealKey} type="button">
               {kind === 'item' ? <Package size={16} strokeWidth={1.75} /> : <KeyRound size={16} strokeWidth={1.75} />}{' '}
-              {kind === 'item' ? 'Показать товар' : many ? 'Показать ключи' : 'Показать ключ'}
+              {kind === 'item' ? t('Показать товар') : many ? t('Показать ключи') : t('Показать ключ')}
             </button>
           )}
           {role === 'buyer' && order.status === 'delivered' && (
             <button className="btn" onClick={() => act('confirm')} disabled={busy} type="button">
-              <CheckCircle2 size={16} /> Всё получил, подтвердить
+              <CheckCircle2 size={16} /> {t('Всё получил, подтвердить')}
             </button>
           )}
           {role === 'buyer' && (order.status === 'paid' || order.status === 'delivered') && (
             <button className="btn secondary" onClick={() => setShowDispute((v) => !v)} type="button">
-              <AlertTriangle size={16} strokeWidth={1.75} /> Открыть спор
+              <AlertTriangle size={16} strokeWidth={1.75} /> {t('Открыть спор')}
             </button>
           )}
           {order.status === 'paid' && role === 'buyer' && (
             <button className="btn ghost" disabled={busy} type="button"
               onClick={() => {
-                if (window.confirm('Отменить заказ? Деньги вернутся на ваш баланс.')) act('cancel');
+                if (window.confirm(t('Отменить заказ? Деньги вернутся на ваш баланс.'))) act('cancel');
               }}>
-              Отменить заказ
+              {t('Отменить заказ')}
             </button>
           )}
           {role === 'seller' && ['paid', 'delivered', 'disputed'].includes(order.status) && (
             <button className="btn ghost" disabled={busy} type="button" onClick={refund}>
-              Вернуть деньги покупателю
+              {t('Вернуть деньги покупателю')}
             </button>
           )}
         </div>
@@ -378,8 +389,8 @@ export default function OrderPage() {
           <div className="card flat" style={{ marginTop: 16, padding: 16, background: 'var(--page)' }}>
             <p className="hint" style={{ marginBottom: 6 }}>
               {kind === 'item'
-                ? keys.length > 1 ? `Ваш товар · ${keys.length} шт.` : 'Ваш товар'
-                : keys.length > 1 ? `Ваши ключи · ${keys.length}` : 'Ваш ключ'}
+                ? keys.length > 1 ? t('Ваш товар · {n} шт.', { n: keys.length }) : t('Ваш товар')
+                : keys.length > 1 ? t('Ваши ключи · {n}', { n: keys.length }) : t('Ваш ключ')}
             </p>
             <ol style={{ margin: 0, paddingLeft: keys.length > 1 ? 22 : 0, listStyle: keys.length > 1 ? 'decimal' : 'none', display: 'grid', gap: 6 }}>
               {keys.map((k, i) => (
@@ -395,24 +406,24 @@ export default function OrderPage() {
       {showDispute && (
         <div className="card" style={{ marginTop: 16, padding: 20 }}>
           <div className="field">
-            <label className="label" htmlFor="dispute-reason">Что пошло не так</label>
+            <label className="label" htmlFor="dispute-reason">{t('Что пошло не так')}</label>
             <textarea id="dispute-reason" className="input" rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
               placeholder={kind === 'item'
-                ? 'Например: пароль не подходит, аккаунт не соответствует описанию'
-                : 'Например: ключ уже активирован, пишет «код использован»'}
+                ? t('Например: пароль не подходит, аккаунт не соответствует описанию')
+                : t('Например: ключ уже активирован, пишет «код использован»')}
               style={{ resize: 'vertical' }} />
-            <p className="hint">Спор рассмотрит арбитр площадки. Деньги заморожены до решения.</p>
+            <p className="hint">{t('Спор рассмотрит арбитр площадки. Деньги заморожены до решения.')}</p>
           </div>
           <div className="row" style={{ gap: 8, marginTop: 12 }}>
-            <button className="btn" onClick={openDispute} disabled={busy} type="button">Открыть спор</button>
-            <button className="btn ghost" onClick={() => setShowDispute(false)} type="button">Не сейчас</button>
+            <button className="btn" onClick={openDispute} disabled={busy} type="button">{t('Открыть спор')}</button>
+            <button className="btn ghost" onClick={() => setShowDispute(false)} type="button">{t('Не сейчас')}</button>
           </div>
         </div>
       )}
 
       {order.status === 'disputed' && disputeId && (
         <Link href={`/disputes/${disputeId}`} className="btn secondary" style={{ marginTop: 16 }}>
-          Перейти к спору
+          {t('Перейти к спору')}
         </Link>
       )}
 
@@ -421,17 +432,17 @@ export default function OrderPage() {
       {err && <div className="alert error" role="alert" style={{ marginTop: 16 }}>{err}</div>}
 
       <p className="hint" style={{ marginTop: 16 }}>
-        Вопрос не к продавцу, а к площадке?{' '}
-        <Link href={`/cabinet/support?order=${order.id}`}>Написать в поддержку</Link>
+        {t('Вопрос не к продавцу, а к площадке?')}{' '}
+        <Link href={`/cabinet/support?order=${order.id}`}>{t('Написать в поддержку')}</Link>
       </p>
 
       <section style={{ marginTop: 40 }}>
-        <h2 className="h2" style={{ fontSize: 18, marginBottom: 12 }}>Чат по сделке</h2>
+        <h2 className="h2" style={{ fontSize: 18, marginBottom: 12 }}>{t('Чат по сделке')}</h2>
         {conv && me ? (
           <OrderChat conversationId={conv.id} meId={me.id} />
         ) : (
           <p className="muted" style={{ fontSize: 14 }}>
-            Чат откроется, когда заказ будет оплачен. Всё, что написано в нём, увидит арбитр при споре.
+            {t('Чат откроется, когда заказ будет оплачен. Всё, что написано в нём, увидит арбитр при споре.')}
           </p>
         )}
       </section>

@@ -30,7 +30,7 @@ export async function SellerCard({
   return (
     <section className="card seller-card" aria-label={t('Продавец')}>
       <div className="row" style={{ gap: 14, alignItems: 'center' }}>
-        <Avatar name={seller.username} url={seller.avatarUrl} online={seller.online} size={52} />
+        <Avatar name={seller.username} url={seller.avatarUrl} online={seller.online} size={52} t={t} />
         <div style={{ minWidth: 0 }}>
           <Link href={`/prodavec/${seller.id}`} className="seller-card-name">
             {seller.username}

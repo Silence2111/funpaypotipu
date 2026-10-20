@@ -21,13 +21,13 @@ import { apiErrorMessage } from '@/lib/errors';
 import { payOrder } from '@/lib/checkout';
 import { formatPrice } from '@/lib/format';
 import { tileFor } from '@/lib/tile';
+import { useT } from '@/lib/i18n/client';
+import { msg } from '@/lib/i18n/lang';
 import { PayMethods, methodFee, priceFor, type PayMethod } from '@/components/pay-methods';
 
 /** Быстрые суммы, ₽: самые частые пополнения кошелька. */
 const PRESETS = [500, 1000, 2000, 5000];
 const DEFAULT_RUB = 1000;
-
-const rub = (minor: bigint) => formatPrice(minor.toString(), 'RUB');
 
 /**
  * Пополнение на сумму покупателя: логин, сумма, «Оплатить N ₽».
@@ -58,6 +58,10 @@ export function GameTopupForm({
   initialAmount?: string;
   paymentsDemo?: boolean;
 }) {
+  const t = useT();
+  const rub = (minor: bigint) => formatPrice(minor.toString(), 'RUB', t);
+  // Проценты из shared — с запятой («7,5%»); по-английски — с точкой.
+  const pctText = (s: string) => (t.lang === 'en' ? s.replace(',', '.') : s);
   const router = useRouter();
   const terms = useMemo(
     () => offers.map((o) => ({ ...o, min: BigInt(o.min), max: BigInt(o.max) })),
@@ -84,10 +88,11 @@ export function GameTopupForm({
   const quote = offer ? topupQuote(nominal, offer.markupBps) : null;
   const amountError = offer
     ? null
-    : (range ? topupAmountError(nominal, range) : null) ?? 'На эту сумму предложений сейчас нет';
+    : (range ? topupAmountError(nominal, range) : null) ?? msg('На эту сумму предложений сейчас нет');
   const accountError = topupAccountError(game.slug, account);
-  const showAccountError = touched.account ? accountError : null;
-  const showAmountError = touched.amount ? amountError : null;
+  // Проверки из shared пишут по-русски — показываем через t.d (словарь EN_SHARED).
+  const showAccountError = touched.account && accountError ? t.d(accountError) : null;
+  const showAmountError = touched.amount && amountError ? t.d(amountError) : null;
   const presets = PRESETS.filter((p) => !range || (BigInt(p * 100) >= range.min && BigInt(p * 100) <= range.max));
 
   async function pay() {
@@ -117,7 +122,7 @@ export function GameTopupForm({
       });
       orderId = order.id;
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не удалось оформить пополнение. Обновите страницу и попробуйте ещё раз.'));
+      setErr(apiErrorMessage(e, t('Не удалось оформить пополнение. Обновите страницу и попробуйте ещё раз.')));
       setBusy(false);
       return;
     }
@@ -143,13 +148,13 @@ export function GameTopupForm({
     <form onSubmit={onSubmit} noValidate className="stack-form" style={{ gap: 16 }}>
       <div className="field">
         <label className="label" htmlFor={ids.account}>
-          {spec.label}
+          {t.d(spec.label)}
         </label>
         <input
           id={ids.account}
           className="input"
           value={account}
-          placeholder={spec.placeholder}
+          placeholder={t.d(spec.placeholder)}
           autoComplete="off"
           autoCapitalize="none"
           spellCheck={false}
@@ -157,7 +162,7 @@ export function GameTopupForm({
           aria-invalid={!!showAccountError}
           aria-describedby={`${ids.account}-note`}
           onChange={(e) => setAccount(e.target.value)}
-          onBlur={() => setTouched((t) => ({ ...t, account: true }))}
+          onBlur={() => setTouched((prev) => ({ ...prev, account: true }))}
         />
         {showAccountError ? (
           <p id={`${ids.account}-note`} className="field-error" role="alert">
@@ -165,7 +170,7 @@ export function GameTopupForm({
           </p>
         ) : (
           <p id={`${ids.account}-note`} className="hint">
-            {spec.hint}
+            {t.d(spec.hint)}
           </p>
         )}
       </div>
@@ -173,7 +178,7 @@ export function GameTopupForm({
       <div className="field">
         <div className="row" style={{ justifyContent: 'space-between', gap: 12 }}>
           <label className="label" htmlFor={ids.amount}>
-            Сколько зачислить
+            {t('Сколько зачислить')}
           </label>
           {range && (
             <span className="faint" style={{ fontSize: 13 }}>
@@ -191,7 +196,7 @@ export function GameTopupForm({
             aria-invalid={!!showAmountError}
             aria-describedby={showAmountError ? `${ids.amount}-note` : undefined}
             onChange={(e) => setAmount(e.target.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 7))}
-            onBlur={() => setTouched((t) => ({ ...t, amount: true }))}
+            onBlur={() => setTouched((prev) => ({ ...prev, amount: true }))}
           />
           <span aria-hidden>₽</span>
         </div>
@@ -201,7 +206,7 @@ export function GameTopupForm({
           </p>
         )}
         {presets.length > 0 && (
-          <div className="topup-presets" role="group" aria-label="Быстрый выбор суммы">
+          <div className="topup-presets" role="group" aria-label={t('Быстрый выбор суммы')}>
             {presets.map((p) => (
               <button
                 key={p}
@@ -210,7 +215,7 @@ export function GameTopupForm({
                 aria-pressed={amount === String(p)}
                 onClick={() => {
                   setAmount(String(p));
-                  setTouched((t) => ({ ...t, amount: true }));
+                  setTouched((prev) => ({ ...prev, amount: true }));
                 }}
               >
                 {rub(BigInt(p * 100))}
@@ -222,13 +227,17 @@ export function GameTopupForm({
 
       <div className="topup-summary">
         <div className="total">
-          <span>К оплате</span>
+          <span>{t('К оплате')}</span>
           <strong>{quote ? rub(priceFor(quote.price, method)) : '—'}</strong>
         </div>
         {quote && offer && (
           <p>
-            {rub(quote.nominal)} на {game.title} + наценка продавца {markupLabel(offer.markupBps)}
-            {methodFee(method) ? ` + комиссия способа ${methodFee(method)}` : ''}
+            {t('{sum} на {game} + наценка продавца {markup}', {
+              sum: rub(quote.nominal),
+              game: t.d(game.title),
+              markup: pctText(markupLabel(offer.markupBps)),
+            })}
+            {methodFee(method) ? ` ${t('+ комиссия способа {fee}', { fee: pctText(methodFee(method) ?? '') })}` : ''}
           </p>
         )}
       </div>
@@ -244,7 +253,11 @@ export function GameTopupForm({
 
       <div>
         <button className="btn block lg" type="submit" disabled={busy}>
-          {busy ? 'Оформляем…' : quote ? `Оплатить ${rub(priceFor(quote.price, method))}` : 'Оплатить'}
+          {busy
+            ? t('Оформляем…')
+            : quote
+              ? t('Оплатить {sum}', { sum: rub(priceFor(quote.price, method)) })
+              : t('Оплатить')}
         </button>
         {err && (
           <p className="field-error" role="alert" style={{ marginTop: 10, textAlign: 'center' }}>
@@ -255,13 +268,17 @@ export function GameTopupForm({
 
       {variant === 'hero' && (
         <p className="hint" style={{ textAlign: 'center' }}>
-          Деньги у площадки, пока вы не подтвердите зачисление.
-          {paymentsDemo ? ' Оплата демонстрационная, деньги не списываются.' : ''}
+          {t('Деньги у площадки, пока вы не подтвердите зачисление.')}
+          {paymentsDemo ? ` ${t('Оплата демонстрационная, деньги не списываются.')}` : ''}
           {offer && (
             <>
-              {' '}Продавец {offer.seller.username ?? '—'}
-              {demo && <> <span className="demo-mark">Пример</span></>},{' '}
-              <Link href={`/lot/${offer.listingId}`} className="inline-link">условия лота</Link>.
+              {' '}
+              {t('Продавец {name}', { name: offer.seller.username ?? '—' })}
+              {demo && <> <span className="demo-mark">{t('Пример')}</span></>},{' '}
+              <Link href={`/lot/${offer.listingId}`} className="inline-link">
+                {t('условия лота')}
+              </Link>
+              .
             </>
           )}
         </p>
@@ -294,10 +311,10 @@ export function GameTopupForm({
         </div>
         <div style={{ minWidth: 0 }}>
           <h2 className="h2" style={{ fontSize: 20 }}>
-            Пополнить {game.title}
+            {t('Пополнить {game}', { game: t.d(game.title) })}
           </h2>
           <p className="faint" style={{ margin: 0, fontSize: 13 }}>
-            Без пароля — нужен только логин
+            {t('Без пароля — нужен только логин')}
           </p>
         </div>
       </div>

@@ -1,2 +1,132 @@
 /** Кабинет: кошелёк, вывод, история, покупки и продажи, избранное, поддержка. */
-export const CABINET: Record<string, string> = {};
+export const CABINET: Record<string, string> = {
+  // Обзор
+  Кабинет: 'Account',
+  'Загружаем кабинет': 'Loading your account',
+  'Разделы кабинета': 'Account sections',
+  Обзор: 'Overview',
+  Заказы: 'Orders',
+  Консоль: 'Console',
+  'Мои заказы': 'My orders',
+  'Все покупки и продажи →': 'All purchases and sales →',
+  'Заказов пока нет. Оплата хранится у площадки, пока вы не подтвердите получение.':
+    'No orders yet. The marketplace holds your payment until you confirm receipt.',
+  'Все лоты ({n}) →': 'All listings ({n}) →',
+  'Управлять лотами →': 'Manage listings →',
+  'в продаже': 'on sale',
+  черновик: 'draft',
+  снят: 'paused',
+  распродан: 'sold out',
+  заблокирован: 'blocked',
+  'Выйти из аккаунта': 'Sign out of your account',
+
+  // Кошелёк
+  Баланс: 'Balance',
+  'На демо-стенде пополнение проходит без списания денег.':
+    'On the demo site, top-ups don’t charge any real money.',
+  'Вывод средств': 'Withdrawal',
+  'История операций': 'Transaction history',
+  'Операций пока нет.': 'No transactions yet.',
+  Операция: 'Transaction',
+  'Пополнение баланса': 'Balance top-up',
+  'Оплата заказа с баланса': 'Order paid from balance',
+  'Оплата заказа': 'Order payment',
+  'Зачисление за продажу': 'Sale proceeds',
+  'Зачисление по решению спора': 'Credited by dispute decision',
+  'Кэшбэк за покупку': 'Purchase cashback',
+  'Возврат: заказ отменён': 'Refund: order cancelled',
+  'Возврат: продавец не выдал товар': 'Refund: the seller didn’t deliver',
+  'Возврат от продавца': 'Refund from the seller',
+  'Возврат по решению спора': 'Refund by dispute decision',
+  'Возврат: товар закончился': 'Refund: out of stock',
+  'Повторная оплата заказа — на баланс': 'Repeat order payment — to balance',
+  'Продвижение лота': 'Listing promotion',
+  'Заявка на вывод': 'Withdrawal request',
+  'Заявка на вывод отклонена': 'Withdrawal request rejected',
+
+  // Вывод
+  'Способ вывода': 'Withdrawal method',
+  'Сумма вывода, ₽': 'Withdrawal amount, ₽',
+  'Сумма, ₽': 'Amount, ₽',
+  'Куда вывести': 'Withdraw to',
+  'Номер карты или телефон СБП': 'Card number or SBP phone',
+  Вывести: 'Withdraw',
+  'Укажите сумму и реквизиты': 'Enter the amount and payout details',
+  'Минимум для «{method}» — {sum}': 'The minimum for “{method}” is {sum}',
+  'Заявка на вывод создана': 'Withdrawal request created',
+  'Не удалось создать заявку': 'Couldn’t create the request',
+  'Комиссия {sum}': 'Fee {sum}',
+  'на руки {sum}': 'you receive {sum}',
+  'Больше {sum} за раз — после проверки личности.': 'Over {sum} at a time — after ID verification.',
+
+  // Аналитика продавца
+  'Аналитика продавца': 'Seller analytics',
+  'Выручка всего': 'Total revenue',
+  'Выручка за 30 дней': 'Revenue, last 30 days',
+  'Продаж всего': 'Total sales',
+  'В работе': 'In progress',
+  'Активных лотов': 'Active listings',
+  'Выручка по дням (14 дней)': 'Daily revenue (14 days)',
+
+  // Покупки и продажи
+  'Покупки или продажи': 'Purchases or sales',
+  Статус: 'Status',
+  Споры: 'Disputes',
+  Завершены: 'Completed',
+  'Возвраты и отмены': 'Refunds and cancellations',
+  'Ждут оплаты': 'Awaiting payment',
+  'Загружаем заказы': 'Loading orders',
+  'Покупок пока нет. Деньги будут у площадки, пока вы не подтвердите получение.':
+    'No purchases yet. The marketplace holds the money until you confirm receipt.',
+  'Продаж пока нет. Лот с понятным описанием и честной ценой продаётся быстрее.':
+    'No sales yet. A listing with a clear description and a fair price sells faster.',
+  'Заказов с таким статусом нет.': 'No orders with this status.',
+  Сумма: 'Amount',
+  'продавец {name}': 'seller {name}',
+  'покупатель {name}': 'buyer {name}',
+  'нужно выдать': 'to deliver',
+  'подтвердите получение': 'confirm receipt',
+
+  // Избранное
+  'В избранном пока пусто.': 'Your favorites list is empty.',
+
+  // Поддержка
+  'Новое обращение': 'New request',
+  'О чём вопрос': 'Topic',
+  'Выберите, о чём вопрос': 'Choose what your question is about',
+  'Оплата и баланс': 'Payment and balance',
+  'Аккаунт и вход': 'Account and sign-in',
+  'Продажи и лоты': 'Sales and listings',
+  'Заказ — необязательно': 'Order — optional',
+  'Без заказа': 'No order',
+  'Заказ со страницы заказа': 'Order from the order page',
+  Тема: 'Subject',
+  'Коротко: что случилось': 'In short: what happened',
+  'Что делали, что ожидали, что получилось. Пароли и коды из СМС не присылайте.':
+    'What you did, what you expected, what happened. Don’t send passwords or SMS codes.',
+  'Спор по сделке быстрее решит арбитр — откройте его на странице заказа.':
+    'An arbiter will resolve a deal dispute faster — open one on the order page.',
+  'Не удалось отправить обращение.': 'Couldn’t send the request.',
+  'Обращений пока нет. Ответ обычно приходит в течение дня.':
+    'No requests yet. Replies usually arrive within a day.',
+  закрыто: 'closed',
+  'ждём пользователя': 'waiting for the user',
+  'есть ответ': 'answered',
+  'ждёт ответа': 'awaiting reply',
+  'на рассмотрении': 'under review',
+  'Обращение не найдено': 'Request not found',
+  'Войдите, чтобы открыть обращение.': 'Sign in to open the request.',
+  'Очередь поддержки': 'Support queue',
+  'Все обращения': 'All requests',
+  заказ: 'order',
+  'от {name}': 'from {name}',
+  'от пользователя': 'from a user',
+  Пользователь: 'User',
+  'Сообщение…': 'Message…',
+  'Обращение закрыто — сообщение откроет его снова':
+    'The request is closed — a new message will reopen it',
+  'Сообщение не отправлено.': 'Message not sent.',
+  'Не удалось закрыть обращение.': 'Couldn’t close the request.',
+  'Закрыть обращение': 'Close request',
+  'Вопрос решён': 'Issue resolved',
+};

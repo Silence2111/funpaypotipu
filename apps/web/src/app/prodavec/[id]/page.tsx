@@ -64,7 +64,7 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
     <div className="container" style={{ paddingTop: 40, paddingBottom: 24 }}>
       <section className="card profile-head">
         <div className="profile-id">
-          <Avatar name={seller.username} url={seller.avatarUrl} online={seller.online} size={88} />
+          <Avatar name={seller.username} url={seller.avatarUrl} online={seller.online} size={88} t={t} />
           <div style={{ minWidth: 0 }}>
             <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
               <h1 className="h1 profile-name">{seller.displayName}</h1>
@@ -159,7 +159,7 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
                 {g.items.length}
               </span>
             </div>
-            <OfferTable items={g.items} attributes={attrs[i] ?? []} hideSeller />
+            <OfferTable items={g.items} attributes={attrs[i] ?? []} hideSeller t={t} />
           </div>
         ))}
       </section>

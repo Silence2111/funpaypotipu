@@ -32,42 +32,8 @@ const RUSSIAN_ONLY = [
   'lib/i18n/',
 ];
 
-// Ещё не переведены — убирать отсюда по мере перевода.
-const NOT_YET = [
-  'app/cabinet/favorites/page.tsx',
-  'app/cabinet/orders/page.tsx',
-  'app/cabinet/page.tsx',
-  'app/cabinet/support/[id]/page.tsx',
-  'app/cabinet/support/page.tsx',
-  'app/catalog/page.tsx',
-  'app/chat/layout.tsx',
-  'app/chat/page.tsx',
-  'app/disputes/[id]/page.tsx',
-  'app/igra/[slug]/[section]/page.tsx',
-  'app/igra/[slug]/page.tsx',
-  'app/igry/page.tsx',
-  'app/orders/[id]/page.tsx',
-  'app/page.tsx',
-  'app/podbor/page.tsx',
-  'components/cabinet-nav.tsx',
-  'components/chat-list.tsx',
-  'components/chat-thread.tsx',
-  'components/game-directory.tsx',
-  'components/game-search.tsx',
-  'components/game-topup-form.tsx',
-  'components/messenger.tsx',
-  'components/offers.tsx',
-  'components/order-review.tsx',
-  'components/payout-form.tsx',
-  'components/search-bar.tsx',
-  'components/section-filters.tsx',
-  'components/section-view.tsx',
-  'components/seller-dashboard.tsx',
-  'components/support-ui.tsx',
-  'components/topup-form.tsx',
-  'components/wallet-transactions.tsx',
-  'lib/chat.tsx',
-];
+// Ещё не переведены — сюда попадает файл, который переводят не сразу.
+const NOT_YET = [];
 
 // node scripts/i18n-check.mjs --only components/listing-form.tsx app/cabinet/lots —
 // проверить только эти файлы, как будто они уже сняты с NOT_YET.
@@ -84,7 +50,7 @@ const warnings = [];
 const phrases = {};
 const data = {};
 const plural = {};
-const origin = {};
+const origin = new Map(); // словарь → фраза → файл
 for (const f of readdirSync(DICT).sort()) {
   if (!f.endsWith('.ts') || f === 'index.ts') continue;
   const mod = await import(pathToFileURL(join(DICT, f)).href);
@@ -94,11 +60,12 @@ for (const f of readdirSync(DICT).sort()) {
   for (const [ru, en] of Object.entries(values[0] ?? {})) {
     if (ru in target && JSON.stringify(target[ru]) !== JSON.stringify(en)) {
       errors.push(
-        `«${ru}» переведена по-разному: ${origin[ru]} — ${JSON.stringify(target[ru])}, en/${f} — ${JSON.stringify(en)}`,
+        `«${ru}» переведена по-разному: ${origin.get(target)?.[ru]} — ${JSON.stringify(target[ru])}, en/${f} — ${JSON.stringify(en)}`,
       );
     }
     target[ru] = en;
-    origin[ru] = `en/${f}`;
+    if (!origin.has(target)) origin.set(target, {});
+    origin.get(target)[ru] = `en/${f}`;
   }
 }
 
@@ -186,7 +153,7 @@ for (const file of files) {
 
 if (!only) {
   for (const ru of Object.keys(phrases)) {
-    if (!used.has(ru)) warnings.push(`не используется: «${ru}» (${origin[ru]})`);
+    if (!used.has(ru)) warnings.push(`не используется: «${ru}» (${origin.get(phrases)?.[ru]})`);
   }
 }
 
