@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
+import { useT } from '@/lib/i18n/client';
 
 /** Событие установки Chrome и Edge: в стандартных типах DOM его нет. */
 interface InstallPrompt extends Event {
@@ -15,6 +16,7 @@ interface InstallPrompt extends Event {
  * Safari ставит сайт через «Поделиться → На экран „Домой“».
  */
 export function InstallApp() {
+  const t = useT();
   const [prompt, setPrompt] = useState<InstallPrompt | null>(null);
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export function InstallApp() {
         if (outcome === 'accepted') setPrompt(null);
       }}
     >
-      <Download size={16} strokeWidth={1.75} aria-hidden /> Установить приложение
+      <Download size={16} strokeWidth={1.75} aria-hidden /> {t('Установить приложение')}
     </button>
   );
 }

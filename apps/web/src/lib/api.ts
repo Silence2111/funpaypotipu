@@ -1,3 +1,5 @@
+import { msg } from './i18n/lang';
+
 // SSR внутри контейнера ходит на внутренний адрес (api:4000), браузер — на публичный.
 const API_URL =
   process.env.API_URL_INTERNAL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -126,20 +128,21 @@ export interface GameIndexEntry {
   categories: Array<{ id: string; slug: string; title: string; listingCount: number }>;
 }
 
-/** Типы товаров во всех играх — как строка категорий на главной Playerok. */
+/** Типы товаров во всех играх — как строка категорий на главной Playerok. Подписи — через t(). */
 export const SEGMENTS: Array<[string, string]> = [
-  ['accounts', 'Аккаунты'],
-  ['currency', 'Валюта'],
-  ['items', 'Предметы'],
-  ['key', 'Ключи'],
-  ['topup', 'Донат'],
-  ['service', 'Услуги'],
+  ['accounts', msg('Аккаунты')],
+  ['currency', msg('Валюта')],
+  ['items', msg('Предметы')],
+  ['key', msg('Ключи')],
+  ['topup', msg('Донат')],
+  ['service', msg('Услуги')],
 ];
 
+/** Подписи видов игр; показывать через t(). */
 export const KIND_LABELS: Record<GameIndexEntry['kind'], string> = {
-  game: 'Игры',
-  mobile: 'Мобильные игры',
-  app: 'Приложения и сервисы',
+  game: msg('Игры'),
+  mobile: msg('Мобильные игры'),
+  app: msg('Приложения и сервисы'),
 };
 export const getGameIndex = () => apiTry<GameIndexEntry[]>('/catalog/index');
 

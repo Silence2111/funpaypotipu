@@ -1,22 +1,31 @@
 import type { ReactNode } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Languages } from 'lucide-react';
+import { getT } from '@/lib/i18n/server';
 
 /**
  * Юр-страница демо-стенда. Площадка берёт деньги и персональные данные,
  * значит оферта, политика и контакты нужны. Реквизитов ещё нет — места
  * помечены «[заполнить]», а не выдуманы.
  */
-export function LegalPage({ title, children }: { title: string; children: ReactNode }) {
+export async function LegalPage({ title, children }: { title: string; children: ReactNode }) {
+  const t = await getT();
   return (
     <div className="container" style={{ paddingTop: 48, maxWidth: 760 }}>
-      <h1 className="h1" style={{ fontSize: 32 }}>{title}</h1>
+      {/* Перевод документа не имеет силы — на английском честно говорим, что он по-русски. */}
+      {t.lang === 'en' && (
+        <div className="alert" style={{ marginBottom: 20 }} lang="en">
+          <Languages size={18} strokeWidth={1.75} />
+          <span>{t('Этот документ — только на русском. Действует русская версия.')}</span>
+        </div>
+      )}
+      <h1 className="h1" style={{ fontSize: 32 }} lang="ru">{title}</h1>
       <div className="alert" style={{ marginTop: 20 }}>
         <Info size={18} strokeWidth={1.75} />
         <span>
           Черновик до регистрации юрлица. Места с пометкой <Fill /> — реквизиты, которых пока нет.
         </span>
       </div>
-      <div className="card legal" style={{ marginTop: 20, padding: 28 }}>{children}</div>
+      <div className="card legal" style={{ marginTop: 20, padding: 28 }} lang="ru">{children}</div>
     </div>
   );
 }

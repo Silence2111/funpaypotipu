@@ -8,7 +8,7 @@
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "echo \"(tests TODO)\" && exit 0"
+    "test": "node scripts/i18n-check.mjs"
   },
   "dependencies": {
     "@gamemarket/shared": "workspace:*",

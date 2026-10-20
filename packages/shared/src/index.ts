@@ -15,3 +15,4 @@ export * from './quantity';
 export * from './notify';
 export * from './buyer-data';
 export * from './promotion';
+export * from './i18n';

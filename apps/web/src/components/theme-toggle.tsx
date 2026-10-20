@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
+import { useT } from '@/lib/i18n/client';
 
 /** Тема сайта: сохранённая или системная; переключение запоминается. */
 export function useTheme(): ['light' | 'dark', () => void] {
@@ -25,9 +26,10 @@ export function useTheme(): ['light' | 'dark', () => void] {
 
 /** Переключатель светлой/тёмной темы в шапке. На телефоне он — в шторке профиля. */
 export function ThemeToggle() {
+  const t = useT();
   const [theme, toggle] = useTheme();
   return (
-    <button onClick={toggle} className="chip hide-mobile" type="button" aria-label="Переключить тему"
+    <button onClick={toggle} className="chip hide-mobile" type="button" aria-label={t('Переключить тему')}
       style={{ padding: '6px 12px' }}>
       {theme === 'dark' ? <Sun size={16} strokeWidth={1.75} /> : <Moon size={16} strokeWidth={1.75} />}
     </button>

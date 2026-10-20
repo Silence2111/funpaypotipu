@@ -59,8 +59,13 @@ export function useDisplayCurrency(): { currency: DisplayCurrency; rates: Rates 
   return state;
 }
 
-/** «≈ 10,84 $» из копеек по курсу площадки. */
-export function approx(minor: string, currency: Exclude<DisplayCurrency, 'RUB'>, rates: Rates): string {
+/** «≈ 10,84 $» из копеек по курсу площадки; по-английски — «≈ $10.84». */
+export function approx(
+  minor: string,
+  currency: Exclude<DisplayCurrency, 'RUB'>,
+  rates: Rates,
+  locale = 'ru-RU',
+): string {
   const value = Number(BigInt(minor)) / 100 / rates[currency];
-  return `≈ ${new Intl.NumberFormat('ru-RU', { style: 'currency', currency, maximumFractionDigits: 2 }).format(value)}`;
+  return `≈ ${new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 2 }).format(value)}`;
 }

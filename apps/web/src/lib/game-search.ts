@@ -4,7 +4,7 @@ import type { GameIndexEntry } from './api';
 export function norm(s: string): string {
   return s
     .toLowerCase()
-    .replace(/ё/g, 'е')
+    .replace(/ё/g, 'е') // i18n-ignore
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim();
 }

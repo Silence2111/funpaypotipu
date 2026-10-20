@@ -1,0 +1,92 @@
+/** Общее: шапка, подвал, нижняя панель, меню профиля, цены, «в сети». */
+export const COMMON: Record<string, string> = {
+  // Шапка и подвал
+  'GameMarket — маркетплейс цифровых игровых товаров':
+    'GameMarket — marketplace for digital game goods',
+  'Безопасная покупка игровых аккаунтов, валюты, предметов, ключей и пополнений с защитой сделки (эскроу).':
+    'Buy game accounts, currency, items, keys and top-ups safely, with escrow protection on every deal.',
+  'лоты с пометкой «Пример» — демонстрационные': 'listings marked “Sample” are for demonstration',
+  Документы: 'Documents',
+  Помощь: 'Help',
+  'Правила и гарантии': 'Rules and guarantees',
+  Оферта: 'Terms of service',
+  'Персональные данные': 'Personal data',
+  Контакты: 'Contacts',
+  'Как мы меряем выдачу': 'How we measure delivery',
+  'Валюта цен': 'Price currency',
+  'Валюта показа цен. Оплата — в рублях.': 'Currency for displaying prices. Payment is in rubles.',
+  'Примерно, по курсу площадки. Оплата — в рублях.':
+    'Approximate, at the marketplace rate. Payment is in rubles.',
+  'Установить приложение': 'Install app',
+  'Язык сайта': 'Site language',
+  Каталог: 'Catalog',
+  Продать: 'Sell',
+  'Поиск по играм': 'Search games',
+  'Переключить тему': 'Toggle theme',
+  'Светлая тема': 'Light theme',
+  'Тёмная тема': 'Dark theme',
+
+  'Этот документ — только на русском. Действует русская версия.':
+    'This document is available in Russian only. The Russian version is the one that applies.',
+
+  // 404
+  'Страница не найдена': 'Page not found',
+  'Похоже, этот лот уже купили, а страницу — телепортировали. Но в каталоге ещё много всего.':
+    'Looks like this listing has been sold and the page teleported away. There’s plenty more in the catalog.',
+  'В каталог': 'Go to catalog',
+  'На главную': 'Home page',
+
+  // Нижняя панель и меню профиля
+  'Разделы сайта': 'Site sections',
+  Главная: 'Home',
+  Войти: 'Sign in',
+  Сообщения: 'Messages',
+  'Сообщения: {n} непрочитанных': 'Messages: {n} unread',
+  Профиль: 'Profile',
+  'Профиль: {n} ждут действия': 'Profile: {n} need action',
+  'Меню профиля {name}': 'Profile menu for {name}',
+  'Баланс {sum}': 'Balance {sum}',
+  'Баланс — пополнить и вывести в кабинете': 'Balance — top up and withdraw in your account',
+  Продажи: 'Sales',
+  '{n} ждут выдачи': '{n} to deliver',
+  Покупки: 'Purchases',
+  '{n} ждут подтверждения': '{n} to confirm',
+  'Мои лоты': 'My listings',
+  Кошелёк: 'Wallet',
+  'Мой профиль на витрине': 'My public profile',
+  Избранное: 'Favorites',
+  Настройки: 'Settings',
+  Безопасность: 'Security',
+  Поддержка: 'Support',
+  'Консоль сотрудника': 'Staff console',
+  Выйти: 'Sign out',
+
+  // Уведомления
+  Уведомления: 'Notifications',
+  'Прочитать все': 'Mark all as read',
+  'Уведомлений нет': 'No notifications',
+  'Настроить уведомления': 'Notification settings',
+  Уведомление: 'Notification',
+
+  // Типы товаров и виды игр
+  Аккаунты: 'Accounts',
+  Валюта: 'Currency',
+  Предметы: 'Items',
+  Ключи: 'Keys',
+  Донат: 'Top-ups',
+  Услуги: 'Services',
+  Игры: 'Games',
+  'Мобильные игры': 'Mobile games',
+  'Приложения и сервисы': 'Apps and services',
+
+  // Цены и количество
+  'шт.': 'pcs',
+  'за {qty}': 'per {qty}',
+  'от {price}': 'from {price}',
+
+  // В сети
+  'в сети': 'online',
+  'в сети {n} мин назад': 'seen {n} min ago',
+  'в сети {n} ч назад': 'seen {n} h ago',
+  'в сети {n} дн назад': 'seen {n} d ago',
+};

@@ -10,6 +10,8 @@ import { useSummary, type Summary } from '@/lib/summary';
 import { ProfileLinks, useSessionUser, waitingCount } from './auth-nav';
 import { useTheme } from './theme-toggle';
 import { BottomSheet } from './bottom-sheet';
+import { LangSwitch } from './lang-switch';
+import { useT } from '@/lib/i18n/client';
 
 /** Экраны со своей нижней строкой — полем сообщения: панель закрывала бы его. */
 const FULLSCREEN = [/^\/chat\/[^/]+/];
@@ -23,6 +25,7 @@ const badge = (n: number) => (n > 99 ? '99+' : String(n));
  * открыта клавиатура, панель прячется: она закрывала бы поле ввода.
  */
 export function TabBar() {
+  const t = useT();
   const pathname = usePathname();
   const user = useSessionUser();
   const sum = useSummary(!!user, pathname);
@@ -60,10 +63,10 @@ export function TabBar() {
 
   return (
     <>
-      <nav className="tabbar" aria-label="Разделы сайта">
+      <nav className="tabbar" aria-label={t('Разделы сайта')}>
         <Link href="/" className="tab-item" aria-current={current(at('/'))}>
           <House size={22} strokeWidth={1.75} aria-hidden />
-          <span>Главная</span>
+          <span>{t('Главная')}</span>
         </Link>
         <Link
           href="/igry"
@@ -71,20 +74,20 @@ export function TabBar() {
           aria-current={current(at('/igry', '/igra', '/catalog', '/lot'))}
         >
           <LayoutGrid size={22} strokeWidth={1.75} aria-hidden />
-          <span>Каталог</span>
+          <span>{t('Каталог')}</span>
         </Link>
         <Link href="/cabinet/new" className="tab-item" aria-current={current(at('/cabinet/new'))}>
           <PlusCircle size={22} strokeWidth={1.75} aria-hidden />
-          <span>Продать</span>
+          <span>{t('Продать')}</span>
         </Link>
         <Link
           href={user ? '/chat' : '/login?next=/chat'}
           className="tab-item"
           aria-current={current(at('/chat'))}
-          aria-label={unread ? `Сообщения: ${unread} непрочитанных` : undefined}
+          aria-label={unread ? t('Сообщения: {n} непрочитанных', { n: unread }) : undefined}
         >
           <MessagesSquare size={22} strokeWidth={1.75} aria-hidden />
-          <span>Сообщения</span>
+          <span>{t('Сообщения')}</span>
           {unread > 0 && <span className="notif-badge tab-badge">{badge(unread)}</span>}
         </Link>
         {user ? (
@@ -98,11 +101,11 @@ export function TabBar() {
                 ? 'true'
                 : undefined
             }
-            aria-label={waiting ? `Профиль: ${waiting} ждут действия` : 'Профиль'}
+            aria-label={waiting ? t('Профиль: {n} ждут действия', { n: waiting }) : t('Профиль')}
             onClick={() => setSheet(true)}
           >
             <UserRound size={22} strokeWidth={1.75} aria-hidden />
-            <span>Профиль</span>
+            <span>{t('Профиль')}</span>
             {waiting > 0 && <span className="notif-badge tab-badge">{badge(waiting)}</span>}
           </button>
         ) : (
@@ -112,7 +115,7 @@ export function TabBar() {
             aria-current={current(at('/login', '/register'))}
           >
             <UserRound size={22} strokeWidth={1.75} aria-hidden />
-            <span>Войти</span>
+            <span>{t('Войти')}</span>
           </Link>
         )}
       </nav>
@@ -121,7 +124,7 @@ export function TabBar() {
   );
 }
 
-/** Шторка профиля: пункты меню шапки и тема. */
+/** Шторка профиля: пункты меню шапки, тема и язык. */
 function ProfileSheet({
   user,
   sum,
@@ -131,9 +134,10 @@ function ProfileSheet({
   sum: Summary | null;
   onClose: () => void;
 }) {
+  const t = useT();
   const [theme, toggleTheme] = useTheme();
   return (
-    <BottomSheet label="Профиль" onClose={onClose}>
+    <BottomSheet label={t('Профиль')} onClose={onClose}>
       <div className="sheet-head">
         <span className="avatar" style={{ width: 44, height: 44, fontSize: 18 }} aria-hidden>
           {user.username.charAt(0).toUpperCase()}
@@ -142,12 +146,14 @@ function ProfileSheet({
           <div className="sheet-name">{user.username}</div>
           {sum && (
             <div className="faint" style={{ fontSize: 14 }}>
-              Баланс {formatPrice(sum.balance.available, sum.balance.currency)}
+              {t('Баланс {sum}', {
+                sum: formatPrice(sum.balance.available, sum.balance.currency, t),
+              })}
             </div>
           )}
         </div>
       </div>
-      <div className="sheet-menu" role="menu" aria-label="Профиль">
+      <div className="sheet-menu" role="menu" aria-label={t('Профиль')}>
         <ProfileLinks
           user={user}
           sum={sum}
@@ -158,10 +164,13 @@ function ProfileSheet({
               ) : (
                 <Moon size={16} strokeWidth={1.75} aria-hidden />
               )}
-              {theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+              {theme === 'dark' ? t('Светлая тема') : t('Тёмная тема')}
             </button>
           }
         />
+      </div>
+      <div className="sheet-lang">
+        <LangSwitch label />
       </div>
     </BottomSheet>
   );

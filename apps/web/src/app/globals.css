@@ -2891,6 +2891,14 @@ a.my-lot-title:hover {
 .sheet-menu [role='menuitem']:active {
   background: var(--bg-subtle);
 }
+.sheet-lang {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  padding: 8px 8px 0;
+  margin-top: 6px;
+  border-top: 1px solid var(--border);
+}
 @keyframes sheet-in {
   from {
     transform: translateY(100%);

@@ -9,6 +9,7 @@ import { logout } from '@/lib/logout';
 import { formatPrice } from '@/lib/format';
 import { useSummary, type Summary } from '@/lib/summary';
 import { NotificationsBell } from './notifications-bell';
+import { useT } from '@/lib/i18n/client';
 
 /** Вошедший пользователь; null — гость. Следит за входом и выходом в других вкладках. */
 export function useSessionUser(): SessionUser | null {
@@ -27,11 +28,12 @@ export function useSessionUser(): SessionUser | null {
 }
 
 export function AuthNav() {
+  const t = useT();
   const user = useSessionUser();
   if (!user) {
     return (
       <Link href="/login" className="chip">
-        Войти
+        {t('Войти')}
       </Link>
     );
   }
@@ -45,6 +47,7 @@ export function AuthNav() {
  * в нижней панели, в шапке остаются поиск и уведомления.
  */
 function UserBar({ user }: { user: SessionUser }) {
+  const t = useT();
   const pathname = usePathname();
   const sum = useSummary(true, pathname);
   const unread = sum?.unreadMessages ?? 0;
@@ -54,8 +57,8 @@ function UserBar({ user }: { user: SessionUser }) {
       <Link
         href="/chat"
         className="chip hide-mobile"
-        aria-label={unread ? `Сообщения: ${unread} непрочитанных` : 'Сообщения'}
-        title="Сообщения"
+        aria-label={unread ? t('Сообщения: {n} непрочитанных', { n: unread }) : t('Сообщения')}
+        title={t('Сообщения')}
         aria-current={pathname.startsWith('/chat') ? 'page' : undefined}
       >
         <MessagesSquare size={16} strokeWidth={1.75} />
@@ -63,8 +66,8 @@ function UserBar({ user }: { user: SessionUser }) {
       </Link>
       <NotificationsBell />
       {sum && (
-        <Link href="/cabinet" className="chip hide-mobile balance-chip" title="Баланс — пополнить и вывести в кабинете">
-          {formatPrice(sum.balance.available, sum.balance.currency)}
+        <Link href="/cabinet" className="chip hide-mobile balance-chip" title={t('Баланс — пополнить и вывести в кабинете')}>
+          {formatPrice(sum.balance.available, sum.balance.currency, t)}
         </Link>
       )}
       <UserMenu user={user} sum={sum} />
@@ -80,56 +83,58 @@ export const waitingCount = (sum: Summary | null) => (sum?.sales.toDeliver ?? 0)
  * `extra` — пункты перед «Выйти» (в шторке — тема).
  */
 export function ProfileLinks({ user, sum, extra }: { user: SessionUser; sum: Summary | null; extra?: ReactNode }) {
+  const t = useT();
   const toDeliver = sum?.sales.toDeliver ?? 0;
   const toConfirm = sum?.purchases.toConfirm ?? 0;
   return (
     <>
       <Link role="menuitem" href="/cabinet/orders?role=seller">
-        Продажи
-        {toDeliver > 0 && <span className="menu-count">{toDeliver} ждут выдачи</span>}
+        {t('Продажи')}
+        {toDeliver > 0 && <span className="menu-count">{t('{n} ждут выдачи', { n: toDeliver })}</span>}
       </Link>
       <Link role="menuitem" href="/cabinet/orders?role=buyer">
-        Покупки
-        {toConfirm > 0 && <span className="menu-count">{toConfirm} ждут подтверждения</span>}
+        {t('Покупки')}
+        {toConfirm > 0 && <span className="menu-count">{t('{n} ждут подтверждения', { n: toConfirm })}</span>}
       </Link>
       <Link role="menuitem" href="/cabinet/lots">
-        Мои лоты
+        {t('Мои лоты')}
       </Link>
       <Link role="menuitem" href="/cabinet">
-        Кошелёк
+        {t('Кошелёк')}
       </Link>
       <Link role="menuitem" href={`/prodavec/${user.id}`}>
-        Мой профиль на витрине
+        {t('Мой профиль на витрине')}
       </Link>
       <Link role="menuitem" href="/cabinet/favorites">
-        Избранное
+        {t('Избранное')}
       </Link>
       <Link role="menuitem" href="/cabinet/settings">
-        Настройки
+        {t('Настройки')}
       </Link>
       <Link role="menuitem" href="/cabinet/security">
-        Безопасность
+        {t('Безопасность')}
       </Link>
       <Link role="menuitem" href="/pomosch">
-        Помощь
+        {t('Помощь')}
       </Link>
       <Link role="menuitem" href="/cabinet/support">
-        Поддержка
+        {t('Поддержка')}
       </Link>
       {isStaff(user) && (
         <Link role="menuitem" href="/admin">
-          Консоль сотрудника
+          {t('Консоль сотрудника')}
         </Link>
       )}
       {extra}
       <button role="menuitem" type="button" onClick={() => void logout()}>
-        <LogOut size={16} strokeWidth={1.75} aria-hidden /> Выйти
+        <LogOut size={16} strokeWidth={1.75} aria-hidden /> {t('Выйти')}
       </button>
     </>
   );
 }
 
 function UserMenu({ user, sum }: { user: SessionUser; sum: Summary | null }) {
+  const t = useT();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -157,7 +162,7 @@ function UserMenu({ user, sum }: { user: SessionUser; sum: Summary | null }) {
         className="chip"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Меню профиля ${user.username}`}
+        aria-label={t('Меню профиля {name}', { name: user.username })}
         onClick={() => setOpen((o) => !o)}
       >
         <span className="avatar" style={{ width: 24, height: 24, fontSize: 12 }} aria-hidden>
@@ -168,12 +173,12 @@ function UserMenu({ user, sum }: { user: SessionUser; sum: Summary | null }) {
         <ChevronDown size={14} strokeWidth={1.75} aria-hidden />
       </button>
       {open && (
-        <div className="menu-pop" role="menu" aria-label="Профиль">
+        <div className="menu-pop" role="menu" aria-label={t('Профиль')}>
           <div className="menu-head">
             <div style={{ fontWeight: 700 }}>{user.username}</div>
             {sum && (
               <div className="faint" style={{ fontSize: 13 }}>
-                Баланс {formatPrice(sum.balance.available, sum.balance.currency)}
+                {t('Баланс {sum}', { sum: formatPrice(sum.balance.available, sum.balance.currency, t) })}
               </div>
             )}
           </div>

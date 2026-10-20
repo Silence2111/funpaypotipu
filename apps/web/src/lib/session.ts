@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { documentLang } from './i18n/lang';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 const TOKEN_KEY = 'gm_access';
@@ -47,6 +48,8 @@ function rawFetch(path: string, opts: RequestInit, token: string | null) {
     credentials: 'include', // отправляем httpOnly refresh-cookie
     headers: {
       'Content-Type': 'application/json',
+      // Ошибки API — на языке сайта, а не браузера.
+      'Accept-Language': documentLang(),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...opts.headers,
     },

@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { getCurrency, loadRates, setCurrency, type DisplayCurrency } from '@/lib/currency';
+import { useT } from '@/lib/i18n/client';
 
 /**
  * Валюта показа цен: ₽, $ или €. Появляется, только когда площадка задала
  * курс: без курса «≈ $» был бы выдумкой.
  */
 export function CurrencySwitch({ className, label }: { className?: string; label?: string }) {
+  const t = useT();
   const [available, setAvailable] = useState(false);
   const [value, setValue] = useState<DisplayCurrency>('RUB');
 
@@ -23,8 +25,8 @@ export function CurrencySwitch({ className, label }: { className?: string; label
   const select = (
     <select
       className={`chip ${className ?? ''}`}
-      aria-label="Валюта цен"
-      title="Валюта показа цен. Оплата — в рублях."
+      aria-label={t('Валюта цен')}
+      title={t('Валюта показа цен. Оплата — в рублях.')}
       value={value}
       onChange={(e) => setCurrency(e.target.value as DisplayCurrency)}
       style={{ paddingRight: 10, appearance: 'auto' }}

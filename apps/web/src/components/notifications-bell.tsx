@@ -6,6 +6,7 @@ import { Bell } from 'lucide-react';
 // Подпуть: подписи и ссылки те же, что в письмах и Telegram (shared/notify.ts).
 import { NOTIFY_LABELS, notifyLink } from '@gamemarket/shared/notify';
 import { apiFetch, getToken } from '@/lib/session';
+import { useT } from '@/lib/i18n/client';
 
 interface Notif {
   id: string;
@@ -17,6 +18,7 @@ interface Notif {
 
 
 export function NotificationsBell() {
+  const t = useT();
   const [items, setItems] = useState<Notif[]>([]);
   const [open, setOpen] = useState(false);
 
@@ -30,8 +32,8 @@ export function NotificationsBell() {
 
   useEffect(() => {
     if (getToken()) load();
-    const t = setInterval(() => getToken() && load(), 30_000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => getToken() && load(), 30_000);
+    return () => clearInterval(timer);
   }, [load]);
 
   const unread = items.filter((i) => !i.readAt).length;
@@ -49,7 +51,7 @@ export function NotificationsBell() {
 
   return (
     <div style={{ position: 'relative' }}>
-      <button className="chip" onClick={() => setOpen((o) => !o)} aria-label="Уведомления" type="button">
+      <button className="chip" onClick={() => setOpen((o) => !o)} aria-label={t('Уведомления')} type="button">
         <Bell size={16} strokeWidth={1.75} />
         {unread > 0 && <span className="notif-badge">{unread}</span>}
       </button>
@@ -57,11 +59,11 @@ export function NotificationsBell() {
         <div className="notif-dropdown">
           {unread > 0 && (
             <button type="button" className="notif-readall" onClick={() => void readAll()}>
-              Прочитать все
+              {t('Прочитать все')}
             </button>
           )}
           {items.length === 0 && (
-            <p className="muted" style={{ fontSize: 13, padding: 12, margin: 0 }}>Уведомлений нет</p>
+            <p className="muted" style={{ fontSize: 13, padding: 12, margin: 0 }}>{t('Уведомлений нет')}</p>
           )}
           {items.slice(0, 12).map((n) => (
             // Уведомление ведёт туда, где действовать: заказ, чат, спор.
@@ -75,7 +77,7 @@ export function NotificationsBell() {
               className="notif-item"
               style={{ opacity: n.readAt ? 0.5 : 1, display: 'block' }}
             >
-              <span style={{ fontWeight: n.readAt ? 400 : 600 }}>{NOTIFY_LABELS[n.type] ?? 'Уведомление'}</span>
+              <span style={{ fontWeight: n.readAt ? 400 : 600 }}>{NOTIFY_LABELS[n.type] ? t.d(NOTIFY_LABELS[n.type]) : t('Уведомление')}</span>
               {typeof n.payload?.preview === 'string' && n.payload.preview && (
                 <span className="faint" style={{ display: 'block', fontSize: 12, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {n.payload.preview}
@@ -85,7 +87,7 @@ export function NotificationsBell() {
           ))}
           <Link href="/cabinet/settings#notifications" className="faint" style={{ display: 'block', fontSize: 12, padding: '8px 12px' }}
             onClick={() => setOpen(false)}>
-            Настроить уведомления
+            {t('Настроить уведомления')}
           </Link>
         </div>
       )}

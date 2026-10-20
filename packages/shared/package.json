@@ -32,6 +32,10 @@
     "./buyer-data": {
       "types": "./dist/buyer-data.d.ts",
       "default": "./dist/buyer-data.js"
+    },
+    "./i18n": {
+      "types": "./dist/i18n.d.ts",
+      "default": "./dist/i18n.js"
     }
   },
   "scripts": {

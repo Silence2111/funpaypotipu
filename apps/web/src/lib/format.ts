@@ -1,13 +1,16 @@
+import { RU, type T } from './i18n/lang';
+
 const SYMBOLS: Record<string, string> = { RUB: '₽', USD: '$', EUR: '€' };
 
 /**
  * "150000" (копейки), RUB → "1 500 ₽", "73080" → "730,80 ₽". Разделяет тысячи
  * узким пробелом; копейки — двумя знаками или никак, а не «730,8».
+ * По-английски — «1,500 ₽» и «730.80 ₽».
  */
-export function formatPrice(minor: string, currency = 'RUB'): string {
+export function formatPrice(minor: string, currency = 'RUB', t: T = RU): string {
   const value = BigInt(minor);
   const kopecks = value % 100n !== 0n;
-  const num = new Intl.NumberFormat('ru-RU', {
+  const num = new Intl.NumberFormat(t.locale, {
     minimumFractionDigits: kopecks ? 2 : 0,
     maximumFractionDigits: 2,
   }).format(Number(value) / 100);
@@ -33,13 +36,13 @@ export function parseMoneyInput(raw: string): bigint | null {
 }
 
 /** Количество с единицей лота: «25 000 золота», «3 шт.». */
-export function formatQty(qty: number, unitName?: string | null): string {
-  return `${new Intl.NumberFormat('ru-RU').format(qty)} ${unitName ?? 'шт.'}`;
+export function formatQty(qty: number, unitName?: string | null, t: T = RU): string {
+  return `${t.num(qty)} ${unitName ? t.d(unitName) : t('шт.')}`;
 }
 
 /** Подпись к цене поштучного лота: «за 1 000 золота». null — лот продаётся целиком. */
-export function perPackLabel(l: { unitName?: string | null; pricePerUnits?: number }): string | null {
-  return l.unitName ? `за ${formatQty(l.pricePerUnits ?? 1, l.unitName)}` : null;
+export function perPackLabel(l: { unitName?: string | null; pricePerUnits?: number }, t: T = RU): string | null {
+  return l.unitName ? t('за {qty}', { qty: formatQty(l.pricePerUnits ?? 1, l.unitName, t) }) : null;
 }
 
 /**
@@ -48,29 +51,24 @@ export function perPackLabel(l: { unitName?: string | null; pricePerUnits?: numb
  * У поштучного лота цена указана за пачку — без «за 1 000 золота» 15 ₽
  * читались бы как цена всего лота.
  */
-export function formatListingPrice(l: {
-  price: string;
-  currency: string;
-  topupMarkupBps?: number | null;
-  unitName?: string | null;
-  pricePerUnits?: number;
-}): string {
-  const price = formatPrice(l.price, l.currency);
-  if (l.topupMarkupBps != null) return `от ${price}`;
-  const pack = perPackLabel(l);
+export function formatListingPrice(
+  l: {
+    price: string;
+    currency: string;
+    topupMarkupBps?: number | null;
+    unitName?: string | null;
+    pricePerUnits?: number;
+  },
+  t: T = RU,
+): string {
+  const price = formatPrice(l.price, l.currency, t);
+  if (l.topupMarkupBps != null) return t('от {price}', { price });
+  const pack = perPackLabel(l, t);
   return pack ? `${price} ${pack}` : price;
 }
 
-/** Число со словом в нужной форме: plural(3, 'продавец', 'продавца', 'продавцов') → «3 продавца». */
-export function plural(n: number, one: string, few: string, many: string): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  const word = mod10 === 1 && mod100 !== 11 ? one : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? few : many;
-  return `${new Intl.NumberFormat('ru-RU').format(n)} ${word}`;
-}
-
 /** «1 предложение», «3 предложения», «25 предложений». */
-export const offersCount = (n: number) => plural(n, 'предложение', 'предложения', 'предложений');
+export const offersCount = (n: number, t: T = RU) => t.n(n, 'предложение', 'предложения', 'предложений');
 
 /** «1 продавец», «3 продавца», «25 продавцов». */
-export const sellersCount = (n: number) => plural(n, 'продавец', 'продавца', 'продавцов');
+export const sellersCount = (n: number, t: T = RU) => t.n(n, 'продавец', 'продавца', 'продавцов');
