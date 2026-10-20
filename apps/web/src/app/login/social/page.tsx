@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, setSession, type SessionUser } from '@/lib/session';
 import { apiErrorMessage, errorBody } from '@/lib/errors';
+import { useT } from '@/lib/i18n/client';
 
 interface AuthResponse {
   user: SessionUser;
@@ -25,6 +26,7 @@ type Phase = 'loading' | 'username' | 'code' | 'error';
  * правила, как при регистрации; с защитой входа — код из приложения.
  */
 function Complete() {
+  const t = useT();
   const router = useRouter();
   const next = safeNext(useSearchParams().get('next'));
   const [phase, setPhase] = useState<Phase>('loading');
@@ -65,7 +67,11 @@ function Complete() {
             setUsername((u) => u || body.suggested || '');
             break;
           case 'username_taken':
-            setMsg(`Ник занят${body.suggested ? ` — например, свободен ${body.suggested}` : ''}`);
+            setMsg(
+              body.suggested
+                ? t('Ник занят — например, свободен {name}', { name: body.suggested })
+                : t('Ник занят'),
+            );
             break;
           case 'two_factor_required':
             setPhase('code');
@@ -73,16 +79,16 @@ function Complete() {
           case 'social_email_taken':
           case 'social_expired':
             setPhase('error');
-            setMsg(apiErrorMessage(e, 'Вход не завершён. Начните заново.'));
+            setMsg(apiErrorMessage(e, t('Вход не завершён. Начните заново.')));
             break;
           default:
             if (phase === 'loading') setPhase('error');
-            setMsg(apiErrorMessage(e, 'Не получилось войти. Попробуйте ещё раз.'));
+            setMsg(apiErrorMessage(e, t('Не получилось войти. Попробуйте ещё раз.')));
         }
       }
       setBusy(false);
     },
-    [next, phase, router],
+    [next, phase, router, t],
   );
 
   // Один запрос при открытии: в разработке React вызывает эффекты дважды,
@@ -97,28 +103,32 @@ function Complete() {
     e.preventDefault();
     const u = username.trim().toLowerCase();
     if (!USERNAME_RE.test(u))
-      return setMsg('Ник — строчные латинские буквы, цифры и _, от 3 символов');
-    if (!agreed) return setMsg('Без согласия с правилами аккаунт не создать');
+      return setMsg(t('Ник — строчные латинские буквы, цифры и _, от 3 символов'));
+    if (!agreed) return setMsg(t('Без согласия с правилами аккаунт не создать'));
     void send({ username: u });
   }
 
   function submitCode(e: FormEvent) {
     e.preventDefault();
     if (!code.trim())
-      return setMsg(recovery ? 'Введите резервный код' : 'Введите код из приложения');
+      return setMsg(recovery ? t('Введите резервный код') : t('Введите код из приложения'));
     void send({ code: code.trim() });
   }
 
-  const via = provider ? LABEL[provider] : null;
+  const via = (provider ? LABEL[provider] : null) ?? t('сервис');
 
   return (
     <div style={{ maxWidth: 420, margin: '56px auto', padding: '0 16px' }}>
       <h1 className="h1" style={{ fontSize: 30 }}>
-        {phase === 'username' ? 'Почти готово' : phase === 'code' ? 'Код из приложения' : 'Вход'}
+        {phase === 'username'
+          ? t('Почти готово')
+          : phase === 'code'
+            ? t('Код из приложения')
+            : t('Вход')}
       </h1>
       {phase === 'loading' && (
         <p className="muted" role="status" style={{ margin: '8px 0 0' }}>
-          Входим…
+          {t('Входим…')}
         </p>
       )}
 
@@ -130,12 +140,16 @@ function Complete() {
           noValidate
         >
           <p className="muted" style={{ margin: 0 }}>
-            {name ? `${name}, вы` : 'Вы'} входите через {via ?? 'сервис'} впервые. Выберите ник — по
-            нему вас найдут покупатели и продавцы, сменить его потом нельзя.
+            {name
+              ? t('{name}, вы входите через {via} впервые.', { name, via })
+              : t('Вы входите через {via} впервые.', { via })}{' '}
+            {t(
+              'Выберите ник — по нему вас найдут покупатели и продавцы, сменить его потом нельзя.',
+            )}
           </p>
           <div className="field">
             <label className="label" htmlFor="username">
-              Ник
+              {t('Ник')}
             </label>
             <input
               id="username"
@@ -147,7 +161,7 @@ function Complete() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />
-            <p className="hint">Строчные латинские буквы, цифры и _, от 3 символов</p>
+            <p className="hint">{t('Строчные латинские буквы, цифры и _, от 3 символов')}</p>
           </div>
           <label
             className="row muted"
@@ -172,17 +186,17 @@ function Complete() {
               }}
             />
             <span>
-              Мне есть 18 лет, я принимаю{' '}
+              {t('Мне есть 18 лет, я принимаю')}{' '}
               <Link href="/rules" style={{ color: 'var(--accent)' }}>
-                правила
+                {t('правила')}
               </Link>
               ,{' '}
               <Link href="/oferta" style={{ color: 'var(--accent)' }}>
-                оферту
+                {t('оферту')}
               </Link>{' '}
-              и согласен на{' '}
+              {t('и согласен на')}{' '}
               <Link href="/privacy" style={{ color: 'var(--accent)' }}>
-                обработку персональных данных
+                {t('обработку персональных данных')}
               </Link>
             </span>
           </label>
@@ -192,7 +206,7 @@ function Complete() {
             </div>
           )}
           <button className="btn lg block" type="submit" disabled={busy}>
-            {busy ? 'Создаём аккаунт…' : 'Создать аккаунт'}
+            {busy ? t('Создаём аккаунт…') : t('Создать аккаунт')}
           </button>
         </form>
       )}
@@ -206,7 +220,7 @@ function Complete() {
         >
           <div className="field">
             <label className="label" htmlFor="code">
-              {recovery ? 'Резервный код' : 'Код из приложения-аутентификатора'}
+              {recovery ? t('Резервный код') : t('Код из приложения-аутентификатора')}
             </label>
             <input
               id="code"
@@ -223,7 +237,9 @@ function Complete() {
               placeholder={recovery ? 'abcde-fghjk' : '123456'}
             />
             <p className="hint">
-              У аккаунта включена двухфакторная защита — она действует и при входе через сервис.{' '}
+              {t(
+                'У аккаунта включена двухфакторная защита — она действует и при входе через сервис.',
+              )}{' '}
               <button
                 type="button"
                 className="link-button"
@@ -232,7 +248,9 @@ function Complete() {
                   setCode('');
                 }}
               >
-                {recovery ? 'Ввести код из приложения' : 'Нет телефона — ввести резервный код'}
+                {recovery
+                  ? t('Ввести код из приложения')
+                  : t('Нет телефона — ввести резервный код')}
               </button>
             </p>
           </div>
@@ -242,7 +260,7 @@ function Complete() {
             </div>
           )}
           <button className="btn lg block" type="submit" disabled={busy}>
-            {busy ? 'Входим…' : 'Войти'}
+            {busy ? t('Входим…') : t('Войти')}
           </button>
         </form>
       )}
@@ -250,10 +268,10 @@ function Complete() {
       {phase === 'error' && (
         <div className="card stack-form" style={{ gap: 16, padding: 24, marginTop: 20 }}>
           <div className="alert error" role="alert">
-            {msg ?? 'Вход не завершён. Начните заново.'}
+            {msg ?? t('Вход не завершён. Начните заново.')}
           </div>
           <Link href={`/login?next=${encodeURIComponent(next)}`} className="btn secondary block">
-            Ко входу
+            {t('Ко входу')}
           </Link>
         </div>
       )}

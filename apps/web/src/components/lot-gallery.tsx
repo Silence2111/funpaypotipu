@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useT } from '@/lib/i18n/client';
 
 /** Лента фото: листается пальцем и стрелками, текущий кадр — по прокрутке. */
 function useTrack(count: number, start = 0) {
@@ -26,6 +27,7 @@ function useTrack(count: number, start = 0) {
  * одному в новой вкладке.
  */
 export function LotGallery({ images, title }: { images: string[]; title: string }) {
+  const t = useT();
   const { track, index, go, onScroll } = useTrack(images.length);
   const [full, setFull] = useState<number | null>(null);
   const many = images.length > 1;
@@ -40,7 +42,10 @@ export function LotGallery({ images, title }: { images: string[]; title: string 
               type="button"
               className="gallery-slide"
               onClick={() => setFull(i)}
-              aria-label={`Открыть фото ${i + 1} из ${images.length} на весь экран`}
+              aria-label={t('Открыть фото {n} из {total} на весь экран', {
+                n: i + 1,
+                total: images.length,
+              })}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt={i === 0 ? title : ''} loading={i === 0 ? 'eager' : 'lazy'} />
@@ -55,7 +60,7 @@ export function LotGallery({ images, title }: { images: string[]; title: string 
             <button
               type="button"
               className="gallery-nav prev"
-              aria-label="Предыдущее фото"
+              aria-label={t('Предыдущее фото')}
               disabled={index === 0}
               onClick={() => go(index - 1)}
             >
@@ -64,7 +69,7 @@ export function LotGallery({ images, title }: { images: string[]; title: string 
             <button
               type="button"
               className="gallery-nav next"
-              aria-label="Следующее фото"
+              aria-label={t('Следующее фото')}
               disabled={index === images.length - 1}
               onClick={() => go(index + 1)}
             >
@@ -74,14 +79,14 @@ export function LotGallery({ images, title }: { images: string[]; title: string 
         )}
       </div>
       {many && (
-        <div className="gallery-thumbs" role="tablist" aria-label="Фото лота">
+        <div className="gallery-thumbs" role="tablist" aria-label={t('Фото лота')}>
           {images.map((src, i) => (
             <button
               key={src}
               type="button"
               role="tab"
               aria-selected={i === index}
-              aria-label={`Фото ${i + 1}`}
+              aria-label={t('Фото {n}', { n: i + 1 })}
               onClick={() => go(i)}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -105,6 +110,7 @@ function Lightbox({
   start: number;
   onClose: () => void;
 }) {
+  const t = useT();
   const { track, index, go, onScroll } = useTrack(images.length, start);
   const close = useRef<HTMLButtonElement>(null);
 
@@ -130,7 +136,7 @@ function Lightbox({
   }, [index, go, onClose]);
 
   return (
-    <div className="lightbox" role="dialog" aria-modal="true" aria-label="Фото лота">
+    <div className="lightbox" role="dialog" aria-modal="true" aria-label={t('Фото лота')}>
       <div className="lightbox-bar">
         <span>
           {index + 1} / {images.length}
@@ -139,7 +145,7 @@ function Lightbox({
           ref={close}
           type="button"
           className="lightbox-close"
-          aria-label="Закрыть"
+          aria-label={t('Закрыть')}
           onClick={onClose}
         >
           <X size={22} strokeWidth={1.75} />
@@ -158,7 +164,7 @@ function Lightbox({
           <button
             type="button"
             className="lightbox-nav prev"
-            aria-label="Предыдущее фото"
+            aria-label={t('Предыдущее фото')}
             disabled={index === 0}
             onClick={() => go(index - 1)}
           >
@@ -167,7 +173,7 @@ function Lightbox({
           <button
             type="button"
             className="lightbox-nav next"
-            aria-label="Следующее фото"
+            aria-label={t('Следующее фото')}
             disabled={index === images.length - 1}
             onClick={() => go(index + 1)}
           >

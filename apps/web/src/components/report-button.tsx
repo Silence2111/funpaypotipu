@@ -5,9 +5,16 @@ import { useRouter } from 'next/navigation';
 import { Flag } from 'lucide-react';
 import { apiFetch, getToken, useSession } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { useT } from '@/lib/i18n/client';
+import { msg } from '@/lib/i18n/lang';
 
-/** Причины — как в форме жалобы FunPay: модератору проще разбирать очередь по типам. */
-const REASONS = ['Мошенничество', 'Запрещённый товар', 'Контакты вне площадки', 'Оскорбления', 'Другое'];
+/**
+ * Причины — как в форме жалобы FunPay: модератору проще разбирать очередь по
+ * типам. В API уходит русская причина — консоль модератора русская, — а
+ * покупатель видит её на языке сайта.
+ */
+const OTHER = msg('Другое');
+const REASONS = [msg('Мошенничество'), msg('Запрещённый товар'), msg('Контакты вне площадки'), msg('Оскорбления'), OTHER];
 
 /**
  * «Пожаловаться» на лот или пользователя. Жалоба уходит в очередь
@@ -24,6 +31,7 @@ export function ReportButton({
   /** Чей лот или профиль: себе жаловаться не нужно. */
   ownerId: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const { ready, user } = useSession();
   const [open, setOpen] = useState(false);
@@ -36,8 +44,8 @@ export function ReportButton({
   if (!ready || user?.id === ownerId) return null;
 
   async function send() {
-    if (!reason) return setErr('Выберите причину');
-    if (reason === 'Другое' && details.trim().length < 3) return setErr('Опишите, что не так');
+    if (!reason) return setErr(t('Выберите причину'));
+    if (reason === OTHER && details.trim().length < 3) return setErr(t('Опишите, что не так'));
     setBusy(true);
     setErr(null);
     try {
@@ -48,7 +56,7 @@ export function ReportButton({
       setDone(true);
       setOpen(false);
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не удалось отправить жалобу. Попробуйте ещё раз.'));
+      setErr(apiErrorMessage(e, t('Не удалось отправить жалобу. Попробуйте ещё раз.')));
     } finally {
       setBusy(false);
     }
@@ -57,7 +65,7 @@ export function ReportButton({
   if (done) {
     return (
       <p className="hint" role="status" style={{ margin: 0 }}>
-        Жалоба отправлена. Решение модератора придёт в уведомления.
+        {t('Жалоба отправлена. Решение модератора придёт в уведомления.')}
       </p>
     );
   }
@@ -73,19 +81,19 @@ export function ReportButton({
             setOpen(true);
           }}
         >
-          <Flag size={15} strokeWidth={1.75} /> Пожаловаться
+          <Flag size={15} strokeWidth={1.75} /> {t('Пожаловаться')}
         </button>
       )}
       {open && (
         <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
           <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="label" style={{ padding: 0, marginBottom: 8 }}>
-              {targetType === 'listing' ? 'Что не так с лотом' : 'Что не так с пользователем'}
+              {targetType === 'listing' ? t('Что не так с лотом') : t('Что не так с пользователем')}
             </legend>
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
               {REASONS.map((r) => (
                 <button key={r} type="button" className="chip" aria-pressed={reason === r} onClick={() => setReason(r)}>
-                  {r}
+                  {t(r)}
                 </button>
               ))}
             </div>
@@ -96,8 +104,8 @@ export function ReportButton({
             value={details}
             onChange={(e) => setDetails(e.target.value)}
             maxLength={2000}
-            placeholder="Подробности для модератора — необязательно"
-            aria-label="Подробности"
+            placeholder={t('Подробности для модератора — необязательно')}
+            aria-label={t('Подробности')}
             style={{ resize: 'vertical', marginTop: 12 }}
           />
           {err && (
@@ -108,10 +116,10 @@ export function ReportButton({
           <div className="row" style={{ gap: 8, marginTop: 12 }}>
             {/* Не акцентная: акцент на странице лота — у «Оплатить». */}
             <button type="button" className="btn secondary" disabled={busy} onClick={() => void send()}>
-              {busy ? 'Отправляем…' : 'Отправить жалобу'}
+              {busy ? t('Отправляем…') : t('Отправить жалобу')}
             </button>
             <button type="button" className="btn ghost" onClick={() => setOpen(false)}>
-              Отмена
+              {t('Отмена')}
             </button>
           </div>
         </div>

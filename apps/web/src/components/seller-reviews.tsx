@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { apiFetch, useSession } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { Stars } from '@/components/stars';
+import { useT } from '@/lib/i18n/client';
+import type { T } from '@/lib/i18n/lang';
 
 interface Review {
   id: string;
@@ -20,6 +22,15 @@ interface Review {
 }
 
 const PAGE = 20;
+
+/** Вилка суммы от API — «до 500 ₽», «1 000–5 000 ₽», «от 50 000 ₽» — на языке сайта. */
+function rangeText(range: string, t: T): string {
+  const [head, ...rest] = range.split(' ');
+  const sum = rest.join(' ');
+  if (head === 'до') return t('до {sum}', { sum }); // i18n-ignore
+  if (head === 'от') return t('от {price}', { price: sum }); // i18n-ignore
+  return range;
+}
 
 /**
  * Отзывы о продавце, как на FunPay: оценка, игра и раздел сделки, сумма
@@ -39,6 +50,7 @@ export function SellerReviews({
   /** Показать только столько последних и ссылку на профиль. */
   preview?: number;
 }) {
+  const t = useT();
   const { user } = useSession();
   const own = user?.id === sellerId;
   const [rating, setRating] = useState<number | null>(null);
@@ -74,7 +86,7 @@ export function SellerReviews({
       setReplyFor(null);
       load(1, false);
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не удалось сохранить ответ.'));
+      setErr(apiErrorMessage(e, t('Не удалось сохранить ответ.')));
     }
   }
 
@@ -83,9 +95,9 @@ export function SellerReviews({
   return (
     <div>
       {breakdown && total > 0 && (
-        <nav className="row" aria-label="Оценка" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        <nav className="row" aria-label={t('Оценка')} style={{ gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
           <button type="button" className="chip" aria-pressed={rating === null} onClick={() => setRating(null)}>
-            Все <span className="faint">{total}</span>
+            {t('Все')} <span className="faint">{total}</span>
           </button>
           {[5, 4, 3, 2, 1].map((star) => {
             const count = breakdown.find((b) => b.star === star)?.count ?? 0;
@@ -107,7 +119,7 @@ export function SellerReviews({
 
       {items === null ? null : items.length === 0 ? (
         <p className="muted" style={{ fontSize: 14 }}>
-          {rating ? 'С такой оценкой отзывов нет.' : 'Отзывов о продавце пока нет.'}
+          {rating ? t('С такой оценкой отзывов нет.') : t('Отзывов о продавце пока нет.')}
         </p>
       ) : (
         <div className="reviews">
@@ -116,19 +128,19 @@ export function SellerReviews({
               <div className="review-head">
                 <Stars n={r.rating} />
                 <Link href={`/igra/${r.game.slug}/${r.section.slug}`} className="review-deal">
-                  {r.game.title} · {r.section.title}
+                  {t.d(r.game.title)} · {t.d(r.section.title)}
                 </Link>
-                <span className="faint">{r.amountRange}</span>
+                <span className="faint">{rangeText(r.amountRange, t)}</span>
                 <span className="spacer" />
                 <time className="faint" dateTime={r.createdAt}>
-                  {new Date(r.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  {r.editedAt ? ' · изменён' : ''}
+                  {new Date(r.createdAt).toLocaleDateString(t.locale, { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {r.editedAt ? ` · ${t('изменён')}` : ''}
                 </time>
               </div>
               {r.comment && <p className="review-text">{r.comment}</p>}
               {r.sellerReply && replyFor !== r.id && (
                 <p className="review-reply">
-                  <span className="faint">Ответ продавца:</span> {r.sellerReply}
+                  <span className="faint">{t('Ответ продавца:')}</span> {r.sellerReply}
                 </p>
               )}
               {own &&
@@ -139,15 +151,15 @@ export function SellerReviews({
                       rows={2}
                       value={text}
                       onChange={(e) => setText(e.target.value)}
-                      placeholder="Ответ увидят все покупатели. Контакты скроются."
+                      placeholder={t('Ответ увидят все покупатели. Контакты скроются.')}
                       style={{ resize: 'vertical' }}
                     />
                     <div className="row" style={{ gap: 8, marginTop: 8 }}>
                       <button className="btn" type="button" onClick={() => void sendReply(r.id)}>
-                        Опубликовать ответ
+                        {t('Опубликовать ответ')}
                       </button>
                       <button className="btn ghost" type="button" onClick={() => setReplyFor(null)}>
-                        Отмена
+                        {t('Отмена')}
                       </button>
                     </div>
                     {err && (
@@ -167,7 +179,7 @@ export function SellerReviews({
                       setReplyFor(r.id);
                     }}
                   >
-                    {r.sellerReply ? 'Изменить ответ' : 'Ответить'}
+                    {r.sellerReply ? t('Изменить ответ') : t('Ответить')}
                   </button>
                 ))}
             </article>
@@ -177,13 +189,13 @@ export function SellerReviews({
 
       {more && (
         <button type="button" className="btn secondary" style={{ marginTop: 16 }} onClick={() => load(page + 1, true)}>
-          Показать ещё
+          {t('Показать ещё')}
         </button>
       )}
       {preview && items && items.length >= preview && (
         <p style={{ marginTop: 12, fontSize: 14 }}>
           <Link href={`/prodavec/${sellerId}#reviews`} className="inline-link">
-            Все отзывы о продавце
+            {t('Все отзывы о продавце')}
           </Link>
         </p>
       )}

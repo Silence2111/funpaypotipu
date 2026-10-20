@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/lib/i18n/client';
 
 /**
  * На телефоне — внизу цена и «Купить», когда форма покупки ушла вверх с
@@ -20,6 +21,7 @@ export function MobileBuyBar({
   note?: string | null;
   label: string;
 }) {
+  const t = useT();
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export function MobileBuyBar({
 
   if (!show) return null;
   return (
-    <div className="buy-bar" role="region" aria-label="Покупка">
+    <div className="buy-bar" role="region" aria-label={t('Покупка')}>
       <div className="buy-bar-price">
         <b>{price}</b>
         {note && <span>{note}</span>}

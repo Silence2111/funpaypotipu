@@ -5,26 +5,30 @@ import { useEffect, useState } from 'react';
 import { chargeFor, PAYMENT_METHODS } from '@gamemarket/shared/payment';
 import { apiFetch, getToken } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
+import { useT } from '@/lib/i18n/client';
+import { RU, msg, type T } from '@/lib/i18n/lang';
 
 /** Способ оплаты, как его выбирает покупатель. Карта, Apple Pay и Google Pay — одна строка: надбавка у них общая. */
 export type PayMethod = 'sbp' | 'card' | 'crypto' | 'balance';
 
 const ROWS: Array<{ key: PayMethod; label: string }> = [
-  { key: 'sbp', label: 'СБП' },
-  { key: 'card', label: 'Карта, Apple Pay, Google Pay' },
-  { key: 'crypto', label: 'Криптовалюта, USDT' },
-  { key: 'balance', label: 'С баланса' },
+  { key: 'sbp', label: msg('СБП') },
+  { key: 'card', label: msg('Карта, Apple Pay, Google Pay') },
+  { key: 'crypto', label: msg('Криптовалюта, USDT') },
+  { key: 'balance', label: msg('С баланса') },
 ];
 
 /** Сколько спишут этим способом — та же функция, что считает сумму платежа на сервере. */
 export const priceFor = (base: bigint, method: PayMethod): bigint => chargeFor(base, method).charge;
 
-const feeLabel = (pct: number) => `+${String(Math.round(pct * 1000) / 10).replace('.', ',')}%`;
+/** «+4,4%», по-английски «+4.4%». */
+const feeLabel = (pct: number, t: T) =>
+  `+${new Intl.NumberFormat(t.locale, { maximumFractionDigits: 1 }).format(Math.round(pct * 1000) / 10)}%`;
 
 /** «+4,4%» у способа с комиссией, null — без неё. */
-export const methodFee = (method: PayMethod): string | null => {
+export const methodFee = (method: PayMethod, t: T = RU): string | null => {
   const fee = PAYMENT_METHODS.find((m) => m.key === method)?.feePct ?? 0;
-  return fee ? feeLabel(fee) : null;
+  return fee ? feeLabel(fee, t) : null;
 };
 
 /**
@@ -54,6 +58,7 @@ export function PayMethods({
   /** Пополнение баланса балансом не оплачивается — там строки нет. */
   withBalance?: boolean;
 }) {
+  const t = useT();
   const [balance, setBalance] = useState<bigint | null>(null);
 
   useEffect(() => {
@@ -73,15 +78,16 @@ export function PayMethods({
     const fee = PAYMENT_METHODS.find((m) => m.key === r.key)?.feePct ?? 0;
     return {
       ...r,
-      price: base != null ? formatPrice(priceFor(base, r.key).toString(), currency) : '—',
+      label: t(r.label),
+      price: base != null ? formatPrice(priceFor(base, r.key).toString(), currency, t) : '—',
       disabled: r.key === 'balance' && short,
       note:
         r.key === 'balance'
           ? balance != null
-            ? `на балансе ${formatPrice(balance.toString(), currency)}`
+            ? t('на балансе {sum}', { sum: formatPrice(balance.toString(), currency, t) })
             : null
           : fee
-            ? `комиссия способа ${feeLabel(fee)}`
+            ? t('комиссия способа {fee}', { fee: feeLabel(fee, t) })
             : null,
     };
   });
@@ -89,7 +95,7 @@ export function PayMethods({
   if (variant === 'select') {
     return (
       <div className="field">
-        <label className="label" htmlFor={id}>Способ оплаты</label>
+        <label className="label" htmlFor={id}>{t('Способ оплаты')}</label>
         <select id={id} className="input" value={value} onChange={(e) => onChange(e.target.value as PayMethod)}>
           {rows.map((r) => (
             <option key={r.key} value={r.key} disabled={r.disabled}>
@@ -103,7 +109,7 @@ export function PayMethods({
 
   return (
     <fieldset className="pay-methods">
-      <legend className="label">Способ оплаты</legend>
+      <legend className="label">{t('Способ оплаты')}</legend>
       {rows.map((r) => (
         <label key={r.key} className="pay-method">
           <input

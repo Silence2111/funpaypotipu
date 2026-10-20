@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { useT } from '@/lib/i18n/client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -34,6 +35,7 @@ export function TelegramButton({
   bot: string;
   onAuth: (data: TelegramData) => void;
 }) {
+  const { lang } = useT();
   const box = useRef<HTMLDivElement>(null);
   const handler = useRef(onAuth);
   handler.current = onAuth;
@@ -54,12 +56,14 @@ export function TelegramButton({
     // Бот сможет писать в личку — уведомления в Telegram работают сразу.
     script.setAttribute('data-request-access', 'write');
     script.setAttribute('data-onauth', `${name}(user)`);
+    // Подпись на кнопке — на языке сайта.
+    script.setAttribute('data-lang', lang);
     el.appendChild(script);
     return () => {
       el.innerHTML = '';
       delete (window as unknown as Record<string, unknown>)[name];
     };
-  }, [bot]);
+  }, [bot, lang]);
 
   return <div ref={box} className="tg-login" />;
 }
@@ -69,6 +73,7 @@ export function TelegramButton({
  * Кнопки — только у сервисов, ключи которых заданы на сервере.
  */
 export function SocialLogin({ next }: { next: string }) {
+  const t = useT();
   const router = useRouter();
   const [providers, setProviders] = useState<SocialProviders | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -87,26 +92,26 @@ export function SocialLogin({ next }: { next: string }) {
       await apiFetch('/auth/social/telegram', { method: 'POST', body: JSON.stringify(data) });
       router.push(`/login/social?next=${encodeURIComponent(next)}`);
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Telegram не подтвердил вход. Попробуйте ещё раз.'));
+      setErr(apiErrorMessage(e, t('Telegram не подтвердил вход. Попробуйте ещё раз.')));
     }
   }
 
   return (
     <div className="social-login">
       <div className="social-divider">
-        <span>или</span>
+        <span>{t('или')}</span>
       </div>
       {providers.telegram && (
         <TelegramButton bot={providers.telegram.bot} onAuth={(d) => void telegram(d)} />
       )}
       {providers.vk && (
         <a className="btn secondary block" href={oauthStart('vk', next)}>
-          Войти через VK ID
+          {t('Войти через VK ID')}
         </a>
       )}
       {providers.google && (
         <a className="btn secondary block" href={oauthStart('google', next)}>
-          Войти через Google
+          {t('Войти через Google')}
         </a>
       )}
       {err && (

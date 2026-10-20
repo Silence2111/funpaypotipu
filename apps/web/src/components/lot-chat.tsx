@@ -7,6 +7,7 @@ import { ArrowUpRight, MessagesSquare, SendHorizontal, X } from 'lucide-react';
 import { apiFetch, getUser, type SessionUser } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { ChatThread } from './chat-thread';
+import { useT } from '@/lib/i18n/client';
 
 /** Начатый диалог с продавцом — ответ `GET /conversations/for-listing/:id`. */
 interface Started {
@@ -34,6 +35,7 @@ export function LotChat({
   manual: boolean;
   children?: ReactNode;
 }) {
+  const t = useT();
   const router = useRouter();
   const [me, setMe] = useState<SessionUser | null>(null);
   const [started, setStarted] = useState<Started | null>(null);
@@ -82,13 +84,13 @@ export function LotChat({
       setDraft('');
       setStarted({ id: res.id, unread: 0 });
     } catch (er) {
-      setErr(apiErrorMessage(er, 'Сообщение не отправлено. Попробуйте ещё раз.'));
+      setErr(apiErrorMessage(er, t('Сообщение не отправлено. Попробуйте ещё раз.')));
     } finally {
       setBusy(false);
     }
   }
 
-  const quick = manual ? ['Ещё продаёте?', 'Когда сможете выдать?'] : ['Ещё продаёте?'];
+  const quick = manual ? [t('Ещё продаёте?'), t('Когда сможете выдать?')] : [t('Ещё продаёте?')];
   const convId = started?.id ?? null;
 
   return (
@@ -97,9 +99,9 @@ export function LotChat({
         {!own && (
           <button type="button" className="chip" aria-expanded={open} aria-controls="lot-chat" onClick={toggle}>
             <MessagesSquare size={16} strokeWidth={1.75} aria-hidden />
-            {convId ? 'Чат с продавцом' : 'Написать продавцу'}
+            {convId ? t('Чат с продавцом') : t('Написать продавцу')}
             {!open && started?.unread ? (
-              <span className="conv-unread" aria-label={`Новых ответов: ${started.unread}`}>
+              <span className="conv-unread" aria-label={t('Новых ответов: {n}', { n: started.unread })}>
                 {started.unread > 99 ? '99+' : started.unread}
               </span>
             ) : null}
@@ -111,13 +113,13 @@ export function LotChat({
       {open && me && (
         <div className="lot-chat" id="lot-chat">
           <div className="lot-chat-head">
-            <span className="lot-chat-title">{convId ? 'Чат с продавцом' : 'Вопрос продавцу'}</span>
+            <span className="lot-chat-title">{convId ? t('Чат с продавцом') : t('Вопрос продавцу')}</span>
             {convId && (
               <Link href={`/chat/${convId}`} className="lot-chat-link">
-                В сообщениях <ArrowUpRight size={14} strokeWidth={1.75} aria-hidden />
+                {t('В сообщениях')} <ArrowUpRight size={14} strokeWidth={1.75} aria-hidden />
               </Link>
             )}
-            <button type="button" className="lot-chat-close" aria-label="Свернуть чат" onClick={() => setOpen(false)}>
+            <button type="button" className="lot-chat-close" aria-label={t('Свернуть чат')} onClick={() => setOpen(false)}>
               <X size={16} strokeWidth={1.75} />
             </button>
           </div>
@@ -127,7 +129,7 @@ export function LotChat({
           ) : (
             <form className="lot-chat-start" onSubmit={start}>
               <p className="hint" style={{ margin: 0 }}>
-                Спросите до покупки — ответ придёт сюда и в «Сообщения».
+                {t('Спросите до покупки — ответ придёт сюда и в «Сообщения».')}
               </p>
               <div className="lot-chat-quick">
                 {quick.map((q) => (
@@ -148,8 +150,8 @@ export function LotChat({
                   enterKeyHint="send"
                   value={draft}
                   maxLength={4000}
-                  placeholder="Сообщение"
-                  aria-label="Сообщение продавцу"
+                  placeholder={t('Сообщение')}
+                  aria-label={t('Сообщение продавцу')}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -158,11 +160,11 @@ export function LotChat({
                     }
                   }}
                 />
-                <button className="btn" type="submit" aria-label="Отправить" disabled={!draft.trim() || busy}>
+                <button className="btn" type="submit" aria-label={t('Отправить')} disabled={!draft.trim() || busy}>
                   <SendHorizontal size={18} strokeWidth={1.75} />
                 </button>
               </div>
-              <p className="thread-note">Телефоны, ники в мессенджерах и ссылки скрываются автоматически.</p>
+              <p className="thread-note">{t('Телефоны, ники в мессенджерах и ссылки скрываются автоматически.')}</p>
             </form>
           )}
         </div>

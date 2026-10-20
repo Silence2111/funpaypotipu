@@ -3,8 +3,10 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/session';
+import { useT } from '@/lib/i18n/client';
 
 export default function ForgotPage() {
+  const t = useT();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -24,23 +26,23 @@ export default function ForgotPage() {
 
   return (
     <div style={{ maxWidth: 360, margin: '80px auto', padding: '0 24px' }}>
-      <h1 className="h2" style={{ marginBottom: 24 }}>Восстановление пароля</h1>
+      <h1 className="h2" style={{ marginBottom: 24 }}>{t('Восстановление пароля')}</h1>
       {sent ? (
         <p className="muted" style={{ fontSize: 15 }}>
-          Если такой e-mail зарегистрирован, мы отправили на него ссылку для сброса пароля (действует 1 час).
+          {t('Если такой e-mail зарегистрирован, мы отправили на него ссылку для сброса пароля (действует 1 час).')}
         </p>
       ) : (
         <form onSubmit={submit} className="stack-form">
           <input className="input" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
-            placeholder="Email" value={email} required
+            placeholder={t('Почта')} aria-label={t('Почта')} value={email} required
             onChange={(e) => setEmail(e.target.value)} />
           <button className="btn" type="submit" disabled={busy} style={{ width: '100%' }}>
-            {busy ? '…' : 'Отправить ссылку'}
+            {busy ? '…' : t('Отправить ссылку')}
           </button>
         </form>
       )}
       <p className="muted" style={{ fontSize: 14, marginTop: 20, textAlign: 'center' }}>
-        <Link href="/login">← Ко входу</Link>
+        <Link href="/login">{t('← Ко входу')}</Link>
       </p>
     </div>
   );

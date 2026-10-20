@@ -18,14 +18,16 @@ import { OfferTable } from '@/components/offers';
 import { SellerCard } from '@/components/seller-card';
 import { MobileBuyBar } from '@/components/mobile-buy-bar';
 import { LotGallery } from '@/components/lot-gallery';
+import { getT } from '@/lib/i18n/server';
+import type { T } from '@/lib/i18n/lang';
 
 /** Параметры лота подписями раздела: «Звание: Gold Nova», а не «rank: Gold Nova». */
-function paramRows(defs: Attribute[], values: Record<string, unknown>): Array<[string, string]> {
+function paramRows(defs: Attribute[], values: Record<string, unknown>, t: T): Array<[string, string]> {
   const rows: Array<[string, string]> = [];
   for (const a of defs) {
     const v = values[a.key];
     if (v === undefined || v === null || v === '') continue;
-    rows.push([a.label, typeof v === 'boolean' ? (v ? 'да' : 'нет') : String(v)]);
+    rows.push([t.d(a.label), typeof v === 'boolean' ? (v ? t('да') : t('нет')) : t.d(String(v))]);
   }
   return rows;
 }
@@ -36,8 +38,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const listing = await getListing(id);
-  if (!listing) return { title: 'Лот не найден' };
+  const [listing, t] = await Promise.all([getListing(id), getT()]);
+  if (!listing) return { title: t('Лот не найден') };
   const desc = listing.description.slice(0, 160);
   return {
     title: listing.title,
@@ -61,7 +63,7 @@ export default async function ListingPage({
 }) {
   const { id } = await params;
   const { created, updated, stock, account, amount } = await searchParams;
-  const [listing, pricing] = await Promise.all([getListing(id), getPublicPricing()]);
+  const [listing, pricing, t] = await Promise.all([getListing(id), getPublicPricing(), getT()]);
   if (!listing) notFound();
   // Всё, что вокруг лота: продавец целиком, подписи параметров, его другие
   // предложения и похожие у других продавцов — дешёвые сверху.
@@ -87,7 +89,7 @@ export default async function ListingPage({
   const soldOut = listing.status === 'sold_out';
   // Поштучно: цена за пачку, покупатель выбирает количество. У ключей поле
   // количества появляется, только когда на складе есть из чего выбирать.
-  const pack = perPackLabel(listing);
+  const pack = perPackLabel(listing, t);
   const qtyOffer =
     soldByQty({ unitName: listing.unitName ?? null, fulfillmentType: listing.fulfillmentType }) &&
     (listing.unitName || listing.stock == null || listing.stock > 1)
@@ -151,7 +153,8 @@ export default async function ListingPage({
       : {}),
   };
 
-  const paramList = paramRows(defs ?? [], listing.attributes ?? {});
+  const paramList = paramRows(defs ?? [], listing.attributes ?? {}, t);
+  const categoryTitle = t.d(listing.category.title);
   const images = listing.images ?? [];
   const sectionHref = `/igra/${listing.game.slug}/${listing.category.slug}`;
 
@@ -160,9 +163,9 @@ export default async function ListingPage({
       <JsonLd data={productLd} />
       <JsonLd
         data={breadcrumbLd([
-          ['Все игры', '/igry'],
+          [t('Все игры'), '/igry'],
           [listing.game.title, `/igra/${listing.game.slug}`],
-          [listing.category.title, sectionHref],
+          [categoryTitle, sectionHref],
           [listing.title, `/lot/${listing.id}`],
         ])}
       />
@@ -171,33 +174,35 @@ export default async function ListingPage({
           <ShieldCheck size={18} strokeWidth={1.75} />
           <span>
             {!soldOut
-              ? 'Лот опубликован и уже виден в каталоге.'
+              ? t('Лот опубликован и уже виден в каталоге.')
               : auto
                 ? keys
-                  ? 'Лот создан. Загрузите ключи на склад ниже — с первым ключом он появится в каталоге.'
-                  : 'Лот создан. Загрузите товар на склад ниже — с первой строкой он появится в каталоге.'
-                : 'Лот создан. Наличие — ноль: лот появится в каталоге, когда вы его пополните.'}
+                  ? t('Лот создан. Загрузите ключи на склад ниже — с первым ключом он появится в каталоге.')
+                  : t('Лот создан. Загрузите товар на склад ниже — с первой строкой он появится в каталоге.')
+                : t('Лот создан. Наличие — ноль: лот появится в каталоге, когда вы его пополните.')}
           </span>
         </div>
       )}
       {updated && (
         <div className="alert success" role="status" style={{ marginBottom: 20 }}>
           <ShieldCheck size={18} strokeWidth={1.75} />
-          <span>Изменения сохранены и уже видны в каталоге.</span>
+          <span>{t('Изменения сохранены и уже видны в каталоге.')}</span>
         </div>
       )}
       {stock && auto && soldOut && (
         <div className="alert success" role="status" style={{ marginBottom: 20 }}>
           <ShieldCheck size={18} strokeWidth={1.75} />
-          <span>Автовыдача включена. Загрузите товар на склад ниже — с первой строкой лот вернётся в каталог.</span>
+          <span>
+            {t('Автовыдача включена. Загрузите товар на склад ниже — с первой строкой лот вернётся в каталог.')}
+          </span>
         </div>
       )}
-      <nav className="crumbs" aria-label="Путь">
-        <Link href="/igry">Все игры</Link>
+      <nav className="crumbs" aria-label={t('Путь')}>
+        <Link href="/igry">{t('Все игры')}</Link>
         <span aria-hidden>/</span>
-        <Link href={`/igra/${listing.game.slug}`}>{listing.game.title}</Link>
+        <Link href={`/igra/${listing.game.slug}`}>{t.d(listing.game.title)}</Link>
         <span aria-hidden>/</span>
-        <Link href={sectionHref}>{listing.category.title}</Link>
+        <Link href={sectionHref}>{categoryTitle}</Link>
       </nav>
 
       <div className="lot-layout">
@@ -207,26 +212,26 @@ export default async function ListingPage({
             <span className={auto ? 'badge success' : 'badge'}>
               {auto
                 ? keys
-                  ? 'Ключ сразу после оплаты'
-                  : 'Выдача сразу после оплаты'
+                  ? t('Ключ сразу после оплаты')
+                  : t('Выдача сразу после оплаты')
                 : provider
                   ? listing.game.slug === 'steam'
-                    ? 'Пополнение по логину'
-                    : 'Пополнение по игровому ID'
-                  : 'Выдаёт продавец'}
+                    ? t('Пополнение по логину')
+                    : t('Пополнение по игровому ID')
+                  : t('Выдаёт продавец')}
             </span>
-            {demo && <span className="demo-mark">Пример</span>}
-            {soldOut && <span className="badge">Закончился</span>}
+            {demo && <span className="demo-mark">{t('Пример')}</span>}
+            {soldOut && <span className="badge">{t('Закончился')}</span>}
             {listing.salesCount > 0 && (
-              <span className="lot-sold">Продаж: {new Intl.NumberFormat('ru-RU').format(listing.salesCount)}</span>
+              <span className="lot-sold">{t('Продаж: {n}', { n: t.num(listing.salesCount) })}</span>
             )}
           </div>
         </div>
 
-        <aside className="lot-aside" aria-label="Покупка">
+        <aside className="lot-aside" aria-label={t('Покупка')}>
           <div className="card lot-buy" id="buy" style={{ padding: 24 }}>
             <div className="price" style={{ fontSize: 28, margin: topup || pack ? '0 0 4px' : '0 0 16px' }}>
-              {pack ? formatPrice(listing.price, listing.currency) : formatListingPrice(listing)}
+              {pack ? formatPrice(listing.price, listing.currency, t) : formatListingPrice(listing, t)}
               {pack && (
                 <span className="faint" style={{ fontSize: 15, fontWeight: 500, letterSpacing: 0 }}> {pack}</span>
               )}{' '}
@@ -234,22 +239,24 @@ export default async function ListingPage({
             </div>
             {topup && (
               <p className="hint" style={{ marginBottom: 16 }}>
-                Сумму выбираете вы, наценка продавца — {markupLabel(topup.markupBps)}
+                {t('Сумму выбираете вы, наценка продавца — {pct}', { pct: markupLabel(topup.markupBps) })}
               </p>
             )}
             {pack && !soldOut && (
               <p className="hint" style={{ marginBottom: 16 }}>
-                Количество выбираете вы
-                {listing.minQty && listing.minQty > 1 ? `, от ${formatQty(listing.minQty, listing.unitName)}` : ''}
+                {listing.minQty && listing.minQty > 1
+                  ? t('Количество выбираете вы, от {qty}', { qty: formatQty(listing.minQty, listing.unitName, t) })
+                  : t('Количество выбираете вы')}
               </p>
             )}
 
             {soldOut ? (
               <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
-                <p style={{ margin: 0, fontWeight: 600 }}>Лот закончился</p>
+                <p style={{ margin: 0, fontWeight: 600 }}>{t('Лот закончился')}</p>
                 <p className="hint" style={{ margin: '4px 0 0' }}>
-                  Продавец может пополнить наличие. Добавьте лот в избранное, чтобы не потерять его, или посмотрите
-                  похожие предложения ниже.
+                  {t(
+                    'Продавец может пополнить наличие. Добавьте лот в избранное, чтобы не потерять его, или посмотрите похожие предложения ниже.',
+                  )}
                 </p>
               </div>
             ) : topup ? (
@@ -273,7 +280,7 @@ export default async function ListingPage({
             )}
             {pricing?.paymentsDemo && !soldOut && (
               <p className="hint" style={{ marginTop: 10, textAlign: 'center' }}>
-                Демо-оплата: платёжка не подключена, деньги не списываются.
+                {t('Демо-оплата: платёжка не подключена, деньги не списываются.')}
               </p>
             )}
 
@@ -284,22 +291,28 @@ export default async function ListingPage({
 
             <div className="card flat" style={{ marginTop: 16, padding: 16, background: 'var(--page)' }}>
               <div className="row" style={{ gap: 8, fontWeight: 700, fontSize: 14 }}>
-                <ShieldCheck size={18} strokeWidth={1.75} color="var(--accent)" /> Как защищена покупка
+                <ShieldCheck size={18} strokeWidth={1.75} color="var(--accent)" /> {t('Как защищена покупка')}
               </div>
               <ul style={{ margin: '10px 0 0', paddingLeft: 18, display: 'grid', gap: 6, fontSize: 13 }} className="muted">
-                <li>Деньги лежат у площадки. Продавец получит их, только когда вы подтвердите получение.</li>
+                <li>{t('Деньги лежат у площадки. Продавец получит их, только когда вы подтвердите получение.')}</li>
                 <li>
                   {auto
-                    ? `${keys ? 'Ключ выдаётся' : 'Товар выдаётся со склада продавца'} сразу. Не выдался — деньги вернутся на баланс автоматически.`
+                    ? keys
+                      ? t('Ключ выдаётся сразу. Не выдался — деньги вернутся на баланс автоматически.')
+                      : t('Товар выдаётся со склада продавца сразу. Не выдался — деньги вернутся на баланс автоматически.')
                     : provider
-                      ? 'Пополнение уходит сразу после оплаты. Не прошло — деньги вернутся на баланс автоматически.'
-                      : `Продавец не выдал товар за ${fulfillH} ч — деньги вернутся на баланс автоматически.`}
+                      ? t('Пополнение уходит сразу после оплаты. Не прошло — деньги вернутся на баланс автоматически.')
+                      : t('Продавец не выдал товар за {h} ч — деньги вернутся на баланс автоматически.', {
+                          h: fulfillH,
+                        })}
                 </li>
-                <li>После выдачи у вас {confirmH} ч на проверку: подтвердить или открыть спор с арбитром.</li>
+                <li>
+                  {t('После выдачи у вас {h} ч на проверку: подтвердить или открыть спор с арбитром.', { h: confirmH })}
+                </li>
               </ul>
               {pricing && (
                 <p className="hint" style={{ marginTop: 10 }}>
-                  +{Math.round(pricing.cashbackPct * 100)}% кэшбэк на баланс после подтверждения
+                  {t('+{pct}% кэшбэк на баланс после подтверждения', { pct: Math.round(pricing.cashbackPct * 100) })}
                 </p>
               )}
             </div>
@@ -318,8 +331,13 @@ export default async function ListingPage({
             <div className="alert" role="note">
               <Info size={18} strokeWidth={1.75} />
               <span>
-                Это пример лота: по нему видно, как устроена сделка. Купить можно — оплата на стенде
-                демонстрационная{keys ? ', а ключ придёт с пометкой «ПРИМЕР» и в игре не активируется' : ''}.
+                {keys
+                  ? t(
+                      'Это пример лота: по нему видно, как устроена сделка. Купить можно — оплата на стенде демонстрационная, а ключ придёт с пометкой «ПРИМЕР» и в игре не активируется.',
+                    )
+                  : t(
+                      'Это пример лота: по нему видно, как устроена сделка. Купить можно — оплата на стенде демонстрационная.',
+                    )}
               </span>
             </div>
           )}
@@ -330,13 +348,13 @@ export default async function ListingPage({
 
           {paramList.length > 0 && (
             <section>
-              <h2 className="h2 lot-h2">Параметры</h2>
+              <h2 className="h2 lot-h2">{t('Параметры')}</h2>
               <dl className="params">
                 <div>
-                  <dt>Раздел</dt>
+                  <dt>{t('Раздел')}</dt>
                   <dd>
                     <Link href={sectionHref} className="inline-link">
-                      {listing.game.title} · {listing.category.title}
+                      {t.d(listing.game.title)} · {categoryTitle}
                     </Link>
                   </dd>
                 </div>
@@ -351,7 +369,7 @@ export default async function ListingPage({
           )}
 
           <section>
-            <h2 className="h2 lot-h2">Описание</h2>
+            <h2 className="h2 lot-h2">{t('Описание')}</h2>
             <p className="muted" style={{ whiteSpace: 'pre-wrap', margin: 0, maxWidth: '68ch' }}>
               {listing.description}
             </p>
@@ -363,14 +381,14 @@ export default async function ListingPage({
             <section aria-labelledby="similar-title">
               <div className="section-head" style={{ marginBottom: 6 }}>
                 <h2 className="h2 lot-h2" id="similar-title" style={{ margin: 0 }}>
-                  Похожие предложения
+                  {t('Похожие предложения')}
                 </h2>
                 <Link href={`${sectionHref}?sort=price_asc`} className="muted" style={{ fontSize: 14 }}>
-                  Весь раздел →
+                  {t('Весь раздел →')}
                 </Link>
               </div>
               <p className="faint" style={{ fontSize: 14, margin: '0 0 12px' }}>
-                У других продавцов этого раздела — сначала дешёвые
+                {t('У других продавцов этого раздела — сначала дешёвые')}
               </p>
               <OfferTable items={similar} attributes={defs ?? []} compact />
             </section>
@@ -380,10 +398,10 @@ export default async function ListingPage({
             <section aria-labelledby="seller-more-title">
               <div className="section-head" style={{ marginBottom: 12 }}>
                 <h2 className="h2 lot-h2" id="seller-more-title" style={{ margin: 0 }}>
-                  Ещё у продавца
+                  {t('Ещё у продавца')}
                 </h2>
                 <Link href={`/prodavec/${listing.seller.id}`} className="muted" style={{ fontSize: 14 }}>
-                  Все →
+                  {t('Все →')}
                 </Link>
               </div>
               <OfferTable items={sellerOthers} showSection compact hideSeller />
@@ -396,14 +414,14 @@ export default async function ListingPage({
       {!soldOut && (
         <MobileBuyBar
           target="#buy"
-          price={pack ? formatPrice(listing.price, listing.currency) : formatListingPrice(listing)}
+          price={pack ? formatPrice(listing.price, listing.currency, t) : formatListingPrice(listing, t)}
           note={pack}
-          label={topup ? 'Пополнить' : 'Купить'}
+          label={topup ? t('Пополнить аккаунт') : t('Купить')}
         />
       )}
 
       <section style={{ marginTop: 48 }}>
-        <h2 className="h2 lot-h2">Отзывы о продавце</h2>
+        <h2 className="h2 lot-h2">{t('Отзывы о продавце')}</h2>
         <SellerReviews sellerId={listing.seller.id} preview={5} />
       </section>
     </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Ban } from 'lucide-react';
 import { apiFetch, useSession } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { useT } from '@/lib/i18n/client';
 
 /**
  * «В чёрный список» на витрине продавца: он не сможет писать вам до
@@ -11,6 +12,7 @@ import { apiErrorMessage } from '@/lib/errors';
  * доводятся как обычно.
  */
 export function BlockButton({ userId, username }: { userId: string; username: string }) {
+  const t = useT();
   const { ready, user } = useSession();
   const [blocked, setBlocked] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -26,7 +28,15 @@ export function BlockButton({ userId, username }: { userId: string; username: st
   if (!ready || !user || user.id === userId || blocked === null) return null;
 
   async function toggle() {
-    if (!blocked && !window.confirm(`Добавить ${username} в чёрный список? Он не сможет писать вам до сделки и покупать ваши лоты.`)) return;
+    if (
+      !blocked &&
+      !window.confirm(
+        t('Добавить {name} в чёрный список? Он не сможет писать вам до сделки и покупать ваши лоты.', {
+          name: username,
+        }),
+      )
+    )
+      return;
     setBusy(true);
     setErr(null);
     try {
@@ -34,7 +44,7 @@ export function BlockButton({ userId, username }: { userId: string; username: st
       else await apiFetch('/account/blocks', { method: 'POST', body: JSON.stringify({ userId }) });
       setBlocked(!blocked);
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не получилось. Попробуйте ещё раз.'));
+      setErr(apiErrorMessage(e, t('Не получилось. Попробуйте ещё раз.')));
     } finally {
       setBusy(false);
     }
@@ -43,7 +53,7 @@ export function BlockButton({ userId, username }: { userId: string; username: st
   return (
     <>
       <button type="button" className="chip" disabled={busy} onClick={() => void toggle()} aria-pressed={blocked}>
-        <Ban size={15} strokeWidth={1.75} /> {blocked ? 'В чёрном списке' : 'В чёрный список'}
+        <Ban size={15} strokeWidth={1.75} /> {blocked ? t('В чёрном списке') : t('В чёрный список')}
       </button>
       {err && <p className="field-error" role="alert" style={{ flexBasis: '100%', margin: 0 }}>{err}</p>}
     </>

@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
+import { useT } from '@/lib/i18n/client';
 
 interface Fav { id: string }
 
 export function FavoriteButton({ listingId }: { listingId: string }) {
+  const t = useT();
   const router = useRouter();
   const [active, setActive] = useState(false);
   const [ready, setReady] = useState(false);
@@ -43,11 +45,11 @@ export function FavoriteButton({ listingId }: { listingId: string }) {
       className="chip"
       onClick={toggle}
       type="button"
-      aria-label="В избранное"
+      aria-label={t('В избранное')}
       style={{ opacity: ready ? 1 : 0.5 }}
     >
-      <Heart size={16} strokeWidth={1.75} fill={active ? '#ff3b30' : 'none'} color={active ? '#ff3b30' : 'currentColor'} />
-      {active ? 'В избранном' : 'В избранное'}
+      <Heart size={16} strokeWidth={1.75} fill={active ? 'var(--danger)' : 'none'} color={active ? 'var(--danger)' : 'currentColor'} />
+      {active ? t('В избранном') : t('В избранное')}
     </button>
   );
 }
