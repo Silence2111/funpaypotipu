@@ -28,6 +28,37 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
       { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
       { src: '/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
+    // Окно установки в Chrome и карточка приложения: экраны с телефона и компьютера.
+    screenshots: [
+      {
+        src: '/screenshots/phone-home.jpg',
+        sizes: '780x1688',
+        type: 'image/jpeg',
+        form_factor: 'narrow',
+        label: t('Каталог игр'),
+      },
+      {
+        src: '/screenshots/phone-section.jpg',
+        sizes: '780x1688',
+        type: 'image/jpeg',
+        form_factor: 'narrow',
+        label: t('Предложения продавцов'),
+      },
+      {
+        src: '/screenshots/phone-lot.jpg',
+        sizes: '780x1688',
+        type: 'image/jpeg',
+        form_factor: 'narrow',
+        label: t('Покупка с защитой сделки'),
+      },
+      {
+        src: '/screenshots/wide-home.jpg',
+        sizes: '1280x800',
+        type: 'image/jpeg',
+        form_factor: 'wide',
+        label: t('Каталог игр'),
+      },
+    ],
     shortcuts: [
       { name: t('Сообщения'), url: '/chat' },
       { name: t('Заказы'), url: '/cabinet/orders' },
