@@ -7,6 +7,7 @@ import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { NotificationSettings } from '@/components/notification-settings';
+import { useT } from '@/lib/i18n/client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -25,6 +26,7 @@ interface Block { userId: string; username: string | null; createdAt: string }
  * Здесь же чёрный список. Ник не меняется: по нему находят продавца и отзывы.
  */
 export default function SettingsPage() {
+  const t = useT();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [displayName, setDisplayName] = useState('');
@@ -46,8 +48,8 @@ export default function SettingsPage() {
       router.replace('/login?next=/cabinet/settings');
       return;
     }
-    load().catch(() => setMsg({ ok: false, text: 'Не удалось загрузить профиль' }));
-  }, [router, load]);
+    load().catch(() => setMsg({ ok: false, text: t('Не удалось загрузить профиль') }));
+  }, [router, load, t]);
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -60,9 +62,9 @@ export default function SettingsPage() {
       });
       setProfile(p);
       setBio(p.bio ?? '');
-      setMsg({ ok: true, text: 'Профиль сохранён. Контакты в «О себе» скрываются, как в чате.' });
+      setMsg({ ok: true, text: t('Профиль сохранён. Контакты в «О себе» скрываются, как в чате.') });
     } catch (err) {
-      setMsg({ ok: false, text: apiErrorMessage(err, 'Не удалось сохранить профиль.') });
+      setMsg({ ok: false, text: apiErrorMessage(err, t('Не удалось сохранить профиль.')) });
     } finally {
       setBusy(false);
     }
@@ -77,12 +79,12 @@ export default function SettingsPage() {
     fd.append('file', file);
     const res = await fetch(`${API_URL}/api/account/avatar`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${getToken()}` },
+      headers: { Authorization: `Bearer ${getToken()}`, 'Accept-Language': t.lang },
       body: fd,
     }).catch(() => null);
     if (!res?.ok) {
-      const body = (await res?.json().catch(() => null)) as { message?: string } | null;
-      setMsg({ ok: false, text: body?.message ?? 'Аватар не загрузился.' });
+      const text = (await res?.text().catch(() => '')) ?? '';
+      setMsg({ ok: false, text: apiErrorMessage(new Error(text), t('Аватар не загрузился.')) });
       return;
     }
     const { avatarUrl } = (await res.json()) as { avatarUrl: string };
@@ -94,7 +96,7 @@ export default function SettingsPage() {
       await apiFetch(`/account/blocks/${b.userId}`, { method: 'DELETE' });
       setBlocks((list) => (list ?? []).filter((x) => x.userId !== b.userId));
     } catch (err) {
-      setMsg({ ok: false, text: apiErrorMessage(err, 'Не удалось убрать из чёрного списка.') });
+      setMsg({ ok: false, text: apiErrorMessage(err, t('Не удалось убрать из чёрного списка.')) });
     }
   }
 
@@ -103,7 +105,7 @@ export default function SettingsPage() {
   return (
     <div className="container stack-lg" style={{ paddingTop: 40 }}>
       <div>
-        <h1 className="h1" style={{ fontSize: 32 }}>Профиль</h1>
+        <h1 className="h1" style={{ fontSize: 32 }}>{t('Профиль')}</h1>
         <div style={{ marginTop: 16 }}>
           <CabinetNav />
         </div>
@@ -137,49 +139,49 @@ export default function SettingsPage() {
             </div>
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
               <label className="chip" style={{ cursor: 'pointer' }}>
-                {profile.avatarUrl ? 'Сменить аватар' : 'Загрузить аватар'}
+                {profile.avatarUrl ? t('Сменить аватар') : t('Загрузить аватар')}
                 <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={onAvatar} style={{ display: 'none' }} />
               </label>
               {profile.avatarUrl && (
                 <button type="button" className="chip"
                   onClick={() => void apiFetch('/account/avatar', { method: 'DELETE' }).then(() => setProfile({ ...profile, avatarUrl: null }))}>
-                  Убрать
+                  {t('Убрать')}
                 </button>
               )}
             </div>
           </div>
 
           <div className="field">
-            <span className="label">Ник</span>
+            <span className="label">{t('Ник')}</span>
             <p style={{ margin: 0 }}>
-              @{profile.username} <span className="hint">— не меняется: по нему находят ваши лоты и отзывы</span>
+              @{profile.username} <span className="hint">{t('— не меняется: по нему находят ваши лоты и отзывы')}</span>
             </p>
           </div>
 
           <div className="field">
-            <label className="label" htmlFor="display-name">Имя на витрине</label>
+            <label className="label" htmlFor="display-name">{t('Имя на витрине')}</label>
             <input id="display-name" className="input" maxLength={40} value={displayName}
               onChange={(e) => setDisplayName(e.target.value)} />
           </div>
 
           <div className="field">
-            <label className="label" htmlFor="bio">О себе — необязательно</label>
+            <label className="label" htmlFor="bio">{t('О себе — необязательно')}</label>
             <textarea id="bio" className="input" rows={4} maxLength={500} value={bio} style={{ resize: 'vertical' }}
-              placeholder="Что продаёте, как быстро отвечаете, в какое время на связи"
+              placeholder={t('Что продаёте, как быстро отвечаете, в какое время на связи')}
               onChange={(e) => setBio(e.target.value)} />
-            <p className="hint">{bio.length} / 500. Видно покупателям на странице продавца.</p>
+            <p className="hint">{t('{n} / 500. Видно покупателям на странице продавца.', { n: bio.length })}</p>
           </div>
 
           <div className="field">
-            <span className="label">Почта</span>
+            <span className="label">{t('Почта')}</span>
             <p style={{ margin: 0 }}>
-              {profile.email ?? 'не указана'}{' '}
-              <span className="hint">{profile.emailVerified ? '— подтверждена' : '— не подтверждена'}</span>
+              {profile.email ?? t('не указана')}{' '}
+              <span className="hint">{profile.emailVerified ? t('— подтверждена') : t('— не подтверждена')}</span>
             </p>
           </div>
 
           <div>
-            <button className="btn" type="submit" disabled={busy}>{busy ? 'Сохраняем…' : 'Сохранить'}</button>
+            <button className="btn" type="submit" disabled={busy}>{busy ? t('Сохраняем…') : t('Сохранить')}</button>
           </div>
         </form>
       )}
@@ -187,23 +189,26 @@ export default function SettingsPage() {
       <NotificationSettings />
 
       <section style={{ maxWidth: 600 }}>
-        <h2 className="h2" style={{ fontSize: 18, marginBottom: 6 }}>Чёрный список</h2>
+        <h2 className="h2" style={{ fontSize: 18, marginBottom: 6 }}>{t('Чёрный список')}</h2>
         <p className="muted" style={{ margin: '0 0 12px', fontSize: 14 }}>
-          Кто здесь, тот не напишет вам до сделки и не купит ваши лоты. Добавить — кнопкой на странице продавца.
+          {t('Кто здесь, тот не напишет вам до сделки и не купит ваши лоты. Добавить — кнопкой на странице продавца.')}
         </p>
         {blocks === null ? (
           <div className="skeleton" style={{ height: 60 }} aria-busy="true" />
         ) : blocks.length === 0 ? (
-          <p className="hint" style={{ margin: 0 }}>Список пуст.</p>
+          <p className="hint" style={{ margin: 0 }}>{t('Список пуст.')}</p>
         ) : (
           <div className="grid" style={{ gap: 8 }}>
             {blocks.map((b) => (
               <div key={b.userId} className="card row" style={{ padding: 14, justifyContent: 'space-between', gap: 12 }}>
                 <span>
-                  <Link href={`/prodavec/${b.userId}`} style={{ fontWeight: 600 }}>{b.username ?? 'пользователь'}</Link>
-                  <span className="faint" style={{ fontSize: 13 }}> · с {new Date(b.createdAt).toLocaleDateString('ru-RU')}</span>
+                  <Link href={`/prodavec/${b.userId}`} style={{ fontWeight: 600 }}>{b.username ?? t('пользователь')}</Link>
+                  <span className="faint" style={{ fontSize: 13 }}>
+                    {' · '}
+                    {t('с {date}', { date: new Date(b.createdAt).toLocaleDateString(t.locale) })}
+                  </span>
                 </span>
-                <button type="button" className="chip" onClick={() => void unblock(b)}>Убрать</button>
+                <button type="button" className="chip" onClick={() => void unblock(b)}>{t('Убрать')}</button>
               </div>
             ))}
           </div>

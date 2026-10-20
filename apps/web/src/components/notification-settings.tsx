@@ -6,6 +6,8 @@ import { NOTIFY_GROUPS, type NotifyChannel } from '@gamemarket/shared/notify';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { disablePush, enablePush, pushHere, type PushHere } from '@/lib/push';
+import { useT } from '@/lib/i18n/client';
+import { msg, type T } from '@/lib/i18n/lang';
 
 interface Settings {
   prefs: Record<NotifyChannel, Record<string, boolean>>;
@@ -16,29 +18,29 @@ interface Settings {
 }
 
 const CHANNELS: Array<{ key: NotifyChannel; label: string }> = [
-  { key: 'email', label: 'Почта' },
+  { key: 'email', label: msg('Почта') },
   { key: 'telegram', label: 'Telegram' },
-  { key: 'push', label: 'Пуш' },
+  { key: 'push', label: msg('Пуш') },
 ];
 
 /** Подпись под «Пуш-уведомления»: что с ними на этом устройстве и на других. */
-function pushStatus(here: PushHere | null, devices: number, available: boolean): string {
-  if (!available) return 'На стенде выключены';
+function pushStatus(here: PushHere | null, devices: number, available: boolean, t: T): string {
+  if (!available) return t('На стенде выключены');
   const elsewhere = here === 'on' ? devices - 1 : devices;
-  const others = elsewhere > 0 ? ` · ещё устройств: ${elsewhere}` : '';
+  const others = elsewhere > 0 ? t(' · ещё устройств: {n}', { n: elsewhere }) : '';
   switch (here) {
     case 'on':
-      return `Включены на этом устройстве${others}`;
+      return t('Включены на этом устройстве') + others;
     case 'denied':
-      return `Уведомления для сайта запрещены в настройках браузера${others}`;
+      return t('Уведомления для сайта запрещены в настройках браузера') + others;
     case 'install':
-      return `На iPhone — после установки сайта: «Поделиться» → «На экран Домой»${others}`;
+      return t('На iPhone — после установки сайта: «Поделиться» → «На экран Домой»') + others;
     case 'unsupported':
-      return `Этот браузер пуши не принимает${others}`;
+      return t('Этот браузер пуши не принимает') + others;
     default:
       return elsewhere > 0
-        ? `Включены на других устройствах: ${elsewhere}`
-        : 'Заказы и сообщения — сразу на экран, даже когда сайт закрыт';
+        ? t('Включены на других устройствах: {n}', { n: elsewhere })
+        : t('Заказы и сообщения — сразу на экран, даже когда сайт закрыт');
   }
 }
 
@@ -48,6 +50,7 @@ function pushStatus(here: PushHere | null, devices: number, available: boolean):
  * Пуши — на устройство: включаются здесь, в каждом браузере отдельно.
  */
 export function NotificationSettings() {
+  const t = useT();
   const [s, setS] = useState<Settings | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -59,16 +62,16 @@ export function NotificationSettings() {
   }, []);
 
   useEffect(() => {
-    load().catch(() => setErr('Не удалось загрузить настройки уведомлений'));
+    load().catch(() => setErr(t('Не удалось загрузить настройки уведомлений')));
     pushHere()
       .then(setHere)
       .catch(() => setHere('unsupported'));
-  }, [load]);
+  }, [load, t]);
 
   // После перехода в Telegram ждём, пока бот привяжет чат: страница узнаёт сама.
   useEffect(() => {
     if (!waiting) return;
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       apiFetch<Settings>('/account/notifications')
         .then((next) => {
           setS(next);
@@ -78,7 +81,7 @@ export function NotificationSettings() {
     }, 3000);
     const stop = setTimeout(() => setWaiting(false), 5 * 60_000);
     return () => {
-      clearInterval(t);
+      clearInterval(timer);
       clearTimeout(stop);
     };
   }, [waiting]);
@@ -92,7 +95,7 @@ export function NotificationSettings() {
         body: JSON.stringify({ [channel]: { [group]: value } }),
       }));
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не удалось сохранить настройку.'));
+      setErr(apiErrorMessage(e, t('Не удалось сохранить настройку.')));
       void load();
     }
   }
@@ -105,7 +108,7 @@ export function NotificationSettings() {
       window.open(url, '_blank', 'noopener');
       setWaiting(true);
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не удалось получить ссылку на бота.'));
+      setErr(apiErrorMessage(e, t('Не удалось получить ссылку на бота.')));
     } finally {
       setBusy(false);
     }
@@ -116,7 +119,7 @@ export function NotificationSettings() {
     try {
       setS(await apiFetch<Settings>('/account/telegram', { method: 'DELETE' }));
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не удалось отключить Telegram.'));
+      setErr(apiErrorMessage(e, t('Не удалось отключить Telegram.')));
     } finally {
       setBusy(false);
     }
@@ -134,7 +137,9 @@ export function NotificationSettings() {
       }
       await load();
     } catch (e) {
-      setErr(apiErrorMessage(e, on ? 'Не удалось включить пуши на этом устройстве.' : 'Не удалось выключить пуши.'));
+      setErr(
+        apiErrorMessage(e, on ? t('Не удалось включить пуши на этом устройстве.') : t('Не удалось выключить пуши.')),
+      );
     } finally {
       setBusy(false);
     }
@@ -142,9 +147,9 @@ export function NotificationSettings() {
 
   return (
     <section id="notifications" style={{ maxWidth: 600, scrollMarginTop: 80 }}>
-      <h2 className="h2" style={{ fontSize: 18, marginBottom: 6 }}>Уведомления</h2>
+      <h2 className="h2" style={{ fontSize: 18, marginBottom: 6 }}>{t('Уведомления')}</h2>
       <p className="muted" style={{ margin: '0 0 12px', fontSize: 14 }}>
-        На сайте — всегда. Письмом, в Telegram и пушем — по вашему выбору.
+        {t('На сайте — всегда. Письмом, в Telegram и пушем — по вашему выбору.')}
       </p>
       {err && <p className="field-error" role="alert">{err}</p>}
       {!s ? (
@@ -158,21 +163,21 @@ export function NotificationSettings() {
                 <span style={{ fontWeight: 600 }}>Telegram</span>
                 <span className="faint" style={{ display: 'block', fontSize: 13 }}>
                   {!s.telegram.available
-                    ? 'Бот на стенде не подключён'
+                    ? t('Бот на стенде не подключён')
                     : s.telegram.linked
-                      ? `Подключён${s.telegram.bot ? ` · @${s.telegram.bot}` : ''}`
+                      ? `${t('Подключён')}${s.telegram.bot ? ` · @${s.telegram.bot}` : ''}`
                       : waiting
-                        ? 'Откройте бота и нажмите «Старт» — страница обновится сама'
-                        : 'Мгновенные уведомления о заказах и сообщениях'}
+                        ? t('Откройте бота и нажмите «Старт» — страница обновится сама')
+                        : t('Мгновенные уведомления о заказах и сообщениях')}
                 </span>
               </span>
             </span>
             {s.telegram.available &&
               (s.telegram.linked ? (
-                <button type="button" className="chip" disabled={busy} onClick={() => void disconnect()}>Отключить</button>
+                <button type="button" className="chip" disabled={busy} onClick={() => void disconnect()}>{t('Отключить')}</button>
               ) : (
                 <button type="button" className="btn secondary" disabled={busy} onClick={() => void connect()}>
-                  Подключить Telegram
+                  {t('Подключить Telegram')}
                 </button>
               ))}
           </div>
@@ -181,20 +186,20 @@ export function NotificationSettings() {
             <span className="row" style={{ gap: 8 }}>
               <BellRing size={18} strokeWidth={1.75} />
               <span>
-                <span style={{ fontWeight: 600 }}>Пуш-уведомления</span>
+                <span style={{ fontWeight: 600 }}>{t('Пуш-уведомления')}</span>
                 <span className="faint" style={{ display: 'block', fontSize: 13 }}>
-                  {pushStatus(here, s.push.devices, s.push.available)}
+                  {pushStatus(here, s.push.devices, s.push.available, t)}
                 </span>
               </span>
             </span>
             {s.push.available &&
               (here === 'on' ? (
                 <button type="button" className="chip" disabled={busy} onClick={() => void togglePush(false)}>
-                  Выключить
+                  {t('Выключить')}
                 </button>
               ) : here === 'off' ? (
                 <button type="button" className="btn secondary" disabled={busy} onClick={() => void togglePush(true)}>
-                  Включить на этом устройстве
+                  {t('Включить на этом устройстве')}
                 </button>
               ) : null)}
           </div>
@@ -202,9 +207,9 @@ export function NotificationSettings() {
           <table className="notify-table">
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', fontWeight: 500, padding: '8px 0' }} className="faint">Что</th>
+                <th style={{ textAlign: 'left', fontWeight: 500, padding: '8px 0' }} className="faint">{t('Что')}</th>
                 {CHANNELS.map((c) => (
-                  <th key={c.key} className="faint notify-col">{c.label}</th>
+                  <th key={c.key} className="faint notify-col">{t(c.label)}</th>
                 ))}
               </tr>
             </thead>
@@ -212,8 +217,8 @@ export function NotificationSettings() {
               {NOTIFY_GROUPS.map((g) => (
                 <tr key={g.key} style={{ borderTop: '1px solid var(--border)' }}>
                   <td style={{ padding: '10px 8px 10px 0' }}>
-                    <span style={{ fontWeight: 600 }}>{g.label}</span>
-                    <span className="faint" style={{ display: 'block', fontSize: 12 }}>{g.hint}</span>
+                    <span style={{ fontWeight: 600 }}>{t.d(g.label)}</span>
+                    <span className="faint" style={{ display: 'block', fontSize: 12 }}>{t.d(g.hint)}</span>
                   </td>
                   {CHANNELS.map((c) => {
                     const locked = !!s.locked[c.key]?.includes(g.key);
@@ -226,7 +231,7 @@ export function NotificationSettings() {
                       <td key={c.key} style={{ textAlign: 'center' }}>
                         <input
                           type="checkbox"
-                          aria-label={`${g.label} — ${c.label}`}
+                          aria-label={`${t.d(g.label)} — ${t(c.label)}`}
                           checked={locked || !!s.prefs[c.key][g.key]}
                           disabled={off}
                           onChange={(e) => void toggle(c.key, g.key, e.target.checked)}

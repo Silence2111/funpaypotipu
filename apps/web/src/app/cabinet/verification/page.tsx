@@ -8,6 +8,8 @@ import { apiErrorMessage } from '@/lib/errors';
 import { uploadViaPresignedUrl } from '@/lib/upload';
 import { formatPrice } from '@/lib/format';
 import { CabinetNav } from '@/components/cabinet-nav';
+import { useT } from '@/lib/i18n/client';
+import type { T } from '@/lib/i18n/lang';
 
 interface Kyc {
   status: 'none' | 'pending' | 'approved' | 'rejected';
@@ -20,9 +22,9 @@ interface Kyc {
 const MAX_BYTES = 15 * 1024 * 1024;
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,application/pdf';
 
-const when = (iso?: string | null) =>
+const when = (t: T, iso?: string | null) =>
   iso
-    ? new Date(iso).toLocaleString('ru-RU', {
+    ? new Date(iso).toLocaleString(t.locale, {
         day: 'numeric',
         month: 'long',
         hour: '2-digit',
@@ -62,6 +64,7 @@ function FilePick({
   files: Picked[];
   onChange: (next: Picked[]) => void;
 }) {
+  const t = useT();
   const [err, setErr] = useState<string | null>(null);
   function add(list: FileList | null) {
     setErr(null);
@@ -69,11 +72,11 @@ function FilePick({
     for (const raw of Array.from(list ?? []).slice(0, max - files.length)) {
       const file = typed(raw);
       if (!ACCEPT.split(',').includes(file.type)) {
-        setErr('Подойдёт фото (JPG, PNG, WebP, HEIC) или PDF');
+        setErr(t('Подойдёт фото (JPG, PNG, WebP, HEIC) или PDF'));
         continue;
       }
       if (file.size > MAX_BYTES) {
-        setErr('Файл больше 15 МБ — сфотографируйте заново или сожмите');
+        setErr(t('Файл больше 15 МБ — сфотографируйте заново или сожмите'));
         continue;
       }
       picked.push({
@@ -107,7 +110,7 @@ function FilePick({
               <button
                 type="button"
                 className="photo-btn photo-remove"
-                aria-label="Убрать файл"
+                aria-label={t('Убрать файл')}
                 onClick={() => onChange(files.filter((_, j) => j !== i))}
               >
                 <X size={15} strokeWidth={1.75} />
@@ -119,7 +122,7 @@ function FilePick({
       {files.length < max && (
         <label className="btn secondary photo-add" aria-labelledby={`${id}-label`}>
           <ImagePlus size={18} strokeWidth={1.75} aria-hidden />
-          {files.length ? 'Добавить ещё' : 'Выбрать фото или PDF'}
+          {files.length ? t('Добавить ещё') : t('Выбрать фото или PDF')}
           <input
             id={id}
             type="file"
@@ -148,6 +151,7 @@ function FilePick({
  * поддержку, а ошибка вывода отсылала в несуществующий раздел.
  */
 export default function VerificationPage() {
+  const t = useT();
   const router = useRouter();
   const [kyc, setKyc] = useState<Kyc | null>(null);
   const [kycAbove, setKycAbove] = useState<string | null>(null);
@@ -166,16 +170,16 @@ export default function VerificationPage() {
       router.replace('/login?next=/cabinet/verification');
       return;
     }
-    load().catch(() => setErr('Не удалось загрузить статус проверки'));
+    load().catch(() => setErr(t('Не удалось загрузить статус проверки')));
     apiFetch<{ payoutKycAboveMinor?: string }>('/fees/public')
       .then((p) => setKycAbove(p.payoutKycAboveMinor ?? null))
       .catch(() => {});
-  }, [router, load]);
+  }, [router, load, t]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!doc.length || !selfie.length) {
-      setErr('Нужны фото документа и селфи с ним');
+      setErr(t('Нужны фото документа и селфи с ним'));
       return;
     }
     setBusy(true);
@@ -184,7 +188,7 @@ export default function VerificationPage() {
       const all = [...doc, ...selfie];
       const keys: string[] = [];
       for (const [i, p] of all.entries()) {
-        setProgress(`${i + 1} из ${all.length}`);
+        setProgress(t('{i} из {n}', { i: i + 1, n: all.length }));
         keys.push((await uploadViaPresignedUrl('/kyc/uploads', p.file)).key);
       }
       setProgress(null);
@@ -200,21 +204,21 @@ export default function VerificationPage() {
       setDoc([]);
       setSelfie([]);
     } catch (e2) {
-      setErr(apiErrorMessage(e2, 'Не удалось отправить документы. Попробуйте ещё раз.'));
+      setErr(apiErrorMessage(e2, t('Не удалось отправить документы. Попробуйте ещё раз.')));
     } finally {
       setBusy(false);
       setProgress(null);
     }
   }
 
-  const limit = kycAbove ? formatPrice(kycAbove) : '15 000 ₽';
+  const limit = formatPrice(kycAbove ?? '1500000', 'RUB', t);
   const canSend = kyc && (kyc.status === 'none' || kyc.status === 'rejected');
 
   return (
     <div className="container stack-lg" style={{ paddingTop: 40 }}>
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>
-          Проверка личности
+          {t('Проверка личности')}
         </h1>
         <div style={{ marginTop: 16 }}>
           <CabinetNav />
@@ -228,42 +232,54 @@ export default function VerificationPage() {
           <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
             <ShieldCheck size={22} strokeWidth={1.75} color="var(--success)" aria-hidden />
             <div>
-              <p style={{ margin: 0, fontWeight: 700 }}>Документы проверены</p>
+              <p style={{ margin: 0, fontWeight: 700 }}>{t('Документы проверены')}</p>
               <p className="muted" style={{ margin: '4px 0 0', fontSize: 15 }}>
-                {when(kyc.reviewedAt)}. Вывод — без ограничения суммы, в профиле и на ваших лотах —
-                «Документы проверены».
+                {t(
+                  '{date}. Вывод — без ограничения суммы, в профиле и на ваших лотах — «Документы проверены».',
+                  {
+                    date: when(t, kyc.reviewedAt),
+                  },
+                )}
               </p>
             </div>
           </div>
         ) : kyc.status === 'pending' ? (
           <div role="status">
-            <p style={{ margin: 0, fontWeight: 700 }}>Документы на проверке</p>
+            <p style={{ margin: 0, fontWeight: 700 }}>{t('Документы на проверке')}</p>
             <p className="muted" style={{ margin: '4px 0 0', fontSize: 15 }}>
-              Отправлены {when(kyc.createdAt)}. Решение придёт уведомлением.
+              {t('Отправлены {date}. Решение придёт уведомлением.', {
+                date: when(t, kyc.createdAt),
+              })}
             </p>
           </div>
         ) : (
           <>
             {kyc.status === 'rejected' && (
               <div className="alert error" role="alert" style={{ marginBottom: 16 }}>
-                Документы не приняты{kyc.reason ? `: ${kyc.reason}` : ''}. Загрузите их заново.
+                {kyc.reason
+                  ? t('Документы не приняты: {reason}. Загрузите их заново.', {
+                      reason: kyc.reason,
+                    })
+                  : t('Документы не приняты. Загрузите их заново.')}
               </div>
             )}
             <h2 className="h2" style={{ fontSize: 18, margin: 0 }}>
-              Что даёт проверка
+              {t('Что даёт проверка')}
             </h2>
             <ul className="kyc-perks">
               <li>
-                <Check size={16} strokeWidth={1.75} aria-hidden /> Вывод без ограничения суммы — без
-                проверки за раз можно вывести до {limit}
+                <Check size={16} strokeWidth={1.75} aria-hidden />{' '}
+                {t('Вывод без ограничения суммы — без проверки за раз можно вывести до {limit}', {
+                  limit,
+                })}
               </li>
               <li>
-                <Check size={16} strokeWidth={1.75} aria-hidden /> «Документы проверены» в профиле и
-                в карточке продавца на ваших лотах
+                <Check size={16} strokeWidth={1.75} aria-hidden />{' '}
+                {t('«Документы проверены» в профиле и в карточке продавца на ваших лотах')}
               </li>
               <li>
-                <Check size={16} strokeWidth={1.75} aria-hidden /> Уровень Pro — когда хватит продаж
-                и оценок
+                <Check size={16} strokeWidth={1.75} aria-hidden />{' '}
+                {t('Уровень Pro — когда хватит продаж и оценок')}
               </li>
             </ul>
           </>
@@ -279,23 +295,26 @@ export default function VerificationPage() {
         >
           <FilePick
             id="kyc-doc"
-            label="Документ"
-            hint="Паспорт или другой документ с фото: разворот с фотографией целиком, без бликов. Можно добавить второе фото."
+            label={t('Документ')}
+            hint={t(
+              'Паспорт или другой документ с фото: разворот с фотографией целиком, без бликов. Можно добавить второе фото.',
+            )}
             max={2}
             files={doc}
             onChange={setDoc}
           />
           <FilePick
             id="kyc-selfie"
-            label="Селфи с документом"
-            hint="Лицо и раскрытый документ в одном кадре — так видно, что документ ваш."
+            label={t('Селфи с документом')}
+            hint={t('Лицо и раскрытый документ в одном кадре — так видно, что документ ваш.')}
             max={1}
             files={selfie}
             onChange={setSelfie}
           />
           <p className="hint" style={{ margin: 0 }}>
-            Фото или PDF до 15 МБ. Документы видит только сотрудник проверки — другим пользователям
-            они недоступны.
+            {t(
+              'Фото или PDF до 15 МБ. Документы видит только сотрудник проверки — другим пользователям они недоступны.',
+            )}
           </p>
           {err && (
             <div className="alert error" role="alert">
@@ -304,7 +323,11 @@ export default function VerificationPage() {
           )}
           <div>
             <button className="btn" type="submit" disabled={busy || !doc.length || !selfie.length}>
-              {busy ? `Отправляем${progress ? ` ${progress}` : ''}…` : 'Отправить на проверку'}
+              {busy
+                ? progress
+                  ? t('Отправляем {progress}…', { progress })
+                  : t('Отправляем…')
+                : t('Отправить на проверку')}
             </button>
           </div>
         </form>

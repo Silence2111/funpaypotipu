@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getPublicPricing } from '@/lib/api';
-import { HELP_ARTICLES, helpArticle, termsFrom } from '@/lib/help';
+import { HELP_ARTICLES, HELP_GROUPS, helpArticle, helpBody, termsFrom } from '@/lib/help';
 import { JsonLd, breadcrumbLd } from '@/components/json-ld';
+import { getT } from '@/lib/i18n/server';
 
 type Params = Promise<{ slug: string }>;
 
@@ -12,15 +13,22 @@ type Params = Promise<{ slug: string }>;
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const t = await getT();
   const a = helpArticle((await params).slug);
-  if (!a) return { title: 'Статья не найдена' };
-  return { title: `${a.title} — помощь`, description: a.summary, alternates: { canonical: `/pomosch/${a.slug}` } };
+  if (!a) return { title: t('Статья не найдена') };
+  return {
+    title: t('{title} — помощь', { title: t(a.title) }),
+    description: t(a.summary),
+    alternates: { canonical: `/pomosch/${a.slug}` },
+  };
 }
 
 /** Статья «Помощи»: цифры — из условий площадки на сегодня, а не из текста. */
 export default async function HelpArticlePage({ params }: { params: Params }) {
+  const t = await getT();
   const a = helpArticle((await params).slug);
   if (!a) notFound();
+  const group = HELP_GROUPS.find((g) => g.key === a.group);
   const terms = termsFrom(await getPublicPricing());
   const more = HELP_ARTICLES.filter((x) => x.slug !== a.slug);
 
@@ -28,38 +36,38 @@ export default async function HelpArticlePage({ params }: { params: Params }) {
     <div className="container help-layout" style={{ paddingTop: 40, paddingBottom: 24 }}>
       <JsonLd
         data={breadcrumbLd([
-          ['Помощь', '/pomosch'],
-          [a.title, `/pomosch/${a.slug}`],
+          [t('Помощь'), '/pomosch'],
+          [t(a.title), `/pomosch/${a.slug}`],
         ])}
       />
       <article className="help-article">
-        <nav className="crumbs" aria-label="Путь">
-          <Link href="/pomosch">Помощь</Link>
+        <nav className="crumbs" aria-label={t('Путь')}>
+          <Link href="/pomosch">{t('Помощь')}</Link>
           <span aria-hidden>/</span>
-          <span>{a.group}</span>
+          <span>{group ? t(group.label) : null}</span>
         </nav>
-        <h1 className="h1 help-title">{a.title}</h1>
-        <p className="lead help-lead">{a.summary}</p>
-        <div className="help-body">{a.body(terms)}</div>
+        <h1 className="h1 help-title">{t(a.title)}</h1>
+        <p className="lead help-lead">{t(a.summary)}</p>
+        <div className="help-body">{helpBody(a.slug, terms, t)}</div>
         <div className="card flat help-more">
           <div>
-            <div style={{ fontWeight: 700 }}>Остались вопросы</div>
+            <div style={{ fontWeight: 700 }}>{t('Остались вопросы')}</div>
             <p className="muted" style={{ margin: '2px 0 0', fontSize: 14 }}>
-              Поддержка отвечает в кабинете, а по сделке — пишите в чате заказа.
+              {t('Поддержка отвечает в кабинете, а по сделке — пишите в чате заказа.')}
             </p>
           </div>
           <Link href="/cabinet/support" className="btn secondary">
-            Написать в поддержку
+            {t('Написать в поддержку')}
           </Link>
         </div>
       </article>
 
-      <aside className="help-aside" aria-label="Другие статьи">
-        <div className="help-aside-title">Другие статьи</div>
+      <aside className="help-aside" aria-label={t('Другие статьи')}>
+        <div className="help-aside-title">{t('Другие статьи')}</div>
         <nav>
           {more.map((x) => (
             <Link key={x.slug} href={`/pomosch/${x.slug}`}>
-              {x.title}
+              {t(x.title)}
             </Link>
           ))}
         </nav>

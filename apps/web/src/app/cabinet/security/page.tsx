@@ -9,6 +9,8 @@ import { CabinetNav } from '@/components/cabinet-nav';
 import { TwoFactorCard } from '@/components/two-factor-card';
 import { KycCard } from '@/components/kyc-card';
 import { SocialAccounts, type LoginWays } from '@/components/social-accounts';
+import { useT } from '@/lib/i18n/client';
+import { msg, type T } from '@/lib/i18n/lang';
 
 interface Session {
   id: string;
@@ -20,23 +22,23 @@ interface Session {
 }
 
 /** «Chrome · Windows» из User-Agent — достаточно, чтобы узнать своё устройство. */
-function deviceOf(ua: string | null): string {
-  if (!ua) return 'Неизвестное устройство';
-  const browser = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /YaBrowser/.test(ua) ? 'Яндекс Браузер'
-    : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'Браузер';
+function deviceOf(ua: string | null, t: T): string {
+  if (!ua) return t('Неизвестное устройство');
+  const browser = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /YaBrowser/.test(ua) ? t('Яндекс Браузер')
+    : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : t('Браузер');
   const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Windows/.test(ua) ? 'Windows'
     : /Mac OS X/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '';
   return os ? `${browser} · ${os}` : browser;
 }
 
-const when = (iso: string) =>
-  new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+const when = (iso: string, t: T) =>
+  new Date(iso).toLocaleString(t.locale, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
 /** Чем закончилось подключение Google или VK — адрес возврата от API. */
 const LINKED: Record<string, { ok: boolean; text: string }> = {
-  linked: { ok: true, text: 'Сервис подключён: теперь можно входить через него.' },
-  conflict: { ok: false, text: 'Этот аккаунт сервиса уже привязан к другому пользователю площадки.' },
-  error: { ok: false, text: 'Не удалось подключить сервис. Попробуйте ещё раз.' },
+  linked: { ok: true, text: msg('Сервис подключён: теперь можно входить через него.') },
+  conflict: { ok: false, text: msg('Этот аккаунт сервиса уже привязан к другому пользователю площадки.') },
+  error: { ok: false, text: msg('Не удалось подключить сервис. Попробуйте ещё раз.') },
 };
 
 /** Безопасность: пароль, вход через сервисы, где выполнен вход, двухфакторная защита, проверка личности. */
@@ -49,9 +51,13 @@ export default function SecurityPage() {
 }
 
 function Security() {
+  const t = useT();
   const router = useRouter();
   const linked = useSearchParams().get('social');
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(linked ? (LINKED[linked] ?? null) : null);
+  const [notice, setMsg] = useState<{ ok: boolean; text: string } | null>(() => {
+    const r = linked ? LINKED[linked] : undefined;
+    return r ? { ok: r.ok, text: t(r.text) } : null;
+  });
   const [ways, setWays] = useState<LoginWays | null>(null);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -89,7 +95,7 @@ function Security() {
 
   function changePassword(e: FormEvent) {
     e.preventDefault();
-    if (next.length < 8) return setMsg({ ok: false, text: 'Новый пароль — от 8 символов' });
+    if (next.length < 8) return setMsg({ ok: false, text: t('Новый пароль — от 8 символов') });
     void run(async () => {
       const r = await apiFetch<{ closedSessions: number }>('/auth/password', {
         method: 'POST',
@@ -97,11 +103,11 @@ function Security() {
       });
       setCurrent('');
       setNext('');
-      if (firstPassword) return 'Пароль задан: теперь можно входить и по почте с паролем.';
+      if (firstPassword) return t('Пароль задан: теперь можно входить и по почте с паролем.');
       return r.closedSessions
-        ? `Пароль изменён. Другие устройства вышли из аккаунта: ${r.closedSessions}.`
-        : 'Пароль изменён.';
-    }, 'Не удалось сменить пароль.');
+        ? t('Пароль изменён. Другие устройства вышли из аккаунта: {n}.', { n: r.closedSessions })
+        : t('Пароль изменён.');
+    }, t('Не удалось сменить пароль.'));
   }
 
   const others = (sessions ?? []).filter((s) => !s.current);
@@ -109,51 +115,54 @@ function Security() {
   return (
     <div className="container stack-lg" style={{ paddingTop: 40 }}>
       <div>
-        <h1 className="h1" style={{ fontSize: 32 }}>Безопасность</h1>
+        <h1 className="h1" style={{ fontSize: 32 }}>{t('Безопасность')}</h1>
         <div style={{ marginTop: 16 }}>
           <CabinetNav />
         </div>
       </div>
 
-      {msg && (
-        <div className={msg.ok ? 'alert success' : 'alert error'} role={msg.ok ? 'status' : 'alert'}>
-          {msg.text}
+      {notice && (
+        <div className={notice.ok ? 'alert success' : 'alert error'} role={notice.ok ? 'status' : 'alert'}>
+          {notice.text}
         </div>
       )}
 
       <section className="card" style={{ padding: 24, maxWidth: 600 }}>
         <h2 className="h2 row" style={{ fontSize: 18, gap: 8 }}>
-          <KeyRound size={18} strokeWidth={1.75} /> Пароль
+          <KeyRound size={18} strokeWidth={1.75} /> {t('Пароль')}
         </h2>
         {firstPassword && !ways?.email ? (
           <p className="muted" style={{ fontSize: 14, margin: '10px 0 0' }}>
-            Вход по паролю — это почта и пароль, а у аккаунта нет почты: он заведён через сервис. Подключите второй
-            сервис ниже, чтобы не зависеть от одного.
+            {t(
+              'Вход по паролю — это почта и пароль, а у аккаунта нет почты: он заведён через сервис. Подключите второй сервис ниже, чтобы не зависеть от одного.',
+            )}
           </p>
         ) : (
           <form onSubmit={changePassword} className="stack-form" style={{ gap: 14, marginTop: 14 }}>
             {firstPassword ? (
               <p className="muted" style={{ fontSize: 14, margin: 0 }}>
-                Пароля нет — аккаунт заведён через сервис. Задайте пароль, чтобы входить и по почте {ways?.email}.
+                {t('Пароля нет — аккаунт заведён через сервис. Задайте пароль, чтобы входить и по почте {email}.', {
+                  email: ways?.email ?? '',
+                })}
               </p>
             ) : (
               <div className="field">
-                <label className="label" htmlFor="pwd-current">Текущий пароль</label>
+                <label className="label" htmlFor="pwd-current">{t('Текущий пароль')}</label>
                 <input id="pwd-current" className="input" type="password" autoComplete="current-password"
                   value={current} onChange={(e) => setCurrent(e.target.value)} />
               </div>
             )}
             <div className="field">
-              <label className="label" htmlFor="pwd-next">{firstPassword ? 'Пароль' : 'Новый пароль'}</label>
+              <label className="label" htmlFor="pwd-next">{firstPassword ? t('Пароль') : t('Новый пароль')}</label>
               <input id="pwd-next" className="input" type="password" autoComplete="new-password"
                 value={next} onChange={(e) => setNext(e.target.value)} />
               <p className="hint">
-                {firstPassword ? 'От 8 символов.' : 'От 8 символов. Другие устройства выйдут из аккаунта сразу.'}
+                {firstPassword ? t('От 8 символов.') : t('От 8 символов. Другие устройства выйдут из аккаунта сразу.')}
               </p>
             </div>
             <div>
               <button className="btn" type="submit" disabled={busy || (!firstPassword && !current) || !next}>
-                {firstPassword ? 'Задать пароль' : 'Сменить пароль'}
+                {firstPassword ? t('Задать пароль') : t('Сменить пароль')}
               </button>
             </div>
           </form>
@@ -165,15 +174,15 @@ function Security() {
       <section className="card" style={{ padding: 24, maxWidth: 600 }}>
         <div className="row" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <h2 className="h2 row" style={{ fontSize: 18, gap: 8 }}>
-            <MonitorSmartphone size={18} strokeWidth={1.75} /> Где выполнен вход
+            <MonitorSmartphone size={18} strokeWidth={1.75} /> {t('Где выполнен вход')}
           </h2>
           {others.length > 0 && (
             <button type="button" className="chip" disabled={busy}
               onClick={() => void run(async () => {
                 const r = await apiFetch<{ closedSessions: number }>('/auth/sessions/revoke-others', { method: 'POST' });
-                return `Завершено сеансов: ${r.closedSessions}.`;
-              }, 'Не удалось завершить сеансы.')}>
-              Завершить все, кроме этого
+                return t('Завершено сеансов: {n}.', { n: r.closedSessions });
+              }, t('Не удалось завершить сеансы.'))}>
+              {t('Завершить все, кроме этого')}
             </button>
           )}
         </div>
@@ -184,19 +193,19 @@ function Security() {
             {sessions.map((s) => (
               <div key={s.id} className="row" style={{ justifyContent: 'space-between', gap: 12, padding: '10px 0', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
                 <span>
-                  <span style={{ fontWeight: 600 }}>{deviceOf(s.userAgent)}</span>
-                  {s.current && <span className="badge success" style={{ marginLeft: 8 }}>это устройство</span>}
+                  <span style={{ fontWeight: 600 }}>{deviceOf(s.userAgent, t)}</span>
+                  {s.current && <span className="badge success" style={{ marginLeft: 8 }}>{t('это устройство')}</span>}
                   <span className="faint" style={{ display: 'block', fontSize: 13 }}>
-                    вход {when(s.signedInAt)}{s.ip ? ` · ${s.ip}` : ''}
+                    {t('вход {when}', { when: when(s.signedInAt, t) })}{s.ip ? ` · ${s.ip}` : ''}
                   </span>
                 </span>
                 {!s.current && (
                   <button type="button" className="chip" disabled={busy}
                     onClick={() => void run(async () => {
                       await apiFetch(`/auth/sessions/${s.id}/revoke`, { method: 'POST' });
-                      return 'Сеанс завершён — устройство вышло из аккаунта.';
-                    }, 'Не удалось завершить сеанс.')}>
-                    Завершить
+                      return t('Сеанс завершён — устройство вышло из аккаунта.');
+                    }, t('Не удалось завершить сеанс.'))}>
+                    {t('Завершить')}
                   </button>
                 )}
               </div>

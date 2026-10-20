@@ -10,6 +10,7 @@ import {
   type SocialProviders,
   type TelegramData,
 } from '@/components/social-login';
+import { useT } from '@/lib/i18n/client';
 
 export interface LoginWays {
   hasPassword: boolean;
@@ -38,6 +39,7 @@ export function SocialAccounts({
   ways: LoginWays;
   onChange: (w: LoginWays) => void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -68,7 +70,7 @@ export function SocialAccounts({
       await apiFetch('/auth/social/link-intent', { method: 'POST' });
       window.location.href = oauthStart(provider, '/cabinet/security');
     } catch (e) {
-      setMsg({ ok: false, text: apiErrorMessage(e, 'Не удалось начать подключение.') });
+      setMsg({ ok: false, text: apiErrorMessage(e, t('Не удалось начать подключение.')) });
       setBusy(false);
     }
   }
@@ -80,17 +82,17 @@ export function SocialAccounts({
           method: 'POST',
           body: JSON.stringify(data),
         }),
-      'Telegram подключён: теперь можно входить через него.',
-      'Telegram не подключился.',
+      t('Telegram подключён: теперь можно входить через него.'),
+      t('Telegram не подключился.'),
     );
 
   return (
     <section className="card" style={{ padding: 24, maxWidth: 600 }}>
       <h2 className="h2 row" style={{ fontSize: 18, gap: 8 }}>
-        <Link2 size={18} strokeWidth={1.75} /> Вход через сервисы
+        <Link2 size={18} strokeWidth={1.75} /> {t('Вход через сервисы')}
       </h2>
       <p className="muted" style={{ fontSize: 14, margin: '8px 0 6px' }}>
-        Входить в один аккаунт по паролю, через Telegram, VK ID или Google — как удобнее.
+        {t('Входить в один аккаунт по паролю, через Telegram, VK ID или Google — как удобнее.')}
       </p>
       {msg && (
         <div
@@ -110,8 +112,8 @@ export function SocialAccounts({
                 <span style={{ fontWeight: 600 }}>{LABEL[p]}</span>
                 <span className="faint" style={{ display: 'block', fontSize: 13 }}>
                   {acc
-                    ? `Подключён${acc.name ? ` · ${acc.name}` : ''}${acc.email ? ` · ${acc.email}` : ''}`
-                    : 'Не подключён'}
+                    ? `${t('Подключён')}${acc.name ? ` · ${acc.name}` : ''}${acc.email ? ` · ${acc.email}` : ''}`
+                    : t('Не подключён')}
                 </span>
               </span>
               {acc ? (
@@ -122,12 +124,12 @@ export function SocialAccounts({
                   onClick={() =>
                     void run(
                       () => apiFetch<LoginWays>(`/auth/social/${p}`, { method: 'DELETE' }),
-                      `${LABEL[p]} отключён.`,
-                      'Не удалось отключить.',
+                      t('{name} отключён.', { name: LABEL[p] }),
+                      t('Не удалось отключить.'),
                     )
                   }
                 >
-                  Отключить
+                  {t('Отключить')}
                 </button>
               ) : p === 'telegram' ? (
                 ways.providers.telegram && (
@@ -140,7 +142,7 @@ export function SocialAccounts({
                   disabled={busy}
                   onClick={() => void connect(p)}
                 >
-                  Подключить
+                  {t('Подключить')}
                 </button>
               )}
             </div>
@@ -149,8 +151,9 @@ export function SocialAccounts({
       </div>
       {!ways.hasPassword && (
         <p className="hint" style={{ marginTop: 10 }}>
-          Пароля у аккаунта нет — вход только через сервис. Задайте пароль выше, чтобы не зависеть
-          от него.
+          {t(
+            'Пароля у аккаунта нет — вход только через сервис. Задайте пароль выше, чтобы не зависеть от него.',
+          )}
         </p>
       )}
     </section>
