@@ -30,6 +30,8 @@ export interface Terms {
   kycAbove: string;
   newbieHoldDays: number;
   demo: boolean;
+  /** Способы, которые принимает платёжный шлюз; null — все. */
+  payMethods: string[] | null;
 }
 
 export function termsFrom(p: PublicPricing | null): Terms {
@@ -44,6 +46,7 @@ export function termsFrom(p: PublicPricing | null): Terms {
     kycAbove: p?.payoutKycAboveMinor ?? '1500000',
     newbieHoldDays: p?.payoutNewbieHoldDays ?? 3,
     demo: p?.paymentsDemo ?? false,
+    payMethods: p?.payMethods ?? null,
   };
 }
 
@@ -75,10 +78,13 @@ const listRu = (words: string[]) =>
   words.length > 1 ? `${words.slice(0, -1).join(', ')} и ${words[words.length - 1]}` : (words[0] ?? '');
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-const methodsWhere = (paidOnly: boolean) =>
-  listRu(PAYMENT_METHODS.filter((m) => (m.feePct > 0) === paidOnly).map((m) => METHOD_WORDS[m.key] ?? m.label));
-const free = methodsWhere(false);
-const paid = methodsWhere(true);
+/** Способы с надбавкой или без — только те, что принимает шлюз: у ЮKassa нет криптовалюты. */
+const methodsWhere = (paidOnly: boolean, c: Terms) =>
+  listRu(
+    PAYMENT_METHODS.filter(
+      (m) => (m.feePct > 0) === paidOnly && (m.key === 'balance' || !c.payMethods || c.payMethods.includes(m.key)),
+    ).map((m) => METHOD_WORDS[m.key] ?? m.label),
+  );
 const surcharge = pct(PAYMENT_METHODS.find((m) => m.feePct > 0)?.feePct ?? 0);
 /** «7–10%» или «10%», если ставка одна. */
 const feeRange = (t: Terms) =>
@@ -101,7 +107,7 @@ const RU_BODIES: Record<HelpSlug, (t: Terms) => ReactNode> = {
           задайте кнопкой «Написать продавцу» прямо на странице лота.
         </li>
         <li>
-          <b>Оплатите.</b> {cap(free)} — без надбавки; {paid} — плюс {surcharge} платёжной системе. Сумма по каждому
+          <b>Оплатите.</b> {cap(methodsWhere(false, t))} — без надбавки; {methodsWhere(true, t)} — плюс {surcharge} платёжной системе. Сумма по каждому
           способу видна до оплаты.
         </li>
         <li>
@@ -278,9 +284,9 @@ const RU_BODIES: Record<HelpSlug, (t: Terms) => ReactNode> = {
     <>
       <h2>Способы оплаты</h2>
       <ul>
-        <li>{cap(free)} — без надбавки;</li>
+        <li>{cap(methodsWhere(false, t))} — без надбавки;</li>
         <li>
-          {paid} — плюс {surcharge}.
+          {methodsWhere(true, t)} — плюс {surcharge}.
         </li>
       </ul>
       <p>Надбавка — плата платёжной системе, а не площадке. Сумма по каждому способу видна до оплаты.</p>

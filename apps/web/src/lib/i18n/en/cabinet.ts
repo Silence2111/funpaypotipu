@@ -129,4 +129,6 @@ export const CABINET: Record<string, string> = {
   'Не удалось закрыть обращение.': 'Couldn’t close the request.',
   'Закрыть обращение': 'Close request',
   'Вопрос решён': 'Issue resolved',
+  'Пополнение зачислится, как только банк подтвердит оплату, — обычно за несколько секунд.':
+    'The top-up will be credited as soon as the bank confirms the payment — usually within a few seconds.',
 };

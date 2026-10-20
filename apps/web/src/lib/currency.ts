@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { loadPublicPricing } from './pricing';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 const KEY = 'gm_cur';
 
 export type DisplayCurrency = 'RUB' | 'USD' | 'EUR';
@@ -27,15 +27,9 @@ export function setCurrency(c: DisplayCurrency) {
   window.dispatchEvent(new Event('gm-cur'));
 }
 
-let ratesOnce: Promise<Rates | null> | null = null;
-
-/** Курсы площадки — один запрос на страницу, сколько бы цен на ней ни было. */
+/** Курсы площадки — из того же одного запроса прайса на страницу. */
 export function loadRates(): Promise<Rates | null> {
-  ratesOnce ??= fetch(`${API_URL}/api/fees/public`, { cache: 'no-store' })
-    .then((r) => (r.ok ? (r.json() as Promise<{ rates?: Rates | null }>) : null))
-    .then((p) => p?.rates ?? null)
-    .catch(() => null);
-  return ratesOnce;
+  return loadPublicPricing().then((p) => p?.rates ?? null);
 }
 
 export function useDisplayCurrency(): { currency: DisplayCurrency; rates: Rates | null } {

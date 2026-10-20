@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
 import { PayMethods, priceFor, type PayMethod } from '@/components/pay-methods';
+import { completeDeposit, type Deposit } from '@/lib/checkout';
 import { useT } from '@/lib/i18n/client';
 
 /**
@@ -31,11 +32,12 @@ export function TopUpForm({ onDone }: { onDone: () => void }) {
     setBusy(true);
     setMsg(null);
     try {
-      const dep = await apiFetch<{ providerRef: string }>('/payments/topup', {
+      const dep = await apiFetch<Deposit>('/payments/topup', {
         method: 'POST',
         body: JSON.stringify({ amount: minor.toString(), method }),
       });
-      await apiFetch(`/payments/mock/callback?providerRef=${dep.providerRef}`, { method: 'POST' });
+      // ЮKassa — переход на её страницу; вернёт в кабинет с ?topup=1.
+      if ((await completeDeposit(dep)) === 'redirect') return;
       setAmount('');
       setMsg({ ok: true, text: t('Баланс пополнен на {sum}', { sum: formatPrice(minor.toString(), 'RUB', t) }) });
       onDone();

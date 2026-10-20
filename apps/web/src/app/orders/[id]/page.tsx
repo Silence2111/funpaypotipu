@@ -100,6 +100,9 @@ export default function OrderPage() {
   const [disputeId, setDisputeId] = useState<string | null>(null);
   const [method, setMethod] = useState<PayMethod>('sbp');
   const [payFailed, setPayFailed] = useState(false);
+  // Вернулись со страницы платёжного шлюза: оплату подтверждает его вебхук,
+  // поэтому несколько секунд заказ может ещё ждать оплаты.
+  const [returned, setReturned] = useState<'waiting' | 'slow' | null>(null);
 
   const { ready, token, user: me } = useSession();
 
@@ -120,8 +123,22 @@ export default function OrderPage() {
 
   // Оформление с лота: заказ создан, а оплата не прошла — платим отсюда.
   useEffect(() => {
-    setPayFailed(new URLSearchParams(window.location.search).get('pay') === 'failed');
+    const q = new URLSearchParams(window.location.search);
+    setPayFailed(q.get('pay') === 'failed');
+    if (q.get('paid') === '1') setReturned('waiting');
   }, []);
+
+  // После шлюза — спрашиваем заказ, пока оплата не дойдёт; две минуты, не дольше.
+  const waitingPay = returned === 'waiting' && order?.status === 'created';
+  useEffect(() => {
+    if (!waitingPay) return;
+    const timer = setInterval(() => void loadOrder().catch(() => {}), 3000);
+    const stop = setTimeout(() => setReturned('slow'), 120_000);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(stop);
+    };
+  }, [waitingPay, loadOrder]);
 
   useEffect(() => {
     if (order?.status === 'disputed') {
@@ -170,7 +187,8 @@ export default function OrderPage() {
     setErr(null);
     setBusy(true);
     try {
-      await payOrder(id, method);
+      // Шлюз с переходом — страница уходит на его оплату и вернётся с ?paid=1.
+      if ((await payOrder(id, method)) === 'redirect') return;
       setPayFailed(false);
       await loadOrder();
     } catch (e) {
@@ -282,6 +300,16 @@ export default function OrderPage() {
             ? ` — ${t('{sum} с комиссией способа', { sum: formatPrice((BigInt(order.amount) + BigInt(order.paymentSurcharge)).toString(), order.currency, t) })}`
             : ''}
         </p>
+      )}
+      {returned === 'waiting' && order.status === 'created' && (
+        <div className="alert" role="status" style={{ marginTop: 16 }}>
+          {t('Проверяем оплату — обычно это несколько секунд. Страница обновится сама.')}
+        </div>
+      )}
+      {returned === 'slow' && order.status === 'created' && (
+        <div className="alert" role="status" style={{ marginTop: 16 }}>
+          {t('Банк ещё не подтвердил оплату. Если деньги списаны, заказ оплатится сам, как только подтверждение придёт. Если нет — выберите способ ниже и оплатите снова.')}
+        </div>
       )}
       {payFailed && order.status === 'created' && (
         <div className="alert error" role="alert" style={{ marginTop: 16 }}>

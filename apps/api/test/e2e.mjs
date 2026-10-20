@@ -6,13 +6,17 @@
  * второй платёж по заказу), модерация (жалобы, бан, заморозка, спор у арбитра),
  * аккаунт (чёрный список, профиль, пароль, сеансы), вход с кодом из приложения и защита от подбора,
  * подписка на пуш-уведомления, проверка личности, вход через Google и VK ID,
- * поддержка, ошибки на языке сайта, выплаты (с холдом и ролью finance).
+ * поддержка, ошибки на языке сайта, выплаты (с холдом и ролью finance), оплата через ЮKassa
+ * (второй API с PAYMENT_PROVIDER=yookassa против тестового сервера ЮKassa).
  * Выход 0 — все проверки пройдены, иначе 1.
  */
+import { spawn } from 'node:child_process';
 import { createECDH, createHmac, randomBytes } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { authenticator } from 'otplib';
 import db from '../../../packages/db/dist/index.js';
 import { startOAuthMock } from './oauth-mock.mjs';
+import { startYooKassaMock } from './yookassa-mock.mjs';
 
 const { prisma } = db;
 const API = process.env.API_URL ?? 'http://localhost:4090';
@@ -27,7 +31,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function j(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers };
   if (opts.token) headers.Authorization = 'Bearer ' + opts.token;
-  const res = await fetch(`${API}/api${path}`, { method: opts.method || 'GET', headers, body: opts.body });
+  const res = await fetch(`${opts.base ?? API}/api${path}`, { method: opts.method || 'GET', headers, body: opts.body });
   const t = await res.text();
   let b;
   try { b = JSON.parse(t); } catch { b = t; }
@@ -887,6 +891,142 @@ async function scenarioPayout(rnd) {
   check('Finance одобрил → paid', appr.body.status === 'paid');
 }
 
+/**
+ * Оплата через ЮKassa. Платёжный провайдер выбирается при запуске API, а
+ * остальные сценарии платят заглушкой, — поэтому здесь поднимается второй
+ * API (порт 4100) с PAYMENT_PROVIDER=yookassa против тестового сервера
+ * ЮKassa (yookassa-mock.mjs). Фоновые таймеры заказов у него выключены:
+ * их ведёт основной API.
+ */
+async function scenarioYooKassa(rnd) {
+  console.log('\n— Оплата через ЮKassa —');
+  const base = 'http://localhost:4100';
+  const yk = await startYooKassaMock('http://localhost:4998/v3', { shopId: 'e2e-shop', secretKey: 'e2e-secret' });
+  yk.notifyTo(`${base}/api/payments/webhook/yookassa`);
+  const child = spawn(process.execPath, [fileURLToPath(new URL('../dist/main.js', import.meta.url))], {
+    env: {
+      ...process.env,
+      API_PORT: '4100',
+      API_URL: base,
+      PAYMENT_PROVIDER: 'yookassa',
+      YOOKASSA_SHOP_ID: 'e2e-shop',
+      YOOKASSA_SECRET_KEY: 'e2e-secret',
+      YOOKASSA_API_URL: 'http://localhost:4998/v3',
+      WEB_URL: 'http://localhost:3000',
+      ORDER_SWEEP_INTERVAL_MS: '3600000',
+      SKIP_DOTENV: '1',
+    },
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  let stderr = '';
+  child.stderr.on('data', (d) => (stderr += d));
+  const k = (path, opts = {}) => j(path, { ...opts, base });
+  try {
+    let up = false;
+    for (let i = 0; i < 60 && !up; i++) {
+      up = (await k('/health').catch(() => ({ status: 0 }))).status === 200;
+      if (!up) await wait(500);
+    }
+    check('Второй API с ЮKassa запущен', up, up ? '' : stderr.slice(-400));
+    if (!up) return;
+
+    const pub = await k('/fees/public');
+    check(
+      'Витрина: оплата настоящая, криптовалюты у ЮKassa нет',
+      pub.body.paymentsDemo === false && pub.body.payMethods.includes('sbp') && !pub.body.payMethods.includes('crypto'),
+      JSON.stringify(pub.body.payMethods),
+    );
+    const reg = async (p) => {
+      const r = await k('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ email: `${p}${rnd}@e2e.local`, password: 'password123', username: `${p}${rnd}` }),
+      });
+      return { token: r.body.accessToken };
+    };
+    const seller = await reg('yks');
+    const buyer = await reg('ykb');
+    const game = await k('/catalog/games/cs2');
+    const cat = game.body.categories.find((c) => c.slug === 'accounts');
+    const order = async () => {
+      const lot = await k('/listings', {
+        method: 'POST',
+        token: seller.token,
+        body: JSON.stringify({
+          gameId: game.body.id, categoryId: cat.id, title: 'E2E yookassa', description: 'test', price: '150000', currency: 'RUB',
+          attributes: REQUIRED_ATTRS.accounts ?? {},
+        }),
+      });
+      return (await k('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot.body.id }) })).body;
+    };
+    const status = async (id) => (await k(`/orders/${id}`, { token: buyer.token })).body.status;
+    const deposit = (orderId, method) =>
+      k('/payments/deposit', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId, method }) });
+    const atYk = (providerRef) => [...yk.payments.values()].find((p) => p.metadata.providerRef === providerRef);
+
+    const o1 = await order();
+    const crypto = await deposit(o1.id, 'crypto');
+    check('Криптовалюта через ЮKassa не принимается', crypto.status === 400, crypto.body.message);
+    const dep = await deposit(o1.id, 'card');
+    const p1 = atYk(dep.body.providerRef);
+    check(
+      'Платёж у ЮKassa: её страница оплаты, сумма с надбавкой карты, возврат на заказ',
+      dep.body.redirect === true && dep.body.url === p1?.confirmation.confirmation_url && p1.amount.value === '1566.00' &&
+        p1.payment_method_data?.type === 'bank_card' && p1.confirmation.return_url.endsWith(`/orders/${o1.id}?paid=1`),
+      JSON.stringify({ amount: p1?.amount, method: p1?.payment_method_data }),
+    );
+    const devHole = await k(`/payments/mock/callback?providerRef=${dep.body.providerRef}`, { method: 'POST' });
+    check('Кнопка «оплачено» заглушки закрыта', devHole.status === 404 && (await status(o1.id)) === 'created');
+    const forged = await k('/payments/webhook/yookassa', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'notification', event: 'payment.succeeded', object: { ...p1, status: 'succeeded', paid: true } }),
+    });
+    check(
+      'Поддельное «оплачено», пока ЮKassa ждёт оплату, — без последствий',
+      forged.status === 200 && forged.body.ignored === true && (await status(o1.id)) === 'created',
+      JSON.stringify(forged.body),
+    );
+    const unknown = await k('/payments/webhook/yookassa', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'notification', event: 'payment.succeeded', object: { id: 'yk-nope' } }),
+    });
+    check('Уведомление о чужом платеже отклоняется', unknown.status === 401);
+    const paid = await yk.settle(p1.id, 'succeeded');
+    check('ЮKassa подтвердила — заказ оплачен', paid?.status === 200 && (await status(o1.id)) === 'paid', JSON.stringify(paid?.body));
+    const again = await yk.settle(p1.id, 'succeeded');
+    check('Повторное уведомление — без второго проведения', again?.body?.alreadyProcessed === true);
+    const row = await prisma.payment.findUnique({ where: { providerRef: dep.body.providerRef } });
+    check('Номер платежа ЮKassa сохранён', row?.externalId === p1.id && row?.provider === 'yookassa');
+
+    const o2 = await order();
+    const dep2 = await deposit(o2.id, 'sbp');
+    const p2 = atYk(dep2.body.providerRef);
+    const tampered = await yk.settle(p2.id, 'succeeded', { amount: '1.00' });
+    check(
+      'Оплата другой суммы заказ не закрывает; СБП — своим способом',
+      tampered?.status === 400 && (await status(o2.id)) === 'created' && p2.payment_method_data?.type === 'sbp',
+    );
+
+    const o3 = await order();
+    const dep3 = await deposit(o3.id, 'card');
+    await yk.settle(atYk(dep3.body.providerRef).id, 'canceled');
+    const failed = await prisma.payment.findUnique({ where: { providerRef: dep3.body.providerRef } });
+    check('Отменённая оплата — платёж неудачный, заказ ждёт оплаты', failed?.status === 'failed' && (await status(o3.id)) === 'created');
+
+    const top = await k('/payments/topup', { method: 'POST', token: buyer.token, body: JSON.stringify({ amount: '50000', method: 'sbp' }) });
+    const pt = atYk(top.body.providerRef);
+    await yk.settle(pt.id, 'succeeded');
+    const wallet = await k('/wallet', { token: buyer.token });
+    check(
+      'Пополнение баланса через ЮKassa — деньги после подтверждения',
+      top.body.redirect === true && pt.confirmation.return_url.endsWith('/cabinet?topup=1') && wallet.body.balance === '50000',
+      wallet.body.balance,
+    );
+  } finally {
+    child.kill();
+    yk.close();
+  }
+}
+
 (async () => {
   const rnd = Math.floor(Math.random() * 1e9);
   // ждём готовности API
@@ -923,6 +1063,7 @@ async function scenarioPayout(rnd) {
   await scenarioLanguage(rnd);
   await scenarioRates(rnd);
   await scenarioPayout(rnd);
+  await scenarioYooKassa(rnd);
 
   const passed = results.filter(Boolean).length;
   console.log(`\n=== E2E: ${passed}/${results.length} проверок пройдено ===`);

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PaymentProvider } from '../src/modules/payments/payment.provider';
+import type { PaymentProvider, WebhookEvent } from '../src/modules/payments/payment.provider';
 import { MockPaymentProvider } from '../src/modules/payments/mock.provider';
 import { PaymentProviderRegistry } from '../src/modules/payments/provider.registry';
 import { PaymentsService } from '../src/modules/payments/payments.service';
@@ -16,11 +16,12 @@ import { PaymentsService } from '../src/modules/payments/payments.service';
 
 const ENV = { ...process.env };
 
-/** Боевой провайдер: принимает любую подпись — проверяется не она. */
+/** Боевой провайдер: событие — тело как есть, проверяется не подпись. Криптовалюты нет. */
 const realProvider: PaymentProvider = {
   key: 'yookassa',
-  createDeposit: async (i) => ({ providerRef: i.providerRef, url: 'https://pay.example/x' }),
-  verifyWebhook: (p) => ({ providerRef: p.providerRef, status: p.status }),
+  methods: ['sbp', 'card'],
+  createDeposit: vi.fn(async (i) => ({ providerRef: i.providerRef, url: 'https://pay.example/x', redirect: true, externalId: 'ext-1' })),
+  parseWebhook: async (b) => b as WebhookEvent | 'ignore',
 };
 
 function setup(payment: Record<string, unknown>, order?: Record<string, unknown>) {
@@ -38,6 +39,7 @@ function setup(payment: Record<string, unknown>, order?: Record<string, unknown>
       }),
     },
     order: { findUnique: vi.fn(async () => order ?? null) },
+    user: { findUnique: vi.fn(async () => ({ email: 'buyer@e.test' })) },
   };
   prisma.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma));
   const orders = {
@@ -144,5 +146,55 @@ describe('способ оплаты', () => {
     const legs = ledger.post.mock.calls[0]![0].legs;
     expect(legs.find((l) => l.account.kind === 'available')?.amount).toBe(100_000n);
     expect(legs.find((l) => l.account.kind === 'fees_payable')?.amount).toBe(4_400n);
+  });
+});
+
+describe('настоящий шлюз', () => {
+  const ORDER = { id: 'o1', buyerId: 'u1', amount: 100_000n, currency: 'RUB', status: 'created', publicNumber: 'GM-1' };
+
+  it('переход на страницу шлюза, номер платежа у шлюза сохраняется', async () => {
+    process.env.PAYMENT_PROVIDER = 'yookassa';
+    const { svc, state } = setup(BALANCE_TOPUP, ORDER);
+    const dep = await svc.createDeposit('o1', 'u1', 'sbp');
+    expect(dep).toMatchObject({ redirect: true, url: 'https://pay.example/x', amount: '100000' });
+    expect(realProvider.createDeposit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ description: 'Заказ GM-1 на GameMarket', returnUrl: expect.stringMatching(/\/orders\/o1\?paid=1$/) }),
+    );
+    expect(state.payment.externalId).toBe('ext-1');
+  });
+
+  it('способ, которого у шлюза нет, не принимается', async () => {
+    process.env.PAYMENT_PROVIDER = 'yookassa';
+    const { svc, state } = setup(BALANCE_TOPUP, ORDER);
+    await expect(svc.createDeposit('o1', 'u1', 'crypto')).rejects.toThrow(/недоступен/);
+    expect(state.created).toHaveLength(0);
+  });
+
+  it('шлюз не принял платёж — платёж помечен неудачным', async () => {
+    process.env.PAYMENT_PROVIDER = 'yookassa';
+    const { svc, state } = setup({ ...BALANCE_TOPUP }, ORDER);
+    vi.mocked(realProvider.createDeposit).mockRejectedValueOnce(new Error('шлюз упал'));
+    await expect(svc.createBalanceDeposit('u1', 50_000n, 'card')).rejects.toThrow('шлюз упал');
+    expect(state.payment.status).toBe('failed');
+  });
+
+  it('сумма от шлюза не совпала с платежом — деньги не проводятся', async () => {
+    process.env.PAYMENT_PROVIDER = 'yookassa';
+    const { svc, state, ledger } = setup(BALANCE_TOPUP);
+    await expect(
+      svc.handleWebhook('yookassa', { providerRef: 'ref-1', status: 'succeeded', amount: 100n, currency: 'RUB' }),
+    ).rejects.toThrow(/не совпадает/);
+    expect(state.payment.status).toBe('pending');
+    expect(ledger.post).not.toHaveBeenCalled();
+  });
+
+  it('совпала — проводится; событие «не про оплату» принимается без действий', async () => {
+    process.env.PAYMENT_PROVIDER = 'yookassa';
+    const { svc, state, ledger } = setup(BALANCE_TOPUP);
+    expect(await svc.handleWebhook('yookassa', 'ignore')).toMatchObject({ ignored: true });
+    expect(ledger.post).not.toHaveBeenCalled();
+    await svc.handleWebhook('yookassa', { providerRef: 'ref-1', status: 'succeeded', amount: 100_000_000n, currency: 'RUB' });
+    expect(state.payment.status).toBe('succeeded');
+    expect(ledger.post).toHaveBeenCalledTimes(1);
   });
 });

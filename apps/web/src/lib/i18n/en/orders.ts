@@ -265,4 +265,8 @@ export const ORDERS: Record<string, string> = {
   'Вопрос о лоте «{title}»': 'Question about the listing “{title}”',
   'Количество: {qty}.': 'Quantity: {qty}.',
   'Причина: {reason}': 'Reason: {reason}',
+  'Проверяем оплату — обычно это несколько секунд. Страница обновится сама.':
+    'Checking your payment — this usually takes a few seconds. The page will update by itself.',
+  'Банк ещё не подтвердил оплату. Если деньги списаны, заказ оплатится сам, как только подтверждение придёт. Если нет — выберите способ ниже и оплатите снова.':
+    'The bank hasn’t confirmed the payment yet. If the money was charged, the order will be paid as soon as the confirmation arrives. If not, choose a method below and pay again.',
 };

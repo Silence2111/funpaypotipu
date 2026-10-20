@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -12,12 +13,16 @@ import { chargeFor, depositToBalance, type GatewayMethodKey } from '@gamemarket/
 import { PRISMA } from '../../prisma/prisma.module';
 import { OrdersService } from '../orders/orders.service';
 import { LedgerService } from '../ledger/ledger.service';
-import { MockPaymentProvider } from './mock.provider';
+import { MockPaymentProvider, type MockWebhookPayload } from './mock.provider';
 import { PaymentProviderRegistry } from './provider.registry';
-import type { WebhookPayload } from './payment.provider';
+import type { DepositSession } from './payment.provider';
+
+const webUrl = () => (process.env.WEB_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly registry: PaymentProviderRegistry,
@@ -32,14 +37,18 @@ export class PaymentsService {
    */
   async createBalanceDeposit(userId: string, amount: bigint, method: GatewayMethodKey = 'sbp', currency = 'RUB') {
     if (amount <= 0n) throw new BadRequestException('Сумма должна быть положительной');
-    const { charge, surcharge } = chargeFor(amount, method);
-    const provider = this.registry.get(this.registry.defaultKey);
-    const providerRef = randomUUID();
-    await this.prisma.payment.create({
-      data: { userId, provider: provider.key, providerRef, amount: charge, surcharge, method, currency, status: 'pending' },
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    const session = await this.openDeposit({
+      userId,
+      orderId: null,
+      amount,
+      method,
+      currency,
+      description: 'Пополнение баланса GameMarket',
+      returnUrl: `${webUrl()}/cabinet?topup=1`,
+      customerEmail: user?.email ?? null,
     });
-    const session = await provider.createDeposit({ amount: charge, currency, orderId: '', providerRef, method });
-    return { providerRef, url: session.url, amount: charge.toString(), surcharge: surcharge.toString(), method };
+    return { ...session, method };
   }
 
   /**
@@ -47,45 +56,98 @@ export class PaymentsService {
    * плюс надбавку способа (карта +4.4%) — ту же, что на кнопке «Оплатить».
    */
   async createDeposit(orderId: string, userId: string, method: GatewayMethodKey = 'sbp') {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { buyer: { select: { email: true } } },
+    });
     if (!order) throw new NotFoundException('Заказ не найден');
     if (order.buyerId !== userId) throw new ForbiddenException('Это не ваш заказ');
     if (order.status !== 'created') throw new BadRequestException('Заказ уже оплачен или закрыт');
 
-    const { charge, surcharge } = chargeFor(order.amount, method);
-    const provider = this.registry.get(this.registry.defaultKey);
+    const session = await this.openDeposit({
+      userId,
+      orderId,
+      amount: order.amount,
+      method,
+      currency: order.currency,
+      description: `Заказ ${order.publicNumber} на GameMarket`,
+      // Со страницы шлюза — обратно на заказ: там видно, дошла ли оплата.
+      returnUrl: `${webUrl()}/orders/${orderId}?paid=1`,
+      customerEmail: order.buyer?.email ?? null,
+    });
+    return { orderId, ...session, method };
+  }
+
+  /**
+   * Платёж у шлюза: строка в базе до запроса (по ней придёт вебхук), потом
+   * сессия оплаты. Шлюз не принял — платёж помечается неудачным, а не висит.
+   */
+  private async openDeposit(p: {
+    userId: string;
+    orderId: string | null;
+    amount: bigint;
+    method: GatewayMethodKey;
+    currency: string;
+    description: string;
+    returnUrl: string;
+    customerEmail: string | null;
+  }) {
+    const provider = this.registry.current;
+    if (!provider.methods.includes(p.method)) {
+      throw new BadRequestException('Этот способ оплаты сейчас недоступен — выберите другой.');
+    }
+    const { charge, surcharge } = chargeFor(p.amount, p.method);
     const providerRef = randomUUID();
     await this.prisma.payment.create({
       data: {
-        userId,
-        orderId,
+        userId: p.userId,
+        orderId: p.orderId,
         provider: provider.key,
         providerRef,
         amount: charge,
         surcharge,
-        method,
-        currency: order.currency,
+        method: p.method,
+        currency: p.currency,
         status: 'pending',
       },
     });
-
-    const session = await provider.createDeposit({
-      amount: charge,
-      currency: order.currency,
-      orderId,
+    let session: DepositSession;
+    try {
+      session = await provider.createDeposit({
+        amount: charge,
+        currency: p.currency,
+        orderId: p.orderId ?? '',
+        providerRef,
+        method: p.method,
+        description: p.description,
+        returnUrl: p.returnUrl,
+        customerEmail: p.customerEmail,
+      });
+    } catch (e) {
+      await this.prisma.payment.update({ where: { providerRef }, data: { status: 'failed' } });
+      throw e;
+    }
+    if (session.externalId) {
+      await this.prisma.payment.update({ where: { providerRef }, data: { externalId: session.externalId } });
+    }
+    return {
       providerRef,
-      method,
-    });
-    return { orderId, providerRef, url: session.url, amount: charge.toString(), surcharge: surcharge.toString(), method };
+      url: session.url,
+      redirect: session.redirect,
+      amount: charge.toString(),
+      surcharge: surcharge.toString(),
+    };
   }
 
   /**
    * Обработка вебхука провайдера: верификация подписи → идемпотентное проведение.
    * Так реальный шлюз уведомляет об оплате (docs/04).
    */
-  async handleWebhook(providerKey: string, payload: WebhookPayload) {
+  async handleWebhook(providerKey: string, body: unknown) {
     const provider = this.registry.get(providerKey);
-    const event = provider.verifyWebhook(payload);
+    const event = await provider.parseWebhook(body);
+    // Событие не про оплату или платёж ещё идёт — шлюзу «принято», без действий.
+    if (event === 'ignore') return { ok: true, ignored: true };
     if (!event) throw new UnauthorizedException('Невалидная подпись вебхука');
 
     const payment = await this.prisma.payment.findUnique({
@@ -100,6 +162,14 @@ export class PaymentsService {
       throw new UnauthorizedException('Платёж создан другим провайдером');
     }
     if (payment.status === 'succeeded') return { ok: true, alreadyProcessed: true };
+    // Сумму и валюту шлюз сообщает свои — они обязаны совпасть с платежом в
+    // базе: иначе оплата 1 ₽ закрыла бы заказ на 10 000 ₽.
+    if (event.amount !== undefined && (event.amount !== payment.amount || event.currency !== payment.currency)) {
+      this.logger.error(
+        `Платёж ${payment.providerRef}: шлюз сообщил ${event.amount} ${event.currency}, ожидалось ${payment.amount} ${payment.currency}`,
+      );
+      throw new BadRequestException('Сумма платежа не совпадает с заказом');
+    }
 
     if (event.status === 'failed') {
       await this.prisma.payment.update({ where: { providerRef: event.providerRef }, data: { status: 'failed' } });
@@ -142,6 +212,6 @@ export class PaymentsService {
   async devConfirm(providerRef: string) {
     if (this.registry.defaultKey !== this.mock.key) throw new NotFoundException();
     const signature = this.mock.sign(providerRef, 'succeeded');
-    return this.handleWebhook('mock', { providerRef, status: 'succeeded', signature });
+    return this.handleWebhook('mock', { providerRef, status: 'succeeded', signature } satisfies MockWebhookPayload);
   }
 }

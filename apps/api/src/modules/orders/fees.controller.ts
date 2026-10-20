@@ -4,6 +4,7 @@ import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import {
+  GATEWAY_METHOD_KEYS,
   SELLER_LEVELS,
   WITHDRAWAL_METHODS,
   cashbackPct,
@@ -12,6 +13,7 @@ import { FeesService } from './fees.service';
 import { AUTO_GOODS_CONFIRM_MS } from './fulfillment.service';
 import { PROMO_DAY_PRICE } from '../listings/listings.service';
 import { KYC_REQUIRED_ABOVE, NEWBIE_HOLD_DAYS } from '../payouts/payouts.service';
+import { YOOKASSA_METHODS } from '../payments/yookassa.provider';
 
 const LEVEL_DISCOUNTS = Object.values(SELLER_LEVELS).map((l) => l.feeDiscountBps);
 
@@ -62,6 +64,9 @@ export class FeesController {
       // Заглушка платежей подтверждает оплату, не приняв денег. Витрина
       // обязана сказать об этом у кнопки «Купить», а не молча «продать».
       paymentsDemo: (process.env.PAYMENT_PROVIDER ?? 'mock') === 'mock',
+      // Способы оплаты, которые принимает шлюз: у ЮKassa нет криптовалюты —
+      // витрина не предлагает то, что не пройдёт.
+      payMethods: process.env.PAYMENT_PROVIDER === 'yookassa' ? YOOKASSA_METHODS : GATEWAY_METHOD_KEYS,
       // Цена суток продвижения лота, копейки строкой.
       promoDayPrice: PROMO_DAY_PRICE.toString(),
       // Курсы для показа «≈ 10,84 $» рядом с ценой; оплата — в рублях.

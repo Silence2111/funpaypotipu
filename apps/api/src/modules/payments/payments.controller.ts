@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { GATEWAY_METHOD_KEYS, type GatewayMethodKey } from '@gamemarket/shared';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
@@ -14,11 +14,6 @@ const topupSchema = z.object({
   amount: z.union([z.string(), z.number()]).transform((v) => String(v))
     .refine((v) => /^\d+$/.test(v) && BigInt(v) > 0n, 'ожидается положительное число минорных единиц'),
   method: methodSchema,
-});
-const webhookSchema = z.object({
-  providerRef: z.string().min(1),
-  status: z.enum(['succeeded', 'failed']),
-  signature: z.string().min(1),
 });
 
 @Controller('payments')
@@ -48,13 +43,14 @@ export class PaymentsController {
     return this.payments.createBalanceDeposit(user.userId, BigInt(body.amount), body.method);
   }
 
-  /** Подписанный вебхук провайдера (production-путь). Подпись проверяется провайдером. */
+  /**
+   * Вебхук провайдера (production-путь). Тело у каждого шлюза своё — его
+   * разбирает и проверяет провайдер: заглушка — по HMAC-подписи, ЮKassa —
+   * запросом статуса платежа в своём API. Ответ 200 — «принято, не повторять».
+   */
   @Post('webhook/:provider')
-  webhook(
-    @Param('provider') provider: string,
-    @Body(new ZodValidationPipe(webhookSchema))
-    body: { providerRef: string; status: 'succeeded' | 'failed'; signature: string },
-  ) {
+  @HttpCode(200)
+  webhook(@Param('provider') provider: string, @Body() body: unknown) {
     return this.payments.handleWebhook(provider, body);
   }
 

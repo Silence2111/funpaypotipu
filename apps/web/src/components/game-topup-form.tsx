@@ -127,7 +127,8 @@ export function GameTopupForm({
       return;
     }
     try {
-      await payOrder(orderId, method);
+      // Шлюз с переходом — дальше страница оплаты, вернёт на заказ сам.
+      if ((await payOrder(orderId, method)) === 'redirect') return;
       router.push(`/orders/${orderId}`);
     } catch {
       // Заказ уже создан: оплатить его другим способом можно на его странице.

@@ -10,6 +10,7 @@ import { formatListingPrice, formatPrice } from '@/lib/format';
 import { TopUpForm } from '@/components/topup-form';
 import { PayoutForm } from '@/components/payout-form';
 import { WalletTransactions } from '@/components/wallet-transactions';
+import { loadPublicPricing } from '@/lib/pricing';
 import { BumpButton } from '@/components/bump-button';
 import { SellerDashboard } from '@/components/seller-dashboard';
 import { CabinetNav } from '@/components/cabinet-nav';
@@ -35,6 +36,10 @@ export default function CabinetPage() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [listings, setListings] = useState<ListingRow[]>([]);
   const [loading, setLoading] = useState(true);
+  // Оплата демонстрационная — подсказка у пополнения; с ЮKassa её нет.
+  const [demo, setDemo] = useState(false);
+  // Вернулись со страницы ЮKassa: баланс пополнится, когда придёт её подтверждение.
+  const [topupBack, setTopupBack] = useState(false);
 
   useEffect(() => {
     if (!getToken()) {
@@ -52,6 +57,18 @@ export default function CabinetPage() {
       setLoading(false);
     });
   }, [router]);
+
+  useEffect(() => {
+    void loadPublicPricing().then((p) => setDemo(!!p?.paymentsDemo));
+    if (new URLSearchParams(window.location.search).get('topup') !== '1') return;
+    setTopupBack(true);
+    const timer = setInterval(() => void apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {}), 3000);
+    const stop = setTimeout(() => clearInterval(timer), 60_000);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(stop);
+    };
+  }, []);
 
   const user = getUser();
   if (loading)
@@ -147,8 +164,15 @@ export default function CabinetPage() {
             </div>
           </div>
         </div>
+        {topupBack && (
+          <div className="alert" role="status" style={{ marginTop: 14 }}>
+            {t('Пополнение зачислится, как только банк подтвердит оплату, — обычно за несколько секунд.')}
+          </div>
+        )}
         <TopUpForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
-        <p className="hint" style={{ marginTop: 6 }}>{t('На демо-стенде пополнение проходит без списания денег.')}</p>
+        {demo && (
+          <p className="hint" style={{ marginTop: 6 }}>{t('На демо-стенде пополнение проходит без списания денег.')}</p>
+        )}
         <hr className="divider" style={{ margin: '20px 0' }} />
         <div className="label">{t('Вывод средств')}</div>
         <PayoutForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />

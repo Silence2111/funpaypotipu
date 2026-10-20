@@ -160,6 +160,15 @@ export const EN_API: Phrasebook = {
   'Недопустимый переход {from} → {to}': 'Invalid status change {from} → {to}',
 
   // Оплата
+  'Этот способ оплаты сейчас недоступен — выберите другой.':
+    'This payment method isn’t available right now — choose another one.',
+  'Платёжный шлюз не ответил. Попробуйте ещё раз.':
+    'The payment gateway didn’t respond. Try again.',
+  'Платёжный шлюз не принял платёж. Попробуйте ещё раз или выберите другой способ.':
+    'The payment gateway didn’t accept the payment. Try again or choose another method.',
+  'Для чека об оплате нужна почта: добавьте её в настройках профиля.':
+    'A receipt needs an email address: add one in your profile settings.',
+  'Сумма платежа не совпадает с заказом': 'The payment amount doesn’t match the order',
   'ожидается положительное число минорных единиц':
     'expected a positive whole number of minor units',
   'Сумма должна быть положительной': 'The amount must be positive',

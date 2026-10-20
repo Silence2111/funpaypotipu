@@ -45,14 +45,15 @@ const listEn = (words: string[]) =>
     ? `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
     : (words[0] ?? '');
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const methodsWhere = (paidOnly: boolean) =>
+/** Способы с надбавкой или без — только те, что принимает шлюз: у ЮKassa нет криптовалюты. */
+const methodsWhere = (paidOnly: boolean, c: Terms) =>
   listEn(
-    PAYMENT_METHODS.filter((m) => m.feePct > 0 === paidOnly).map(
-      (m) => METHOD_WORDS[m.key] ?? m.label,
-    ),
+    PAYMENT_METHODS.filter(
+      (m) =>
+        m.feePct > 0 === paidOnly &&
+        (m.key === 'balance' || !c.payMethods || c.payMethods.includes(m.key)),
+    ).map((m) => METHOD_WORDS[m.key] ?? m.label),
   );
-const free = methodsWhere(false);
-const paid = methodsWhere(true);
 const surcharge = pct(PAYMENT_METHODS.find((m) => m.feePct > 0)?.feePct ?? 0);
 const feeRange = (c: Terms) =>
   c.feeMin === c.feeMax ? pct(c.feeMin) : `${pct(c.feeMin).replace('%', '')}–${pct(c.feeMax)}`;
@@ -74,8 +75,8 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           listing page.
         </li>
         <li>
-          <b>Pay.</b> {cap(free)} — no surcharge; {paid} — plus {surcharge} to the payment system.
-          The total for each method is shown before you pay.
+          <b>Pay.</b> {cap(methodsWhere(false, c))} — no surcharge; {methodsWhere(true, c)} — plus{' '}
+          {surcharge} to the payment system. The total for each method is shown before you pay.
         </li>
         <li>
           <b>Get the goods.</b> Keys, top-ups and listings marked “Delivered right after payment”
@@ -288,9 +289,9 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
     <>
       <h2>Payment methods</h2>
       <ul>
-        <li>{cap(free)} — no surcharge;</li>
+        <li>{cap(methodsWhere(false, c))} — no surcharge;</li>
         <li>
-          {paid} — plus {surcharge}.
+          {methodsWhere(true, c)} — plus {surcharge}.
         </li>
       </ul>
       <p>

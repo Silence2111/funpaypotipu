@@ -594,6 +594,8 @@ model Payment {
   orderId     String?       @map("order_id") @db.Uuid
   provider    String
   providerRef String        @unique @map("provider_ref")
+  // Номер платежа у шлюза (у ЮKassa — id платежа): сверка и поиск в его кабинете.
+  externalId  String?       @map("external_id")
   // Сколько шлюз берёт с покупателя: сумма заказа или пополнения плюс surcharge.
   amount      BigInt
   currency    String        @db.Char(3)

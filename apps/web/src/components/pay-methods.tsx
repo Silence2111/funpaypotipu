@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 // Подпуть, а не корень пакета: корень тянет в браузер zod и все контракты.
 import { chargeFor, PAYMENT_METHODS } from '@gamemarket/shared/payment';
 import { apiFetch, getToken } from '@/lib/session';
+import { loadPublicPricing } from '@/lib/pricing';
 import { formatPrice } from '@/lib/format';
 import { useT } from '@/lib/i18n/client';
 import { RU, msg, type T } from '@/lib/i18n/lang';
@@ -60,6 +61,13 @@ export function PayMethods({
 }) {
   const t = useT();
   const [balance, setBalance] = useState<bigint | null>(null);
+  // Способы, которые принимает шлюз: у ЮKassa нет криптовалюты. Пока не
+  // знаем — показываем все, как раньше.
+  const [gateway, setGateway] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    void loadPublicPricing().then((p) => setGateway(p?.payMethods ?? null));
+  }, []);
 
   useEffect(() => {
     if (!withBalance || !getToken()) return;
@@ -74,7 +82,13 @@ export function PayMethods({
     if (short && value === 'balance') onChange('sbp');
   }, [short, value, onChange]);
 
-  const rows = ROWS.filter((r) => withBalance || r.key !== 'balance').map((r) => {
+  const offered = (key: PayMethod) => key === 'balance' || !gateway || gateway.includes(key);
+  // Способ, которого у шлюза нет, не остаётся выбранным.
+  useEffect(() => {
+    if (gateway && value !== 'balance' && !gateway.includes(value)) onChange('sbp');
+  }, [gateway, value, onChange]);
+
+  const rows = ROWS.filter((r) => (withBalance || r.key !== 'balance') && offered(r.key)).map((r) => {
     const fee = PAYMENT_METHODS.find((m) => m.key === r.key)?.feePct ?? 0;
     return {
       ...r,
