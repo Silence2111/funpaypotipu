@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
@@ -25,6 +25,8 @@ const pushSchema = z.object({
     auth: z.string().regex(/^[A-Za-z0-9_-]{22,24}={0,2}$/, 'Неверный ключ подписки'),
   }),
 });
+
+const localeSchema = z.object({ locale: z.enum(['ru', 'en']) });
 
 const profileSchema = z.object({
   displayName: z.string().trim().min(2, 'Имя — от 2 символов').max(40, 'Имя — до 40 символов').optional(),
@@ -68,6 +70,12 @@ export class AccountController {
   @Delete('avatar')
   removeAvatar(@CurrentUser() user: AuthUser) {
     return this.account.removeAvatar(user.userId);
+  }
+
+  /** Язык писем, Telegram и пушей — сайт присылает его при смене языка. */
+  @Put('locale')
+  setLocale(@CurrentUser() user: AuthUser, @Body(new ZodValidationPipe(localeSchema)) body: { locale: 'ru' | 'en' }) {
+    return this.account.setLocale(user.userId, body.locale);
   }
 
   // ── Уведомления ──

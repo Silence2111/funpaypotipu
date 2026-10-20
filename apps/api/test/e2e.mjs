@@ -819,6 +819,26 @@ async function scenarioLanguage(rnd) {
   check('Поля проверки переведены, lang: en', fields.status === 400 && fields.body.subject?.[0] === 'Subject must be at least 3 characters' && fields.body.lang === 'en', JSON.stringify(fields.body));
   const ruFields = await ticket({ 'Accept-Language': 'ru' });
   check('Русский сайт — поля проверки по-русски', ruFields.body.subject?.[0] === 'Тема — от 3 символов' && !('lang' in ruFields.body));
+
+  // Язык писем, Telegram и пушей: запоминается при входе и в переключателе.
+  const settings = async () => (await j('/account/notifications', { token: user.token })).body.locale;
+  check('Новый аккаунт без языка — письма по-русски', (await settings()) === 'ru');
+  const enLogin = await j('/auth/login', {
+    method: 'POST',
+    headers: { 'Accept-Language': 'en' },
+    body: JSON.stringify({ email: `lng${rnd}@e2e.local`, password: 'password123' }),
+  });
+  check('Вход с английского сайта — письма по-английски', enLogin.status === 200 && (await settings()) === 'en');
+  const bad = await j('/account/locale', { method: 'PUT', token: user.token, body: JSON.stringify({ locale: 'de' }) });
+  const back = await j('/account/locale', { method: 'PUT', token: user.token, body: JSON.stringify({ locale: 'ru' }) });
+  check('Переключатель меняет язык, неизвестный не принимается', bad.status === 400 && back.status === 200 && (await settings()) === 'ru', `${bad.status}/${back.status}`);
+  const refreshed = await j('/auth/register', {
+    method: 'POST',
+    headers: { 'Accept-Language': 'en-GB,en;q=0.9' },
+    body: JSON.stringify({ email: `lng2${rnd}@e2e.local`, password: 'password123', username: `lng2${rnd}` }),
+  });
+  const enUser = (await j('/account/notifications', { token: refreshed.body.accessToken })).body.locale;
+  check('Регистрация с английского сайта — профиль на английском', refreshed.status === 201 && enUser === 'en', `${refreshed.status} ${enUser}`);
 }
 
 async function scenarioRates(rnd) {

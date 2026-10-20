@@ -2,12 +2,19 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { PrismaClient } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
+import { requestLang, type Lang } from '../../i18n/lang';
+import { langOf, say } from '../../i18n/texts';
 
 const LINK_TTL_SEC = 15 * 60;
 
 /** Входящее обновление Bot API — только то, что нужно для привязки. */
 export interface TelegramUpdate {
-  message?: { text?: string; chat?: { id: number | string; type?: string } };
+  message?: {
+    text?: string;
+    chat?: { id: number | string; type?: string };
+    /** Язык приложения Telegram: им бот отвечает тому, кто ещё не привязан. */
+    from?: { language_code?: string };
+  };
 }
 
 /**
@@ -87,36 +94,53 @@ export class TelegramService {
     if (!chat || !text || (chat.type && chat.type !== 'private')) return;
     const chatId = String(chat.id);
     const [cmd, arg] = text.split(/\s+/, 2);
+    // Привязанному — на языке профиля, остальным — на языке Telegram.
+    const holder = await this.prisma.user.findUnique({ where: { telegramId: chatId }, select: { id: true, locale: true } });
+    const lang = holder ? langOf(holder.locale) : requestLang(update.message?.from?.language_code);
 
-    if (cmd === '/start' && arg) return this.link(chatId, arg);
+    if (cmd === '/start' && arg) return this.link(chatId, arg, holder?.id ?? null, lang);
     if (cmd === '/stop') {
       await this.prisma.user.updateMany({ where: { telegramId: chatId }, data: { telegramId: null } });
-      await this.send(chatId, 'Уведомления отключены. Подключить снова — в настройках профиля на сайте.');
+      await this.send(chatId, say(lang, 'Уведомления отключены. Подключить снова — в настройках профиля на сайте.'));
       return;
     }
     await this.send(
       chatId,
-      'Это бот уведомлений GameMarket. Чтобы подключить его, откройте на сайте Профиль → Уведомления и нажмите «Подключить Telegram».',
+      say(
+        lang,
+        'Это бот уведомлений GameMarket. Чтобы подключить его, откройте на сайте Профиль → Уведомления и нажмите «Подключить Telegram».',
+      ),
     );
   }
 
-  private async link(chatId: string, code: string): Promise<void> {
+  private async link(chatId: string, code: string, holderId: string | null, lang: Lang): Promise<void> {
     const userId = this.parseLinkCode(code);
     if (!userId) {
-      await this.send(chatId, 'Ссылка устарела. Нажмите «Подключить Telegram» в настройках на сайте ещё раз.');
+      await this.send(chatId, say(lang, 'Ссылка устарела. Нажмите «Подключить Telegram» в настройках на сайте ещё раз.'));
       return;
     }
-    const holder = await this.prisma.user.findUnique({ where: { telegramId: chatId }, select: { id: true } });
-    if (holder && holder.id !== userId) {
-      await this.send(chatId, 'Этот Telegram уже подключён к другому аккаунту GameMarket. Отключите его там — командой /stop или в настройках.');
+    if (holderId && holderId !== userId) {
+      await this.send(
+        chatId,
+        say(
+          lang,
+          'Этот Telegram уже подключён к другому аккаунту GameMarket. Отключите его там — командой /stop или в настройках.',
+        ),
+      );
       return;
     }
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true, locale: true } });
     if (!user || user.status === 'banned') {
-      await this.send(chatId, 'Аккаунт не найден.');
+      await this.send(chatId, say(lang, 'Аккаунт не найден.'));
       return;
     }
     await this.prisma.user.update({ where: { id: userId }, data: { telegramId: chatId } });
-    await this.send(chatId, 'Готово: уведомления GameMarket будут приходить сюда. Отключить — командой /stop или в настройках на сайте.');
+    await this.send(
+      chatId,
+      say(
+        langOf(user.locale),
+        'Готово: уведомления GameMarket будут приходить сюда. Отключить — командой /stop или в настройках на сайте.',
+      ),
+    );
   }
 }

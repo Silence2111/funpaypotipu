@@ -139,6 +139,8 @@ export const ACCOUNT: Record<string, string> = {
   'Не удалось отключить Telegram.': 'Couldn’t disconnect Telegram.',
   'Не удалось включить пуши на этом устройстве.': 'Couldn’t turn on push for this device.',
   'Не удалось выключить пуши.': 'Couldn’t turn off push.',
+  'Письма, Telegram и пуши приходят на языке: {lang}. Он меняется вместе с языком сайта.':
+    'Emails, Telegram and push notifications arrive in: {lang}. It changes along with the site language.',
   'На сайте — всегда. Письмом, в Telegram и пушем — по вашему выбору.':
     'On the site — always. By email, Telegram and push — as you choose.',
   'Бот на стенде не подключён': 'The bot isn’t connected on this site',

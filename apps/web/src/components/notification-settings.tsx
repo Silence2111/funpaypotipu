@@ -7,7 +7,7 @@ import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { disablePush, enablePush, pushHere, type PushHere } from '@/lib/push';
 import { useT } from '@/lib/i18n/client';
-import { msg, type T } from '@/lib/i18n/lang';
+import { LANG_NAMES, isLang, msg, type T } from '@/lib/i18n/lang';
 
 interface Settings {
   prefs: Record<NotifyChannel, Record<string, boolean>>;
@@ -15,6 +15,8 @@ interface Settings {
   email: { address: string | null };
   telegram: { available: boolean; linked: boolean; bot: string | null };
   push: { available: boolean; publicKey: string | null; devices: number };
+  /** Язык писем, Telegram и пушей. */
+  locale?: string;
 }
 
 const CHANNELS: Array<{ key: NotifyChannel; label: string }> = [
@@ -67,6 +69,16 @@ export function NotificationSettings() {
       .then(setHere)
       .catch(() => setHere('unsupported'));
   }, [load, t]);
+
+  // Язык сменили переключателем — строка о языке писем меняется сразу.
+  useEffect(() => {
+    const onLocale = (e: Event) => {
+      const locale = (e as CustomEvent<string>).detail;
+      setS((prev) => (prev ? { ...prev, locale } : prev));
+    };
+    window.addEventListener('gm-locale', onLocale);
+    return () => window.removeEventListener('gm-locale', onLocale);
+  }, []);
 
   // После перехода в Telegram ждём, пока бот привяжет чат: страница узнаёт сама.
   useEffect(() => {
@@ -151,6 +163,13 @@ export function NotificationSettings() {
       <p className="muted" style={{ margin: '0 0 12px', fontSize: 14 }}>
         {t('На сайте — всегда. Письмом, в Telegram и пушем — по вашему выбору.')}
       </p>
+      {s && isLang(s.locale) && (
+        <p className="faint" style={{ margin: '-4px 0 12px', fontSize: 13 }}>
+          {t('Письма, Telegram и пуши приходят на языке: {lang}. Он меняется вместе с языком сайта.', {
+            lang: LANG_NAMES[s.locale],
+          })}
+        </p>
+      )}
       {err && <p className="field-error" role="alert">{err}</p>}
       {!s ? (
         <div className="skeleton" style={{ height: 160 }} aria-busy="true" />

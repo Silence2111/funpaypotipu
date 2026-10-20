@@ -15,9 +15,12 @@ export interface GameHit {
   section?: GameIndexEntry['categories'][number];
 }
 
+/** Перевод названия игры или раздела — на английском сайте ищем и по нему. */
+type Translate = (s: string) => string;
+
 /** Насколько название или синоним похожи на запрос: 0 — не похожи. */
-function score(game: GameIndexEntry, q: string): number {
-  const names = [norm(game.title), ...game.aliases.map(norm)];
+function score(game: GameIndexEntry, q: string, tr?: Translate): number {
+  const names = [norm(game.title), ...game.aliases.map(norm), ...(tr ? [norm(tr(game.title))] : [])];
   if (names.includes(q)) return 100;
   if (names.some((n) => n.startsWith(q))) return 80;
   if (names.some((n) => n.split(' ').some((w) => w.startsWith(q)))) return 60;
@@ -29,15 +32,16 @@ function score(game: GameIndexEntry, q: string): number {
  * Поиск по играм, как «Поиск по 885 играм» у FunPay: по названию и по тому,
  * как игру называют игроки («кс», «вов»). Если одно из слов — раздел игры,
  * подсказка ведёт сразу в него: «аккаунт кс» → CS2, «Аккаунты».
+ * С переводом `tr` ищет и по английским названиям: «gold wow», «Mir Tankov».
  */
-export function searchGames(index: GameIndexEntry[], query: string, limit = 8): GameHit[] {
+export function searchGames(index: GameIndexEntry[], query: string, limit = 8, tr?: Translate): GameHit[] {
   const q = norm(query);
   if (!q) return [];
   const words = q.split(' ');
   const hits: Array<GameHit & { score: number }> = [];
 
   for (const game of index) {
-    const whole = score(game, q);
+    const whole = score(game, q, tr);
     if (whole > 0) {
       hits.push({ game, score: whole });
       continue;
@@ -46,10 +50,16 @@ export function searchGames(index: GameIndexEntry[], query: string, limit = 8): 
     // Одно слово — раздел, остальные — игра.
     for (const [i, w] of words.entries()) {
       if (w.length < 3) continue;
-      const section = game.categories.find((c) => norm(c.title).split(' ').some((t) => t.startsWith(w)));
+      const section = game.categories.find((c) =>
+        [c.title, ...(tr ? [tr(c.title)] : [])].some((title) =>
+          norm(title)
+            .split(' ')
+            .some((part) => part.startsWith(w)),
+        ),
+      );
       if (!section) continue;
       const rest = words.filter((_, j) => j !== i).join(' ');
-      const s = score(game, rest);
+      const s = score(game, rest, tr);
       if (s > 0) {
         hits.push({ game, section, score: s - 1 });
         break;

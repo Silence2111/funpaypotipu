@@ -67,8 +67,9 @@ export class AuthController {
   @HttpCode(200)
   async forgot(
     @Body(new ZodValidationPipe(z.object({ email: z.string().email() }))) body: { email: string },
+    @Req() req: Request,
   ) {
-    await this.auth.requestPasswordReset(body.email);
+    await this.auth.requestPasswordReset(body.email, ctxOf(req).lang);
     return { ok: true };
   }
 

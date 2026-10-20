@@ -1,17 +1,22 @@
 import type { MetadataRoute } from 'next';
+import { getT } from '@/lib/i18n/server';
 
 /**
  * Сайт ставится на телефон как приложение: «На экран „Домой“» открывает его
  * без адресной строки, со своей иконкой. Ярлыки — частые места продавца и
- * покупателя: сообщения, заказы, лоты.
+ * покупателя: сообщения, заказы, лоты. Язык — как у сайта: браузер
+ * запрашивает манифест со своими языками (cookie выбора может не прийти).
  */
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const t = await getT();
   return {
     id: '/',
-    name: 'GameMarket — игровые ценности с защитой сделки',
+    name: t('GameMarket — игровые ценности с защитой сделки'),
     short_name: 'GameMarket',
-    description: 'Аккаунты, валюта, предметы, ключи и пополнения от продавцов. Деньги у площадки, пока вы не подтвердите получение.',
-    lang: 'ru',
+    description: t(
+      'Аккаунты, валюта, предметы, ключи и пополнения от продавцов. Деньги у площадки, пока вы не подтвердите получение.',
+    ),
+    lang: t.lang,
     start_url: '/',
     scope: '/',
     display: 'standalone',
@@ -24,9 +29,9 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: '/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
     shortcuts: [
-      { name: 'Сообщения', url: '/chat' },
-      { name: 'Заказы', url: '/cabinet/orders' },
-      { name: 'Мои лоты', url: '/cabinet/lots' },
+      { name: t('Сообщения'), url: '/chat' },
+      { name: t('Заказы'), url: '/cabinet/orders' },
+      { name: t('Мои лоты'), url: '/cabinet/lots' },
     ],
   };
 }

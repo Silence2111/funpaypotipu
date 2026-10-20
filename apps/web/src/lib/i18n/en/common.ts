@@ -18,6 +18,10 @@ export const COMMON: Record<string, string> = {
   'Примерно, по курсу площадки. Оплата — в рублях.':
     'Approximate, at the marketplace rate. Payment is in rubles.',
   'Установить приложение': 'Install app',
+  'GameMarket — игровые ценности с защитой сделки':
+    'GameMarket — game goods with escrow protection',
+  'Аккаунты, валюта, предметы, ключи и пополнения от продавцов. Деньги у площадки, пока вы не подтвердите получение.':
+    'Accounts, currency, items, keys and top-ups from sellers. The marketplace holds the money until you confirm receipt.',
   'Язык сайта': 'Site language',
   Каталог: 'Catalog',
   Продать: 'Sell',

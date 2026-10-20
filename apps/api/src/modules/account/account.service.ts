@@ -54,14 +54,22 @@ export class AccountService {
 
   // ── Уведомления ──
 
+  /** Язык писем, Telegram и пушей. */
+  async setLocale(userId: string, locale: 'ru' | 'en') {
+    await this.prisma.user.update({ where: { id: userId }, data: { locale } });
+    return { locale };
+  }
+
   async notifications(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { notifyPrefs: true, telegramId: true, email: true },
+      select: { notifyPrefs: true, telegramId: true, email: true, locale: true },
     });
     if (!user) throw new NotFoundException('Пользователь не найден');
     return {
       prefs: notifyPrefs(user.notifyPrefs as NotifyPrefs | null),
+      // Язык писем, Telegram и пушей — показать рядом с каналами.
+      locale: user.locale,
       locked: LOCKED_NOTIFY,
       email: { address: user.email },
       telegram: { available: this.telegram.enabled, linked: !!user.telegramId, bot: this.telegram.botUsername || null },

@@ -193,6 +193,9 @@ model User {
   telegramId    String?    @unique @map("telegram_id")
   // Каналы уведомлений по группам (shared/notify.ts); null — по умолчанию.
   notifyPrefs   Json?      @map("notify_prefs")
+  // Язык писем, Telegram и пушей: ru или en — последний язык сайта при входе
+  // или выбранный в переключателе.
+  locale        String     @default("ru") @db.VarChar(5)
   status        UserStatus @default(active)
   lastLoginAt   DateTime?  @map("last_login_at")
   createdAt     DateTime   @default(now()) @map("created_at")

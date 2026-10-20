@@ -94,6 +94,26 @@
       <button type="button" onclick="location.reload()">Обновить</button>
     </main>
     <script>
+      // Язык — как у сайта: выбранный переключателем (cookie gm_lang), иначе по
+      // языкам браузера: русский, если он среди них (или украинский,
+      // белорусский, казахский), иначе английский.
+      (function () {
+        var chosen = document.cookie.match(/(?:^|; )gm_lang=(ru|en)/);
+        var langs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+        var en = chosen
+          ? chosen[1] === 'en'
+          : !langs.some(function (l) {
+              return /^(ru|uk|be|kk)\b/i.test(l);
+            });
+        if (!en) return;
+        document.documentElement.lang = 'en';
+        document.title = 'No connection · GameMarket';
+        document.querySelector('h1').textContent = 'No connection';
+        document.querySelector('p').textContent =
+          'Check your internet. The page will open by itself once you’re back online. Money in your deals is safe — the marketplace holds it.';
+        document.querySelector('button').textContent = 'Reload';
+      })();
+
       // Связь вернулась или сайт снова отвечает — открываем страницу, за которой пришли.
       const retry = () =>
         fetch(location.href, { method: 'HEAD', cache: 'no-store' })

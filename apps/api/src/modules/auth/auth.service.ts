@@ -16,11 +16,15 @@ import { MailService } from '../mail/mail.service';
 import { TokenService } from './token.service';
 import { TwoFactorService } from './twofactor.service';
 import { AttemptLimiter } from './attempts';
+import { langOf, say } from '../../i18n/texts';
+import type { Lang } from '../../i18n/lang';
 
 export interface RequestCtx {
   userAgent?: string;
   ip?: string;
   fingerprint?: string;
+  /** Язык сайта из Accept-Language: им пишутся письма и уведомления. */
+  lang?: Lang;
 }
 
 export interface IssuedAuth {
@@ -57,13 +61,14 @@ export class AuthService {
       data: {
         email: input.email,
         passwordHash,
+        locale: ctx.lang ?? 'ru',
         profile: { create: { username: input.username, displayName: input.username } },
       },
       include: { profile: true },
     });
 
     if (user.email) {
-      await this.sendVerification(user.id, user.email, user.profile!.username);
+      await this.sendVerification(user.id, user.email, user.profile!.username, ctx.lang ?? 'ru');
     }
 
     return this.issue(user.id, user.email, user.profile!.username, ctx);
@@ -73,13 +78,13 @@ export class AuthService {
     return process.env.WEB_URL ?? 'http://localhost:3000';
   }
 
-  private async sendVerification(userId: string, email: string, username: string) {
+  private async sendVerification(userId: string, email: string, username: string, lang: Lang) {
     const token = this.tokens.signPurpose(userId, 'email_verify', 3 * 24 * 3600);
     const link = `${this.webUrl()}/verify-email?token=${encodeURIComponent(token)}`;
     await this.mail.send(
       email,
-      'Подтвердите e-mail — GameMarket',
-      `Здравствуйте, ${username}! Подтвердите e-mail: ${link}\nПокупки защищены эскроу.`,
+      say(lang, 'Подтвердите e-mail — GameMarket'),
+      say(lang, 'Здравствуйте, {name}. Подтвердите e-mail: {link}\nПокупки защищены эскроу.', { name: username, link }),
     );
   }
 
@@ -93,16 +98,21 @@ export class AuthService {
     await this.prisma.user.update({ where: { id: userId }, data: { emailVerified: new Date() } });
   }
 
-  /** Запрос сброса пароля. Всегда «успех» — без утечки существования e-mail. */
-  async requestPasswordReset(email: string): Promise<void> {
+  /**
+   * Запрос сброса пароля. Всегда «успех» — без утечки существования e-mail.
+   * Письмо — на языке сайта, с которого просят сброс: человек сейчас там.
+   */
+  async requestPasswordReset(email: string, lang: Lang = 'ru'): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { email }, include: { profile: true } });
     if (user?.email) {
       const token = this.tokens.signPurpose(user.id, 'pwd_reset', 3600);
       const link = `${this.webUrl()}/reset?token=${encodeURIComponent(token)}`;
       await this.mail.send(
         user.email,
-        'Восстановление пароля — GameMarket',
-        `Сброс пароля (ссылка действует 1 час): ${link}\nЕсли вы не запрашивали — проигнорируйте письмо.`,
+        say(lang, 'Восстановление пароля — GameMarket'),
+        say(lang, 'Сброс пароля (ссылка действует 1 час): {link}\nЕсли вы не запрашивали — проигнорируйте письмо.', {
+          link,
+        }),
       );
     }
   }
@@ -232,6 +242,11 @@ export class AuthService {
   ): Promise<IssuedAuth> {
     const sid = randomUUID();
     const family = familyId ?? sid;
+    // Новый вход запоминает язык сайта: на нём придут письма, Telegram и пуши.
+    // Обновление токена язык не трогает — фоновый запрос шлёт язык браузера.
+    if (!familyId && ctx.lang) {
+      await this.prisma.user.updateMany({ where: { id: userId, locale: { not: ctx.lang } }, data: { locale: ctx.lang } });
+    }
     const accessToken = this.tokens.signAccess({ sub: userId, username, fam: family });
     const refreshToken = this.tokens.signRefresh({ sub: userId, sid });
     const ttl = Number(process.env.JWT_REFRESH_TTL ?? 2592000);
@@ -261,7 +276,10 @@ export class AuthService {
    * через Telegram, VK или Google, пароля не имеет — его задают без текущего.
    */
   async changePassword(userId: string, current: string | undefined, next: string, keepFamily?: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true, email: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true, email: true, locale: true },
+    });
     if (!user) throw new UnauthorizedException('Пользователь не найден');
     if (user.passwordHash) {
       if (!current || !(await bcrypt.compare(current, user.passwordHash))) {
@@ -272,10 +290,14 @@ export class AuthService {
     await this.prisma.user.update({ where: { id: userId }, data: { passwordHash: await bcrypt.hash(next, 12) } });
     const closed = await this.closeSessions(userId, keepFamily);
     if (user.email && this.mail.enabled) {
+      const lang = langOf(user.locale);
       await this.mail.send(
         user.email,
-        'Пароль изменён',
-        'Пароль от GameMarket изменён, другие устройства вышли из аккаунта. Если это были не вы — восстановите доступ через «Забыли пароль».',
+        say(lang, 'Пароль изменён'),
+        say(
+          lang,
+          'Пароль от GameMarket изменён, другие устройства вышли из аккаунта. Если это были не вы — восстановите доступ через «Забыли пароль».',
+        ),
       );
     }
     return { ok: true, closedSessions: closed };

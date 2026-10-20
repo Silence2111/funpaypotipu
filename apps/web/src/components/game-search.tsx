@@ -34,7 +34,10 @@ export function GameSearch({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
 
-  const hits = useMemo(() => (index ? searchGames(index, q) : []), [index, q]);
+  const hits = useMemo(
+    () => (index ? searchGames(index, q, 8, t.lang === 'en' ? t.d : undefined) : []),
+    [index, q, t],
+  );
   const query = q.trim();
   const options = [
     ...hits.map((h) => ({ href: hitHref(h), hit: h })),

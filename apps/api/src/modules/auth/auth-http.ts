@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import type { AuthResponse } from '@gamemarket/shared';
 import type { IssuedAuth, RequestCtx } from './auth.service';
+import { requestLang } from '../../i18n/lang';
 
 export const REFRESH_COOKIE = 'refresh_token';
 export const REFRESH_PATH = '/api/auth';
@@ -22,5 +23,6 @@ export function ctxOf(req: Request): RequestCtx {
     userAgent: req.headers['user-agent'],
     ip: req.ip,
     fingerprint: (req.headers['x-device-fingerprint'] as string | undefined) ?? undefined,
+    lang: requestLang(req.headers['accept-language']),
   };
 }
