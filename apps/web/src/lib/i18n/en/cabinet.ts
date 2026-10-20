@@ -144,4 +144,12 @@ export const CABINET: Record<string, string> = {
   'Деньги придут автоматически через ЮKassa после проверки заявки.':
     'The money will arrive automatically via YooKassa once the request is checked.',
   'Заявки на вывод': 'Withdrawal requests',
+  'Укажите карту в форме ЮKassa': 'Enter the card in the YooKassa form',
+  'Карта не подошла. Проверьте номер или возьмите другую карту.':
+    'This card didn’t work. Check the number or use another card.',
+  'Другая карта': 'Another card',
+  'Форма ЮKassa не загрузилась.': 'The YooKassa form didn’t load.',
+  'Попробовать снова': 'Try again',
+  'Номер карты принимает ЮKassa — площадка его не видит и не хранит.':
+    'YooKassa takes the card number — the marketplace never sees or stores it.',
 };

@@ -882,11 +882,20 @@ async function scenarioPayout(rnd) {
   const over = await j('/payouts', { method: 'POST', token: seller.token, body: JSON.stringify({ amount: '999999', method: 'card', destination: '4111111111111111' }) });
   check('Вывод больше баланса → 400', over.status === 400);
   const req = await j('/payouts', { method: 'POST', token: seller.token, body: JSON.stringify({ amount: '100000', method: 'card', destination: '4111111111111111' }) });
-  check('Заявка создана (requested)', req.body.status === 'requested');
+  check('Заявка создана (requested), продавцу — маска карты', req.body.status === 'requested' && req.body.destinationHint === '•••• 1111', req.body.destinationHint);
   const wHold = await j('/wallet', { token: seller.token });
   check('Резерв: баланс 35000', wHold.body.balance === '35000', wHold.body.balance);
   const noAccess = await j(`/payouts/${req.body.id}/approve`, { method: 'POST', token: seller.token });
   check('Продавец не одобряет свою выплату → 403', noAccess.status === 403);
+  // Ручная выплата: сотруднику нужны реквизиты — раньше их негде было увидеть.
+  const peek = await j(`/payouts/${req.body.id}/destination`, { token: seller.token });
+  const reveal = await j(`/payouts/${req.body.id}/destination`, { token: fin.token });
+  const logged = await prisma.auditLog.count({ where: { entityId: req.body.id, action: 'payout.reveal' } });
+  check(
+    'Реквизиты ручной выплаты — сотруднику финансов, с записью в журнал; продавцу чужие — 403',
+    peek.status === 403 && reveal.body.destination === '4111111111111111' && logged === 1,
+    JSON.stringify({ peek: peek.status, reveal: reveal.status, logged }),
+  );
   const appr = await j(`/payouts/${req.body.id}/approve`, { method: 'POST', token: fin.token });
   check('Finance одобрил → paid', appr.body.status === 'paid');
 }
@@ -960,6 +969,7 @@ async function scenarioYooKassa(rnd) {
       PAYOUT_PROVIDER: 'yookassa',
       YOOKASSA_PAYOUT_AGENT_ID: 'e2e-agent',
       YOOKASSA_PAYOUT_SECRET_KEY: 'e2e-agent-secret',
+      YOOKASSA_PAYOUT_WIDGET_URL: 'http://localhost:4998/payouts-data/widget.js',
       PAYOUT_SWEEP_INTERVAL_MS: '3600000',
       WEB_URL: 'http://localhost:3000',
       ORDER_SWEEP_INTERVAL_MS: '3600000',
@@ -1079,11 +1089,13 @@ async function scenarioYooKassa(rnd) {
     const balance = async () => (await k('/wallet', { token: seller.token })).body.balance;
     const methods = (await k('/payouts/methods', { token: seller.token })).body;
     const banks = (await k('/payouts/sbp-banks', { token: seller.token })).body;
+    const cardMethod = methods.find((m) => m.key === 'card');
     check(
-      'Вывод: СБП и ЮMoney — автоматически, карта — вручную; банки СБП от ЮKassa',
-      methods.find((m) => m.key === 'sbp')?.auto === true && methods.find((m) => m.key === 'card')?.auto === false &&
-        banks.some((b) => b.id === '100000000111'),
-      `${await balance()}`,
+      'Вывод: СБП, ЮMoney и карта — автоматически, USDT — вручную; банки СБП от ЮKassa; карта — через виджет',
+      methods.find((m) => m.key === 'sbp')?.auto === true && cardMethod?.auto === true &&
+        methods.find((m) => m.key === 'usdt')?.auto === false && banks.some((b) => b.id === '100000000111') &&
+        cardMethod.widget?.accountId === 'e2e-agent' && cardMethod.widget.scriptUrl.endsWith('/payouts-data/widget.js'),
+      JSON.stringify(cardMethod),
     );
     const ask = (body) => k('/payouts', { method: 'POST', token: seller.token, body: JSON.stringify(body) });
     const noBank = await ask({ amount: '50000', method: 'sbp', destination: '+7 900 123-45-67' });
@@ -1115,9 +1127,35 @@ async function scenarioYooKassa(rnd) {
       back?.status === 'rejected' && back.failureReason === 'rejected_by_payee' && BigInt(await balance()) === BigInt(before) + 40000n,
       `${before} → ${await balance()}`,
     );
-    const card = await ask({ amount: '30000', method: 'card', destination: '4111111111111111' });
-    const manual = await approve(card.body.id);
-    check('Карта — вручную: одобрение сразу «выплачено», в ЮKassa не уходит', manual.body.status === 'paid' && yk.payouts.size === 2);
+    // Карта: номер вводится в виджет ЮKassa, площадке — токен и маска.
+    const byNumber = await ask({ amount: '30000', method: 'card', destination: '5555555555554477' });
+    check('Карта номером, мимо виджета ЮKassa — 400', byNumber.status === 400, byNumber.body.message);
+    const t = yk.tokenizeCard('5555555555554477');
+    const card = await ask({
+      amount: '30000',
+      method: 'card',
+      card: { token: t.payout_token, first6: t.first6, last4: t.last4, type: t.card_type, issuer: t.issuer_name },
+    });
+    const stored = await prisma.payout.findUnique({ where: { id: card.body.id } });
+    const hidden = await k(`/payouts/${card.body.id}/destination`, { token: fin.token });
+    check(
+      'Заявка на карту: маска •••• 4477, номера в базе нет, раскрывать нечего',
+      card.body.destinationHint === '•••• 4477' && !stored.destinationEnc.includes('5555') && hidden.status === 400,
+      JSON.stringify({ hint: card.body.destinationHint, hidden: hidden.status }),
+    );
+    await approve(card.body.id);
+    const pc = [...yk.payouts.values()].find((p) => p.metadata?.payoutId === card.body.id);
+    check(
+      'Карта ушла в ЮKassa токеном: на руки 275 ₽ (комиссия 25 ₽), получатель — карта •••• 4477',
+      pc?.amount.value === '275.00' && pc.payout_destination.type === 'bank_card' && pc.payout_destination.card.last4 === '4477',
+      JSON.stringify(pc?.payout_destination),
+    );
+    await yk.settlePayout(pc.id, 'succeeded');
+    check('Выплата на карту подтверждена — «выплачено»', (await mine(card.body.id))?.status === 'paid');
+
+    const usdt = await ask({ amount: '50000', method: 'usdt', destination: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE' });
+    const manual = await approve(usdt.body.id);
+    check('USDT — вручную: одобрение сразу «выплачено», в ЮKassa не уходит', manual.body.status === 'paid' && yk.payouts.size === 3);
   } finally {
     child.kill();
     yk.close();

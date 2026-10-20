@@ -3527,3 +3527,33 @@ a.my-lot-title:hover {
   opacity: 0.6;
   pointer-events: none;
 }
+
+/* Вывод на карту: форма ЮKassa и выбранная карта — маска, номера у нас нет.
+   В строке формы карта занимает свою строку. */
+.card-slot {
+  flex: 1 0 100%;
+}
+.card-widget {
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+}
+.card-chosen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  max-width: 480px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+.card-mask {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+.card-chosen .chip {
+  margin-left: auto;
+}

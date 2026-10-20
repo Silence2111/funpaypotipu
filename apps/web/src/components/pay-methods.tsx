@@ -113,7 +113,8 @@ export function PayMethods({
         <select id={id} className="input" value={value} onChange={(e) => onChange(e.target.value as PayMethod)}>
           {rows.map((r) => (
             <option key={r.key} value={r.key} disabled={r.disabled}>
-              {r.label} — {r.price}
+              {/* Сумма ещё не введена — без пустого «— —». */}
+              {base != null ? `${r.label} — ${r.price}` : r.label}
             </option>
           ))}
         </select>

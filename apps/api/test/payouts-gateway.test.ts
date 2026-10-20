@@ -1,13 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PayoutsService } from '../src/modules/payouts/payouts.service';
-import { YooKassaPayouts, type GatewayPayout } from '../src/modules/payouts/yookassa-payouts';
+import {
+  CARD_WIDGET_URL,
+  YooKassaPayouts,
+  type GatewayPayout,
+} from '../src/modules/payouts/yookassa-payouts';
 
 /**
  * Выплаты через ЮKassa. Проверяется: реквизиты СБП и ЮMoney проверяются
- * при заявке; одобрение отправляет сумму «на руки» один раз; «выплачено» —
+ * при заявке; карта — только токеном из виджета ЮKassa, номер не
+ * хранится; одобрение отправляет сумму «на руки» один раз; «выплачено» —
  * только после подтверждения шлюза со сверкой суммы; отмена возвращает
- * деньги на баланс; карта по-прежнему вручную; потерянное уведомление
- * подбирает сверка.
+ * деньги на баланс; USDT — вручную, реквизиты сотруднику — с записью в
+ * журнал; потерянное уведомление подбирает сверка.
  */
 
 const ENV = { ...process.env };
@@ -41,16 +46,52 @@ function stubFetch(reply: (c: Call) => { status: number; json: unknown }) {
 }
 
 describe('шлюз выплат', () => {
-  it('СБП и ЮMoney — сам, карта и USDT — вручную; без ключей — всё вручную', () => {
+  it('СБП, ЮMoney и карта — сам, USDT — вручную; карты выключаются; без ключей — всё вручную', () => {
     const g = new YooKassaPayouts();
     expect(['sbp', 'yoomoney', 'card', 'usdt'].map((m) => g.handles(m))).toEqual([
       true,
       true,
-      false,
+      true,
       false,
     ]);
+    process.env.YOOKASSA_PAYOUT_CARDS = 'off';
+    expect([g.handles('card'), g.cardWidget()]).toEqual([false, null]);
+    delete process.env.YOOKASSA_PAYOUT_CARDS;
     delete process.env.YOOKASSA_PAYOUT_SECRET_KEY;
     expect(g.handles('sbp')).toBe(false);
+  });
+
+  it('виджет карты: id шлюза и скрипт ЮKassa; тестовый скрипт — только вне прода', () => {
+    const g = new YooKassaPayouts();
+    process.env.YOOKASSA_PAYOUT_WIDGET_URL = 'http://localhost:4998/payouts-data/widget.js';
+    expect(g.cardWidget()).toEqual({
+      accountId: '505050',
+      scriptUrl: 'http://localhost:4998/payouts-data/widget.js',
+    });
+    process.env.NODE_ENV = 'production';
+    expect(g.cardWidget()?.scriptUrl).toBe(CARD_WIDGET_URL);
+    expect(CARD_WIDGET_URL).toMatch(/^https:\/\/yookassa\.ru\/payouts-data\//);
+  });
+
+  it('выплата на карту — токеном из виджета, без реквизитов карты', async () => {
+    const calls = stubFetch(() => ({
+      status: 200,
+      json: {
+        id: 'po-2',
+        status: 'pending',
+        amount: { value: '975.00', currency: 'RUB' },
+        metadata: { payoutId: 'p2' },
+      },
+    }));
+    await new YooKassaPayouts().create({
+      payoutId: 'p2',
+      amount: 97_500n,
+      currency: 'RUB',
+      destination: { method: 'card', token: 'pt-0123456789abcdef' },
+    });
+    const body = JSON.parse(calls[0]!.init.body!);
+    expect(body.payout_token).toBe('pt-0123456789abcdef');
+    expect(body).not.toHaveProperty('payout_destination_data');
   });
 
   it('выплата: сумма в рублях, получатель, ключ идемпотентности — id заявки, ключи агента', async () => {
@@ -163,11 +204,11 @@ function setup(over: Record<string, unknown> = {}) {
     encrypt: (s: string) => `enc:${s}`,
     decrypt: (s: string) => s.replace(/^enc:/, ''),
   };
-  const audit = { log: vi.fn(async () => undefined) };
+  const audit = { log: vi.fn(async (_e: { action: string }) => undefined) };
   const notifications = { notify: vi.fn(async () => undefined) };
   const gateway = {
     enabled: true,
-    handles: (m: string) => m === 'sbp' || m === 'yoomoney',
+    handles: (m: string) => m === 'sbp' || m === 'yoomoney' || m === 'card',
     sbpBanks: vi.fn(async () => [{ id: '100000000111', name: 'Сбербанк' }]),
     create: vi.fn(async (i: { payoutId: string; amount: bigint }): Promise<GatewayPayout> => ({
       id: `po-${i.payoutId}`,
@@ -188,10 +229,18 @@ function setup(over: Record<string, unknown> = {}) {
     notifications as never,
     gateway as never,
   );
-  return { svc, rows, ledger, posted, notifications, gateway };
+  return { svc, rows, ledger, posted, notifications, gateway, audit };
 }
 
 const AMOUNT = 100_000n; // 1000 ₽, СБП 2,5% → комиссия 25 ₽, на руки 975 ₽
+const USDT = 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE8x7Fd';
+const CARD = {
+  token: 'pt-0123456789abcdef',
+  first6: '555555',
+  last4: '4477',
+  type: 'MasterCard',
+  issuer: 'Т-Банк',
+};
 
 describe('заявка и одобрение', () => {
   it('СБП: телефон приводится к 7XXXXXXXXXX, банк обязателен и из списка', async () => {
@@ -200,12 +249,12 @@ describe('заявка и одобрение', () => {
       /Выберите банк/,
     );
     await expect(
-      svc.request('u1', AMOUNT, 'sbp', '+7 900 123-45-67', 'RUB', 'nope'),
+      svc.request('u1', AMOUNT, 'sbp', '+7 900 123-45-67', 'RUB', { bankId: 'nope' }),
     ).rejects.toThrow(/Выберите банк/);
-    await expect(svc.request('u1', AMOUNT, 'sbp', '123', 'RUB', '100000000111')).rejects.toThrow(
-      /Телефон для СБП/,
-    );
-    await svc.request('u1', AMOUNT, 'sbp', '8 (900) 123-45-67', 'RUB', '100000000111');
+    await expect(
+      svc.request('u1', AMOUNT, 'sbp', '123', 'RUB', { bankId: '100000000111' }),
+    ).rejects.toThrow(/Телефон для СБП/);
+    await svc.request('u1', AMOUNT, 'sbp', '8 (900) 123-45-67', 'RUB', { bankId: '100000000111' });
     expect(rows.get('p1')!.destinationEnc).toBe(
       'enc:{"phone":"79001234567","bankId":"100000000111"}',
     );
@@ -213,7 +262,7 @@ describe('заявка и одобрение', () => {
 
   it('одобрение отправляет сумму «на руки» и ждёт подтверждения; второе одобрение — отказ', async () => {
     const { svc, rows, gateway, posted } = setup();
-    await svc.request('u1', AMOUNT, 'sbp', '+79001234567', 'RUB', '100000000111');
+    await svc.request('u1', AMOUNT, 'sbp', '+79001234567', 'RUB', { bankId: '100000000111' });
     const out = await svc.approve('p1', 'fin');
     expect(gateway.create).toHaveBeenCalledWith(
       expect.objectContaining({ payoutId: 'p1', amount: 97_500n }),
@@ -232,12 +281,41 @@ describe('заявка и одобрение', () => {
     expect(rows.get('p1')!.status).toBe('requested');
   });
 
-  it('карта — вручную, как раньше: одобрение сразу «выплачено»', async () => {
-    const { svc, gateway, posted } = setup();
-    await svc.request('u1', AMOUNT, 'card', '4111111111111111');
+  it('USDT — вручную: реквизиты сотруднику с записью в журнал, одобрение сразу «выплачено»', async () => {
+    const { svc, gateway, posted, audit } = setup();
+    const req = await svc.request('u1', AMOUNT, 'usdt', USDT);
+    expect(req.destinationHint).toBe('TQn9…x7Fd');
+    expect(await svc.reveal('p1', 'fin')).toMatchObject({ destination: USDT });
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'payout.reveal' }));
     expect(await svc.approve('p1', 'fin')).toMatchObject({ status: 'paid' });
     expect(gateway.create).not.toHaveBeenCalled();
     expect(posted.has('payout_settle:p1')).toBe(true);
+  });
+
+  it('карта: без токена ЮKassa — отказ; в заявке токен и маска, номера нет', async () => {
+    const { svc, rows, gateway } = setup();
+    await expect(svc.request('u1', AMOUNT, 'card', '4111111111111111')).rejects.toThrow(
+      /форме ЮKassa/,
+    );
+    const req = await svc.request('u1', AMOUNT, 'card', undefined, 'RUB', { card: CARD });
+    expect(req.destinationHint).toBe('•••• 4477');
+    expect(rows.get('p1')!.destinationEnc).not.toMatch(/4111|555555\d{6}/);
+    await expect(svc.reveal('p1', 'fin')).rejects.toThrow(/отправляет ЮKassa/);
+    await svc.approve('p1', 'fin');
+    expect(gateway.create).toHaveBeenCalledWith(
+      expect.objectContaining({ destination: { method: 'card', token: CARD.token } }),
+    );
+  });
+
+  it('карта из виджета, а выплаты ЮKassa выключили — вручную «выплатить» нельзя', async () => {
+    const on = setup();
+    await on.svc.request('u1', AMOUNT, 'card', undefined, 'RUB', { card: CARD });
+    // Та же заявка, но шлюз карты больше не выплачивает.
+    const off = setup({ handles: () => false });
+    off.rows.set('p1', on.rows.get('p1')!);
+    await expect(off.svc.approve('p1', 'fin')).rejects.toThrow(/только она/);
+    await expect(off.svc.reveal('p1', 'fin')).rejects.toThrow(/отправляет ЮKassa/);
+    expect(off.posted.has('payout_settle:p1')).toBe(false);
   });
 });
 
@@ -254,7 +332,7 @@ describe('итог от шлюза', () => {
 
   async function sent(over: Record<string, unknown> = {}) {
     const ctx = setup(over);
-    await ctx.svc.request('u1', AMOUNT, 'sbp', '+79001234567', 'RUB', '100000000111');
+    await ctx.svc.request('u1', AMOUNT, 'sbp', '+79001234567', 'RUB', { bankId: '100000000111' });
     await ctx.svc.approve('p1', 'fin');
     return ctx;
   }

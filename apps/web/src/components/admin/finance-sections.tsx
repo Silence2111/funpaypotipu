@@ -15,6 +15,7 @@ interface Payout {
   status: string;
   createdAt?: string;
   externalId?: string | null;
+  destinationHint?: string | null;
 }
 interface Kyc {
   id: string;
@@ -32,12 +33,14 @@ const METHOD: Record<string, string> = { card: 'на карту', sbp: 'по С�
  * Заявки на вывод: одобрить или отклонить — деньги двигает API с ролью
  * «финансы». Способы, которые выплачивает ЮKassa, уходят сами после
  * одобрения и висят в «Отправляются», пока шлюз не подтвердит; остальные
- * переводятся вручную — одобрение значит «перевёл».
+ * переводятся вручную — одобрение значит «перевёл». Реквизиты для ручного
+ * перевода открываются по кнопке, каждое открытие пишется в журнал.
  */
 export function PayoutsSection() {
   const [rows, setRows] = useState<Payout[] | null>(null);
   const [sending, setSending] = useState<Payout[]>([]);
   const [auto, setAuto] = useState<Record<string, boolean>>({});
+  const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
   const load = useCallback(async () => {
     setRows(await apiFetch<Payout[]>('/payouts?status=requested').catch(() => []));
@@ -62,6 +65,16 @@ export function PayoutsSection() {
     }
   }
 
+  async function reveal(id: string) {
+    setErr(null);
+    try {
+      const r = await apiFetch<{ destination: string }>(`/payouts/${id}/destination`);
+      setRevealed((m) => ({ ...m, [id]: r.destination }));
+    } catch (e) {
+      setErr(apiErrorMessage(e, 'Не удалось показать реквизиты.'));
+    }
+  }
+
   if (rows === null) return <div className="skeleton" style={{ height: 80 }} aria-busy="true" />;
   return (
     <section className="grid" style={{ gap: 8 }}>
@@ -75,11 +88,18 @@ export function PayoutsSection() {
               <span className="price" style={{ fontSize: 16 }}>{formatPrice(p.amount, p.currency)}</span>{' '}
               <span className="faint" style={{ fontSize: 13 }}>
                 {METHOD[p.method] ?? p.method}
+                {p.destinationHint ? ` ${p.destinationHint}` : ''}
                 {auto[p.method] ? ' · через ЮKassa' : ' · вручную'}
                 {p.createdAt ? ` · ${when(p.createdAt)}` : ''}
               </span>
+              {revealed[p.id] && (
+                <code className="secret" style={{ marginTop: 8 }}>{revealed[p.id]}</code>
+              )}
             </span>
             <span className="row" style={{ gap: 8 }}>
+              {!auto[p.method] && !revealed[p.id] && (
+                <button className="chip" onClick={() => void reveal(p.id)} type="button">Реквизиты</button>
+              )}
               <button className="btn" onClick={() => void act(p.id, 'approve')} type="button">
                 {auto[p.method] ? 'Отправить' : 'Одобрить'}
               </button>
@@ -97,6 +117,7 @@ export function PayoutsSection() {
                 <span className="price" style={{ fontSize: 16 }}>{formatPrice(p.amount, p.currency)}</span>{' '}
                 <span className="faint" style={{ fontSize: 13 }}>
                   {METHOD[p.method] ?? p.method}
+                  {p.destinationHint ? ` ${p.destinationHint}` : ''}
                   {p.externalId ? ` · ${p.externalId}` : ''}
                 </span>
               </span>

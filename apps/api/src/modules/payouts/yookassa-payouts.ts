@@ -2,12 +2,20 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { z } from 'zod';
 import { fromValue, toValue } from '../payments/yookassa.provider';
 
-/** Куда выплачивать. СБП — телефон и банк из списка ЮKassa, ЮMoney — номер кошелька. */
+/**
+ * Куда выплачивать. СБП — телефон и банк из списка ЮKassa, ЮMoney — номер
+ * кошелька, карта — токен из виджета ЮKassa: номер карты площадка не видит.
+ */
 export type PayoutDestination =
-  { method: 'sbp'; phone: string; bankId: string } | { method: 'yoomoney'; account: string };
+  | { method: 'sbp'; phone: string; bankId: string }
+  | { method: 'yoomoney'; account: string }
+  | { method: 'card'; token: string };
 
-/** Способы, которые выплачивает ЮKassa. Карта — только через её виджет, USDT — нет: эти вручную. */
-export const AUTO_METHODS = ['sbp', 'yoomoney'] as const;
+/** Способы, которые выплачивает ЮKassa. USDT — нет: он вручную. */
+export const AUTO_METHODS = ['sbp', 'yoomoney', 'card'] as const;
+
+/** Виджет ЮKassa для ввода карты: номер уходит в ЮKassa, площадке — токен и маска. */
+export const CARD_WIDGET_URL = 'https://yookassa.ru/payouts-data/3.1.0/widget.js';
 
 export interface GatewayPayout {
   id: string;
@@ -53,9 +61,24 @@ export class YooKassaPayouts {
     );
   }
 
-  /** Выплачивает ли шлюз этим способом; иначе — вручную. */
+  /**
+   * Выплачивает ли шлюз этим способом; иначе — вручную. Карты можно
+   * выключить (YOOKASSA_PAYOUT_CARDS=off), если в договоре их нет.
+   */
   handles(method: string): boolean {
+    if (method === 'card' && process.env.YOOKASSA_PAYOUT_CARDS === 'off') return false;
     return this.enabled && (AUTO_METHODS as readonly string[]).includes(method);
+  }
+
+  /**
+   * Что нужно сайту для виджета карты: id шлюза (agentId — не секрет) и адрес
+   * скрипта. Свой адрес (тестовый виджет) — только вне прода.
+   */
+  cardWidget(): { accountId: string; scriptUrl: string } | null {
+    if (!this.handles('card')) return null;
+    const test =
+      process.env.NODE_ENV !== 'production' ? process.env.YOOKASSA_PAYOUT_WIDGET_URL : undefined;
+    return { accountId: process.env.YOOKASSA_PAYOUT_AGENT_ID!, scriptUrl: test || CARD_WIDGET_URL };
   }
 
   private get api(): string {
@@ -108,16 +131,22 @@ export class YooKassaPayouts {
     destination: PayoutDestination;
   }): Promise<GatewayPayout> {
     const d = input.destination;
-    const destination =
-      d.method === 'sbp'
-        ? { type: 'sbp', phone: d.phone, bank_id: d.bankId }
-        : { type: 'yoo_money', account_number: d.account };
+    // Карта — токеном из виджета, остальное — реквизитами получателя.
+    const target =
+      d.method === 'card'
+        ? { payout_token: d.token }
+        : {
+            payout_destination_data:
+              d.method === 'sbp'
+                ? { type: 'sbp', phone: d.phone, bank_id: d.bankId }
+                : { type: 'yoo_money', account_number: d.account },
+          };
     const { status, json } = await this.call('/payouts', {
       method: 'POST',
       headers: this.headers({ 'Idempotence-Key': input.payoutId }),
       body: JSON.stringify({
         amount: { value: toValue(input.amount), currency: input.currency },
-        payout_destination_data: destination,
+        ...target,
         description: `Выплата продавцу GameMarket`,
         metadata: { payoutId: input.payoutId },
       }),

@@ -194,6 +194,13 @@ export const EN_API: Phrasebook = {
   'Платёжный шлюз не принял выплату. Попробуйте ещё раз.':
     'The payment gateway didn’t accept the payout. Try again.',
   'Сумма выплаты не совпадает с заявкой': 'The payout amount doesn’t match the request',
+  'Введите карту в форме ЮKassa: номер карты площадка не принимает':
+    'Enter the card in the YooKassa form: the marketplace doesn’t accept card numbers',
+  'Укажите реквизиты для вывода': 'Enter the withdrawal details',
+  'Карта сохранена в ЮKassa — эту заявку выплачивает только она. Включите выплаты через ЮKassa или отклоните заявку':
+    'The card is stored with YooKassa, so only YooKassa can pay this request. Turn on YooKassa payouts or reject the request',
+  'Эту выплату отправляет ЮKassa — реквизиты у неё':
+    'YooKassa sends this payout and holds its details',
   'Недостаточно средств на балансе': 'Insufficient balance',
   'Неизвестный способ вывода': 'Unknown withdrawal method',
   'Минимальная сумма вывода для «{method}» — {sum} ₽':

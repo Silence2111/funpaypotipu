@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -7,16 +7,26 @@ import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { WITHDRAWAL_METHOD_KEYS } from '@gamemarket/shared';
 import { AccountStatusService } from '../access/account-status.service';
-import { PayoutsService } from './payouts.service';
+import { PayoutsService, type CardToken } from './payouts.service';
 import { RateLimit } from '../../common/rate-limit';
 
 const requestSchema = z.object({
   amount: z.union([z.string(), z.number()]).transform((v) => String(v))
     .refine((v) => /^\d+$/.test(v), 'ожидается целое число минорных единиц'),
   method: z.enum(WITHDRAWAL_METHOD_KEYS),
-  destination: z.string().min(4).max(200),
+  destination: z.string().min(4).max(200).optional(),
   // Банк для выплаты по СБП через ЮKassa — из GET /payouts/sbp-banks.
   bankId: z.string().max(32).optional(),
+  // Карта из виджета ЮKassa: токен и маска, номера нет.
+  card: z
+    .object({
+      token: z.string().min(8).max(512).regex(/^[\w\-.:=+/]+$/),
+      first6: z.string().regex(/^\d{6}$/),
+      last4: z.string().regex(/^\d{4}$/),
+      type: z.string().max(40).optional(),
+      issuer: z.string().max(120).optional(),
+    })
+    .optional(),
 });
 const rejectSchema = z.object({ reason: z.string().max(500).optional() });
 
@@ -32,10 +42,13 @@ export class PayoutsController {
   async request(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(requestSchema))
-    body: { amount: string; method: string; destination: string; bankId?: string },
+    body: { amount: string; method: string; destination?: string; bankId?: string; card?: CardToken },
   ) {
     await this.account.assertCanTrade(user.userId);
-    return this.payouts.request(user.userId, BigInt(body.amount), body.method, body.destination, 'RUB', body.bankId);
+    return this.payouts.request(user.userId, BigInt(body.amount), body.method, body.destination, 'RUB', {
+      bankId: body.bankId,
+      card: body.card,
+    });
   }
 
   /** Банки СБП для выплаты; пусто — выплаты по СБП вручную. */
@@ -70,6 +83,14 @@ export class PayoutsController {
   @Roles('finance')
   approve(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.payouts.approve(id, user.userId);
+  }
+
+  /** Реквизиты для ручного перевода — с записью в журнал действий. */
+  @Get(':id/destination')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('finance')
+  destination(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.payouts.reveal(id, user.userId);
   }
 
   @Post(':id/reject')

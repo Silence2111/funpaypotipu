@@ -37,6 +37,25 @@ const notificationSchema = z.object({ event: z.string(), object: z.object({ id: 
 
 type PayoutRow = { id: string; userId: string; amount: bigint; currency: string; method: string; status: string };
 
+/** Карта из виджета ЮKassa: токен для выплаты и маска для показа. Номера нет. */
+export interface CardToken {
+  token: string;
+  first6: string;
+  last4: string;
+  type?: string;
+  issuer?: string;
+}
+
+/** Реквизиты-объект (СБП через шлюз, карта из виджета) или null — строка как есть. */
+function parseJson(raw: string): Record<string, string | undefined> | null {
+  try {
+    const v: unknown = JSON.parse(raw);
+    return v && typeof v === 'object' ? (v as Record<string, string | undefined>) : null;
+  } catch {
+    return null;
+  }
+}
+
 @Injectable()
 export class PayoutsService {
   private readonly logger = new Logger(PayoutsService.name);
@@ -77,13 +96,32 @@ export class PayoutsService {
   private destinationOf(method: string, enc: string): PayoutDestination | null {
     const raw = this.encryption.decrypt(enc);
     if (method === 'yoomoney') return /^\d{11,20}$/.test(raw) ? { method, account: raw } : null;
+    const d = parseJson(raw);
+    if (method === 'card') return d?.token ? { method, token: d.token } : null;
     if (method !== 'sbp') return null;
+    return d?.phone && d.bankId ? { method, phone: d.phone, bankId: d.bankId } : null;
+  }
+
+  /** Карта из виджета ЮKassa: номера у площадки нет — вручную такую заявку не выплатить. */
+  private gatewayOnly(p: { method: string; destinationEnc: string }) {
+    return p.method === 'card' && this.destinationOf('card', p.destinationEnc) !== null;
+  }
+
+  /** Маска реквизитов: продавцу — куда уйдут деньги, сотруднику — какая это заявка. */
+  private hint(method: string, enc: string | undefined): string | null {
+    if (!enc) return null;
+    let raw: string;
     try {
-      const d = JSON.parse(raw) as { phone?: string; bankId?: string };
-      return d.phone && d.bankId ? { method, phone: d.phone, bankId: d.bankId } : null;
+      raw = this.encryption.decrypt(enc);
     } catch {
       return null;
     }
+    const d = parseJson(raw);
+    if (d?.last4) return `•••• ${d.last4}`;
+    if (d?.phone) raw = d.phone;
+    if (method === 'usdt') return raw.length > 12 ? `${raw.slice(0, 4)}…${raw.slice(-4)}` : null;
+    const digits = raw.replace(/\D/g, '');
+    return digits.length >= 4 ? `•••• ${digits.slice(-4)}` : null;
   }
 
   /** Заявка на вывод: резерв суммы с баланса + холд для новичков (антифрод, docs/06). */
@@ -91,9 +129,9 @@ export class PayoutsService {
     userId: string,
     amount: bigint,
     method: string,
-    destination: string,
+    destination: string | undefined,
     currency = 'RUB',
-    bankId?: string,
+    details: { bankId?: string; card?: CardToken } = {},
   ) {
     if (amount <= 0n) throw new BadRequestException('Сумма должна быть положительной');
 
@@ -123,7 +161,20 @@ export class PayoutsService {
     }
 
     // Шлюз выплатит сам — реквизиты проверяем сразу, а не при одобрении.
-    if (this.gateway.handles(method)) destination = await this.gatewayDestination(method, destination, bankId);
+    let stored: string;
+    if (method === 'card' && this.gateway.handles('card')) {
+      // Номер карты остаётся в ЮKassa: у нас — токен из её виджета и маска.
+      if (!details.card) {
+        throw new BadRequestException('Введите карту в форме ЮKassa: номер карты площадка не принимает');
+      }
+      const { token, first6, last4, type, issuer } = details.card;
+      stored = JSON.stringify({ token, first6, last4, type, issuer });
+    } else if (this.gateway.handles(method)) {
+      stored = await this.gatewayDestination(method, destination ?? '', details.bankId);
+    } else {
+      stored = (destination ?? '').trim();
+      if (stored.length < 4) throw new BadRequestException('Укажите реквизиты для вывода');
+    }
 
     const profile = await this.prisma.profile.findUnique({ where: { userId } });
     const holdDays = profile && profile.salesCount > 0 ? 0 : NEWBIE_HOLD_DAYS;
@@ -135,7 +186,7 @@ export class PayoutsService {
         amount,
         currency,
         method,
-        destinationEnc: this.encryption.encrypt(destination),
+        destinationEnc: this.encryption.encrypt(stored),
         status: 'requested',
         holdUntil,
       },
@@ -176,6 +227,8 @@ export class PayoutsService {
       maxAmount: m.maxAmount.toString(),
       // Выплачивает шлюз сам — после одобрения, без ручного перевода.
       auto: this.gateway.handles(m.key),
+      // Карта — через виджет ЮKassa: номер вводится в её форму.
+      ...(m.key === 'card' && this.gateway.handles('card') ? { widget: this.gateway.cardWidget() } : {}),
     }));
   }
 
@@ -197,6 +250,9 @@ export class PayoutsService {
       throw new BadRequestException(`На холде до ${payout.holdUntil.toISOString()}`);
     }
     if (this.gateway.handles(payout.method)) return this.send(payout, actorId);
+    if (this.gatewayOnly(payout)) {
+      throw new BadRequestException('Карта сохранена в ЮKassa — эту заявку выплачивает только она. Включите выплаты через ЮKassa или отклоните заявку');
+    }
 
     // Комиссия за вывод удерживается на выплате и идёт в доход площадки.
     const wm = getWithdrawalMethod(payout.method);
@@ -348,6 +404,27 @@ export class PayoutsService {
     }
   }
 
+  /**
+   * Реквизиты для ручной выплаты — сотруднику финансов, с записью в журнал:
+   * без них переводить было некуда. Выплаты через ЮKassa раскрывать незачем —
+   * получатель у неё, а сотруднику хватает маски.
+   */
+  async reveal(payoutId: string, actorId: string) {
+    const payout = await this.get(payoutId);
+    if (this.gateway.handles(payout.method) || this.gatewayOnly(payout)) {
+      throw new BadRequestException('Эту выплату отправляет ЮKassa — реквизиты у неё');
+    }
+    const raw = this.encryption.decrypt(payout.destinationEnc);
+    const d = parseJson(raw);
+    await this.audit.log({ actorId, action: 'payout.reveal', entityType: 'payout', entityId: payoutId });
+    return {
+      id: payout.id,
+      method: payout.method,
+      // СБП, принятая при включённом шлюзе, хранится объектом.
+      destination: d?.phone ? `+${d.phone}${d.bankId ? ` · банк ${d.bankId}` : ''}` : raw,
+    };
+  }
+
   /** Отклонение (finance): возврат зарезервированного на баланс. */
   async reject(payoutId: string, actorId: string, reason?: string) {
     const payout = await this.get(payoutId);
@@ -381,10 +458,11 @@ export class PayoutsService {
     return p;
   }
 
-  /** Без destinationEnc наружу. */
+  /** Без destinationEnc наружу — только маска. */
   private public(p: {
     id: string; amount: bigint; currency: string; method: string; status: string;
     holdUntil: Date | null; createdAt: Date; externalId?: string | null; failureReason?: string | null;
+    destinationEnc?: string;
   }) {
     return {
       id: p.id,
@@ -397,6 +475,7 @@ export class PayoutsService {
       // Выплата через шлюз: номер у шлюза и причина отказа — для сверки.
       externalId: p.externalId ?? null,
       failureReason: p.failureReason ?? null,
+      destinationHint: this.hint(p.method, p.destinationEnc),
     };
   }
 }

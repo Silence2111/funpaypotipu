@@ -7,6 +7,7 @@ import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
+import { CardWidget, type CardToken } from './card-widget';
 
 interface Method {
   key: string;
@@ -15,8 +16,10 @@ interface Method {
   minFee: string;
   minAmount: string;
   maxAmount: string;
-  /** Выплачивает шлюз сам после одобрения (ЮKassa: СБП и ЮMoney). */
+  /** Выплачивает шлюз сам после одобрения (ЮKassa: СБП, ЮMoney, карта). */
   auto?: boolean;
+  /** Карта — через виджет ЮKassa: id шлюза и скрипт. */
+  widget?: { accountId: string; scriptUrl: string } | null;
 }
 
 interface MyPayout {
@@ -26,6 +29,8 @@ interface MyPayout {
   method: string;
   status: string;
   createdAt: string;
+  /** Куда: «•••• 4477» — без полного номера. */
+  destinationHint?: string | null;
 }
 
 /** Куда выводить — подсказка поля по способу. */
@@ -55,6 +60,8 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
   // Банк для СБП через ЮKassa — из её списка.
   const [banks, setBanks] = useState<Array<{ id: string; name: string }>>([]);
   const [bankId, setBankId] = useState('');
+  // Карта из виджета ЮKassa: токен и маска, номер у нас не бывает.
+  const [card, setCard] = useState<CardToken | null>(null);
   const [mine, setMine] = useState<MyPayout[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -79,6 +86,7 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
 
   const method = methods.find((m) => m.key === methodKey);
   const sbpAuto = method?.key === 'sbp' && !!method.auto;
+  const cardWidget = method?.key === 'card' && method.auto ? method.widget ?? null : null;
   useEffect(() => {
     if (!sbpAuto || banks.length) return;
     apiFetch<Array<{ id: string; name: string }>>('/payouts/sbp-banks')
@@ -96,7 +104,10 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
 
   async function go() {
     if (!method) return;
-    if (!(rub > 0) || dest.trim().length < 4) { setMsg(t('Укажите сумму и реквизиты')); return; }
+    if (!(rub > 0) || (cardWidget ? !card : dest.trim().length < 4)) {
+      setMsg(cardWidget && rub > 0 ? t('Укажите карту в форме ЮKassa') : t('Укажите сумму и реквизиты'));
+      return;
+    }
     if (sbpAuto && !bankId) { setMsg(t('Выберите банк для перевода по СБП')); return; }
     if (belowMin) {
       setMsg(t('Минимум для «{method}» — {sum}', { method: t.d(method.label), sum: formatPrice(method.minAmount, 'RUB', t) }));
@@ -109,11 +120,11 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
         body: JSON.stringify({
           amount: String(grossMinor),
           method: method.key,
-          destination: dest.trim(),
+          ...(cardWidget ? { card } : { destination: dest.trim() }),
           ...(sbpAuto ? { bankId } : {}),
         }),
       });
-      setMsg(t('Заявка на вывод создана')); setAmount(''); setDest(''); onDone();
+      setMsg(t('Заявка на вывод создана')); setAmount(''); setDest(''); setCard(null); onDone();
       apiFetch<MyPayout[]>('/payouts/mine').then((rows) => setMine(rows ?? [])).catch(() => {});
     } catch (e) {
       setMsg(apiErrorMessage(e, t('Не удалось создать заявку')));
@@ -142,11 +153,18 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
             ))}
           </select>
         )}
-        <input className="input" aria-label={t('Куда вывести')}
-          placeholder={PLACEHOLDER[methodKey] ? t(PLACEHOLDER[methodKey]!) : t('Номер карты или телефон СБП')} value={dest}
-          inputMode={methodKey === 'sbp' ? 'tel' : methodKey === 'card' ? 'numeric' : 'text'} autoComplete="off"
-          autoCapitalize="none" spellCheck={false}
-          onChange={(e) => setDest(e.target.value)} style={{ maxWidth: 180 }} />
+        {cardWidget ? (
+          <div className="card-slot">
+            <CardWidget accountId={cardWidget.accountId} scriptUrl={cardWidget.scriptUrl} card={card}
+              onCard={(c) => { setCard(c); setMsg(null); }} />
+          </div>
+        ) : (
+          <input className="input" aria-label={t('Куда вывести')}
+            placeholder={PLACEHOLDER[methodKey] ? t(PLACEHOLDER[methodKey]!) : t('Номер карты или телефон СБП')} value={dest}
+            inputMode={methodKey === 'sbp' ? 'tel' : methodKey === 'card' ? 'numeric' : 'text'} autoComplete="off"
+            autoCapitalize="none" spellCheck={false}
+            onChange={(e) => setDest(e.target.value)} style={{ maxWidth: 180 }} />
+        )}
         <button className="btn secondary" onClick={go} disabled={busy} type="button">{t('Вывести')}</button>
       </div>
 
@@ -177,7 +195,10 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
             <div key={p.id} className="row" style={{ justifyContent: 'space-between', gap: 12, fontSize: 14, padding: '4px 0', maxWidth: 420 }}>
               <span>
                 {formatPrice(p.amount, p.currency, t)}{' '}
-                <span className="faint">· {new Date(p.createdAt).toLocaleDateString(t.locale)}</span>
+                <span className="faint">
+                  · {new Date(p.createdAt).toLocaleDateString(t.locale)}
+                  {p.destinationHint ? ` · ${p.destinationHint}` : ''}
+                </span>
               </span>
               <span
                 className={p.status === 'rejected' ? 'faint' : undefined}

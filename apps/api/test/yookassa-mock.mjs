@@ -4,8 +4,11 @@
  * рублях строкой, переход со страницы оплаты на return_url. Оплату
  * «совершает» сценарий: mock.settle(id, 'succeeded') меняет статус и шлёт
  * уведомление на вебхук магазина — без подписи, как настоящая ЮKassa.
- * Выплаты — свои ключи агента, телефон и банк СБП, кошелёк ЮMoney;
- * итог — mock.settlePayout(id, 'succeeded' | 'canceled').
+ * Выплаты — свои ключи агента, телефон и банк СБП, кошелёк ЮMoney, карта
+ * токеном из виджета; итог — mock.settlePayout(id, 'succeeded' | 'canceled').
+ * Виджет карты — /payouts-data/widget.js: тот же класс PayoutsData, что у
+ * ЮKassa, но с простым полем номера; в e2e карту превращает в токен
+ * mock.tokenizeCard(номер).
  *
  * API для e2e запускается с YOOKASSA_API_URL, указывающим сюда (только вне
  * прода).
@@ -18,12 +21,56 @@ export const SBP_BANKS = [
   { bank_id: '100000000004', name: 'Т-Банк', bic: '044525974' },
 ];
 
+/** Номер карты по Луну — как проверяет настоящий виджет. */
+const luhn = (num) =>
+  [...num].reverse().reduce((sum, ch, i) => {
+    let d = Number(ch);
+    if (i % 2) d = d * 2 > 9 ? d * 2 - 9 : d * 2;
+    return sum + d;
+  }, 0) %
+    10 ===
+  0;
+
+/** Тестовый виджет: класс PayoutsData с методами render и clearListeners. */
+const WIDGET_JS = (origin) => `(() => {
+  class PayoutsData {
+    constructor(o) { this.o = o; }
+    render(id) {
+      const box = document.getElementById(id);
+      if (!box) return Promise.reject(new Error('нет контейнера ' + id));
+      box.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<input data-yk-card inputmode="numeric" autocomplete="cc-number" placeholder="Номер карты" ' +
+        'style="font:inherit;font-size:16px;padding:10px 12px;border:1px solid #ECECF2;border-radius:12px;min-width:0;flex:1 1 180px">' +
+        '<button type="button" data-yk-go style="font:inherit;padding:10px 14px;border:1px solid #ECECF2;border-radius:12px;background:#fff;cursor:pointer">Продолжить</button></div>';
+      box.querySelector('[data-yk-go]').onclick = async () => {
+        const number = box.querySelector('[data-yk-card]').value.replace(/\\D/g, '');
+        try {
+          const r = await fetch('${origin}/payouts-data/tokenize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ account_id: this.o.account_id, number }),
+          });
+          const data = await r.json();
+          if (!r.ok) throw data;
+          this.o.success_callback && this.o.success_callback(data);
+        } catch (e) {
+          this.o.error_callback && this.o.error_callback(e);
+        }
+      };
+      return Promise.resolve();
+    }
+    clearListeners() { this.o = {}; }
+  }
+  window.PayoutsData = PayoutsData;
+})();`;
+
 export function startYooKassaMock(
   base,
   { shopId, secretKey, agentId = 'e2e-agent', agentSecret = 'e2e-agent-secret' },
 ) {
   const payments = new Map();
   const payouts = new Map();
+  const cards = new Map();
   const byKey = new Map();
   const origin = new URL(base).origin;
   const basic = (id, secret) => `Basic ${Buffer.from(`${id}:${secret}`).toString('base64')}`;
@@ -63,6 +110,21 @@ export function startYooKassaMock(
       body: JSON.stringify({ type: 'notification', event: `payment.${status}`, object: p }),
     });
     return { status: res.status, body: await res.json().catch(() => null) };
+  }
+
+  /** Карта → токен, как делает виджет; null — номер не прошёл проверку. */
+  function tokenizeCard(number) {
+    if (!/^\d{16,19}$/.test(number) || !luhn(number)) return null;
+    const card = {
+      payout_token: `pt-${randomBytes(12).toString('hex')}`,
+      first6: number.slice(0, 6),
+      last4: number.slice(-4),
+      card_type: number.startsWith('4') ? 'Visa' : number.startsWith('2') ? 'Mir' : 'MasterCard',
+      issuer_country: 'RU',
+      issuer_name: 'Тестовый банк',
+    };
+    cards.set(card.payout_token, card);
+    return card;
   }
 
   /** Итог выплаты и уведомление агенту выплат. */
@@ -106,8 +168,12 @@ export function startYooKassaMock(
       });
     if (byKey.has(`po:${key}`)) return send(res, 200, payouts.get(byKey.get(`po:${key}`)));
     const body = await json(req);
-    const d = body?.payout_destination_data;
+    const card = cards.get(body?.payout_token);
+    const d = card
+      ? { type: 'bank_card', card: { ...card, payout_token: undefined } }
+      : body?.payout_destination_data;
     const destOk =
+      !!card ||
       (d?.type === 'sbp' &&
         /^7\d{10}$/.test(d.phone ?? '') &&
         SBP_BANKS.some((b) => b.bank_id === d.bank_id)) ||
@@ -138,6 +204,30 @@ export function startYooKassaMock(
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, origin);
     const parts = url.pathname.split('/').filter(Boolean);
+
+    // Виджет карты: скрипт и превращение номера в токен (ключ — id шлюза).
+    if (parts[0] === 'payouts-data') {
+      const cors = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      };
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, cors);
+        return res.end();
+      }
+      if (parts[1] === 'widget.js') {
+        res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', ...cors });
+        return res.end(WIDGET_JS(origin));
+      }
+      if (parts[1] === 'tokenize' && req.method === 'POST') {
+        const body = await json(req);
+        const card = body?.account_id === agentId ? tokenizeCard(String(body.number ?? '')) : null;
+        return card
+          ? send(res, 200, card, cors)
+          : send(res, 400, { error: 'invalid_card_number' }, cors);
+      }
+      return send(res, 404, { type: 'error', code: 'not_found' }, cors);
+    }
 
     // Страница оплаты: «покупатель заплатил» → уведомление → назад в магазин.
     if (parts[0] === 'checkout' && req.method === 'GET') {
@@ -210,6 +300,7 @@ export function startYooKassaMock(
         payouts,
         settle,
         settlePayout,
+        tokenizeCard,
         /** Адрес вебхука магазина, куда слать уведомления. */
         notifyTo: (url) => (webhook = url),
         /** Адрес вебхука выплат. */
