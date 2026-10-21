@@ -34,8 +34,17 @@ function setup(review: Record<string, unknown> | null, others: Array<{ rating: n
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   const notifications = { notify: vi.fn(async () => undefined) };
-  return { svc: new ReviewsService(prisma as never, notifications as never), state, notifications };
+  const storage = { enabled: true, remove: vi.fn(async () => undefined) };
+  return {
+    svc: new ReviewsService(prisma as never, notifications as never, storage as never),
+    state,
+    notifications,
+    storage,
+  };
 }
+
+/** Ключ фото, загруженного автором b1. */
+const photo = (n: number) => `reviews/b1/0000000${n}-0000-4000-8000-000000000000.webp`;
 
 const REVIEW = { id: 'r1', orderId: 'o1', authorId: 'b1', targetId: 's1', rating: 2, comment: 'долго', createdAt: new Date() };
 
@@ -128,5 +137,28 @@ describe('отзывы на витрине продавца', () => {
     expect(amountRange(10_000n, 'RUB')).toBe('до 500 ₽');
     expect(amountRange(50_000n, 'RUB')).toMatch(/^500–1\s000 ₽$/);
     expect(amountRange(5_000_000n, 'RUB')).toMatch(/^от 50\s000 ₽$/);
+  });
+});
+
+describe('фото к отзыву', () => {
+  it('до пяти своих фото: ключи и счётчик в отзыве; чужой ключ и шестое фото — отказ', async () => {
+    const { svc, state } = setup(null);
+    await expect(
+      svc.create('o1', 'b1', 5, 'всё ок', ['reviews/zz/00000001-0000-4000-8000-000000000000.webp']),
+    ).rejects.toThrow(/загрузите его заново/);
+    await expect(
+      svc.create('o1', 'b1', 5, 'всё ок', [1, 2, 3, 4, 5, 6].map(photo)),
+    ).rejects.toThrow(/Не больше 5 фото/);
+    await svc.create('o1', 'b1', 5, 'всё ок', [photo(1), photo(2), photo(1)]);
+    expect(state.review).toMatchObject({ images: [photo(1), photo(2)], photoCount: 2 });
+  });
+
+  it('убранное при правке фото и фото удалённого отзыва уходят из хранилища', async () => {
+    const { svc, storage } = setup({ ...REVIEW, images: [photo(1), photo(2)], photoCount: 2 });
+    await svc.update('r1', 'b1', { images: [photo(2)] });
+    expect(storage.remove).toHaveBeenCalledWith(photo(1));
+    expect(storage.remove).not.toHaveBeenCalledWith(photo(2));
+    await svc.remove('r1', 'b1');
+    expect(storage.remove).toHaveBeenLastCalledWith(photo(2));
   });
 });

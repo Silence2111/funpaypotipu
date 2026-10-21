@@ -206,6 +206,10 @@ export const EN_API: Phrasebook = {
   'Закрыть спор без претензий может только покупатель':
     'Only the buyer can close a dispute with no claims',
 
+  // Отзывы с фото
+  'Не больше {n} фото к отзыву': 'No more than {n} photos per review',
+  'Фото не найдено — загрузите его заново': 'Photo not found — upload it again',
+
   // Отчёты
   'Период — от 1 до 366 дней': 'The period must be from 1 to 366 days',
 

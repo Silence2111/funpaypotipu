@@ -100,15 +100,21 @@ export function LotGallery({ images, title }: { images: string[]; title: string 
   );
 }
 
-/** Фото на весь экран: листать пальцем или стрелками, Esc и крестик — закрыть. */
-function Lightbox({
+/**
+ * Фото на весь экран: листать пальцем или стрелками, Esc и крестик — закрыть.
+ * Им же открываются фото к отзывам.
+ */
+export function Lightbox({
   images,
   start,
   onClose,
+  label,
 }: {
   images: string[];
   start: number;
   onClose: () => void;
+  /** Подпись окна для экранного диктора; по умолчанию — «Фото лота». */
+  label?: string;
 }) {
   const t = useT();
   const { track, index, go, onScroll } = useTrack(images.length, start);
@@ -136,7 +142,7 @@ function Lightbox({
   }, [index, go, onClose]);
 
   return (
-    <div className="lightbox" role="dialog" aria-modal="true" aria-label={t('Фото лота')}>
+    <div className="lightbox" role="dialog" aria-modal="true" aria-label={label ?? t('Фото лота')}>
       <div className="lightbox-bar">
         <span>
           {index + 1} / {images.length}

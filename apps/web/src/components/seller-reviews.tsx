@@ -7,6 +7,7 @@ import { apiErrorMessage } from '@/lib/errors';
 import { Stars } from '@/components/stars';
 import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
+import { ReviewPhotos } from './review-photos';
 
 interface Review {
   id: string;
@@ -19,6 +20,8 @@ interface Review {
   game: { slug: string; title: string };
   section: { slug: string; title: string };
   amountRange: string;
+  /** Фото к отзыву — адреса для показа. */
+  images: string[];
 }
 
 const PAGE = 20;
@@ -42,11 +45,14 @@ function rangeText(range: string, t: T): string {
 export function SellerReviews({
   sellerId,
   breakdown,
+  photoReviews = 0,
   preview,
 }: {
   sellerId: string;
   /** Сколько отзывов с каждой оценкой — для фильтра в профиле. */
   breakdown?: Array<{ star: number; count: number }>;
+  /** Сколько отзывов с фото — для фильтра «С фото». */
+  photoReviews?: number;
   /** Показать только столько последних и ссылку на профиль. */
   preview?: number;
 }) {
@@ -54,6 +60,7 @@ export function SellerReviews({
   const { user } = useSession();
   const own = user?.id === sellerId;
   const [rating, setRating] = useState<number | null>(null);
+  const [withPhotos, setWithPhotos] = useState(false);
   const [items, setItems] = useState<Review[] | null>(null);
   const [page, setPage] = useState(1);
   const [more, setMore] = useState(false);
@@ -66,6 +73,7 @@ export function SellerReviews({
     (p: number, append: boolean) => {
       const q = new URLSearchParams({ page: String(p), limit: String(limit) });
       if (rating) q.set('rating', String(rating));
+      if (withPhotos) q.set('photos', '1');
       apiFetch<Review[]>(`/reviews/user/${sellerId}?${q}`)
         .then((rows) => {
           setItems((prev) => (append && prev ? [...prev, ...rows] : rows));
@@ -74,7 +82,7 @@ export function SellerReviews({
         })
         .catch(() => setItems((prev) => prev ?? []));
     },
-    [sellerId, rating, limit, preview],
+    [sellerId, rating, withPhotos, limit, preview],
   );
 
   useEffect(() => load(1, false), [load]);
@@ -96,9 +104,22 @@ export function SellerReviews({
     <div>
       {breakdown && total > 0 && (
         <nav className="row" aria-label={t('Оценка')} style={{ gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-          <button type="button" className="chip" aria-pressed={rating === null} onClick={() => setRating(null)}>
+          <button
+            type="button"
+            className="chip"
+            aria-pressed={rating === null && !withPhotos}
+            onClick={() => {
+              setRating(null);
+              setWithPhotos(false);
+            }}
+          >
             {t('Все')} <span className="faint">{total}</span>
           </button>
+          {photoReviews > 0 && (
+            <button type="button" className="chip" aria-pressed={withPhotos} onClick={() => setWithPhotos((v) => !v)}>
+              {t('С фото')} <span className="faint">{photoReviews}</span>
+            </button>
+          )}
           {[5, 4, 3, 2, 1].map((star) => {
             const count = breakdown.find((b) => b.star === star)?.count ?? 0;
             return (
@@ -108,7 +129,7 @@ export function SellerReviews({
                 className="chip"
                 aria-pressed={rating === star}
                 disabled={count === 0}
-                onClick={() => setRating(star)}
+                onClick={() => setRating(rating === star ? null : star)}
               >
                 {star} ★ <span className="faint">{count}</span>
               </button>
@@ -119,7 +140,7 @@ export function SellerReviews({
 
       {items === null ? null : items.length === 0 ? (
         <p className="muted" style={{ fontSize: 14 }}>
-          {rating ? t('С такой оценкой отзывов нет.') : t('Отзывов о продавце пока нет.')}
+          {rating || withPhotos ? t('Таких отзывов нет.') : t('Отзывов о продавце пока нет.')}
         </p>
       ) : (
         <div className="reviews">
@@ -138,6 +159,7 @@ export function SellerReviews({
                 </time>
               </div>
               {r.comment && <p className="review-text">{r.comment}</p>}
+              <ReviewPhotos images={r.images ?? []} />
               {r.sellerReply && replyFor !== r.id && (
                 <p className="review-reply">
                   <span className="faint">{t('Ответ продавца:')}</span> {r.sellerReply}

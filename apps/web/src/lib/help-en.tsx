@@ -91,6 +91,11 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           “Open a dispute”. If you do neither, the order is confirmed automatically when the check
           period ends.
         </li>
+        <li>
+          <b>Leave a review.</b> A rating, a few words and up to 5 photos — screenshots of the item
+          or the game. The seller’s future buyers will see it; you can edit or delete it within 14
+          days.
+        </li>
       </ol>
       <h2>How long you have to check</h2>
       <p>The period is shown on the order page and depends on the goods and the seller:</p>

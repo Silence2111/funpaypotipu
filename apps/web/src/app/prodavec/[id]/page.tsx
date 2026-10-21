@@ -168,7 +168,7 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
         <h2 className="h2" id="reviews-title" style={{ marginBottom: 16 }}>
           {t('Отзывы')}
         </h2>
-        <SellerReviews sellerId={seller.id} breakdown={seller.ratingBreakdown} />
+        <SellerReviews sellerId={seller.id} breakdown={seller.ratingBreakdown} photoReviews={seller.photoReviews} />
       </section>
     </div>
   );

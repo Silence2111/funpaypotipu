@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { StarInput, Stars } from '@/components/stars';
 import { useT } from '@/lib/i18n/client';
+import { ReviewPhotoPicker, ReviewPhotos, type ReviewPhoto } from './review-photos';
 
 interface Review {
   id: string;
@@ -14,6 +15,7 @@ interface Review {
   createdAt: string;
   editedAt: string | null;
   editableUntil: string;
+  images: ReviewPhoto[];
 }
 
 /**
@@ -29,6 +31,7 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
   const [editing, setEditing] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [photos, setPhotos] = useState<ReviewPhoto[]>([]);
   const [reply, setReply] = useState('');
   const [replying, setReplying] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -85,6 +88,7 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
             placeholder={t('Что понравилось, что нет — необязательно')}
             style={{ resize: 'vertical', marginTop: 10 }}
           />
+          <ReviewPhotoPicker value={photos} onChange={setPhotos} />
           <div className="row" style={{ gap: 8, marginTop: 12 }}>
             <button
               className="btn"
@@ -97,11 +101,20 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
                     review
                       ? apiFetch(`/reviews/${review.id}`, {
                           method: 'PATCH',
-                          body: JSON.stringify({ rating, comment: comment.trim() || null }),
+                          body: JSON.stringify({
+                            rating,
+                            comment: comment.trim() || null,
+                            images: photos.map((p) => p.key),
+                          }),
                         })
                       : apiFetch('/reviews', {
                           method: 'POST',
-                          body: JSON.stringify({ orderId, rating, comment: comment.trim() || undefined }),
+                          body: JSON.stringify({
+                            orderId,
+                            rating,
+                            comment: comment.trim() || undefined,
+                            images: photos.map((p) => p.key),
+                          }),
                         }),
                   t('Не удалось сохранить отзыв.'),
                 );
@@ -127,6 +140,7 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
             </span>
           </div>
           {review.comment && <p style={{ margin: '8px 0 0', fontSize: 15 }}>{review.comment}</p>}
+          <ReviewPhotos images={review.images.map((p) => p.url)} />
           {review.sellerReply && !replying && (
             <p className="muted" style={{ fontSize: 14, margin: '10px 0 0', paddingLeft: 12, borderLeft: '2px solid var(--border)' }}>
               {t('Ответ продавца:')} {review.sellerReply}
@@ -140,6 +154,7 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
                 onClick={() => {
                   setRating(review.rating);
                   setComment(review.comment ?? '');
+                  setPhotos(review.images);
                   setEditing(true);
                 }}
               >

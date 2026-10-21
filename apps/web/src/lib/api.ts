@@ -165,6 +165,8 @@ export interface SellerProfile {
   verified: boolean;
   level: { key: string; label: string };
   ratingBreakdown: { star: number; count: number }[];
+  /** Отзывов с фото — для фильтра «С фото». */
+  photoReviews?: number;
 }
 
 export const getSeller = (id: string) => apiTry<SellerProfile>(`/sellers/${id}`);

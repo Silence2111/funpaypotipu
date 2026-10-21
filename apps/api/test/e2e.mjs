@@ -1128,6 +1128,58 @@ async function scenarioDisputes(rnd) {
 }
 
 /**
+ * Отзыв с фото: загрузка через API, в отзыв — только свои фото, на витрине —
+ * адреса и фильтр «С фото», фото открывается без входа.
+ */
+async function scenarioReviewPhotos(rnd) {
+  console.log('\n— Отзывы с фото —');
+  const seller = await register('rvs', rnd);
+  const buyer = await register('rvb', rnd);
+  const other = await register('rvo', rnd);
+  const listingId = await createListing(seller.token, 'accounts', '70000');
+  const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
+  await pay(buyer.token, order.body.id);
+  await j(`/orders/${order.body.id}/deliver`, { method: 'POST', token: seller.token });
+  await j(`/orders/${order.body.id}/confirm`, { method: 'POST', token: buyer.token });
+
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  const upload = async (token, body = png, type = 'image/png') => {
+    const form = new FormData();
+    form.append('file', new Blob([body], { type }), 'shot.png');
+    const res = await fetch(`${API}/api/reviews/uploads`, { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form });
+    return { status: res.status, body: await res.json().catch(() => null) };
+  };
+  const mine = await upload(buyer.token);
+  const foreign = await upload(other.token);
+  const text = await upload(buyer.token, Buffer.from('not an image'), 'text/plain');
+  const review = (images) =>
+    j('/reviews', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: order.body.id, rating: 5, comment: 'Всё как в описании', images }) });
+  const stolen = await review([foreign.body?.key]);
+  const ok = await review([mine.body?.key]);
+  check(
+    'Фото к отзыву: своё — принято, чужое — 400, не картинка — 400',
+    mine.status === 201 && mine.body.key?.startsWith(`reviews/${buyer.id}/`) && text.status === 400 &&
+      stolen.status === 400 && ok.status === 201 && ok.body.photoCount === 1,
+    JSON.stringify({ mine: mine.status, text: text.status, stolen: stolen.status, ok: ok.status }),
+  );
+  const list = (await j(`/reviews/user/${seller.id}?photos=1`)).body;
+  const profile = (await j(`/sellers/${seller.id}`)).body;
+  const pic = list[0]?.images?.[0] ? await fetch(list[0].images[0]) : null;
+  check(
+    'На витрине: фильтр «С фото», адрес фото открывается без входа, счётчик в профиле',
+    list.length === 1 && pic?.status === 200 && pic.headers.get('content-type') === 'image/png' && profile.photoReviews === 1,
+    JSON.stringify({ list: list.length, pic: pic?.status, photos: profile.photoReviews }),
+  );
+  const edited = await j(`/reviews/${ok.body.id}`, { method: 'PATCH', token: buyer.token, body: JSON.stringify({ images: [] }) });
+  const gone = await fetch(`${API}/api/assets?key=${encodeURIComponent(mine.body.key)}`);
+  const none = (await j(`/reviews/user/${seller.id}?photos=1`)).body;
+  check('Фото убрано из отзыва — пропало с витрины и из хранилища', edited.status === 200 && none.length === 0 && gone.status === 404, JSON.stringify({ edited: edited.status, gone: gone.status }));
+}
+
+/**
  * Защита перед запуском: заголовки, CORS только для сайта, лимит запросов
  * с адреса. Адрес покупателя приходит в X-Forwarded-For — API верит ему
  * от локального прокси, как за ingress.
@@ -1413,6 +1465,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioSellerTools(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
+  await scenarioReviewPhotos(rnd);
   await scenarioTwoFactor(rnd);
   await scenarioPush(rnd);
   await scenarioFiles(rnd);

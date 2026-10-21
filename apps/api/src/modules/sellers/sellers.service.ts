@@ -57,6 +57,10 @@ export class SellersService {
       star,
       count: grouped.find((g) => g.rating === star)?._count._all ?? 0,
     }));
+    // Отзывов с фото — для фильтра «С фото».
+    const photoReviews = await this.prisma.review.count({
+      where: { targetId: sellerId, photoCount: { gt: 0 } },
+    });
 
     return {
       id: profile.userId,
@@ -77,6 +81,7 @@ export class SellersService {
       verified,
       level: { key: level.key, label: level.label },
       ratingBreakdown,
+      photoReviews,
     };
   }
 

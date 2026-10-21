@@ -178,7 +178,6 @@ export const LOT: Record<string, string> = {
   'Не удалось сохранить ответ.': 'Couldn’t save the reply.',
   Оценка: 'Rating',
   Все: 'All',
-  'С такой оценкой отзывов нет.': 'No reviews with this rating.',
   'Отзывов о продавце пока нет.': 'The seller has no reviews yet.',
   изменён: 'edited',
   'Ответ продавца:': 'Seller’s reply:',
@@ -190,4 +189,12 @@ export const LOT: Record<string, string> = {
   'Показать ещё': 'Show more',
   'Все отзывы о продавце': 'All seller reviews',
   '{n} из 5': '{n} of 5',
+  'Фото к отзыву {n} из {total}': 'Review photo {n} of {total}',
+  'Фото к отзыву': 'Review photos',
+  'Загрузка…': 'Uploading…',
+  Фото: 'Photo',
+  'До {n} фото — скриншоты товара или игры. Все покупатели их увидят.':
+    'Up to {n} photos — screenshots of the item or the game. All buyers will see them.',
+  'С фото': 'With photos',
+  'Таких отзывов нет.': 'No such reviews.',
 };

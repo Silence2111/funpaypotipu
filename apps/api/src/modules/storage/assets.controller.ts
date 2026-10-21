@@ -62,11 +62,12 @@ export class AssetsController {
 
   /**
    * Публичная отдача изображений лотов/игр (приватный MinIO наружу не открыт).
-   * Разрешены только префиксы listings/, games/ и avatars/ — вложения чата и KYC остаются приватными.
+   * Разрешены только префиксы listings/, games/, avatars/ и reviews/ (фото к
+   * отзывам — они публичные) — вложения чата, споров и KYC остаются приватными.
    */
   @Get()
   async serve(@Query('key') key: string, @Res() res: Response) {
-    if (!key || !/^(listings|games|avatars)\/[\w./-]+$/.test(key) || key.includes('..')) {
+    if (!key || !/^(listings|games|avatars|reviews)\/[\w./-]+$/.test(key) || key.includes('..')) {
       throw new NotFoundException();
     }
     if (!this.storage.enabled) throw new NotFoundException();
