@@ -34,6 +34,8 @@ export interface MyLot {
   promotedUntil?: string | null;
   /** Скидка: прежняя цена и срок; price — уже со скидкой. */
   saleListPrice?: string | null;
+  /** От чего скидку видят покупатели — самая низкая цена за неделю до неё. */
+  saleRefPrice?: string | null;
   saleUntil?: string | null;
   topupMarkupBps?: number | null;
   fulfillmentType?: string;
@@ -242,6 +244,7 @@ export function MyLotRow({
             price={lot.price}
             currency={lot.currency}
             saleListPrice={lot.saleListPrice}
+            saleRefPrice={lot.saleRefPrice}
             saleUntil={lot.saleUntil}
             onDone={onChanged}
             onClose={() => setDiscounting(false)}
@@ -294,7 +297,7 @@ function PriceCell({
     return (
       <div className="my-lot-price" title={t('Идёт скидка — цена вернётся по окончании срока')}>
         <span className="my-lot-amount">{formatPrice(lot.price, lot.currency, t)}</span>
-        <SaleMark listPrice={lot.saleListPrice} price={lot.price} currency={lot.currency} t={t} />
+        <SaleMark listPrice={lot.saleRefPrice ?? lot.saleListPrice} price={lot.price} currency={lot.currency} t={t} />
       </div>
     );
   }

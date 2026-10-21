@@ -456,6 +456,9 @@ model Listing {
   saleUntil       DateTime?       @map("sale_until")
   // Когда скидка началась — подписчики продавца узнают о ней один раз.
   saleStartedAt   DateTime?       @map("sale_started_at")
+  // От чего скидка показывается покупателю: самая низкая цена за 7 дней до
+  // неё (shared/sale.ts). saleListPrice — цена, что вернётся после скидки.
+  saleRefPrice    BigInt?         @map("sale_ref_price")
   // Пополнение на сумму покупателя (packages/shared/src/topup.ts): покупатель
   // вводит, сколько зачислить, и платит номинал плюс наценку. Все три поля
   // заданы или все null; у такого лота price — цена минимальной суммы («от»).

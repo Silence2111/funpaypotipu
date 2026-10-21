@@ -254,6 +254,8 @@ export const EN_API: Phrasebook = {
   'Скидки на этом лоте нет': 'This listing has no discount',
   'Идёт скидка — завершите её, потом меняйте цену':
     'A discount is running — end it before changing the price',
+  'За {n} дней до скидки цена была {price} — от неё скидка {off}%, а нужно от {min}%. Дайте скидку больше или подождите неделю после повышения цены':
+    'In the {n} days before the discount the price was {price} — the discount from it is {off}%, and at least {min}% is needed. Give a bigger discount or wait a week after raising the price',
 
   // Промокоды продавца
   'Укажите код': 'Enter a code',

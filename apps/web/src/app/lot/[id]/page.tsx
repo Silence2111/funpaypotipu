@@ -254,7 +254,7 @@ export default async function ListingPage({
             {listing.saleListPrice && (
               <div style={{ margin: '-8px 0 16px' }}>
                 <SaleMark
-                  listPrice={listing.saleListPrice}
+                  listPrice={listing.saleRefPrice ?? listing.saleListPrice}
                   price={listing.price}
                   currency={listing.currency}
                   until={listing.saleUntil}

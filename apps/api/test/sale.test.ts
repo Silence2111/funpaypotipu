@@ -11,11 +11,19 @@ import { ListingsService } from '../src/modules/listings/listings.service';
 
 type Row = Record<string, unknown>;
 
-function setup(listing: Row | null, opts: { updated?: number; raw?: number; ended?: Row[] } = {}) {
+function setup(
+  listing: Row | null,
+  opts: { updated?: number; raw?: number; ended?: Row[]; before?: Row | null; points?: Row[] } = {},
+) {
   const prisma = {
     listing: {
       findUnique: vi.fn(async () => listing),
       updateMany: vi.fn(async () => ({ count: opts.updated ?? 1 })),
+    },
+    // История цены — для честной прежней цены скидки.
+    listingPricePoint: {
+      findFirst: vi.fn(async () => opts.before ?? null),
+      findMany: vi.fn(async () => opts.points ?? []),
     },
     $executeRaw: vi.fn(async () => opts.raw ?? 1),
     $queryRaw: vi.fn(async () => opts.ended ?? []),
@@ -29,12 +37,35 @@ const lot = (over: Row = {}): Row => ({
   sellerId: 's1',
   status: 'active',
   price: 150000n,
+  pricePerUnits: 1,
   topupMarkupBps: null,
   saleUntil: null,
   ...over,
 });
+const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000);
 
 describe('скидка на лот', () => {
+  it('честная: от самой низкой цены за неделю; меньше 5% от неё — отказ с причиной', async () => {
+    // Держалась 1 000 ₽, два дня назад подняли до 1 500 ₽.
+    const raised = {
+      before: { price: 100000n, pricePerUnits: 1, at: daysAgo(30) },
+      points: [{ price: 150000n, pricePerUnits: 1, at: daysAgo(2) }],
+    };
+    // −20% от 1 500 — 1 200 ₽, дороже прежних 1 000: скидки на деле нет.
+    await expect(setup(lot(), raised).svc.startSale('s1', 'l1', 20, 3)).rejects.toThrow(
+      /была 1\s000 ₽ — от неё скидка 0%, а нужно от 5%/,
+    );
+    // −40% — 900 ₽: от честных 1 000 ₽ это −10%, её покупатель и увидит.
+    const ok = setup(lot(), raised);
+    expect(await ok.svc.startSale('s1', 'l1', 40, 3)).toMatchObject({
+      price: '90000',
+      saleListPrice: '150000',
+      saleRefPrice: '100000',
+    });
+    const data = (ok.prisma.listing.updateMany.mock.calls[0]![0] as unknown as { data: Row }).data;
+    expect(data).toMatchObject({ saleListPrice: 150000n, saleRefPrice: 100000n, price: 90000n });
+  });
+
   it('цена ниже на процент, прежняя — отдельно, условно и с обновлением индекса', async () => {
     const { svc, prisma, search } = setup(lot());
     const before = Date.now();
@@ -86,10 +117,12 @@ describe('скидка на лот', () => {
   });
 
   it('срок вышел — цена возвращается, индекс обновляется; сбой индекса не мешает', async () => {
-    const { svc, search } = setup(null, { ended: [{ id: 'a' }, { id: 'b' }] });
+    const { svc, search, prisma } = setup(null, { ended: [{ id: 'a' }, { id: 'b' }] });
     search.indexListing.mockRejectedValueOnce(new Error('поиск недоступен'));
     expect(await svc.endExpiredSales()).toBe(2);
     expect(search.indexListing).toHaveBeenCalledTimes(2);
+    // Сначала — срок без прежней цены: такая строка не должна ронять возврат остальным.
+    expect(String(prisma.$executeRaw.mock.calls[0]![0])).toMatch(/sale_list_price IS NULL/);
   });
 
   it('во время скидки новая цена или пачка — отказ', async () => {

@@ -373,4 +373,11 @@ export const CABINET: Record<string, string> = {
     '{n} won’t change: a discount is running, it’s a top-up or the listing is blocked.',
   'Изменить цены {pct}: {n}': 'Change prices {pct}: {n}',
   'Изменить цены': 'Change prices',
+
+  // Честная скидка
+  'После скидки вернётся {list}.': 'After the discount it goes back to {list}.',
+  'За {n} дней до скидки цена была ниже — {ref}. Покупатели увидят скидку от неё: поднять цену накануне и зачеркнуть её не выйдет.':
+    'In the {n} days before the discount the price was lower — {ref}. Buyers will see the discount from it: raising the price the day before and striking it through won’t work.',
+  'От {ref} это скидка {off}% — нужно от {min}%. Дайте скидку больше.':
+    'From {ref} that’s a {off}% discount — at least {min}% is needed. Give a bigger discount.',
 };

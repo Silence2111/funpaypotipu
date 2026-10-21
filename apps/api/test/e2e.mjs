@@ -1477,7 +1477,10 @@ async function scenarioSale(rnd) {
   const endAgain = await j(`/listings/${lot}/sale`, { method: 'DELETE', token: seller.token });
   const back = (await j(`/listings/${lot}`)).body;
   // Новая скидка, срок которой уже вышел, — цену возвращает фоновая задача.
-  await sale({ percent: 10, days: 1 });
+  // −30%: прошлая скидка (1 200 ₽) была на этой неделе, и честная скидка
+  // считается от неё (часть 45) — 1 050 ₽ это −12%, а −10% (1 350 ₽) не скидка.
+  const again2 = await sale({ percent: 30, days: 1 });
+  if (again2.status !== 201) throw new Error(`Вторая скидка не началась: ${JSON.stringify(again2.body)}`);
   await prisma.listing.update({ where: { id: lot }, data: { saleUntil: new Date(Date.now() - 1000) } });
   let expired = null;
   for (let i = 0; i < 20; i++) {
@@ -1600,6 +1603,41 @@ async function scenarioPriceHistory(rnd) {
     'Снятый лот — 404, неверный адрес — 400',
     paused.status === 404 && bad.status === 400,
     JSON.stringify({ paused: paused.status, bad: bad.status }),
+  );
+}
+
+async function scenarioHonestSale(rnd) {
+  console.log('\n— Честная скидка —');
+  const seller = await register('hns', rnd);
+  const as = { token: seller.token };
+  const sale = (id, percent) =>
+    j(`/listings/${id}/sale`, { method: 'POST', ...as, body: JSON.stringify({ percent, days: 3 }) });
+  // Держалась 1 000 ₽, подняли до 1 200 ₽ — и сразу «скидка».
+  const raised = await createListing(seller.token, 'accounts', '100000', { title: `Честная ${rnd} · поднятая` });
+  await j(`/listings/${raised}`, { method: 'PATCH', ...as, body: JSON.stringify({ price: '120000' }) });
+  const fake = await sale(raised, 10); // 1 080 ₽ — дороже прежних 1 000
+  const thin = await sale(raised, 20); // 960 ₽ — от 1 000 это 4%
+  const real = await sale(raised, 30); // 840 ₽ — от 1 000 это 16%
+  const card = (await j(`/listings/${raised}`)).body;
+  check(
+    'Подняли цену и «скидка»: −10% и −20% — отказ с причиной; −30% — скидка от прежних 1 000 ₽, не от 1 200',
+    fake.status === 400 && /была 1\s000 ₽ — от неё скидка 0%/.test(fake.body.message) && thin.status === 400 &&
+      /скидка 4%/.test(thin.body.message) && real.status === 201 && card.price === '84000' &&
+      card.saleRefPrice === '100000' && card.saleListPrice === '120000',
+    JSON.stringify({ fake: fake.body?.message, thin: thin.body?.message, real: real.body, card: [card.price, card.saleRefPrice, card.saleListPrice] }),
+  );
+
+  // Цена не поднималась — скидка от неё же; по окончании отметка снимается.
+  const plain = await createListing(seller.token, 'accounts', '100000', { title: `Честная ${rnd} · обычная` });
+  const ok = await sale(plain, 20);
+  const during = (await j(`/listings/${plain}`)).body;
+  await j(`/listings/${plain}/sale`, { method: 'DELETE', ...as });
+  const after = (await j(`/listings/${plain}`)).body;
+  check(
+    'Цена не поднималась — −20% от неё же; скидку завершили — цена и отметка как были',
+    ok.status === 201 && during.saleRefPrice === '100000' && during.price === '80000' &&
+      after.price === '100000' && after.saleRefPrice == null && after.saleListPrice == null,
+    JSON.stringify({ during: [during.price, during.saleRefPrice], after: [after.price, after.saleRefPrice] }),
   );
 }
 
@@ -2075,6 +2113,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioQtyDiscount(rnd);
   await scenarioBulkPrice(rnd);
   await scenarioPriceHistory(rnd);
+  await scenarioHonestSale(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

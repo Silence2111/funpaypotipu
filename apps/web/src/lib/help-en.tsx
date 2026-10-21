@@ -10,6 +10,7 @@ import {
   DISPUTE_RESPONSE_HOURS,
   PRICE_DROP_MIN_PCT,
   SALE_MAX_PCT,
+  SALE_REF_DAYS,
   SALE_MIN_PCT,
   SELLER_PROMO_MAX_PCT,
   SELLER_PROMO_MIN_PCT,
@@ -246,7 +247,9 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           Discount — the “%” icon next to a listing in “My listings”: {SALE_MIN_PCT} to{' '}
           {SALE_MAX_PCT}% for a day, 3 or 7 days. Buyers see the crossed-out price, and those who
           have the listing in favorites get a notification. When the period ends, the price returns
-          by itself.
+          by itself. The discount is honest: the crossed-out price is the lowest one in the{' '}
+          {SALE_REF_DAYS} days before it — raising the price the day before and “cutting” it won’t
+          work.
         </li>
         <li>
           Promo codes — in “Tools”: your own code with a {SELLER_PROMO_MIN_PCT}–

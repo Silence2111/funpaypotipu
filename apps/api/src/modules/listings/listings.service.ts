@@ -11,6 +11,10 @@ import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type FulfillmentType } from '@gamemarket/db';
 import {
   SALE_MIN_PRICE,
+  SALE_MIN_PCT,
+  SALE_REF_DAYS,
+  saleOff,
+  saleReference,
   PRICE_HISTORY_DAYS,
   repriced,
   bumpCooldownHours,
@@ -76,8 +80,10 @@ const cardSelect = {
   boostUntil: true,
   // Платное продвижение: карточка помечает его, выдача ставит выше.
   promotedUntil: true,
-  // Скидка: карточка зачёркивает прежнюю цену и пишет «−20%».
+  // Скидка: карточка зачёркивает честную прежнюю цену (saleRefPrice — самая
+  // низкая за неделю до скидки) и пишет «−20%»; saleListPrice вернётся после.
   saleListPrice: true,
+  saleRefPrice: true,
   saleUntil: true,
   fulfillmentType: true,
   // Лот «на сумму покупателя»: карточка пишет «от», страница лота — форму суммы.
@@ -376,7 +382,22 @@ export class ListingsService {
     if (!listing || (listing.status !== 'active' && listing.status !== 'sold_out')) {
       throw new NotFoundException('Лот не найден');
     }
-    const since = new Date(Date.now() - PRICE_HISTORY_DAYS * 86_400_000);
+    const series = await this.historyPoints(id, listing.pricePerUnits, PRICE_HISTORY_DAYS);
+    return {
+      days: PRICE_HISTORY_DAYS,
+      // У пополнения цена «от» зависит от наценки, а не от скидок: её историю не показываем.
+      topup: listing.topupMarkupBps != null,
+      points: series.map((p) => ({ at: p.at, price: p.price.toString() })),
+    };
+  }
+
+  /**
+   * Точки истории цены за days дней в текущей пачке лота: цена до начала
+   * периода — его первая точка, повторы подряд убраны. Ими же считается
+   * честная прежняя цена скидки.
+   */
+  private async historyPoints(id: string, pricePerUnits: number, days: number) {
+    const since = new Date(Date.now() - days * 86_400_000);
     const select = { price: true, pricePerUnits: true, at: true } as const;
     const [before, inside] = await Promise.all([
       this.prisma.listingPricePoint.findFirst({
@@ -391,21 +412,15 @@ export class ListingsService {
         select,
       }),
     ]);
-    const pack = BigInt(listing.pricePerUnits);
+    const pack = BigInt(pricePerUnits);
     const norm = (p: { price: bigint; pricePerUnits: number }) =>
-      p.pricePerUnits === listing.pricePerUnits
+      p.pricePerUnits === pricePerUnits
         ? p.price
         : (p.price * pack + BigInt(p.pricePerUnits) / 2n) / BigInt(p.pricePerUnits);
-    const series = [
+    return [
       ...(before ? [{ at: since, price: norm(before) }] : []),
       ...inside.map((p) => ({ at: p.at, price: norm(p) })),
     ].filter((p, i, all) => i === 0 || p.price !== all[i - 1]!.price);
-    return {
-      days: PRICE_HISTORY_DAYS,
-      // У пополнения цена «от» зависит от наценки, а не от скидок: её историю не показываем.
-      topup: listing.topupMarkupBps != null,
-      points: series.map((p) => ({ at: p.at, price: p.price.toString() })),
-    };
   }
 
   async getById(id: string) {
@@ -552,7 +567,14 @@ export class ListingsService {
   async startSale(sellerId: string, id: string, pct: number, days: number) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
-      select: { sellerId: true, status: true, price: true, topupMarkupBps: true, saleUntil: true },
+      select: {
+        sellerId: true,
+        status: true,
+        price: true,
+        pricePerUnits: true,
+        topupMarkupBps: true,
+        saleUntil: true,
+      },
     });
     if (!listing || listing.status === 'archived') throw new NotFoundException('Лот не найден');
     if (listing.sellerId !== sellerId) throw new ForbiddenException('Это не ваш лот');
@@ -567,21 +589,43 @@ export class ListingsService {
     }
     const price = salePrice(listing.price, pct);
     if (price < SALE_MIN_PRICE) throw new BadRequestException('Со скидкой цена меньше 1 ₽');
+    // Честная скидка: покупатель видит её от самой низкой цены за неделю до
+    // скидки — поднятая накануне цена зачёркнутой не станет.
+    const points = await this.historyPoints(id, listing.pricePerUnits, SALE_REF_DAYS);
+    const ref = saleReference(points, listing.price, Date.now());
+    const shown = saleOff(ref, price) ?? 0;
+    if (shown < SALE_MIN_PCT) {
+      const rub = `${(Number(ref) / 100).toLocaleString('ru-RU')} ₽`;
+      throw new BadRequestException(
+        `За ${SALE_REF_DAYS} дней до скидки цена была ${rub} — от неё скидка ${shown}%, а нужно от ${SALE_MIN_PCT}%. Дайте скидку больше или подождите неделю после повышения цены`,
+      );
+    }
     const saleUntil = new Date(Date.now() + days * 24 * 3600_000);
     const r = await this.prisma.listing.updateMany({
       where: { id, sellerId, saleUntil: null, price: listing.price },
-      data: { saleListPrice: listing.price, price, saleUntil, saleStartedAt: new Date() },
+      data: {
+        saleListPrice: listing.price,
+        saleRefPrice: ref,
+        price,
+        saleUntil,
+        saleStartedAt: new Date(),
+      },
     });
     if (!r.count) throw new BadRequestException('Лот только что изменился — обновите страницу');
     await this.search.indexListing(id);
-    return { price: price.toString(), saleListPrice: listing.price.toString(), saleUntil };
+    return {
+      price: price.toString(),
+      saleListPrice: listing.price.toString(),
+      saleRefPrice: ref.toString(),
+      saleUntil,
+    };
   }
 
   /** Завершить скидку раньше срока: прежняя цена возвращается сразу. */
   async endSale(sellerId: string, id: string) {
     const n = await this.prisma.$executeRaw`
       UPDATE listings
-      SET price = sale_list_price, sale_list_price = NULL, sale_until = NULL, sale_started_at = NULL, updated_at = ${new Date()}
+      SET price = sale_list_price, sale_list_price = NULL, sale_ref_price = NULL, sale_until = NULL, sale_started_at = NULL, updated_at = ${new Date()}
       WHERE id = ${id}::uuid AND seller_id = ${sellerId}::uuid AND sale_until IS NOT NULL`;
     if (!n) throw new NotFoundException('Скидки на этом лоте нет');
     await this.search.indexListing(id);
@@ -592,10 +636,16 @@ export class ListingsService {
   @Interval('sales', SALE_SWEEP_MS)
   async endExpiredSales(): Promise<number> {
     const now = new Date();
+    // Срок без прежней цены — данные испорчены: такой строке ставить нечего,
+    // а в общем запросе она уронила бы возврат цены всем остальным лотам.
+    await this.prisma.$executeRaw`
+      UPDATE listings
+      SET sale_ref_price = NULL, sale_until = NULL, sale_started_at = NULL, updated_at = ${now}
+      WHERE sale_until IS NOT NULL AND sale_until <= ${now} AND sale_list_price IS NULL`;
     const ended = await this.prisma.$queryRaw<Array<{ id: string }>>`
       UPDATE listings
-      SET price = sale_list_price, sale_list_price = NULL, sale_until = NULL, sale_started_at = NULL, updated_at = ${now}
-      WHERE sale_until IS NOT NULL AND sale_until <= ${now}
+      SET price = sale_list_price, sale_list_price = NULL, sale_ref_price = NULL, sale_until = NULL, sale_started_at = NULL, updated_at = ${now}
+      WHERE sale_until IS NOT NULL AND sale_until <= ${now} AND sale_list_price IS NOT NULL
       RETURNING id`;
     for (const { id } of ended) {
       await this.search.indexListing(id).catch((e: Error) => this.logger.warn(`Индекс ${id}: ${e.message}`));

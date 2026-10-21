@@ -32,3 +32,29 @@ export function saleOff(
   if (list <= 0n || now >= list) return null;
   return Math.round(Number(((list - now) * 1000n) / list) / 10);
 }
+
+/** За сколько дней до скидки ищется самая низкая цена — от неё скидка и считается. */
+export const SALE_REF_DAYS = 7;
+
+/**
+ * Честная прежняя цена — самая низкая за SALE_REF_DAYS дней до скидки, по
+ * истории цены (точки уже в текущей пачке; последняя до окна — цена на его
+ * начало). Поднять цену накануне и «снизить» её не выйдет: зачёркнута будет
+ * прежняя, более низкая цена. Нынешняя цена — тоже в счёте.
+ */
+export function saleReference(
+  points: Array<{ at: string | Date; price: string | bigint }>,
+  price: bigint,
+  now: number,
+): bigint {
+  const since = now - SALE_REF_DAYS * 86_400_000;
+  let ref = price;
+  let carried: bigint | null = null;
+  for (const p of points) {
+    const at = new Date(p.at).getTime();
+    const value = BigInt(p.price);
+    if (at < since) carried = value;
+    else if (value < ref) ref = value;
+  }
+  return carried != null && carried < ref ? carried : ref;
+}

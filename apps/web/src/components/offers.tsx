@@ -194,7 +194,12 @@ function OfferRow({
         <span className="price">
           {pack ? formatPrice(l.price, l.currency, t) : formatListingPrice(l, t)}
         </span>
-        <SaleMark listPrice={l.saleListPrice} price={l.price} currency={l.currency} t={t} />
+        <SaleMark
+          listPrice={l.saleRefPrice ?? l.saleListPrice}
+          price={l.price}
+          currency={l.currency}
+          t={t}
+        />
         {pack ? (
           <span className="faint">{pack}</span>
         ) : (

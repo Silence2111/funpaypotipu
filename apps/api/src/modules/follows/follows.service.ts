@@ -27,6 +27,7 @@ interface Lot {
   title: string;
   price: bigint;
   saleListPrice: bigint | null;
+  saleRefPrice: bigint | null;
   createdAt: Date;
   saleStartedAt: Date | null;
 }
@@ -261,6 +262,7 @@ export class FollowsService {
       title: true,
       price: true,
       saleListPrice: true,
+      saleRefPrice: true,
       createdAt: true,
       saleStartedAt: true,
     } as const;
@@ -353,7 +355,11 @@ export class FollowsService {
     const vars = {
       title: first.title,
       price: rub(first.price),
-      old: first.saleListPrice != null ? rub(first.saleListPrice) : '',
+      // «Вместо» — честная прежняя цена, как зачёркнутая на витрине.
+      old:
+        (first.saleRefPrice ?? first.saleListPrice) != null
+          ? rub((first.saleRefPrice ?? first.saleListPrice)!)
+          : '',
       n: lots.length - 1,
     };
     const more = lots.length > 1;

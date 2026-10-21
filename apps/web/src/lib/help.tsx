@@ -10,6 +10,7 @@ import {
   DISPUTE_RESPONSE_HOURS,
   PRICE_DROP_MIN_PCT,
   SALE_MAX_PCT,
+  SALE_REF_DAYS,
   SALE_MIN_PCT,
   SELLER_PROMO_MAX_PCT,
   SELLER_PROMO_MIN_PCT,
@@ -247,7 +248,8 @@ const RU_BODIES: Record<HelpSlug, (t: Terms) => ReactNode> = {
         <li>
           Скидка — значок «%» у лота в «Моих лотах»: от {SALE_MIN_PCT} до {SALE_MAX_PCT}% на сутки, 3 или 7 суток.
           Покупатели видят зачёркнутую цену, у кого лот в избранном — получают уведомление. По окончании срока цена
-          возвращается сама.
+          возвращается сама. Скидка честная: зачёркнута самая низкая цена за {SALE_REF_DAYS} дней до неё — поднять
+          цену накануне и «снизить» не выйдет.
         </li>
         <li>
           Промокоды — в «Инструментах»: свой код со скидкой {SELLER_PROMO_MIN_PCT}–{SELLER_PROMO_MAX_PCT}% за ваш счёт,

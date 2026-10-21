@@ -1,7 +1,16 @@
 'use client';
 
-import { useState } from 'react';
-import { SALE_DAYS, SALE_MAX_PCT, SALE_MIN_PCT, salePrice, saleOff } from '@gamemarket/shared/sale';
+import { useEffect, useState } from 'react';
+import {
+  SALE_DAYS,
+  SALE_MAX_PCT,
+  SALE_MIN_PCT,
+  SALE_REF_DAYS,
+  salePrice,
+  saleOff,
+  saleReference,
+} from '@gamemarket/shared/sale';
+import type { PriceHistory } from '@/lib/api';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
@@ -15,7 +24,9 @@ const date = (ms: number, t: T) =>
 
 /**
  * «Скидка» в «Моих лотах»: процент и срок, сколько станет — до нажатия.
- * Идёт скидка — сколько было и сейчас, «Завершить». Панель раскрывается
+ * Скидка честная: покупатель видит её от самой низкой цены за неделю до
+ * неё, и панель показывает это заранее — по истории цены лота. Идёт
+ * скидка — сколько сейчас и что вернётся, «Завершить». Панель раскрывается
  * под строкой лота, кнопку рисует сама строка.
  */
 export function SalePanel({
@@ -23,6 +34,7 @@ export function SalePanel({
   price,
   currency,
   saleListPrice,
+  saleRefPrice,
   saleUntil,
   onDone,
   onClose,
@@ -31,6 +43,8 @@ export function SalePanel({
   price: string;
   currency: string;
   saleListPrice?: string | null;
+  /** От чего скидку видят покупатели; у скидок до этого правила — нет. */
+  saleRefPrice?: string | null;
   saleUntil?: string | null;
   onDone: () => void;
   onClose: () => void;
@@ -43,6 +57,18 @@ export function SalePanel({
   const running = !!saleListPrice && !!saleUntil;
   const n = Number(pct);
   const valid = Number.isInteger(n) && n >= SALE_MIN_PCT && n <= SALE_MAX_PCT;
+  // Самая низкая цена за неделю — по истории; пока её нет, нынешняя.
+  const [ref, setRef] = useState<bigint>(BigInt(price));
+  useEffect(() => {
+    if (running) return;
+    apiFetch<PriceHistory>(`/listings/${listingId}/price-history`)
+      .then((h) => setRef(saleReference(h.points, BigInt(price), Date.now())))
+      .catch(() => undefined);
+  }, [listingId, price, running]);
+  const next = valid ? salePrice(BigInt(price), n) : null;
+  const shown = next != null ? (saleOff(ref, next) ?? 0) : 0;
+  const honest = shown >= SALE_MIN_PCT;
+  const raised = ref < BigInt(price);
 
   async function call(path: string, init: RequestInit, fallback: string) {
     setBusy(true);
@@ -63,11 +89,19 @@ export function SalePanel({
       <div className="card flat sale-panel">
         <p style={{ margin: 0, fontSize: 14 }}>
           {t('Скидка −{pct}% до {date}: было {was}, сейчас {now}.', {
-            pct: saleOff(saleListPrice, price) ?? 0,
+            pct: saleOff(saleRefPrice ?? saleListPrice, price) ?? 0,
             date: date(new Date(saleUntil!).getTime(), t),
-            was: formatPrice(saleListPrice!, currency, t),
+            was: formatPrice(saleRefPrice ?? saleListPrice!, currency, t),
             now: formatPrice(price, currency, t),
           })}
+          {saleRefPrice && saleRefPrice !== saleListPrice && (
+            <>
+              {' '}
+              {t('После скидки вернётся {list}.', {
+                list: formatPrice(saleListPrice!, currency, t),
+              })}
+            </>
+          )}
         </p>
         <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           <button
@@ -102,7 +136,7 @@ export function SalePanel({
       className="card flat sale-panel"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!valid) return;
+        if (!valid || !honest) return;
         void call(
           `/listings/${listingId}/sale`,
           { method: 'POST', body: JSON.stringify({ percent: n, days }) },
@@ -149,17 +183,34 @@ export function SalePanel({
           </button>
         ))}
       </div>
-      <p style={{ margin: 0, fontSize: 14 }}>
-        {valid
-          ? t('Станет {now} вместо {was} до {date}.', {
-              now: formatPrice(salePrice(BigInt(price), n).toString(), currency, t),
-              was: formatPrice(price, currency, t),
-              date: date(Date.now() + days * 86_400_000, t),
-            })
-          : t('Скидка — от {min} до {max}%.', { min: SALE_MIN_PCT, max: SALE_MAX_PCT })}
+      {raised && (
+        <p className="hint" style={{ margin: 0 }}>
+          {t(
+            'За {n} дней до скидки цена была ниже — {ref}. Покупатели увидят скидку от неё: поднять цену накануне и зачеркнуть её не выйдет.',
+            { n: SALE_REF_DAYS, ref: formatPrice(ref.toString(), currency, t) },
+          )}
+        </p>
+      )}
+      <p
+        style={{ margin: 0, fontSize: 14 }}
+        className={valid && !honest ? 'field-error' : undefined}
+      >
+        {!valid
+          ? t('Скидка — от {min} до {max}%.', { min: SALE_MIN_PCT, max: SALE_MAX_PCT })
+          : honest
+            ? t('Станет {now} вместо {was} до {date}.', {
+                now: formatPrice(next!.toString(), currency, t),
+                was: formatPrice(ref.toString(), currency, t),
+                date: date(Date.now() + days * 86_400_000, t),
+              })
+            : t('От {ref} это скидка {off}% — нужно от {min}%. Дайте скидку больше.', {
+                ref: formatPrice(ref.toString(), currency, t),
+                off: shown,
+                min: SALE_MIN_PCT,
+              })}
       </p>
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-        <button type="submit" className="btn" disabled={busy || !valid}>
+        <button type="submit" className="btn" disabled={busy || !valid || !honest}>
           {t('Начать скидку')}
         </button>
         <button type="button" className="btn ghost" onClick={onClose}>
@@ -169,7 +220,7 @@ export function SalePanel({
       <p className="hint" style={{ margin: 0 }}>
         {t(
           'Покупатели увидят зачёркнутую цену и «−{pct}%». У кого лот в избранном, придёт уведомление. По окончании срока цена вернётся сама.',
-          { pct: valid ? n : '…' },
+          { pct: valid && honest ? shown : '…' },
         )}
       </p>
       {err && (

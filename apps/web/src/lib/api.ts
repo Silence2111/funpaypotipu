@@ -76,6 +76,8 @@ export interface ListingCard {
   promotedUntil?: string | null;
   /** Скидка: прежняя цена и срок; price — уже со скидкой. */
   saleListPrice?: string | null;
+  /** От чего скидка показывается: самая низкая цена за неделю до неё. */
+  saleRefPrice?: string | null;
   saleUntil?: string | null;
   /** Параметры раздела: звание, регион, сервер; «да/нет» — булевы. */
   attributes?: Record<string, unknown>;
