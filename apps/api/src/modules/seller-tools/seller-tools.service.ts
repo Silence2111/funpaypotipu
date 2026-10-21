@@ -1,18 +1,26 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@gamemarket/db';
+import { normalizeCommand } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { ListingsService } from '../listings/listings.service';
 
 /** Больше заготовок в выпадающем списке уже не найти глазами. */
 export const MAX_TEMPLATES = 30;
 
-const TEMPLATE = { id: true, title: true, body: true } as const;
+const TEMPLATE = { id: true, title: true, body: true, command: true } as const;
+
+export interface TemplateInput {
+  title: string;
+  body: string;
+  /** Команда, по которой заготовка уходит сама; пусто — только вручную. */
+  command?: string | null;
+}
 
 /**
  * Инструменты продавца, как у бота FunPayCardinal, только встроенные:
- * заготовки ответов для чата, приветствие покупателю в новом диалоге и
- * автоподнятие лотов. Само приветствие отправляет чат, автоподнятие —
- * сервис лотов; здесь — настройки.
+ * заготовки ответов для чата (с командой — автоответ), приветствие
+ * покупателю в новом диалоге и автоподнятие лотов. Приветствие и
+ * автоответы отправляет чат, автоподнятие — сервис лотов; здесь — настройки.
  */
 @Injectable()
 export class SellerToolsService {
@@ -58,21 +66,43 @@ export class SellerToolsService {
     });
   }
 
-  async addTemplate(userId: string, title: string, body: string) {
+  /**
+   * Команда в том виде, в каком её сравнивает чат. Одна команда — одна
+   * заготовка: иначе неясно, что отправлять.
+   */
+  private async command(userId: string, raw: string | null | undefined, selfId?: string) {
+    const command = raw ? normalizeCommand(raw) : '';
+    if (!command) return null;
+    const taken = await this.prisma.replyTemplate.findFirst({
+      where: { userId, command, ...(selfId ? { id: { not: selfId } } : {}) },
+      select: { title: true },
+    });
+    if (taken) {
+      throw new BadRequestException(`Команда ${command} уже есть у заготовки «${taken.title}»`);
+    }
+    return command;
+  }
+
+  async addTemplate(userId: string, input: TemplateInput) {
     const count = await this.prisma.replyTemplate.count({ where: { userId } });
     if (count >= MAX_TEMPLATES) {
       throw new BadRequestException(`Не больше ${MAX_TEMPLATES} заготовок — удалите ненужные`);
     }
-    return this.prisma.replyTemplate.create({ data: { userId, title, body }, select: TEMPLATE });
+    const command = await this.command(userId, input.command);
+    return this.prisma.replyTemplate.create({
+      data: { userId, title: input.title, body: input.body, command },
+      select: TEMPLATE,
+    });
   }
 
-  async updateTemplate(userId: string, id: string, title: string, body: string) {
+  async updateTemplate(userId: string, id: string, input: TemplateInput) {
+    const command = await this.command(userId, input.command, id);
     const r = await this.prisma.replyTemplate.updateMany({
       where: { id, userId },
-      data: { title, body },
+      data: { title: input.title, body: input.body, command },
     });
     if (!r.count) throw new NotFoundException('Заготовка не найдена');
-    return { id, title, body };
+    return { id, title: input.title, body: input.body, command };
   }
 
   async removeTemplate(userId: string, id: string) {

@@ -1,3 +1,4 @@
+import type { ReplyTime } from '@gamemarket/shared';
 import { RU, type T } from './i18n/lang';
 
 /** «В сети» — был на сайте за последние 5 минут; тот же порог у фильтра API. */
@@ -16,6 +17,25 @@ export function presenceText(onlineAt?: string | null, now = Date.now(), t: T = 
   const h = Math.floor(mins / 60);
   if (h < 24) return t('в сети {n} ч назад', { n: h });
   return t('в сети {n} дн назад', { n: Math.floor(h / 24) });
+}
+
+/**
+ * «за 15 минут» — к «Обычно отвечает». Считает API по живым ответам
+ * продавца (shared/reply.ts); ответов мало — подписи нет.
+ */
+export function replyWhen(time: ReplyTime, t: T = RU): string {
+  switch (time) {
+    case 'min5':
+      return t('за 5 минут');
+    case 'min15':
+      return t('за 15 минут');
+    case 'hour':
+      return t('за час');
+    case 'hours3':
+      return t('за 3 часа');
+    default:
+      return t('в течение дня');
+  }
 }
 
 // i18n-ignore-start

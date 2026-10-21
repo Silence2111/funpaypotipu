@@ -7,11 +7,13 @@ import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
+import { COMMAND_MAX } from '@gamemarket/shared';
 
 interface Template {
   id: string;
   title: string;
   body: string;
+  command: string | null;
 }
 interface Tools {
   greeting: string | null;
@@ -36,7 +38,8 @@ function wait(min: number, t: T) {
 /**
  * Инструменты продавца — то, ради чего продавцы FunPay ставят бота, но
  * встроенное: автоподнятие лотов, приветствие покупателю в новом диалоге
- * и заготовки ответов для чата.
+ * и заготовки ответов для чата — с командой заготовка становится
+ * автоответом.
  */
 export default function ToolsPage() {
   const t = useT();
@@ -45,6 +48,7 @@ export default function ToolsPage() {
   const [greeting, setGreeting] = useState('');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [command, setCommand] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -105,10 +109,21 @@ export default function ToolsPage() {
       t('Не удалось сохранить.'),
     );
 
+  function resetForm() {
+    setEditing(null);
+    setTitle('');
+    setBody('');
+    setCommand('');
+  }
+
   function saveTemplate(e: FormEvent) {
     e.preventDefault();
     if (!tools) return;
-    const payload = JSON.stringify({ title: title.trim(), body: body.trim() });
+    const payload = JSON.stringify({
+      title: title.trim(),
+      body: body.trim(),
+      command: command.trim() || null,
+    });
     void run(
       async () => {
         if (editing) {
@@ -124,9 +139,7 @@ export default function ToolsPage() {
           });
           setTools({ ...tools, templates: [...tools.templates, r] });
         }
-        setEditing(null);
-        setTitle('');
-        setBody('');
+        resetForm();
       },
       editing ? t('Заготовка изменена.') : t('Заготовка добавлена.'),
       t('Не удалось сохранить заготовку.'),
@@ -139,11 +152,7 @@ export default function ToolsPage() {
       async () => {
         await apiFetch(`/seller-tools/templates/${id}`, { method: 'DELETE' });
         setTools({ ...tools, templates: tools.templates.filter((x) => x.id !== id) });
-        if (editing === id) {
-          setEditing(null);
-          setTitle('');
-          setBody('');
-        }
+        if (editing === id) resetForm();
       },
       t('Заготовка удалена.'),
       t('Не удалось удалить заготовку.'),
@@ -159,7 +168,7 @@ export default function ToolsPage() {
         </h1>
         <p className="muted" style={{ margin: '8px 0 0', maxWidth: '60ch' }}>
           {t(
-            'Автоподнятие, приветствие и заготовки ответов — без сторонних ботов с доступом к аккаунту.',
+            'Автоподнятие, приветствие, заготовки ответов и автоответы на команды — без сторонних ботов с доступом к аккаунту.',
           )}
         </p>
         <div style={{ marginTop: 16 }}>
@@ -286,7 +295,10 @@ export default function ToolsPage() {
                 {tools.templates.map((tp) => (
                   <li key={tp.id} className="tools-template">
                     <div className="tools-template-main">
-                      <div className="tools-template-title">{tp.title}</div>
+                      <div className="tools-template-title">
+                        {tp.title}
+                        {tp.command && <span className="cmd">{tp.command}</span>}
+                      </div>
                       <div className="tools-template-body">{tp.body}</div>
                     </div>
                     <div className="row" style={{ gap: 6 }}>
@@ -297,6 +309,7 @@ export default function ToolsPage() {
                           setEditing(tp.id);
                           setTitle(tp.title);
                           setBody(tp.body);
+                          setCommand(tp.command ?? '');
                         }}
                       >
                         {t('Изменить')}
@@ -335,6 +348,22 @@ export default function ToolsPage() {
                 style={{ resize: 'vertical' }}
                 onChange={(e) => setBody(e.target.value)}
               />
+              <input
+                className="input input-mono"
+                maxLength={COMMAND_MAX}
+                value={command}
+                aria-label={t('Команда для автоответа')}
+                placeholder={t('Команда, например !оплата')}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                onChange={(e) => setCommand(e.target.value)}
+              />
+              <p className="hint" style={{ margin: 0 }}>
+                {t(
+                  'Команда — по желанию: покупатель пишет её отдельным сообщением, и заготовка уходит сама, с пометкой «автоответ». Регистр не важен.',
+                )}
+              </p>
               <div className="row" style={{ gap: 8 }}>
                 <button
                   className="btn"
@@ -344,15 +373,7 @@ export default function ToolsPage() {
                   {editing ? t('Сохранить заготовку') : t('Добавить заготовку')}
                 </button>
                 {editing && (
-                  <button
-                    className="chip"
-                    type="button"
-                    onClick={() => {
-                      setEditing(null);
-                      setTitle('');
-                      setBody('');
-                    }}
-                  >
+                  <button className="chip" type="button" onClick={resetForm}>
                     {t('Отмена')}
                   </button>
                 )}

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { ShieldCheck, Star } from 'lucide-react';
 import { isDemoSeller } from '@gamemarket/shared';
 import { getSeller, browseListings, getCategoryAttributes, type ListingCard } from '@/lib/api';
-import { presenceText, sinceText } from '@/lib/presence';
+import { presenceText, replyWhen, sinceText } from '@/lib/presence';
 import { offersCount } from '@/lib/format';
 import { Avatar, OfferTable } from '@/components/offers';
 import { SellerReviews } from '@/components/seller-reviews';
@@ -111,6 +111,12 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
                 <dt>{t('На сайте')}</dt>
                 <dd>{sinceText(seller.memberSince, t)}</dd>
               </div>
+              {seller.replyTime && (
+                <div>
+                  <dt>{t('Обычно отвечает')}</dt>
+                  <dd>{replyWhen(seller.replyTime, t)}</dd>
+                </div>
+              )}
             </dl>
             <div className="row" style={{ marginTop: 16, gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
               <BlockButton userId={seller.id} username={seller.username} />

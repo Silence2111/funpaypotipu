@@ -953,6 +953,49 @@ async function scenarioSellerTools(rnd) {
   const del = await j(`/seller-tools/templates/${tpl.body.id}`, { method: 'DELETE', token: seller.token });
   check('Заготовка удаляется', del.status === 200 && (await j('/seller-tools/templates', { token: seller.token })).body.length === 0);
 
+  // Команда, как у FunPayCardinal: «!оплата» отдельным сообщением — заготовка уходит сама.
+  const cmd = await j('/seller-tools/templates', {
+    method: 'POST', token: seller.token,
+    body: JSON.stringify({ title: 'Оплата', body: '{имя}, оплата — СБП или картой', command: ' !Оплата ' }),
+  });
+  const dup = await j('/seller-tools/templates', {
+    method: 'POST', token: seller.token,
+    body: JSON.stringify({ title: 'Ещё', body: 'x', command: '!ОПЛАТА' }),
+  });
+  check(
+    'Команда хранится в нижнем регистре, повтор у продавца — 400',
+    cmd.body.command === '!оплата' && dup.status === 400,
+    JSON.stringify({ cmd: cmd.body, dup: dup.body }),
+  );
+  await ask('Как !оплата?');
+  await ask('!ОПЛАТА');
+  const withCmd = (await j(`/conversations/${first.body.id}/messages`, { token: buyer.token })).body;
+  const replies = withCmd.filter((m) => m.auto && m.body.includes('оплата — СБП'));
+  check(
+    'Автоответ на команду: только на сообщение целиком, от продавца, с ником покупателя',
+    replies.length === 1 && replies[0].senderId === seller.id && replies[0].body.startsWith(`stb${rnd},`) &&
+      withCmd.at(-1).id === replies[0].id,
+    JSON.stringify(withCmd.slice(-4).map((m) => [m.auto, m.body])),
+  );
+
+  // Время ответа: до трёх живых ответов подписи нет, с тремя — «обычно отвечает».
+  const quiet = (await j(`/sellers/${seller.id}`)).body;
+  for (let i = 1; i <= 3; i++) {
+    await ask(`Вопрос ${i}`);
+    await j(`/conversations/${first.body.id}/messages`, {
+      method: 'POST', token: seller.token, body: JSON.stringify({ body: `Ответ ${i}` }),
+    });
+  }
+  const fast = (await j(`/sellers/${seller.id}`)).body;
+  const head = (await j(`/conversations/${first.body.id}`, { token: buyer.token })).body;
+  const mine = (await j(`/conversations/${first.body.id}`, { token: seller.token })).body;
+  check(
+    'Время ответа: после трёх ответов — «за 5 минут» в профиле и в чате покупателя',
+    quiet.replyTime === null && fast.replyTime === 'min5' && head.counterpart?.replyTime === 'min5' &&
+      mine.counterpart?.replyTime === null,
+    JSON.stringify({ quiet: quiet.replyTime, fast: fast.replyTime, head: head.counterpart, mine: mine.counterpart }),
+  );
+
   // Лот поднимали 5 часов назад — пауза новичка (4 ч) прошла.
   const old = new Date(Date.now() - 5 * 3600_000 + 24 * 3600_000);
   await prisma.listing.update({ where: { id: lot }, data: { boostUntil: old } });

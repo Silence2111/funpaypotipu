@@ -246,6 +246,9 @@ model Profile {
   // выключено) и автоподнятие лотов, как только проходит пауза.
   greetingText String?  @map("greeting_text")
   autoRaise    Boolean  @default(false) @map("auto_raise")
+  // Последние живые ответы продавца покупателям: [[когда, сколько ждали]],
+  // секунды. Из них — «обычно отвечает за …» (packages/shared/src/reply.ts).
+  replySamples Json     @default("[]") @map("reply_samples")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -908,11 +911,15 @@ model ReplyTemplate {
   userId    String   @map("user_id") @db.Uuid
   title     String   @db.VarChar(60)
   body      String
+  // Команда («!оплата»): покупатель пишет её — заготовка уходит сама.
+  // Хранится в нижнем регистре, у продавца не повторяется.
+  command   String?  @db.VarChar(40)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, command])
   @@index([userId])
   @@map("reply_templates")
 }

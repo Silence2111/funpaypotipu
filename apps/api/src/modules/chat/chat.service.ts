@@ -3,11 +3,19 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient } from '@gamemarket/db';
-import { maskContacts } from '@gamemarket/shared';
+import {
+  COMMAND_MAX,
+  addReplySample,
+  maskContacts,
+  maskContactsExcept,
+  normalizeCommand,
+  replyTime,
+} from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StorageService } from '../storage/storage.service';
@@ -30,7 +38,7 @@ export interface ChatMessageDto {
   createdAt: Date;
   /** Когда собеседник прочитал; null — ещё нет. */
   readAt?: Date | null;
-  /** Автоответ продавца (приветствие) — сайт подписывает его. */
+  /** Автоответ продавца (приветствие, ответ на команду) — сайт подписывает его. */
   auto?: boolean;
 }
 
@@ -47,6 +55,8 @@ const previewOf = (m: { type: string; body: string; bodyMasked: string | null })
 
 @Injectable()
 export class ChatService {
+  private readonly logger = new Logger(ChatService.name);
+
   /**
    * Доставка нового сообщения в открытые чаты. Её подключает шлюз сокетов
    * (ChatGateway.afterInit): сервис не знает о транспорте. Раньше в комнату
@@ -134,6 +144,7 @@ export class ChatService {
       readAt: null,
     };
     this.publish(conversationId, dto, [conv.buyerId, conv.sellerId]);
+    if (senderId === conv.sellerId) await this.noteReply(conv, message.createdAt);
     return dto;
   }
 
@@ -187,7 +198,7 @@ export class ChatService {
         ORDER BY conversation_id, created_at DESC`,
       this.prisma.profile.findMany({
         where: { userId: { in: others } },
-        select: { userId: true, username: true, avatarUrl: true, onlineAt: true },
+        select: { userId: true, username: true, avatarUrl: true, onlineAt: true, replySamples: true },
       }),
     ]);
     const unread = new Map(grouped.map((g) => [g.conversationId, g._count._all]));
@@ -209,6 +220,8 @@ export class ChatService {
           username: p?.username ?? 'пользователь',
           avatarUrl: assetUrl(p?.avatarUrl),
           onlineAt: p?.onlineAt ?? null,
+          // Покупателю — за сколько обычно отвечает продавец.
+          replyTime: c.buyerId === userId ? replyTime(p?.replySamples) : null,
         },
         order: c.order
           ? { publicNumber: c.order.publicNumber, status: c.order.status, title: snapshot.title ?? 'Заказ' }
@@ -366,7 +379,7 @@ export class ChatService {
   ): Promise<ChatMessageDto> {
     const conv = await this.assertParticipant(conversationId, senderId);
     await this.assertNotBlocked(conv, senderId);
-    const { masked, flagged } = maskContacts(rawBody);
+    const { masked, flagged } = await this.mask(conv, rawBody);
 
     const message = await this.prisma.message.create({
       data: {
@@ -409,8 +422,90 @@ export class ChatService {
       readAt: null,
     };
     this.publish(conversationId, dto, [conv.buyerId, conv.sellerId]);
-    if (!conv.orderId && senderId === conv.buyerId) await this.greet(conv, message.id);
+    if (senderId === conv.buyerId) {
+      if (!conv.orderId) await this.greet(conv, message.id);
+      await this.answerCommand(conv, rawBody);
+    } else if (senderId === conv.sellerId) {
+      await this.noteReply(conv, message.createdAt);
+    }
     return dto;
+  }
+
+  /**
+   * Живой ответ продавца — замер для «обычно отвечает за …»: сколько ждало
+   * первое сообщение покупателя после прошлого ответа продавца. Автоответы
+   * ответом не считаются; покупатель ничего не спрашивал — замера нет.
+   * Сбой замера сообщение не роняет: оно уже доставлено.
+   */
+  private async noteReply(conv: { id: string; buyerId: string; sellerId: string }, at: Date) {
+    try {
+      const before = await this.prisma.message.findFirst({
+        where: { conversationId: conv.id, senderId: conv.sellerId, auto: false, createdAt: { lt: at } },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      });
+      const asked = await this.prisma.message.findFirst({
+        where: {
+          conversationId: conv.id,
+          senderId: conv.buyerId,
+          createdAt: { gt: before?.createdAt ?? new Date(0), lt: at },
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { createdAt: true },
+      });
+      if (!asked) return;
+      const profile = await this.prisma.profile.findUnique({
+        where: { userId: conv.sellerId },
+        select: { replySamples: true },
+      });
+      if (!profile) return;
+      const waited = (at.getTime() - asked.createdAt.getTime()) / 1000;
+      await this.prisma.profile.update({
+        where: { userId: conv.sellerId },
+        data: { replySamples: addReplySample(profile.replySamples, at, waited) },
+      });
+    } catch (e) {
+      this.logger.warn(`Время ответа не записано: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * Автоответ на команду, как у бота FunPayCardinal: покупатель написал
+   * ровно команду заготовки («!оплата») — заготовка уходит от продавца с
+   * пометкой «автоответ», в любом диалоге с ним, до сделки и в заказе. Ник
+   * покупателя подставляется, как при вставке заготовки вручную. Та же
+   * команда ещё раз в течение минуты ответа не дублирует.
+   */
+  private async answerCommand(conv: { id: string; buyerId: string; sellerId: string }, rawBody: string) {
+    const command = normalizeCommand(rawBody);
+    if (!command || command.length > COMMAND_MAX) return;
+    const template = await this.prisma.replyTemplate.findFirst({
+      where: { userId: conv.sellerId, command },
+      select: { body: true },
+    });
+    if (!template) return;
+    const name = await this.nameOf(conv.buyerId);
+    const text = name ? template.body.replace(/\{(имя|name)\}/gi, name) : template.body;
+    const last = await this.prisma.message.findFirst({
+      where: { conversationId: conv.id, senderId: conv.sellerId },
+      orderBy: { createdAt: 'desc' },
+      select: { body: true, auto: true, createdAt: true },
+    });
+    if (last?.auto && last.body === text && Date.now() - last.createdAt.getTime() < 60_000) return;
+    await this.postAuto(conv, text);
+  }
+
+  /**
+   * Скрытие контактов, не трогая ники участников диалога: заготовка с {имя}
+   * вставляет ник покупателя, и «stb73721881» скрывался как телефон, а
+   * продавцу писался сигнал о сливе контактов.
+   */
+  private async mask(conv: { buyerId: string; sellerId: string }, text: string) {
+    const people = await this.prisma.profile.findMany({
+      where: { userId: { in: [conv.buyerId, conv.sellerId] } },
+      select: { username: true },
+    });
+    return maskContactsExcept(text, people.map((p) => p.username));
   }
 
   /**
@@ -429,13 +524,18 @@ export class ChatService {
       where: { conversationId: conv.id, senderId: { not: null }, id: { not: firstId } },
     });
     if (earlier) return;
-    const { masked, flagged } = maskContacts(seller.greetingText);
+    await this.postAuto(conv, seller.greetingText);
+  }
+
+  /** Сообщение от продавца без его участия, с пометкой «автоответ». */
+  private async postAuto(conv: { id: string; buyerId: string; sellerId: string }, text: string) {
+    const { masked, flagged } = await this.mask(conv, text);
     const message = await this.prisma.message.create({
       data: {
         conversationId: conv.id,
         senderId: conv.sellerId,
         type: 'text',
-        body: seller.greetingText,
+        body: text,
         bodyMasked: masked,
         isFlagged: flagged,
         auto: true,

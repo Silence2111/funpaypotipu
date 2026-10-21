@@ -26,7 +26,9 @@ function setup({ lastSystem = null as string | null, existing = true } = {}) {
       })),
     },
     riskSignal: { create: vi.fn(async () => ({})) },
-    profile: { findUnique: vi.fn(async () => ({ username: 'buyer' })) },
+    profile: { findUnique: vi.fn(async () => ({ username: 'buyer' })), findMany: vi.fn(async () => []) },
+    // Команды продавца: заготовок нет — автоответа нет.
+    replyTemplate: { findFirst: vi.fn(async () => null) },
   };
   const notifications = { notify: vi.fn(async () => undefined) };
   const blocks = { assertCanContact: vi.fn(async () => undefined) };

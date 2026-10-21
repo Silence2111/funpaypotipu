@@ -37,3 +37,37 @@ export function maskContacts(text: string): MaskResult {
   }
   return { masked, flagged };
 }
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Как maskContacts, но не трогает ники участников диалога: «stb73721881»
+ * похож на телефон, «telegram_fan» — на мессенджер, а это ники на площадке,
+ * их и так видно в профиле. Ник, который целиком и есть контакт (одни
+ * цифры, «telegram»), скрывается как обычно.
+ */
+export function maskContactsExcept(text: string, names: string[]): MaskResult {
+  const keep = names
+    .filter((n) => n && maskContacts(n).masked !== REPLACEMENT)
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRe);
+  if (!keep.length) return maskContacts(text);
+  // Ник — отдельным словом: не часть @ника, почты или ссылки («@seller_tg»
+  // при собеседнике seller скрывается). Точка в конце фразы — можно.
+  const re = new RegExp(
+    `(?<![@\\p{L}\\d_./:])(${keep.join('|')})(?![\\p{L}\\d_@]|\\.[\\p{L}\\d])`,
+    'giu',
+  );
+  let flagged = false;
+  // split с группой: на нечётных местах — сами ники, они остаются как есть.
+  const masked = text
+    .split(re)
+    .map((part, i) => {
+      if (i % 2) return part;
+      const r = maskContacts(part);
+      flagged ||= r.flagged;
+      return r.masked;
+    })
+    .join('');
+  return { masked, flagged };
+}

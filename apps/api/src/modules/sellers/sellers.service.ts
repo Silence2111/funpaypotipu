@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@gamemarket/db';
-import { sellerLevel } from '@gamemarket/shared';
+import { replyTime, sellerLevel } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { assetUrl } from '../storage/asset-url';
 import { ONLINE_MS } from '../../common/presence';
@@ -25,6 +25,7 @@ export class SellersService {
         salesCount: true,
         onlineAt: true,
         awaySince: true,
+        replySamples: true,
         createdAt: true,
         user: { select: { status: true } },
       },
@@ -76,6 +77,8 @@ export class SellersService {
       memberSince: profile.createdAt,
       onlineAt: profile.onlineAt,
       online,
+      // «Обычно отвечает за …» — по живым ответам; null — ответов мало.
+      replyTime: replyTime(profile.replySamples, now),
       // В отпуске: лоты сняты до возвращения — покупатель видит почему.
       away: profile.awaySince !== null,
       verified,

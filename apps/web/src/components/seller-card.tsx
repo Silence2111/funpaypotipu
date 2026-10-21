@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ShieldCheck, Star } from 'lucide-react';
 import { isDemoSeller } from '@gamemarket/shared';
 import type { SellerProfile } from '@/lib/api';
-import { presenceText, sinceText } from '@/lib/presence';
+import { presenceText, replyWhen, sinceText } from '@/lib/presence';
 import { Avatar } from './offers';
 import { LotChat } from './lot-chat';
 import { getT } from '@/lib/i18n/server';
@@ -13,9 +13,9 @@ export const reviewsCount = (n: number, t: T = RU): string => t.n(n, 'отзыв
 
 /**
  * Продавец на странице лота, как карточка продавца у FunPay: кто он, в сети
- * ли, рейтинг с числом отзывов, сколько продал и с какого времени на сайте,
- * и чат с ним прямо здесь. Раньше это была строка с именем внизу панели
- * покупки.
+ * ли, рейтинг с числом отзывов, сколько продал, с какого времени на сайте и
+ * за сколько обычно отвечает, и чат с ним прямо здесь. Раньше это была
+ * строка с именем внизу панели покупки.
  */
 export async function SellerCard({
   seller,
@@ -74,6 +74,12 @@ export async function SellerCard({
           <dt>{t('На сайте')}</dt>
           <dd>{sinceText(seller.memberSince, t)}</dd>
         </div>
+        {seller.replyTime && (
+          <div>
+            <dt>{t('Обычно отвечает')}</dt>
+            <dd>{replyWhen(seller.replyTime, t)}</dd>
+          </div>
+        )}
       </dl>
 
       <LotChat listingId={lot.id} sellerId={seller.id} manual={lot.manual}>

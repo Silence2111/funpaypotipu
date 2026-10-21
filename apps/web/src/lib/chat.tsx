@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
+import type { ReplyTime } from '@gamemarket/shared';
 import { getToken } from './session';
 import { RU, msg, type T } from './i18n/lang';
 
@@ -15,7 +16,14 @@ export interface ConversationItem {
   /** Кто я в этом диалоге. */
   role: 'buyer' | 'seller';
   unread: number;
-  counterpart: { id: string; username: string; avatarUrl: string | null; onlineAt: string | null };
+  counterpart: {
+    id: string;
+    username: string;
+    avatarUrl: string | null;
+    onlineAt: string | null;
+    /** Покупателю — за сколько обычно отвечает продавец. */
+    replyTime?: ReplyTime | null;
+  };
   order: { publicNumber: string; status: string; title: string } | null;
   last: { senderId: string | null; system: boolean; text: string; createdAt: string } | null;
 }
@@ -29,7 +37,7 @@ export interface ChatMsg {
   attachments?: Array<{ url: string; mime: string }>;
   createdAt: string;
   readAt?: string | null;
-  /** Автоответ продавца (приветствие) — подписывается в пузыре. */
+  /** Автоответ продавца (приветствие, ответ на команду) — подписывается в пузыре. */
   auto?: boolean;
 }
 

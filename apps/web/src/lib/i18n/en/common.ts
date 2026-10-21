@@ -97,6 +97,13 @@ export const COMMON: Record<string, string> = {
   'в сети {n} мин назад': 'seen {n} min ago',
   'в сети {n} ч назад': 'seen {n} h ago',
   'в сети {n} дн назад': 'seen {n} d ago',
+  'Обычно отвечает': 'Usually replies',
+  'обычно отвечает {when}': 'usually replies {when}',
+  'за 5 минут': 'within 5 minutes',
+  'за 15 минут': 'within 15 minutes',
+  'за час': 'within an hour',
+  'за 3 часа': 'within 3 hours',
+  'в течение дня': 'within a day',
   Инструменты: 'Tools',
   'Инструменты продавца': 'Seller tools',
 };

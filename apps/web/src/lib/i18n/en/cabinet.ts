@@ -148,8 +148,12 @@ export const CABINET: Record<string, string> = {
   'Не удалось сохранить заготовку.': 'Couldn’t save the template.',
   'Заготовка удалена.': 'Template deleted.',
   'Не удалось удалить заготовку.': 'Couldn’t delete the template.',
-  'Автоподнятие, приветствие и заготовки ответов — без сторонних ботов с доступом к аккаунту.':
-    'Auto-raise, a greeting and reply templates — no third-party bots with access to your account.',
+  'Автоподнятие, приветствие, заготовки ответов и автоответы на команды — без сторонних ботов с доступом к аккаунту.':
+    'Auto-raise, a greeting, reply templates and command auto-replies — no third-party bots with access to your account.',
+  'Команда для автоответа': 'Command for the auto-reply',
+  'Команда, например !оплата': 'Command, for example !payment',
+  'Команда — по желанию: покупатель пишет её отдельным сообщением, и заготовка уходит сама, с пометкой «автоответ». Регистр не важен.':
+    'The command is optional: when a buyer sends it as a message on its own, the template goes out by itself, marked “auto-reply”. Case doesn’t matter.',
   Автоподнятие: 'Auto-raise',
   'Поднимать лоты автоматически': 'Raise listings automatically',
   Включено: 'On',

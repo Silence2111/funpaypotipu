@@ -6,7 +6,7 @@ import { ArrowLeft, MessageSquareText, Paperclip, SendHorizontal } from 'lucide-
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { uploadViaPresignedUrl } from '@/lib/upload';
-import { isOnline, presenceText } from '@/lib/presence';
+import { isOnline, presenceText, replyWhen } from '@/lib/presence';
 import {
   dayLabel,
   ORDER_STATUS_LABELS,
@@ -26,6 +26,8 @@ interface Template {
   id: string;
   title: string;
   body: string;
+  /** По этой команде покупателя заготовка уходит сама. */
+  command: string | null;
 }
 
 /** Ник собеседника вместо {имя} или {name} в заготовке. */
@@ -284,7 +286,17 @@ export function ChatThread({
                   {other.username}
                 </Link>
                 <div className="thread-sub">
-                  {typing ? t('печатает…') : (presenceText(other.onlineAt, Date.now(), t) ?? t('не в сети'))}
+                  {typing ? (
+                    t('печатает…')
+                  ) : (
+                    <>
+                      {presenceText(other.onlineAt, Date.now(), t) ?? t('не в сети')}
+                      {/* Не в сети — когда ждать ответа: по живым ответам продавца. */}
+                      {other.replyTime && !isOnline(other.onlineAt) && (
+                        <> · {t('обычно отвечает {when}', { when: replyWhen(other.replyTime, t) })}</>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
               {info?.order && info.orderId && (
@@ -386,7 +398,10 @@ export function ChatThread({
           ) : (
             templates.map((tp) => (
               <button key={tp.id} type="button" role="menuitem" className="tpl-item" onClick={() => insertTemplate(tp)}>
-                <span className="tpl-title">{tp.title}</span>
+                <span className="tpl-title">
+                  {tp.title}
+                  {tp.command && <span className="cmd">{tp.command}</span>}
+                </span>
                 <span className="tpl-body">{tp.body}</span>
               </button>
             ))

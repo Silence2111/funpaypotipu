@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ReplySample } from '@gamemarket/shared';
 import { ChatService } from '../src/modules/chat/chat.service';
 import { ListingsService } from '../src/modules/listings/listings.service';
 import {
@@ -12,14 +13,29 @@ import {
  * контактами, без уведомления; в диалоге заказа и после переписки — нет.
  * Автоподнятие поднимает лоты только у включивших его, не в отпуске и не
  * заблокированных, а сбой у одного продавца не останавливает остальных.
- * Заготовки: предел, чужую не изменить и не удалить.
+ * Заготовки: предел, чужую не изменить и не удалить; команда хранится в
+ * нижнем регистре и у продавца не повторяется. Автоответ на команду — только
+ * на сообщение покупателя целиком, без дубля в течение минуты. Время ответа
+ * считается от первого вопроса без ответа, автоответы ответом не считаются.
  */
 
 type Row = Record<string, unknown>;
 
-function chat(opts: { greeting?: string | null; orderId?: string | null } = {}) {
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+function chat(
+  opts: {
+    greeting?: string | null;
+    orderId?: string | null;
+    templates?: Array<{ command: string; body: string }>;
+  } = {},
+) {
   const messages: Row[] = [];
+  const state: { samples: unknown } = { samples: [] };
   const conv = { id: 'c1', buyerId: 'buyer', sellerId: 'seller', orderId: opts.orderId ?? null };
+  const at = (m: Row) => (m.createdAt as Date).getTime();
   const prisma = {
     conversation: {
       findUnique: vi.fn(async () => conv),
@@ -35,13 +51,45 @@ function chat(opts: { greeting?: string | null; orderId?: string | null } = {}) 
         async ({ where }: { where: { id: { not: string } } }) =>
           messages.filter((m) => m.senderId !== null && m.id !== where.id.not).length,
       ),
+      findFirst: vi.fn(
+        async ({
+          where,
+          orderBy,
+        }: {
+          where: { senderId: string; auto?: boolean; createdAt?: { lt?: Date; gt?: Date } };
+          orderBy: { createdAt: 'asc' | 'desc' };
+        }) => {
+          const hit = messages.filter(
+            (m) =>
+              m.senderId === where.senderId &&
+              (where.auto === undefined || m.auto === where.auto) &&
+              (!where.createdAt?.lt || at(m) < where.createdAt.lt.getTime()) &&
+              (!where.createdAt?.gt || at(m) > where.createdAt.gt.getTime()),
+          );
+          hit.sort((a, b) => (orderBy.createdAt === 'asc' ? at(a) - at(b) : at(b) - at(a)));
+          return hit[0] ?? null;
+        },
+      ),
+    },
+    replyTemplate: {
+      findFirst: vi.fn(
+        async ({ where }: { where: { command: string } }) =>
+          opts.templates?.find((t) => t.command === where.command) ?? null,
+      ),
     },
     profile: {
       findUnique: vi.fn(async ({ select }: { select: Row }) =>
         'greetingText' in select
           ? { greetingText: opts.greeting === undefined ? 'Здравствуйте' : opts.greeting }
-          : { username: 'nick' },
+          : 'replySamples' in select
+            ? { replySamples: state.samples }
+            : { username: 'pro79161234567' },
       ),
+      findMany: vi.fn(async () => [{ username: 'pro79161234567' }, { username: 'seller' }]),
+      update: vi.fn(async ({ data }: { data: { replySamples: unknown } }) => {
+        state.samples = data.replySamples;
+        return {};
+      }),
     },
     riskSignal: { create: vi.fn(async () => ({})) },
   };
@@ -56,8 +104,111 @@ function chat(opts: { greeting?: string | null; orderId?: string | null } = {}) 
   );
   const published: Row[] = [];
   svc.setPublisher((_c, m) => published.push(m as never));
-  return { svc, messages, published, notifications };
+  return { svc, messages, published, notifications, prisma, state };
 }
+
+describe('автоответ на команду', () => {
+  const templates = [{ command: '!оплата', body: '{имя}, оплата — СБП или картой' }];
+
+  it('покупатель пишет команду — заготовка уходит от продавца с ником, и в заказе тоже', async () => {
+    const { svc, messages, published, notifications } = chat({
+      greeting: null,
+      orderId: 'o1',
+      templates,
+    });
+    await svc.sendMessage('c1', 'buyer', '  !ОПЛАТА ');
+    expect(messages).toHaveLength(2);
+    expect(messages[1]).toMatchObject({
+      senderId: 'seller',
+      auto: true,
+      body: 'pro79161234567, оплата — СБП или картой',
+    });
+    // Ник похож на телефон, но это ник на площадке — не скрывается.
+    expect(published[1]).toMatchObject({
+      auto: true,
+      body: 'pro79161234567, оплата — СБП или картой',
+    });
+    // Уведомление — только продавцу о сообщении покупателя.
+    expect(notifications.notify).toHaveBeenCalledTimes(1);
+  });
+
+  it('первое сообщение — команда: сначала приветствие, потом ответ', async () => {
+    const { svc, messages } = chat({ templates });
+    await svc.sendMessage('c1', 'buyer', '!оплата');
+    expect(messages.map((m) => [m.senderId, m.auto])).toEqual([
+      ['buyer', false],
+      ['seller', true],
+      ['seller', true],
+    ]);
+    expect(messages[1]!.body).toBe('Здравствуйте');
+  });
+
+  it('ник собеседника в сообщении не скрывается и не считается сливом контактов', async () => {
+    const { svc, published, prisma } = chat({ greeting: null });
+    await svc.sendMessage('c1', 'seller', 'pro79161234567, спасибо за покупку');
+    await svc.sendMessage('c1', 'seller', 'Звоните 89161234567');
+    expect(published.map((m) => m.body)).toEqual([
+      'pro79161234567, спасибо за покупку',
+      'Звоните [скрыто]',
+    ]);
+    expect(prisma.riskSignal.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('команда внутри фразы или от продавца — не ответ', async () => {
+    const { svc, messages } = chat({ greeting: null, templates });
+    await svc.sendMessage('c1', 'buyer', 'Подскажите, !оплата как?');
+    await svc.sendMessage('c1', 'seller', '!оплата');
+    expect(messages.some((m) => m.auto)).toBe(false);
+  });
+
+  it('повтор в течение минуты не дублирует ответ, через минуту — отвечает снова', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.UTC(2026, 9, 21, 12));
+    const { svc, messages } = chat({ greeting: null, templates });
+    await svc.sendMessage('c1', 'buyer', '!оплата');
+    vi.setSystemTime(Date.now() + 30_000);
+    await svc.sendMessage('c1', 'buyer', '!оплата');
+    expect(messages.filter((m) => m.auto)).toHaveLength(1);
+    vi.setSystemTime(Date.now() + 61_000);
+    await svc.sendMessage('c1', 'buyer', '!оплата');
+    expect(messages.filter((m) => m.auto)).toHaveLength(2);
+  });
+});
+
+describe('время ответа продавца', () => {
+  it('от первого вопроса без ответа; автоответ — не ответ; без вопроса — не замер', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const t0 = Date.UTC(2026, 9, 21, 12);
+    const at = (sec: number) => vi.setSystemTime(t0 + sec * 1000);
+    const { svc, state } = chat({
+      greeting: null,
+      templates: [{ command: '!цена', body: 'Цена в лоте' }],
+    });
+    at(0);
+    await svc.sendMessage('c1', 'buyer', 'Есть в наличии?');
+    at(60);
+    await svc.sendMessage('c1', 'buyer', 'Ау');
+    at(600);
+    await svc.sendMessage('c1', 'seller', 'Да, есть');
+    at(700);
+    await svc.sendMessage('c1', 'seller', 'Пишите, если что');
+    at(1000);
+    await svc.sendMessage('c1', 'buyer', '!цена'); // автоответ сразу
+    at(1300);
+    await svc.sendMessage('c1', 'seller', 'Могу уступить');
+    expect((state.samples as ReplySample[]).map(([, waited]) => waited)).toEqual([300, 600]);
+  });
+
+  it('сбой записи замера не роняет отправку', async () => {
+    const { svc, prisma, messages } = chat({ greeting: null });
+    prisma.profile.update.mockRejectedValueOnce(new Error('база недоступна'));
+    await svc.sendMessage('c1', 'buyer', 'Есть?');
+    await expect(svc.sendMessage('c1', 'seller', 'Есть')).resolves.toMatchObject({
+      senderId: 'seller',
+    });
+    expect(messages).toHaveLength(2);
+  });
+});
 
 describe('приветствие', () => {
   it('первое сообщение покупателя — автоответ продавца, один раз, без уведомления', async () => {
@@ -144,9 +295,17 @@ describe('автоподнятие', () => {
 
 describe('заготовки', () => {
   function tools(count = 0) {
+    const existing = [{ id: 't1', userId: 'u1', command: '!оплата', title: 'Оплата' }];
     const prisma = {
       replyTemplate: {
         count: vi.fn(async () => count),
+        findFirst: vi.fn(
+          async ({ where }: { where: { userId: string; command: string; id?: { not: string } } }) =>
+            existing.find(
+              (t) =>
+                t.userId === where.userId && t.command === where.command && t.id !== where.id?.not,
+            ) ?? null,
+        ),
         create: vi.fn(async ({ data }: { data: Row }) => ({ id: 't1', ...data })),
         updateMany: vi.fn(async ({ where }: { where: Row }) => ({
           count: where.userId === 'u1' ? 1 : 0,
@@ -161,16 +320,39 @@ describe('заготовки', () => {
   }
 
   it('не больше предела; чужую не изменить и не удалить', async () => {
-    await expect(tools(MAX_TEMPLATES).svc.addTemplate('u1', 'a', 'b')).rejects.toThrow(/Не больше/);
+    await expect(
+      tools(MAX_TEMPLATES).svc.addTemplate('u1', { title: 'a', body: 'b' }),
+    ).rejects.toThrow(/Не больше/);
     expect(
-      await tools(2).svc.addTemplate('u1', 'Оплата', 'Спасибо за покупку, {имя}'),
+      await tools(2).svc.addTemplate('u1', { title: 'Оплата', body: 'Спасибо за покупку, {имя}' }),
     ).toMatchObject({
       title: 'Оплата',
+      command: null,
     });
     const { svc } = tools();
-    await expect(svc.updateTemplate('u2', 't1', 'x', 'y')).rejects.toThrow(/не найдена/);
+    await expect(svc.updateTemplate('u2', 't1', { title: 'x', body: 'y' })).rejects.toThrow(
+      /не найдена/,
+    );
     await expect(svc.removeTemplate('u2', 't1')).rejects.toThrow(/не найдена/);
     expect(await svc.removeTemplate('u1', 't1')).toEqual({ ok: true });
+  });
+
+  it('команда — в нижнем регистре и одна на заготовку', async () => {
+    const { svc, prisma } = tools();
+    expect(
+      await svc.addTemplate('u1', { title: 'Гарантия', body: 'Месяц', command: '  !Гарантия ' }),
+    ).toMatchObject({ command: '!гарантия' });
+    await expect(
+      svc.addTemplate('u1', { title: 'Ещё', body: 'x', command: '!ОПЛАТА' }),
+    ).rejects.toThrow('Команда !оплата уже есть у заготовки «Оплата»');
+    // Своя же команда при изменении — не повтор; пустая — без команды.
+    expect(
+      await svc.updateTemplate('u1', 't1', { title: 'Оплата', body: 'СБП', command: '!оплата' }),
+    ).toMatchObject({ command: '!оплата' });
+    expect(
+      await svc.updateTemplate('u1', 't1', { title: 'Оплата', body: 'СБП', command: ' ' }),
+    ).toMatchObject({ command: null });
+    expect(prisma.replyTemplate.findFirst).toHaveBeenCalledTimes(3);
   });
 
   it('пустое приветствие — выключено', async () => {

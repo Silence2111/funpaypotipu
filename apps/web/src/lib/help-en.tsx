@@ -210,7 +210,9 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
         <li>
           <Link href="/cabinet/tools">“Tools”</Link> in your account: auto-raise raises listings as
           soon as the pause is over; a greeting for new buyers, marked as an auto-reply; reply
-          templates for chat. No third-party bots with access to your account.
+          templates for chat. A template can have a command, such as “!payment”: when a buyer sends
+          it as a message on its own, the template goes out by itself. No third-party bots with
+          access to your account.
         </li>
         <li>
           Promotion — {formatPrice(c.promoDay, 'RUB', t)} per day, packages of{' '}
@@ -218,8 +220,9 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           label.
         </li>
         <li>
-          Reply quickly: buyers see whether you’re online and write from the chat on the listing
-          page.
+          Reply quickly: buyers see whether you’re online and how fast you usually reply, and write
+          from the chat on the listing page. Reply time is based on your own replies over two months
+          — auto-replies don’t count, and it shows up after three replies.
         </li>
         <li>
           Going away — “Vacation” in “My listings” takes all your listings off sale at once and

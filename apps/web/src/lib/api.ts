@@ -1,3 +1,4 @@
+import type { ReplyTime } from '@gamemarket/shared';
 import { msg } from './i18n/lang';
 
 // SSR внутри контейнера ходит на внутренний адрес (api:4000), браузер — на публичный.
@@ -167,6 +168,8 @@ export interface SellerProfile {
   ratingBreakdown: { star: number; count: number }[];
   /** Отзывов с фото — для фильтра «С фото». */
   photoReviews?: number;
+  /** За сколько обычно отвечает; null — живых ответов пока мало. */
+  replyTime?: ReplyTime | null;
 }
 
 export const getSeller = (id: string) => apiTry<SellerProfile>(`/sellers/${id}`);

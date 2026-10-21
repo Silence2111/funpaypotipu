@@ -222,6 +222,10 @@ export const EN_API: Phrasebook = {
   'Не больше {n} заготовок — удалите ненужные':
     'No more than {n} templates — delete the ones you don’t need',
   'Заготовка не найдена': 'Template not found',
+  'Команда — до {n} символов': 'A command can be up to {n} characters',
+  'Команда — в одну строку': 'A command must fit on one line',
+  'Команда {command} уже есть у заготовки «{title}»':
+    'The command {command} is already used by the template “{title}”',
   'Недостаточно средств на балансе': 'Insufficient balance',
   'Неизвестный способ вывода': 'Unknown withdrawal method',
   'Минимальная сумма вывода для «{method}» — {sum} ₽':
