@@ -258,6 +258,10 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           Going away — “Vacation” in “My listings” takes all your listings off sale at once and
           brings them back with one button.
         </li>
+        <li>
+          A similar listing — “Copy” in “My listings” or on the listing page opens the form with the
+          same terms and photos, so you only change the differences. Stock items aren’t copied.
+        </li>
       </ul>
       <p>
         What the marketplace charges and how to lower the fee — see{' '}

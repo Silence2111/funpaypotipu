@@ -81,28 +81,36 @@ const MAX_PHOTOS = 12;
  */
 export function ListingForm({
   initial,
+  copyOf,
   preset,
 }: {
   initial?: EditableListing;
+  /**
+   * «Копировать»: новый лот с условиями своего лота. Это создание, а не
+   * правка: исходный лот не меняется, склад ключей и строк не копируется.
+   */
+  copyOf?: EditableListing;
   /** «Продать в разделе»: игра и раздел (слаги) уже выбраны. */
   preset?: { game: string; category?: string };
 }) {
   const t = useT();
   const router = useRouter();
   const editing = !!initial;
+  // Откуда берутся значения полей: правка — сам лот, копия — исходный лот.
+  const base = initial ?? copyOf;
   const [games, setGames] = useState<Game[]>(
-    initial ? [{ id: initial.gameId, slug: initial.game.slug, title: initial.game.title }] : [],
+    base ? [{ id: base.gameId, slug: base.game.slug, title: base.game.title }] : [],
   );
   const [categories, setCategories] = useState<Category[]>(
-    initial ? [{ id: initial.categoryId, ...initial.category }] : [],
+    base ? [{ id: base.categoryId, ...base.category }] : [],
   );
-  const [gameId, setGameId] = useState(initial?.gameId ?? '');
-  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? '');
-  const [title, setTitle] = useState(initial?.title ?? '');
-  const [description, setDescription] = useState(initial?.description ?? '');
-  const [price, setPrice] = useState(initial && initial.topupMarkupBps == null ? rubOf(initial.price) : '');
+  const [gameId, setGameId] = useState(base?.gameId ?? '');
+  const [categoryId, setCategoryId] = useState(base?.categoryId ?? '');
+  const [title, setTitle] = useState(base?.title ?? '');
+  const [description, setDescription] = useState(base?.description ?? '');
+  const [price, setPrice] = useState(base && base.topupMarkupBps == null ? rubOf(base.price) : '');
   const [images, setImages] = useState<{ key: string; url: string }[]>(
-    initial ? initial.imageKeys.map((key, i) => ({ key, url: initial.images[i] ?? key })) : [],
+    base ? base.imageKeys.map((key, i) => ({ key, url: base.images[i] ?? key })) : [],
   );
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -111,7 +119,7 @@ export function ListingForm({
   const [attrs, setAttrs] = useState<Attr[]>([]);
   const [attrValues, setAttrValues] = useState<Record<string, string | boolean>>(() => {
     const out: Record<string, string | boolean> = {};
-    for (const [k, v] of Object.entries(initial?.attributes ?? {})) {
+    for (const [k, v] of Object.entries(base?.attributes ?? {})) {
       if (typeof v === 'boolean' || typeof v === 'string') out[k] = v;
       else if (v != null) out[k] = String(v);
     }
@@ -123,31 +131,35 @@ export function ListingForm({
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const touch = (k: string) => setTouched((prev) => ({ ...prev, [k]: true }));
   // Пополнение на сумму покупателя: продавец задаёт наценку и границы, а не цену.
-  const [byAmount, setByAmount] = useState(initial?.topupMarkupBps != null);
+  const [byAmount, setByAmount] = useState(base?.topupMarkupBps != null);
   const [markup, setMarkup] = useState(
-    initial?.topupMarkupBps != null ? String(initial.topupMarkupBps / 100) : '',
+    base?.topupMarkupBps != null ? String(base.topupMarkupBps / 100) : '',
   );
-  const [minRub, setMinRub] = useState(initial?.topupMin ? rubOf(initial.topupMin) : '100');
-  const [maxRub, setMaxRub] = useState(initial?.topupMax ? rubOf(initial.topupMax) : '15000');
+  const [minRub, setMinRub] = useState(base?.topupMin ? rubOf(base.topupMin) : '100');
+  const [maxRub, setMaxRub] = useState(base?.topupMax ? rubOf(base.topupMax) : '15000');
   // Поштучно, как валюта на FunPay: цена за пачку единиц, наличие, минимум.
-  const [byQty, setByQty] = useState(initial?.unitName != null);
-  const [unitName, setUnitName] = useState(initial?.unitName ?? '');
-  const [perUnits, setPerUnits] = useState<number>(initial?.pricePerUnits ?? 1);
-  const [minQty, setMinQty] = useState(initial ? String(initial.minQty) : '1');
-  const [stock, setStock] = useState(initial?.unitName != null && initial.stock != null ? String(initial.stock) : '');
+  const [byQty, setByQty] = useState(base?.unitName != null);
+  const [unitName, setUnitName] = useState(base?.unitName ?? '');
+  const [perUnits, setPerUnits] = useState<number>(base?.pricePerUnits ?? 1);
+  const [minQty, setMinQty] = useState(base ? String(base.minQty) : '1');
+  // Копия распроданного лота — наличие пустое: с нулём она сразу ушла бы в «закончился».
+  const [stock, setStock] = useState(
+    base?.unitName != null && base.stock != null && !(copyOf && base.stock === 0) ? String(base.stock) : '',
+  );
   // Скидка за количество: «от 10 000 — 5%», до трёх ступеней.
   const [tiers, setTiers] = useState<Array<{ from: string; pct: string }>>(
-    () => initial?.qtyDiscounts?.map((x) => ({ from: String(x.from), pct: String(x.pct) })) ?? [],
+    () => base?.qtyDiscounts?.map((x) => ({ from: String(x.from), pct: String(x.pct) })) ?? [],
   );
   // Что спросить у покупателя до оплаты: ник, сервер — как поля лота на Playerok.
-  const [buyerFields, setBuyerFields] = useState<Array<{ label: string; required: boolean }>>(initial?.buyerFields ?? []);
+  const [buyerFields, setBuyerFields] = useState<Array<{ label: string; required: boolean }>>(base?.buyerFields ?? []);
   // Автовыдача со склада строк у аккаунтов и предметов, как боты на FunPay.
-  const [autoDelivery, setAutoDelivery] = useState(initial?.fulfillmentType === 'auto_key');
+  const [autoDelivery, setAutoDelivery] = useState(base?.fulfillmentType === 'auto_key');
   // Сообщение покупателю в чат заказа сразу после оплаты.
-  const [template, setTemplate] = useState(initial?.deliveryTemplate ?? '');
+  const [template, setTemplate] = useState(base?.deliveryTemplate ?? '');
 
-  const presetGame = preset?.game;
-  const presetCategory = preset?.category;
+  // Копия — как «Продать в разделе»: подгружаются все разделы её игры.
+  const presetGame = preset?.game ?? copyOf?.game.slug;
+  const presetCategory = preset?.category ?? copyOf?.category.slug;
   useEffect(() => {
     if (editing) return; // страница изменения сама проверяет вход и грузит лот
     if (!getToken()) {
@@ -435,11 +447,19 @@ export function ListingForm({
 
   return (
     <div className="container" style={{ maxWidth: 600, paddingTop: 40 }}>
-      <h1 className="h1" style={{ fontSize: 32 }}>{editing ? t('Изменить лот') : t('Новый лот')}</h1>
+      <h1 className="h1" style={{ fontSize: 32 }}>
+        {editing ? t('Изменить лот') : copyOf ? t('Копия лота') : t('Новый лот')}
+      </h1>
       <p className="muted" style={{ margin: '8px 0 24px' }}>
         {editing
           ? t('Изменения видны в каталоге сразу. Уже оформленные заказы идут по прежней цене.')
-          : t('Лот появится в каталоге сразу. Деньги за продажу придут на баланс, когда покупатель подтвердит получение.')}
+          : copyOf
+            ? `${t('Всё — как у «{title}»: поправьте, что нужно, и опубликуйте. Исходный лот не изменится.', { title: copyOf.title })}${
+                copyOf.fulfillmentType === 'auto_key'
+                  ? ` ${t('Товар со склада не копируется — загрузите его после публикации.')}`
+                  : ''
+              }`
+            : t('Лот появится в каталоге сразу. Деньги за продажу придут на баланс, когда покупатель подтвердит получение.')}
       </p>
       <form onSubmit={submit} className="card stack-form" style={{ gap: 18, padding: 24 }} noValidate>
         <div className="field">

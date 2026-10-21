@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Pencil } from 'lucide-react';
+import { Copy, Pencil } from 'lucide-react';
 import { getUser } from '@/lib/session';
 import { useT } from '@/lib/i18n/client';
 
 /**
- * «Изменить лот» — только владельцу. Страница лота рендерится на сервере и не
+ * «Изменить лот» и «Копировать» — только владельцу. Страница лота рендерится на сервере и не
  * знает, кто смотрит: сессия живёт в браузере, поэтому проверка здесь.
  */
 export function OwnerLotActions({ listingId, sellerId }: { listingId: string; sellerId: string }) {
@@ -19,6 +19,9 @@ export function OwnerLotActions({ listingId, sellerId }: { listingId: string; se
     <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
       <Link href={`/cabinet/lot/${listingId}`} className="chip">
         <Pencil size={14} strokeWidth={1.75} /> {t('Изменить лот')}
+      </Link>
+      <Link href={`/cabinet/new?copy=${listingId}`} className="chip">
+        <Copy size={14} strokeWidth={1.75} /> {t('Копировать')}
       </Link>
       <Link href="/cabinet/lots" className="chip">
         {t('Мои лоты')}

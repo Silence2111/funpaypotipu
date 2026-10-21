@@ -343,4 +343,15 @@ export const CABINET: Record<string, string> = {
   'У продавцов из подписок сейчас нет предложений.': 'Sellers you follow have no offers right now.',
   'Скидок у продавцов из подписок сейчас нет.': 'Sellers you follow have no discounts right now.',
   'С прошлого визита: {lots}': 'Since your last visit: {lots}',
+
+  // Копировать лот
+  Копировать: 'Copy',
+  'Копировать «{title}»': 'Copy “{title}”',
+  'Копия лота': 'Copy of a listing',
+  'Всё — как у «{title}»: поправьте, что нужно, и опубликуйте. Исходный лот не изменится.':
+    'Everything is as in “{title}”: change what you need and publish. The original listing stays as it is.',
+  'Товар со склада не копируется — загрузите его после публикации.':
+    'Stock items aren’t copied — upload them after publishing.',
+  'Заблокированный модератором лот скопировать нельзя.':
+    'A listing blocked by a moderator can’t be copied.',
 };

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { Pencil, Percent, Trash2, TrendingUp } from 'lucide-react';
+import { Copy, Pencil, Percent, Trash2, TrendingUp } from 'lucide-react';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import {
@@ -209,6 +209,16 @@ export function MyLotRow({
             title={t('Изменить')}
           >
             <Pencil size={16} strokeWidth={1.75} />
+          </Link>
+        )}
+        {!blocked && (
+          <Link
+            href={`/cabinet/new?copy=${lot.id}`}
+            className="icon-btn"
+            aria-label={t('Копировать «{title}»', { title: lot.title })}
+            title={t('Копировать')}
+          >
+            <Copy size={16} strokeWidth={1.75} />
           </Link>
         )}
         {!blocked && (
