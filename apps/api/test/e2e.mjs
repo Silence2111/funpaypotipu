@@ -1167,7 +1167,9 @@ async function scenarioReviewPhotos(rnd) {
   );
   const list = (await j(`/reviews/user/${seller.id}?photos=1`)).body;
   const profile = (await j(`/sellers/${seller.id}`)).body;
-  const pic = list[0]?.images?.[0] ? await fetch(list[0].images[0]) : null;
+  // Без PUBLIC_ASSET_BASE адрес относительный — как его и показывает сайт.
+  const url = list[0]?.images?.[0];
+  const pic = url ? await fetch(url.startsWith('http') ? url : `${API}${url}`) : null;
   check(
     'На витрине: фильтр «С фото», адрес фото открывается без входа, счётчик в профиле',
     list.length === 1 && pic?.status === 200 && pic.headers.get('content-type') === 'image/png' && profile.photoReviews === 1,
