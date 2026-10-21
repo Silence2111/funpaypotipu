@@ -15,10 +15,19 @@ interface Row {
   buyer: string | null;
   seller: string | null;
   arbiter: string | null;
+  awaitingFrom: 'buyer' | 'seller' | null;
+  respondBy: string | null;
+  missedBy: 'buyer' | 'seller' | null;
   order: { publicNumber: string; amount: string; currency: string; title: string | null } | null;
 }
 
-/** Очередь споров: сумма, стороны, кто взял — арбитр решает на странице спора. */
+const WHO = { buyer: 'покупатель', seller: 'продавец' } as const;
+const WHOM = { buyer: 'покупателя', seller: 'продавца' } as const;
+
+/**
+ * Очередь споров: сумма, стороны, кто взял, чей ход. Кто пропустил срок
+ * ответа — наверху: такой спор можно решать по тому, что есть.
+ */
 export function DisputesSection() {
   const [rows, setRows] = useState<Row[] | null>(null);
 
@@ -42,6 +51,10 @@ export function DisputesSection() {
             <span className={d.status === 'open' ? 'badge accent' : 'badge'}>
               {d.status === 'open' ? 'ждёт арбитра' : `в работе${d.arbiter ? ` · ${d.arbiter}` : ''}`}
             </span>
+            {d.missedBy && <span className="badge warning">{WHO[d.missedBy]} не ответил в срок</span>}
+            {d.awaitingFrom && d.respondBy && (
+              <span className="badge">ждём {WHOM[d.awaitingFrom]} до {when(d.respondBy)}</span>
+            )}
             <span>покупатель {d.buyer ?? '—'} · продавец {d.seller ?? '—'}</span>
             <span>· открыт {when(d.createdAt)} · сообщений: {d.messages}</span>
           </div>

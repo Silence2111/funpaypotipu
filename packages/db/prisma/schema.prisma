@@ -833,6 +833,12 @@ model Dispute {
   arbiterId      String?       @map("arbiter_id") @db.Uuid
   resolutionNote String?       @map("resolution_note")
   resolvedAt     DateTime?     @map("resolved_at")
+  // Чей ход: buyer или seller должен ответить до respondBy. Ответил — null.
+  awaitingFrom   String?       @map("awaiting_from") @db.VarChar(10)
+  respondBy      DateTime?     @map("respond_by")
+  // Кто пропустил срок ответа — арбитр учитывает это при решении.
+  missedBy       String?       @map("missed_by") @db.VarChar(10)
+  missedAt       DateTime?     @map("missed_at")
   createdAt      DateTime      @default(now()) @map("created_at")
 
   order    Order            @relation(fields: [orderId], references: [id])
@@ -845,7 +851,7 @@ model Dispute {
 model DisputeMessage {
   id          String   @id @default(uuid()) @db.Uuid
   disputeId   String   @map("dispute_id") @db.Uuid
-  senderId    String   @map("sender_id") @db.Uuid
+  senderId    String?  @map("sender_id") @db.Uuid // null — сообщение площадки
   body        String
   attachments Json?
   isInternal  Boolean  @default(false) @map("is_internal") // заметки арбитра

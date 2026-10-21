@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Paperclip, ShieldAlert } from 'lucide-react';
+import { Clock, Paperclip, ShieldAlert } from 'lucide-react';
 import { apiFetch, getToken, useSession } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
 import { uploadViaPresignedUrl } from '@/lib/upload';
 import { useT } from '@/lib/i18n/client';
-import { msg } from '@/lib/i18n/lang';
+import { msg, type T } from '@/lib/i18n/lang';
 
 interface Attach { url: string; mime: string }
 interface DMsg {
@@ -28,6 +28,10 @@ interface Dispute {
   openedBy: string;
   arbiterId: string | null;
   resolutionNote: string | null;
+  /** Чей ход и до какого времени; кто пропустил срок. */
+  awaitingFrom: 'buyer' | 'seller' | null;
+  respondBy: string | null;
+  missedBy: 'buyer' | 'seller' | null;
 }
 interface Party { id: string; username: string | null }
 interface DisputeView {
@@ -35,6 +39,7 @@ interface DisputeView {
   messages: DMsg[];
   isStaff?: boolean;
   canResolve?: boolean;
+  side?: 'buyer' | 'seller' | null;
   order?: { id: string; publicNumber: string; amount: string; currency: string; title: string | null } | null;
   parties?: { buyer: Party | null; seller: Party | null; arbiter: Party | null };
 }
@@ -46,6 +51,16 @@ const STATUS: Record<string, string> = {
   resolved_buyer: msg('решён в пользу покупателя'),
   cancelled: msg('закрыт'),
 };
+
+/** «18 ч 20 мин» до срока; прошёл — пусто. */
+function timeLeft(iso: string, t: T) {
+  const min = Math.ceil((Date.parse(iso) - Date.now()) / 60000);
+  if (min <= 0) return null;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (!h) return t('{m} мин', { m });
+  return m ? t('{h} ч {m} мин', { h, m }) : t('{h} ч', { h });
+}
 
 export default function DisputePage() {
   const params = useParams<{ id: string }>();
@@ -114,12 +129,38 @@ export default function DisputePage() {
     );
   }
 
+  function withdraw() {
+    if (!window.confirm(t('Деньги уйдут продавцу, спор закроется. Отменить это будет нельзя.'))) return;
+    void run(() => apiFetch(`/disputes/${id}/withdraw`, { method: 'POST' }), t('Не удалось закрыть спор'));
+  }
+
+  function refund(orderId: string) {
+    if (!window.confirm(t('Деньги вернутся покупателю на баланс, спор закроется. Отменить это будет нельзя.'))) return;
+    void run(
+      () => apiFetch(`/orders/${orderId}/refund`, { method: 'POST', body: JSON.stringify({}) }),
+      t('Не удалось вернуть деньги'),
+    );
+  }
+
+  function ask(side: 'buyer' | 'seller') {
+    void run(
+      () => apiFetch(`/disputes/${id}/request`, { method: 'POST', body: JSON.stringify({ side }) }),
+      t('Не удалось отправить запрос'),
+    );
+  }
+
   if (!ready) return <div className="container" style={{ padding: 48 }} aria-busy="true" />;
   if (!token) return <div className="container" style={{ padding: 48 }}><p className="muted">{t('Войдите, чтобы открыть спор.')}</p></div>;
   if (!view) return <div className="container" style={{ padding: 48 }}>{err ?? ''}</div>;
 
   const { dispute, messages, order, parties } = view;
   const open = dispute.status === 'open' || dispute.status === 'in_review';
+  const sideName = (side: 'buyer' | 'seller') => (side === 'seller' ? t('продавца') : t('покупателя'));
+  const deadline = dispute.respondBy
+    ? new Date(dispute.respondBy).toLocaleString(t.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : null;
+  const left = dispute.respondBy ? timeLeft(dispute.respondBy, t) : null;
+  const myTurn = !!dispute.awaitingFrom && dispute.awaitingFrom === view.side;
   // Подпись автора: арбитру важно видеть, кто есть кто, сторонам — где арбитр.
   const author = (m: DMsg) =>
     m.senderId === me?.id
@@ -166,6 +207,48 @@ export default function DisputePage() {
         )}
       </div>
 
+      {open && dispute.awaitingFrom && deadline && (
+        <div className={myTurn ? 'alert warning' : 'alert'} role="status" style={{ marginTop: 12 }}>
+          <Clock size={16} strokeWidth={1.75} aria-hidden />
+          <span>
+            {myTurn
+              ? t('Ваш ход: ответьте до {date}. Без ответа арбитр решит по тому, что есть.', { date: deadline })
+              : t('Ждём ответа {side} до {date}.', { side: sideName(dispute.awaitingFrom), date: deadline })}
+            {left && ` ${t('Осталось {left}.', { left })}`}
+          </span>
+        </div>
+      )}
+      {open && dispute.missedBy && !dispute.respondBy && (
+        <div className="alert" role="status" style={{ marginTop: 12 }}>
+          <Clock size={16} strokeWidth={1.75} aria-hidden />
+          <span>
+            {dispute.missedBy === 'seller'
+              ? t('Продавец не ответил в срок — арбитр учтёт это при решении.')
+              : t('Покупатель не ответил в срок — арбитр учтёт это при решении.')}
+          </span>
+        </div>
+      )}
+
+      {open && view.side && order && (
+        <div className="card" style={{ marginTop: 12, padding: 16 }}>
+          <div className="label" style={{ marginBottom: 6 }}>{t('Договорились сами?')}</div>
+          <p className="hint" style={{ margin: '0 0 10px' }}>
+            {view.side === 'buyer'
+              ? t('Если товар в порядке, закройте спор — деньги уйдут продавцу, арбитр не понадобится.')
+              : t('Если покупатель прав, верните деньги — спор закроется без арбитра.')}
+          </p>
+          {view.side === 'buyer' ? (
+            <button type="button" className="chip" disabled={busy} onClick={withdraw}>
+              {t('Претензий нет — завершить сделку')}
+            </button>
+          ) : (
+            <button type="button" className="chip" disabled={busy} onClick={() => refund(order.id)}>
+              {t('Вернуть деньги покупателю')}
+            </button>
+          )}
+        </div>
+      )}
+
       {view.canResolve && open && (
         <div className="card" style={{ marginTop: 12, padding: 16 }}>
           <div className="label" style={{ marginBottom: 8 }}>{t('Решение арбитра')}</div>
@@ -184,11 +267,22 @@ export default function DisputePage() {
             </button>
           </div>
           <p className="hint" style={{ marginTop: 8 }}>{t('Деньги сразу уходят выбранной стороне, стороны получат уведомление.')}</p>
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+            <span className="hint" style={{ alignSelf: 'center' }}>{t('Запросить пояснения:')}</span>
+            <button type="button" className="chip" disabled={busy} onClick={() => ask('buyer')}>
+              {t('у покупателя')}
+            </button>
+            <button type="button" className="chip" disabled={busy} onClick={() => ask('seller')}>
+              {t('у продавца')}
+            </button>
+          </div>
         </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '20px 0 16px' }}>
-        {messages.map((m) => (
+        {messages.map((m) => m.senderId === null ? (
+          <div key={m.id} className="sys-msg">{t.d(m.body)}</div>
+        ) : (
           <div key={m.id} style={{ alignSelf: m.senderId === me?.id ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
             <div className="faint" style={{ fontSize: 12, margin: '0 4px 2px' }}>
               {author(m)}

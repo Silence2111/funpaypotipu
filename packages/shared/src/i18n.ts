@@ -126,6 +126,18 @@ export const EN_SHARED: Phrasebook = {
   'Начало периода позже конца': 'The period starts after it ends',
   'Период — не больше {n} дней': 'The period can be at most {n} days',
 
+  // Сообщения площадки в споре
+  'Арбитр ждёт пояснений от продавца.': 'The arbiter is waiting for the seller’s explanation.',
+  'Арбитр ждёт пояснений от покупателя.': 'The arbiter is waiting for the buyer’s explanation.',
+  'Продавец не ответил в срок — арбитр учтёт это при решении.':
+    'The seller didn’t reply in time — the arbiter will take this into account.',
+  'Покупатель не ответил в срок — арбитр учтёт это при решении.':
+    'The buyer didn’t reply in time — the arbiter will take this into account.',
+  'Покупатель закрыл спор: претензий нет. Деньги переданы продавцу.':
+    'The buyer closed the dispute with no claims. The money went to the seller.',
+  'Продавец вернул деньги покупателю. Спор закрыт.':
+    'The seller refunded the buyer. The dispute is closed.',
+
   // Уровни продавца
   Новичок: 'Newcomer',
   Проверенный: 'Trusted',
@@ -196,7 +208,8 @@ export const EN_SHARED: Phrasebook = {
   Сообщения: 'Messages',
   'новые сообщения в чатах': 'new chat messages',
   Споры: 'Disputes',
-  'открыт спор, решение арбитра': 'dispute opened, arbiter’s decision',
+  'открыт спор, ждём вашего ответа, решение арбитра':
+    'dispute opened, your reply needed, arbiter’s decision',
   Отзывы: 'Reviews',
   'новый отзыв, ответ продавца': 'new review, seller’s reply',
   Деньги: 'Money',
@@ -222,6 +235,7 @@ export const EN_SHARED: Phrasebook = {
   'Кэшбэк за покупку зачислен на баланс': 'Purchase cashback credited to your balance',
   'Новое сообщение': 'New message',
   'Спор по сделке': 'Dispute on a deal',
+  'Ждём вашего ответа в споре': 'Your reply is needed in a dispute',
   'Спор разрешён': 'Dispute resolved',
   'Ваша жалоба рассмотрена': 'Your report has been reviewed',
   'Лот заблокирован модератором': 'Listing blocked by a moderator',

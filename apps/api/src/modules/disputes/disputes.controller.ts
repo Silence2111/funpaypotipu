@@ -20,6 +20,7 @@ const messageSchema = z.object({
   attachments: z.array(attachmentSchema).max(6).optional(),
 });
 const uploadSchema = z.object({ mime: z.string().min(3).max(120) });
+const requestSchema = z.object({ side: z.enum(['buyer', 'seller']) });
 const resolveSchema = z.object({
   outcome: z.enum(['seller', 'buyer']),
   note: z.string().max(2000).optional(),
@@ -80,6 +81,24 @@ export class DisputesController {
   @Roles('agent')
   take(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.disputes.take(id, user.userId);
+  }
+
+  /** Арбитр просит пояснений у стороны — с новым сроком ответа. */
+  @Post(':id/request')
+  @UseGuards(RolesGuard)
+  @Roles('agent')
+  request(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(requestSchema)) body: { side: 'buyer' | 'seller' },
+  ) {
+    return this.disputes.request(id, user.userId, body.side);
+  }
+
+  /** Покупатель закрывает спор: претензий нет, деньги — продавцу. */
+  @Post(':id/withdraw')
+  withdraw(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.disputes.withdraw(id, user.userId);
   }
 
   @Post(':id/resolve')

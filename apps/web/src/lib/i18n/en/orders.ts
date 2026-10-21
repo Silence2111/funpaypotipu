@@ -274,4 +274,30 @@ export const ORDERS: Record<string, string> = {
   'Заготовок пока нет.': 'No templates yet.',
   'Изменить заготовки': 'Edit templates',
   'Добавить заготовки': 'Add templates',
+  'Деньги уйдут продавцу, спор закроется. Отменить это будет нельзя.':
+    'The money will go to the seller and the dispute will close. This can’t be undone.',
+  'Не удалось закрыть спор': 'Couldn’t close the dispute',
+  'Деньги вернутся покупателю на баланс, спор закроется. Отменить это будет нельзя.':
+    'The money will return to the buyer’s balance and the dispute will close. This can’t be undone.',
+  'Не удалось вернуть деньги': 'Couldn’t refund the money',
+  'Не удалось отправить запрос': 'Couldn’t send the request',
+  продавца: 'seller',
+  покупателя: 'buyer',
+  'Ваш ход: ответьте до {date}. Без ответа арбитр решит по тому, что есть.':
+    'Your turn: reply by {date}. Without a reply the arbiter will decide on what’s already here.',
+  'Ждём ответа {side} до {date}.': 'Waiting for a reply from the {side} until {date}.',
+  'Осталось {left}.': '{left} left.',
+  'Продавец не ответил в срок — арбитр учтёт это при решении.':
+    'The seller didn’t reply in time — the arbiter will take this into account.',
+  'Покупатель не ответил в срок — арбитр учтёт это при решении.':
+    'The buyer didn’t reply in time — the arbiter will take this into account.',
+  'Договорились сами?': 'Settled it between you?',
+  'Если товар в порядке, закройте спор — деньги уйдут продавцу, арбитр не понадобится.':
+    'If the item is fine, close the dispute — the money goes to the seller and no arbiter is needed.',
+  'Если покупатель прав, верните деньги — спор закроется без арбитра.':
+    'If the buyer is right, refund the money — the dispute closes without an arbiter.',
+  'Претензий нет — завершить сделку': 'No claims — complete the deal',
+  'Запросить пояснения:': 'Ask for an explanation:',
+  'у покупателя': 'from the buyer',
+  'у продавца': 'from the seller',
 };

@@ -31,6 +31,7 @@ import {
   buyerDataError,
   buyerFieldsOf,
   cleanBuyerData,
+  DISPUTE_NOTES,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
@@ -600,10 +601,19 @@ export class OrdersService {
     const res = await this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
     if (wasPaid) await this.restock(order);
     if (wasDisputed) {
-      await this.prisma.dispute.updateMany({
+      // Не «комментарий арбитра»: решение приняла сторона, об этом — сообщение площадки в споре.
+      const closed = await this.prisma.dispute.updateMany({
         where: { orderId: order.id, status: { in: ['open', 'in_review'] } },
-        data: { status: 'resolved_buyer', resolutionNote: 'Продавец вернул деньги сам', resolvedAt: new Date() },
+        data: { status: 'resolved_buyer', resolvedAt: new Date(), awaitingFrom: null, respondBy: null },
       });
+      const dispute = closed.count
+        ? await this.prisma.dispute.findUnique({ where: { orderId: order.id }, select: { id: true } })
+        : null;
+      if (dispute) {
+        await this.prisma.disputeMessage.create({
+          data: { disputeId: dispute.id, senderId: null, body: DISPUTE_NOTES.refunded },
+        });
+      }
     }
     await this.notifications.notify(order.buyerId, 'order_refunded', { orderId: order.id, reason: 'seller_refund' });
     // Причину пишет продавец, а системное сообщение не проходит фильтр чата:

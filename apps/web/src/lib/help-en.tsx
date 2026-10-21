@@ -7,6 +7,7 @@ import {
   SELLER_LEVELS,
   WITHDRAWAL_METHODS,
   bumpCooldownHours,
+  DISPUTE_RESPONSE_HOURS,
 } from '@gamemarket/shared';
 import type { HelpSlug, Terms } from './help';
 import { formatPrice } from './format';
@@ -138,6 +139,17 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
         The decision is either payment to the seller or a refund to the buyer. Refunds go to your
         balance: you can buy something else with it or withdraw the money.
       </p>
+      <ul>
+        <li>
+          The other side has {hours(DISPUTE_RESPONSE_HOURS)} to reply — the deadline is shown on the
+          dispute page. The arbiter can ask for an explanation with the same deadline. Silence
+          counts against whoever stayed silent: the arbiter decides on what’s there.
+        </li>
+        <li>
+          Settled it between you — the dispute closes without an arbiter: the buyer presses “No
+          claims — complete the deal”, the seller presses “Refund the buyer”.
+        </li>
+      </ul>
       <h2>Refunds without a dispute</h2>
       <ul>
         <li>

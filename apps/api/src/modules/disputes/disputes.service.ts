@@ -4,10 +4,13 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { randomUUID } from 'node:crypto';
-import { Prisma, PrismaClient } from '@gamemarket/db';
+import { Prisma, PrismaClient, type DisputeStatus } from '@gamemarket/db';
+import { DISPUTE_NOTES, DISPUTE_RESPONSE_HOURS } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { OrdersService } from '../orders/orders.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -16,6 +19,17 @@ import { StorageService } from '../storage/storage.service';
 import { ScanService } from '../antivirus/scan.service';
 
 const STAFF_ROLES = ['agent', 'moderator', 'admin'];
+const OPEN: DisputeStatus[] = ['open', 'in_review'];
+
+/** Часов на ответ стороне; меняется только для проверок. */
+const RESPONSE_HOURS = Number(process.env.DISPUTE_RESPONSE_HOURS ?? DISPUTE_RESPONSE_HOURS);
+const respondBy = () => new Date(Date.now() + RESPONSE_HOURS * 3600_000);
+/** Как часто проверять сроки ответа — вместе с таймерами сделок. */
+const SWEEP_MS = Number(
+  process.env.DISPUTE_SWEEP_INTERVAL_MS ?? process.env.ORDER_SWEEP_INTERVAL_MS ?? 60_000,
+);
+
+type Side = 'buyer' | 'seller';
 
 interface DisputeAttachment {
   key: string;
@@ -25,6 +39,8 @@ interface DisputeAttachment {
 
 @Injectable()
 export class DisputesService {
+  private readonly logger = new Logger(DisputesService.name);
+
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly orders: OrdersService,
@@ -39,8 +55,16 @@ export class DisputesService {
     if (existing) throw new ConflictException('Спор по этому заказу уже открыт');
 
     const order = await this.orders.markDisputed(orderId, userId); // проверит участие/переход
+    // Вторая сторона отвечает в срок: молчание видно арбитру и поднимает спор в очереди.
     const dispute = await this.prisma.dispute.create({
-      data: { orderId, openedBy: userId, reason, status: 'open' },
+      data: {
+        orderId,
+        openedBy: userId,
+        reason,
+        status: 'open',
+        awaitingFrom: order.buyerId === userId ? 'seller' : 'buyer',
+        respondBy: respondBy(),
+      },
     });
 
     const counterparty = order.buyerId === userId ? order.sellerId : order.buyerId;
@@ -85,6 +109,15 @@ export class DisputesService {
       },
     });
 
+    // Сторона, от которой ждали ответа, ответила — ход больше не за ней.
+    const side = order?.buyerId === userId ? 'buyer' : order?.sellerId === userId ? 'seller' : null;
+    if (!isInternal && side && dispute.awaitingFrom === side) {
+      await this.prisma.dispute.updateMany({
+        where: { id: dispute.id, awaitingFrom: side },
+        data: { awaitingFrom: null, respondBy: null },
+      });
+    }
+
     // Уведомляем вторую сторону (не для внутренних заметок арбитра).
     if (!(isInternal && isStaff) && order) {
       const other = order.buyerId === userId ? order.sellerId : order.buyerId;
@@ -104,6 +137,106 @@ export class DisputesService {
     if (!result.clean) {
       await this.storage.remove(key);
       throw new BadRequestException(`Файл не прошёл антивирус-проверку: ${result.reason}`);
+    }
+  }
+
+  /** Сообщение площадки в споре (senderId = null). */
+  private note(disputeId: string, body: string) {
+    return this.prisma.disputeMessage.create({ data: { disputeId, senderId: null, body } });
+  }
+
+  /**
+   * Арбитр просит пояснений у стороны: у неё снова срок на ответ, ей —
+   * уведомление. Спор при этом переходит в работу к этому арбитру.
+   */
+  async request(disputeId: string, arbiterId: string, side: Side) {
+    const dispute = await this.get(disputeId);
+    if (!OPEN.includes(dispute.status)) throw new ConflictException('Спор уже разрешён');
+    const order = await this.prisma.order.findUnique({ where: { id: dispute.orderId } });
+    const until = respondBy();
+    const updated = await this.prisma.dispute.update({
+      where: { id: disputeId },
+      data: {
+        status: 'in_review',
+        arbiterId: dispute.arbiterId ?? arbiterId,
+        awaitingFrom: side,
+        respondBy: until,
+      },
+    });
+    await this.note(disputeId, side === 'seller' ? DISPUTE_NOTES.askSeller : DISPUTE_NOTES.askBuyer);
+    if (order) {
+      await this.notifications.notify(side === 'seller' ? order.sellerId : order.buyerId, 'dispute_reply_needed', {
+        orderId: order.id,
+        disputeId,
+        respondBy: until.toISOString(),
+      });
+    }
+    await this.audit.log({
+      actorId: arbiterId,
+      action: 'dispute.request',
+      entityType: 'dispute',
+      entityId: disputeId,
+      after: { side } as Prisma.InputJsonValue,
+    });
+    return updated;
+  }
+
+  /**
+   * Покупатель закрывает спор сам: претензий нет, деньги — продавцу, как при
+   * подтверждении получения. Спор занимается первым: второй клик не проведёт
+   * его дважды, а сбой подтверждения возвращает спор как был.
+   */
+  async withdraw(disputeId: string, userId: string) {
+    const { dispute, order } = await this.accessible(disputeId, userId);
+    if (!order || order.buyerId !== userId) {
+      throw new ForbiddenException('Закрыть спор без претензий может только покупатель');
+    }
+    const before = {
+      status: dispute.status,
+      awaitingFrom: dispute.awaitingFrom,
+      respondBy: dispute.respondBy,
+    };
+    const claimed = await this.prisma.dispute.updateMany({
+      where: { id: disputeId, status: { in: OPEN } },
+      data: { status: 'cancelled', resolvedAt: new Date(), awaitingFrom: null, respondBy: null },
+    });
+    if (!claimed.count) throw new ConflictException('Спор уже разрешён');
+    try {
+      await this.orders.confirm(order.id, userId);
+    } catch (e) {
+      await this.prisma.dispute.update({
+        where: { id: disputeId },
+        data: { ...before, resolvedAt: null },
+      });
+      throw e;
+    }
+    await this.note(disputeId, DISPUTE_NOTES.withdrawn);
+    await this.notifications.notify(order.sellerId, 'dispute_resolved', { disputeId, outcome: 'seller' });
+    return { ok: true };
+  }
+
+  /**
+   * Срок ответа прошёл — отмечаем, кто промолчал, и пишем об этом в спор.
+   * Деньги сами не двигаются: решает арбитр, молчание — довод для него.
+   */
+  @Interval('disputes-deadlines', SWEEP_MS)
+  async sweep(now = new Date()) {
+    const due = await this.prisma.dispute.findMany({
+      where: { status: { in: OPEN }, awaitingFrom: { not: null }, respondBy: { lt: now } },
+      take: 100,
+    });
+    for (const d of due) {
+      try {
+        const r = await this.prisma.dispute.updateMany({
+          where: { id: d.id, respondBy: d.respondBy },
+          data: { missedBy: d.awaitingFrom, missedAt: now, respondBy: null },
+        });
+        if (r.count) {
+          await this.note(d.id, d.awaitingFrom === 'seller' ? DISPUTE_NOTES.missedSeller : DISPUTE_NOTES.missedBuyer);
+        }
+      } catch (e) {
+        this.logger.warn(`Срок ответа в споре ${d.id}: ${(e as Error).message}`);
+      }
     }
   }
 
@@ -132,6 +265,8 @@ export class DisputesService {
         arbiterId,
         resolutionNote: note,
         resolvedAt: new Date(),
+        awaitingFrom: null,
+        respondBy: null,
       },
     });
 
@@ -182,6 +317,8 @@ export class DisputesService {
       messages,
       isStaff,
       canResolve,
+      // Сторона спора: покупателю — «претензий нет», продавцу — «вернуть деньги».
+      side: order?.buyerId === userId ? 'buyer' : order?.sellerId === userId ? 'seller' : null,
       order: order
         ? {
             id: order.id,
@@ -240,6 +377,8 @@ export class DisputesService {
     const names = await this.usernames(
       disputes.flatMap((d) => [d.order?.buyerId, d.order?.sellerId, d.arbiterId]),
     );
+    // Кто промолчал — наверх: такой спор можно решать по тому, что есть.
+    disputes.sort((a, b) => Number(!!b.missedBy) - Number(!!a.missedBy));
     return disputes.map(({ order, _count, ...d }) => ({
       ...d,
       messages: _count.messages,

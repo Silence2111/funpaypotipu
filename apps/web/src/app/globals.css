@@ -505,6 +505,10 @@ summary:focus-visible {
   background: var(--danger-bg);
   color: var(--danger);
 }
+.alert.warning {
+  background: var(--warning-bg);
+  color: var(--fg);
+}
 .alert svg {
   flex: none;
   margin-top: 2px;

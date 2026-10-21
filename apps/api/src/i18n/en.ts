@@ -202,6 +202,10 @@ export const EN_API: Phrasebook = {
   'Эту выплату отправляет ЮKassa — реквизиты у неё':
     'YooKassa sends this payout and holds its details',
 
+  // Споры
+  'Закрыть спор без претензий может только покупатель':
+    'Only the buyer can close a dispute with no claims',
+
   // Отчёты
   'Период — от 1 до 366 дней': 'The period must be from 1 to 366 days',
 

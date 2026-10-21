@@ -7,6 +7,7 @@ import {
   SELLER_LEVELS,
   WITHDRAWAL_METHODS,
   bumpCooldownHours,
+  DISPUTE_RESPONSE_HOURS,
 } from '@gamemarket/shared';
 import type { PublicPricing } from './api';
 import { formatPrice } from './format';
@@ -158,6 +159,17 @@ const RU_BODIES: Record<HelpSlug, (t: Terms) => ReactNode> = {
         Решение — деньги продавцу или возврат покупателю. Возврат приходит на баланс: с него можно купить другое или
         вывести деньги.
       </p>
+      <ul>
+        <li>
+          У второй стороны {hours(DISPUTE_RESPONSE_HOURS)} на ответ — срок виден на странице спора. Арбитр тоже может
+          попросить пояснений с таким же сроком. Кто не ответил, против того это и сыграет: арбитр решит по тому, что
+          есть.
+        </li>
+        <li>
+          Договорились сами — спор закрывается без арбитра: покупатель нажимает «Претензий нет — завершить сделку»,
+          продавец — «Вернуть деньги покупателю».
+        </li>
+      </ul>
       <h2>Возврат без спора</h2>
       <ul>
         <li>Продавец не выдал товар за {hours(t.fulfillHours)} — деньги возвращаются на баланс автоматически.</li>

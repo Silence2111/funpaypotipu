@@ -43,6 +43,7 @@ export const EN_TEXTS: Record<string, string> = {
   'Выплата отправлена': 'Payout sent',
   'Заявка на вывод отклонена': 'Withdrawal request rejected',
   'Открыт спор по вашей сделке': 'A dispute has been opened on your deal',
+  'Ждём вашего ответа в споре': 'Your reply is needed in a dispute',
   'Спор по сделке разрешён': 'The dispute on your deal has been resolved',
   'Вы получили новый отзыв': 'You received a new review',
 

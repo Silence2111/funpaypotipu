@@ -28,6 +28,7 @@ export const EMAIL_SUBJECTS: Record<string, string> = {
   payout_paid: 'Выплата отправлена',
   payout_rejected: 'Заявка на вывод отклонена',
   dispute_opened: 'Открыт спор по вашей сделке',
+  dispute_reply_needed: 'Ждём вашего ответа в споре',
   dispute_resolved: 'Спор по сделке разрешён',
   review_received: 'Вы получили новый отзыв',
 };

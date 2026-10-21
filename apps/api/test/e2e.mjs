@@ -1045,6 +1045,89 @@ async function scenarioReports(rnd) {
 }
 
 /**
+ * Споры: срок ответа второй стороны, запрос арбитра, пропущенный срок
+ * (фоновая задача API, в CI раз в 2 с), закрытие спора покупателем без
+ * претензий и возврат денег продавцом из спора.
+ */
+async function scenarioDisputes(rnd) {
+  console.log('\n— Споры: сроки ответа и мирное закрытие —');
+  const seller = await register('dss', rnd);
+  const buyer = await register('dsb', rnd);
+  const agent = await register('dsa', rnd);
+  await grant(agent.id, 'agent');
+  const deal = async (price) => {
+    const listingId = await createListing(seller.token, 'accounts', price);
+    const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
+    await pay(buyer.token, order.body.id);
+    await j(`/orders/${order.body.id}/deliver`, { method: 'POST', token: seller.token });
+    const d = await j('/disputes', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: order.body.id, reason: 'Данные от аккаунта не подходят' }) });
+    return { order: order.body, dispute: d.body };
+  };
+  const view = async (id, token = buyer.token) => (await j(`/disputes/${id}`, { token })).body;
+
+  const a = await deal('80000');
+  let v = await view(a.dispute.id);
+  const left = (Date.parse(v.dispute.respondBy) - Date.now()) / 3600_000;
+  check('Открыт спор — ход за продавцом, 24 часа на ответ', v.dispute.awaitingFrom === 'seller' && left > 23.9 && left <= 24 && v.side === 'buyer', JSON.stringify({ awaiting: v.dispute.awaitingFrom, left }));
+  await j(`/disputes/${a.dispute.id}/messages`, { method: 'POST', token: seller.token, body: JSON.stringify({ body: 'Данные верные, проверьте ещё раз' }) });
+  v = await view(a.dispute.id);
+  check('Продавец ответил — срок снят', v.dispute.awaitingFrom === null && v.dispute.respondBy === null);
+
+  const ask = await j(`/disputes/${a.dispute.id}/request`, { method: 'POST', token: agent.token, body: JSON.stringify({ side: 'buyer' }) });
+  const denied = await j(`/disputes/${a.dispute.id}/request`, { method: 'POST', token: seller.token, body: JSON.stringify({ side: 'buyer' }) });
+  const notes = (await j('/notifications', { token: buyer.token })).body;
+  const list = Array.isArray(notes) ? notes : (notes.items ?? []);
+  check(
+    'Арбитр просит пояснений у покупателя: срок и уведомление; продавцу запрашивать нельзя',
+    ask.body.awaitingFrom === 'buyer' && ask.body.status === 'in_review' && denied.status === 403 &&
+      list.some((n) => n.type === 'dispute_reply_needed'),
+    JSON.stringify({ ask: ask.body.awaitingFrom, denied: denied.status, types: list.map((n) => n.type) }),
+  );
+
+  await prisma.dispute.update({ where: { id: a.dispute.id }, data: { respondBy: new Date(Date.now() - 1000) } });
+  let missed = null;
+  for (let i = 0; i < 20 && !missed; i++) {
+    await wait(500);
+    const d = await prisma.dispute.findUnique({ where: { id: a.dispute.id } });
+    if (d.missedBy) missed = d;
+  }
+  v = await view(a.dispute.id, agent.token);
+  const queue = (await j('/disputes/queue', { token: agent.token })).body;
+  // Наверху — только споры, где кто-то промолчал (в общей базе они бывают и от других прогонов).
+  const at = queue.findIndex((q) => q.id === a.dispute.id);
+  const raised = at >= 0 && queue.slice(0, at).every((q) => q.missedBy);
+  check(
+    'Срок прошёл — «покупатель не ответил» сообщением площадки, спор поднят в очереди; деньги на месте',
+    missed?.missedBy === 'buyer' && v.messages.some((m) => m.senderId === null && /Покупатель не ответил в срок/.test(m.body)) &&
+      raised && v.order.status === 'disputed',
+    JSON.stringify({ missed: missed?.missedBy, at, raised, status: v.order?.status }),
+  );
+
+  const balanceBefore = BigInt((await j('/wallet', { token: seller.token })).body.balance);
+  const sellerTry = await j(`/disputes/${a.dispute.id}/withdraw`, { method: 'POST', token: seller.token });
+  const closed = await j(`/disputes/${a.dispute.id}/withdraw`, { method: 'POST', token: buyer.token });
+  const again = await j(`/disputes/${a.dispute.id}/withdraw`, { method: 'POST', token: buyer.token });
+  v = await view(a.dispute.id);
+  const balanceAfter = BigInt((await j('/wallet', { token: seller.token })).body.balance);
+  check(
+    'Покупатель закрыл спор без претензий — сделка завершена, деньги у продавца; повтор — 409, продавцу — 403',
+    sellerTry.status === 403 && closed.status === 201 && again.status === 409 && v.dispute.status === 'cancelled' &&
+      v.order.status === 'completed' && balanceAfter - balanceBefore === BigInt(a.order.sellerPayoutAmount),
+    JSON.stringify({ sellerTry: sellerTry.status, closed: closed.status, again: again.status, status: v.dispute.status, delta: String(balanceAfter - balanceBefore) }),
+  );
+
+  const b = await deal('60000');
+  const refund = await j(`/orders/${b.order.id}/refund`, { method: 'POST', token: seller.token, body: JSON.stringify({}) });
+  v = await view(b.dispute.id);
+  check(
+    'Продавец вернул деньги из спора — спор закрыт в пользу покупателя, сообщение площадки, без «комментария арбитра»',
+    refund.status === 201 && v.dispute.status === 'resolved_buyer' && v.dispute.resolutionNote === null &&
+      v.messages.some((m) => m.senderId === null && /Продавец вернул деньги/.test(m.body)),
+    JSON.stringify({ refund: refund.status, status: v.dispute.status, note: v.dispute.resolutionNote }),
+  );
+}
+
+/**
  * Защита перед запуском: заголовки, CORS только для сайта, лимит запросов
  * с адреса. Адрес покупателя приходит в X-Forwarded-For — API верит ему
  * от локального прокси, как за ingress.
@@ -1329,6 +1412,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioMyLots(rnd);
   await scenarioSellerTools(rnd);
   await scenarioReports(rnd);
+  await scenarioDisputes(rnd);
   await scenarioTwoFactor(rnd);
   await scenarioPush(rnd);
   await scenarioFiles(rnd);
