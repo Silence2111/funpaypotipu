@@ -4020,6 +4020,51 @@ a.my-lot-title:hover {
   }
 }
 
+/* Скидка у цены: прежняя зачёркнута, рядом «−20%» и срок. */
+.sale-mark {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.offer-price .sale-mark {
+  justify-content: flex-end;
+}
+/* Панель скидки под строкой «Моих лотов». */
+.sale-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: var(--page);
+}
+.sale-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.sale-row .label {
+  min-width: 56px;
+}
+.sale-pct {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.sale-pct .input {
+  width: 64px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  text-align: right;
+}
+.icon-btn[data-on='true'] {
+  color: var(--success);
+}
+
 /* Статистика лотов: таблица лотов листается вбок внутри карточки, не страница. */
 .lot-stats {
   padding: 8px 0;

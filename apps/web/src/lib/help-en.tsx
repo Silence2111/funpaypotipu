@@ -9,6 +9,8 @@ import {
   bumpCooldownHours,
   DISPUTE_RESPONSE_HOURS,
   PRICE_DROP_MIN_PCT,
+  SALE_MAX_PCT,
+  SALE_MIN_PCT,
 } from '@gamemarket/shared';
 import type { HelpSlug, Terms } from './help';
 import { formatPrice } from './format';
@@ -233,6 +235,12 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           a listing was added to favorites, purchases, conversion and earnings — for 7, 30 or 90
           days. You can see which listing gets views but no purchases: worth fixing its price,
           photos or description.
+        </li>
+        <li>
+          Discount — the “%” icon next to a listing in “My listings”: {SALE_MIN_PCT} to{' '}
+          {SALE_MAX_PCT}% for a day, 3 or 7 days. Buyers see the crossed-out price, and those who
+          have the listing in favorites get a notification. When the period ends, the price returns
+          by itself.
         </li>
         <li>
           Going away — “Vacation” in “My listings” takes all your listings off sale at once and

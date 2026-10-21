@@ -10,12 +10,14 @@ import { Interval } from '@nestjs/schedule';
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type FulfillmentType } from '@gamemarket/db';
 import {
+  SALE_MIN_PRICE,
   bumpCooldownHours,
   chargeFromBalance,
   maskContacts,
   promoCost,
   promoUntil,
   qtyTermsError,
+  salePrice,
   topupQuote,
   topupTermsError,
   type CreateListingInput,
@@ -34,6 +36,8 @@ import { ONLINE_MS } from '../../common/presence';
 const BOOST_MS = 24 * 3600 * 1000; // лот держится в топе сутки
 /** Как часто проверять автоподнятие: лот поднимется не позже чем через столько после конца паузы. */
 const AUTO_RAISE_MS = Number(process.env.AUTO_RAISE_INTERVAL_MS ?? 5 * 60_000);
+/** Как часто возвращать цену лотам, у которых кончилась скидка. В CI — чаще. */
+const SALE_SWEEP_MS = Number(process.env.SALE_SWEEP_INTERVAL_MS ?? 60_000);
 // Цена суток продвижения, копейки. Решение площадки (ПЛАН.md), не код.
 export const PROMO_DAY_PRICE = BigInt(process.env.PROMO_DAY_PRICE ?? 9_900);
 
@@ -67,6 +71,9 @@ const cardSelect = {
   boostUntil: true,
   // Платное продвижение: карточка помечает его, выдача ставит выше.
   promotedUntil: true,
+  // Скидка: карточка зачёркивает прежнюю цену и пишет «−20%».
+  saleListPrice: true,
+  saleUntil: true,
   fulfillmentType: true,
   // Лот «на сумму покупателя»: карточка пишет «от», страница лота — форму суммы.
   topupMarkupBps: true,
@@ -439,6 +446,65 @@ export class ListingsService {
    * по заслугам, — автоподнятие избавляет только от нажатия каждые 4 часа.
    * В отпуске и у замороженных или заблокированных аккаунтов не поднимает.
    */
+  /**
+   * Временная скидка: цена ниже на pct процентов на days суток, прежняя —
+   * отдельно. Одна скидка за раз; цена меняется условно — два нажатия не
+   * снизят её дважды. Лоту «на сумму покупателя» скидка — это наценка.
+   */
+  async startSale(sellerId: string, id: string, pct: number, days: number) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id },
+      select: { sellerId: true, status: true, price: true, topupMarkupBps: true, saleUntil: true },
+    });
+    if (!listing || listing.status === 'archived') throw new NotFoundException('Лот не найден');
+    if (listing.sellerId !== sellerId) throw new ForbiddenException('Это не ваш лот');
+    if (listing.status !== 'active' && listing.status !== 'sold_out') {
+      throw new BadRequestException('Скидку можно дать лоту в продаже');
+    }
+    if (listing.topupMarkupBps != null) {
+      throw new BadRequestException('У пополнения скидка — это наценка: измените её в лоте');
+    }
+    if (listing.saleUntil) {
+      throw new BadRequestException('Скидка уже идёт — завершите её, чтобы начать новую');
+    }
+    const price = salePrice(listing.price, pct);
+    if (price < SALE_MIN_PRICE) throw new BadRequestException('Со скидкой цена меньше 1 ₽');
+    const saleUntil = new Date(Date.now() + days * 24 * 3600_000);
+    const r = await this.prisma.listing.updateMany({
+      where: { id, sellerId, saleUntil: null, price: listing.price },
+      data: { saleListPrice: listing.price, price, saleUntil },
+    });
+    if (!r.count) throw new BadRequestException('Лот только что изменился — обновите страницу');
+    await this.search.indexListing(id);
+    return { price: price.toString(), saleListPrice: listing.price.toString(), saleUntil };
+  }
+
+  /** Завершить скидку раньше срока: прежняя цена возвращается сразу. */
+  async endSale(sellerId: string, id: string) {
+    const n = await this.prisma.$executeRaw`
+      UPDATE listings
+      SET price = sale_list_price, sale_list_price = NULL, sale_until = NULL, updated_at = ${new Date()}
+      WHERE id = ${id}::uuid AND seller_id = ${sellerId}::uuid AND sale_until IS NOT NULL`;
+    if (!n) throw new NotFoundException('Скидки на этом лоте нет');
+    await this.search.indexListing(id);
+    return { ok: true };
+  }
+
+  /** Срок скидки вышел — прежняя цена возвращается одним запросом. */
+  @Interval('sales', SALE_SWEEP_MS)
+  async endExpiredSales(): Promise<number> {
+    const now = new Date();
+    const ended = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      UPDATE listings
+      SET price = sale_list_price, sale_list_price = NULL, sale_until = NULL, updated_at = ${now}
+      WHERE sale_until IS NOT NULL AND sale_until <= ${now}
+      RETURNING id`;
+    for (const { id } of ended) {
+      await this.search.indexListing(id).catch((e: Error) => this.logger.warn(`Индекс ${id}: ${e.message}`));
+    }
+    return ended.length;
+  }
+
   @Interval('auto-raise', AUTO_RAISE_MS)
   async autoRaise() {
     const sellers = await this.prisma.profile.findMany({
@@ -722,6 +788,16 @@ export class ListingsService {
       throw new ForbiddenException('Лот заблокирован модератором. Напишите в поддержку.');
     }
     if (current.status === 'archived') throw new NotFoundException('Лот не найден');
+    // Во время скидки price — сниженная, прежняя хранится отдельно: новая
+    // цена или пачка смешали бы их. Форма шлёт цену и без правки — та же
+    // цена не в счёт.
+    if (
+      current.saleUntil &&
+      ((input.price !== undefined && BigInt(input.price) !== current.price) ||
+        (input.pricePerUnits !== undefined && input.pricePerUnits !== current.pricePerUnits))
+    ) {
+      throw new BadRequestException('Идёт скидка — завершите её, потом меняйте цену');
+    }
     // Характеристики проверялись только при создании: правкой можно было
     // убрать обязательное «Звание» или вписать значение не из списка.
     if (input.attributes !== undefined) await this.validateAttributes(current.categoryId, input.attributes);
@@ -856,6 +932,8 @@ export class ListingsService {
       select: {
         sellerId: true,
         status: true,
+        price: true,
+        saleUntil: true,
         categoryId: true,
         fulfillmentType: true,
         topupMarkupBps: true,

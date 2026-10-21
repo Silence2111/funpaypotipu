@@ -444,6 +444,10 @@ model Listing {
   boostUntil      DateTime?       @map("boost_until")
   // Платное продвижение с баланса: до этого времени лот выше в своём разделе.
   promotedUntil   DateTime?       @map("promoted_until")
+  // Временная скидка: price — уже сниженная, прежняя цена — здесь; до
+  // saleUntil. Срок вышел — фоновая задача возвращает прежнюю (shared/sale.ts).
+  saleListPrice   BigInt?         @map("sale_list_price")
+  saleUntil       DateTime?       @map("sale_until")
   // Пополнение на сумму покупателя (packages/shared/src/topup.ts): покупатель
   // вводит, сколько зачислить, и платит номинал плюс наценку. Все три поля
   // заданы или все null; у такого лота price — цена минимальной суммы («от»).
@@ -477,6 +481,7 @@ model Listing {
   @@index([categoryId, price])
   @@index([sellerId])
   @@index([status])
+  @@index([saleUntil])
   @@map("listings")
 }
 

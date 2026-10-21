@@ -3,6 +3,7 @@ import { Star, Zap } from 'lucide-react';
 import { isDemoSeller } from '@gamemarket/shared';
 import type { Attribute, ListingCard, SellerBrief } from '@/lib/api';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
+import { SaleMark } from './sale-mark';
 import { isOnline } from '@/lib/presence';
 import { RU, type T } from '@/lib/i18n/lang';
 import { ApproxPrice } from './approx-price';
@@ -191,6 +192,7 @@ function OfferRow({
         <span className="price">
           {pack ? formatPrice(l.price, l.currency, t) : formatListingPrice(l, t)}
         </span>
+        <SaleMark listPrice={l.saleListPrice} price={l.price} currency={l.currency} t={t} />
         {pack ? (
           <span className="faint">{pack}</span>
         ) : (

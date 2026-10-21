@@ -243,4 +243,24 @@ export const CABINET: Record<string, string> = {
   Лот: 'Listing',
   'Показать график этого лота': 'Show this listing’s chart',
   'всего просмотров: {n}': 'all-time views: {n}',
+
+  // Скидка на лот
+  'скидка до {date}': 'discount until {date}',
+  'Скидка идёт — завершить': 'Discount running — end it',
+  Скидка: 'Discount',
+  'Идёт скидка — цена вернётся по окончании срока':
+    'A discount is running — the price returns when it ends',
+  'до {date}': 'until {date}',
+  'Скидка −{pct}% до {date}: было {was}, сейчас {now}.':
+    'Discount −{pct}% until {date}: was {was}, now {now}.',
+  'Не удалось завершить скидку.': 'Couldn’t end the discount.',
+  'Завершить скидку': 'End discount',
+  'Не удалось начать скидку.': 'Couldn’t start the discount.',
+  'Скидка, %': 'Discount, %',
+  Срок: 'Period',
+  'Станет {now} вместо {was} до {date}.': 'It will be {now} instead of {was} until {date}.',
+  'Скидка — от {min} до {max}%.': 'The discount must be from {min} to {max}%.',
+  'Начать скидку': 'Start discount',
+  'Покупатели увидят зачёркнутую цену и «−{pct}%». У кого лот в избранном, придёт уведомление. По окончании срока цена вернётся сама.':
+    'Buyers will see the crossed-out price and “−{pct}%”. Those who have the listing in favorites get a notification. When the period ends, the price returns by itself.',
 };

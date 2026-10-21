@@ -1428,6 +1428,71 @@ async function scenarioLotStats(rnd) {
   );
 }
 
+/**
+ * Временная скидка: цена ниже, прежняя — отдельно; заказ — по цене со
+ * скидкой; в избранном — уведомление; вторая скидка и правка цены — отказ;
+ * «Завершить» и истёкший срок возвращают прежнюю цену.
+ */
+async function scenarioSale(rnd) {
+  console.log('\n— Скидка на лот —');
+  const seller = await register('sls', rnd);
+  const buyer = await register('slb', rnd);
+  const lot = await createListing(seller.token, 'accounts', '150000', { title: `Скидка ${rnd}` });
+  await j('/favorites', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) });
+  const sale = (body, token = seller.token) =>
+    j(`/listings/${lot}/sale`, { method: 'POST', token, body: JSON.stringify(body) });
+
+  const small = await sale({ percent: 3, days: 3 });
+  const long = await sale({ percent: 20, days: 30 });
+  const foreign = await sale({ percent: 20, days: 3 }, buyer.token);
+  const ok = await sale({ percent: 20, days: 3 });
+  const again = await sale({ percent: 30, days: 1 });
+  const card = (await j(`/listings/${lot}`)).body;
+  check(
+    'Скидка 20% на 3 суток: цена 1 200 ₽, прежняя 1 500 ₽; 3%, 30 суток, чужой лот и вторая скидка — отказ',
+    small.status === 400 && long.status === 400 && foreign.status === 403 && ok.status === 201 &&
+      ok.body.price === '120000' && again.status === 400 && card.price === '120000' &&
+      card.saleListPrice === '150000' && !!card.saleUntil,
+    JSON.stringify({ small: small.status, long: long.status, foreign: foreign.status, ok: ok.body, again: again.status, card: [card.price, card.saleListPrice] }),
+  );
+
+  const newPrice = await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ price: '140000' }) });
+  const samePrice = await j(`/listings/${lot}`, {
+    method: 'PATCH', token: seller.token, body: JSON.stringify({ price: '120000', title: `Скидка ${rnd} · правка` }),
+  });
+  const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) });
+  let drop = null;
+  for (let i = 0; i < 20 && !drop; i++) {
+    await wait(500);
+    drop = (await j('/notifications', { token: buyer.token })).body.find((n) => n.type === 'price_drop') ?? null;
+  }
+  check(
+    'Во время скидки: новая цена — отказ, правка без смены цены — да; заказ по 1 200 ₽; в избранном — уведомление',
+    newPrice.status === 400 && samePrice.status === 200 && order.body.amount === '120000' &&
+      drop?.payload.newPrice === '120000' && drop?.payload.oldPrice === '150000',
+    JSON.stringify({ newPrice: newPrice.status, samePrice: samePrice.status, amount: order.body.amount, drop: drop?.payload }),
+  );
+
+  const end = await j(`/listings/${lot}/sale`, { method: 'DELETE', token: seller.token });
+  const endAgain = await j(`/listings/${lot}/sale`, { method: 'DELETE', token: seller.token });
+  const back = (await j(`/listings/${lot}`)).body;
+  // Новая скидка, срок которой уже вышел, — цену возвращает фоновая задача.
+  await sale({ percent: 10, days: 1 });
+  await prisma.listing.update({ where: { id: lot }, data: { saleUntil: new Date(Date.now() - 1000) } });
+  let expired = null;
+  for (let i = 0; i < 20; i++) {
+    await wait(500);
+    expired = (await j(`/listings/${lot}`)).body;
+    if (expired.price === '150000') break;
+  }
+  check(
+    '«Завершить» и истёкший срок возвращают 1 500 ₽; завершить без скидки — 404',
+    end.status === 200 && endAgain.status === 404 && back.price === '150000' && back.saleListPrice === null &&
+      expired?.price === '150000' && expired?.saleUntil === null,
+    JSON.stringify({ end: end.status, endAgain: endAgain.status, back: [back.price, back.saleListPrice], expired: [expired?.price, expired?.saleUntil] }),
+  );
+}
+
 async function scenarioSecurity(rnd) {
   console.log('\n— Защита: заголовки, CORS, лимиты —');
   const raw = (path, headers = {}, init = {}) => fetch(`${API}/api${path}`, { ...init, headers });
@@ -1710,6 +1775,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioSavedSearches(rnd);
   await scenarioPriceDrop(rnd);
   await scenarioLotStats(rnd);
+  await scenarioSale(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

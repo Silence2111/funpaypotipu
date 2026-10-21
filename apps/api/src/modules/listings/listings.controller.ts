@@ -15,6 +15,9 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { z } from 'zod';
 import {
+  SALE_MAX_DAYS,
+  SALE_MAX_PCT,
+  SALE_MIN_PCT,
   createListingSchema,
   listingQuerySchema,
   updateListingSchema,
@@ -35,6 +38,14 @@ const bulkSchema = z.object({
   action: z.enum(['pause', 'activate', 'bump']),
 });
 const awaySchema = z.object({ away: z.boolean() });
+const saleSchema = z.object({
+  percent: z
+    .number()
+    .int()
+    .min(SALE_MIN_PCT, `Скидка — от ${SALE_MIN_PCT}%`)
+    .max(SALE_MAX_PCT, `Скидка — до ${SALE_MAX_PCT}%`),
+  days: z.number().int().min(1, 'Срок — от суток').max(SALE_MAX_DAYS, `Срок — до ${SALE_MAX_DAYS} суток`),
+});
 
 @Controller('listings')
 export class ListingsController {
@@ -136,6 +147,24 @@ export class ListingsController {
   ) {
     await this.account.assertCanTrade(user.userId);
     return this.listings.promote(user.userId, id, body.days);
+  }
+
+  /** Временная скидка: 5–90% на срок до 14 суток; прежняя цена вернётся сама. */
+  @Post(':id/sale')
+  @UseGuards(JwtAuthGuard)
+  async startSale(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(saleSchema)) body: { percent: number; days: number },
+  ) {
+    await this.account.assertCanTrade(user.userId);
+    return this.listings.startSale(user.userId, id, body.percent, body.days);
+  }
+
+  @Delete(':id/sale')
+  @UseGuards(JwtAuthGuard)
+  endSale(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.listings.endSale(user.userId, id);
   }
 
   @Patch(':id')

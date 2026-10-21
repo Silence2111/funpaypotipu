@@ -9,6 +9,8 @@ import {
   bumpCooldownHours,
   DISPUTE_RESPONSE_HOURS,
   PRICE_DROP_MIN_PCT,
+  SALE_MAX_PCT,
+  SALE_MIN_PCT,
 } from '@gamemarket/shared';
 import type { PublicPricing } from './api';
 import { formatPrice } from './format';
@@ -236,6 +238,11 @@ const RU_BODIES: Record<HelpSlug, (t: Terms) => ReactNode> = {
           <Link href="/cabinet/lots/stats">«Статистика»</Link> в «Моих лотах»: просмотры по дням, сколько раз лот
           добавили в избранное, покупки, конверсия и заработанное — за 7, 30 или 90 дней. Видно, какой лот смотрят, но
           не покупают: стоит поправить цену, фото или описание.
+        </li>
+        <li>
+          Скидка — значок «%» у лота в «Моих лотах»: от {SALE_MIN_PCT} до {SALE_MAX_PCT}% на сутки, 3 или 7 суток.
+          Покупатели видят зачёркнутую цену, у кого лот в избранном — получают уведомление. По окончании срока цена
+          возвращается сама.
         </li>
         <li>Уезжаете — «В отпуск» в «Моих лотах» снимет все лоты разом и вернёт их одной кнопкой.</li>
       </ul>

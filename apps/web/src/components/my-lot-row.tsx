@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { Pencil, Trash2, TrendingUp } from 'lucide-react';
+import { Pencil, Percent, Trash2, TrendingUp } from 'lucide-react';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import {
@@ -18,6 +18,8 @@ import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
 import { BumpButton } from './bump-button';
 import { PromotePanel } from './promote-panel';
+import { SalePanel } from './sale-panel';
+import { SaleMark } from './sale-mark';
 
 /** Свой лот — строка ответа `GET /listings/mine`. */
 export interface MyLot {
@@ -30,6 +32,9 @@ export interface MyLot {
   pausedForAway?: boolean;
   boostUntil?: string | null;
   promotedUntil?: string | null;
+  /** Скидка: прежняя цена и срок; price — уже со скидкой. */
+  saleListPrice?: string | null;
+  saleUntil?: string | null;
   topupMarkupBps?: number | null;
   fulfillmentType?: string;
   unitName?: string | null;
@@ -47,7 +52,7 @@ const dayMonth = (iso: string, t: T) => new Date(iso).toLocaleDateString(t.local
 /**
  * Строка «Моих лотов», как в «Моих предложениях» FunPay: галочка для
  * действий над несколькими лотами, цена правится по клику, переключатель
- * «В продаже», поднять, продвинуть, изменить, удалить.
+ * «В продаже», поднять, продвинуть, скидка, изменить, удалить.
  */
 export function MyLotRow({
   lot,
@@ -65,6 +70,7 @@ export function MyLotRow({
   const t = useT();
   const [busy, setBusy] = useState(false);
   const [promoting, setPromoting] = useState(false);
+  const [discounting, setDiscounting] = useState(false);
 
   async function run(fn: () => Promise<unknown>, fallback: string): Promise<boolean> {
     setBusy(true);
@@ -100,6 +106,9 @@ export function MyLotRow({
   const blocked = lot.status === 'blocked';
   const soldOut = lot.status === 'sold_out';
   const counted = lot.stock != null && (!!lot.unitName || lot.fulfillmentType === 'auto_key');
+  const onSale = !!lot.saleListPrice && !!lot.saleUntil;
+  // Скидка — лоту в продаже или закончившемуся; у пополнения она — наценка.
+  const canSale = (active || soldOut) && lot.topupMarkupBps == null;
 
   return (
     <div className="my-lot" data-status={lot.status} data-selected={selected ? 'true' : undefined}>
@@ -128,6 +137,7 @@ export function MyLotRow({
           {active && later(lot.promotedUntil) && (
             <span>{t('продвижение до {date}', { date: dayMonth(lot.promotedUntil!, t) })}</span>
           )}
+          {onSale && <span>{t('скидка до {date}', { date: dayMonth(lot.saleUntil!, t) })}</span>}
         </div>
       </div>
 
@@ -178,6 +188,19 @@ export function MyLotRow({
             <TrendingUp size={17} strokeWidth={1.75} />
           </button>
         )}
+        {(canSale || onSale) && (
+          <button
+            type="button"
+            className="icon-btn"
+            aria-expanded={discounting}
+            aria-label={onSale ? t('Скидка идёт — завершить') : t('Скидка')}
+            title={onSale ? t('Скидка идёт — завершить') : t('Скидка')}
+            data-on={onSale ? 'true' : undefined}
+            onClick={() => setDiscounting((d) => !d)}
+          >
+            <Percent size={16} strokeWidth={1.75} />
+          </button>
+        )}
         {!blocked && (
           <Link
             href={`/cabinet/lot/${lot.id}`}
@@ -202,6 +225,19 @@ export function MyLotRow({
         )}
       </div>
 
+      {discounting && (
+        <div className="my-lot-panel">
+          <SalePanel
+            listingId={lot.id}
+            price={lot.price}
+            currency={lot.currency}
+            saleListPrice={lot.saleListPrice}
+            saleUntil={lot.saleUntil}
+            onDone={onChanged}
+            onClose={() => setDiscounting(false)}
+          />
+        </div>
+      )}
       {promoting && (
         <div className="my-lot-panel">
           <PromotePanel
@@ -240,6 +276,15 @@ function PriceCell({
     return (
       <div className="my-lot-price" title={t('Цена следует из наценки — меняется в форме лота')}>
         <span className="my-lot-amount">{formatListingPrice(lot, t)}</span>
+      </div>
+    );
+  }
+  // Во время скидки цена не правится: прежняя вернётся по сроку.
+  if (lot.saleListPrice && lot.saleUntil) {
+    return (
+      <div className="my-lot-price" title={t('Идёт скидка — цена вернётся по окончании срока')}>
+        <span className="my-lot-amount">{formatPrice(lot.price, lot.currency, t)}</span>
+        <SaleMark listPrice={lot.saleListPrice} price={lot.price} currency={lot.currency} t={t} />
       </div>
     );
   }

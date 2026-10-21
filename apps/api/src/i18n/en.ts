@@ -238,6 +238,22 @@ export const EN_API: Phrasebook = {
 
   // Статистика лотов
   'Период — 7, 30 или 90 дней': 'The period must be 7, 30 or 90 days',
+
+  // Скидка на лот
+  'Скидка — от {n}%': 'The discount must be at least {n}%',
+  'Скидка — до {n}%': 'The discount can be up to {n}%',
+  'Срок — от суток': 'The period must be at least one day',
+  'Срок — до {n} суток': 'The period can be up to {n} days',
+  'Скидку можно дать лоту в продаже': 'Only a listing on sale can get a discount',
+  'У пополнения скидка — это наценка: измените её в лоте':
+    'For a top-up, the discount is the markup: change it in the listing',
+  'Скидка уже идёт — завершите её, чтобы начать новую':
+    'A discount is already running — end it to start a new one',
+  'Со скидкой цена меньше 1 ₽': 'With the discount, the price would be below 1 ₽',
+  'Лот только что изменился — обновите страницу': 'The listing has just changed — refresh the page',
+  'Скидки на этом лоте нет': 'This listing has no discount',
+  'Идёт скидка — завершите её, потом меняйте цену':
+    'A discount is running — end it before changing the price',
   'Раздел не найден': 'Category not found',
   'Недостаточно средств на балансе': 'Insufficient balance',
   'Неизвестный способ вывода': 'Unknown withdrawal method',

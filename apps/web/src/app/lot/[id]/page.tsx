@@ -8,6 +8,7 @@ import { BuyButton } from '@/components/buy-button';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ViewBeacon } from '@/components/view-beacon';
+import { SaleMark } from '@/components/sale-mark';
 import { isDemoSeller, markupLabel, soldByQty, topupQuote } from '@gamemarket/shared';
 import { JsonLd, breadcrumbLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
@@ -239,6 +240,17 @@ export default async function ListingPage({
               )}{' '}
               <ApproxPrice minor={listing.price} currency={listing.currency} style={{ fontSize: 15 }} />
             </div>
+            {listing.saleListPrice && (
+              <div style={{ margin: '-8px 0 16px' }}>
+                <SaleMark
+                  listPrice={listing.saleListPrice}
+                  price={listing.price}
+                  currency={listing.currency}
+                  until={listing.saleUntil}
+                  t={t}
+                />
+              </div>
+            )}
             {topup && (
               <p className="hint" style={{ marginBottom: 16 }}>
                 {t('Сумму выбираете вы, наценка продавца — {pct}', { pct: markupLabel(topup.markupBps) })}

@@ -37,6 +37,10 @@
       "types": "./dist/lot-stats.d.ts",
       "default": "./dist/lot-stats.js"
     },
+    "./sale": {
+      "types": "./dist/sale.d.ts",
+      "default": "./dist/sale.js"
+    },
     "./saved-search": {
       "types": "./dist/saved-search.d.ts",
       "default": "./dist/saved-search.js"

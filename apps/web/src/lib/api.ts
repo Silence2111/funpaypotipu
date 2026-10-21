@@ -72,6 +72,9 @@ export interface ListingCard {
   stock?: number | null;
   /** Платное продвижение до этого времени. */
   promotedUntil?: string | null;
+  /** Скидка: прежняя цена и срок; price — уже со скидкой. */
+  saleListPrice?: string | null;
+  saleUntil?: string | null;
   /** Параметры раздела: звание, регион, сервер; «да/нет» — булевы. */
   attributes?: Record<string, unknown>;
   seller: { id?: string; profile: SellerBrief | null };
