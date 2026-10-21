@@ -229,6 +229,12 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           — auto-replies don’t count, and it shows up after three replies.
         </li>
         <li>
+          <Link href="/cabinet/lots/stats">“Stats”</Link> in “My listings”: views by day, how often
+          a listing was added to favorites, purchases, conversion and earnings — for 7, 30 or 90
+          days. You can see which listing gets views but no purchases: worth fixing its price,
+          photos or description.
+        </li>
+        <li>
           Going away — “Vacation” in “My listings” takes all your listings off sale at once and
           brings them back with one button.
         </li>

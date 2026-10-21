@@ -1371,6 +1371,63 @@ async function scenarioPriceDrop(rnd) {
   );
 }
 
+/**
+ * Статистика лотов: просмотр считается у видимого лота и не у продавца,
+ * не трогает updated_at; статистика — просмотры, избранное, покупки,
+ * конверсия, график одного лота; чужой лот — 404, только продавцу.
+ */
+async function scenarioLotStats(rnd) {
+  console.log('\n— Статистика лотов —');
+  const seller = await register('lss', rnd);
+  const buyer = await register('lsb', rnd);
+  const a = await createListing(seller.token, 'accounts', '100000', { title: `Статистика A ${rnd}` });
+  const b = await createListing(seller.token, 'accounts', '50000', { title: `Статистика B ${rnd}` });
+  const c = await createListing(seller.token, 'accounts', '70000', { title: `Статистика C ${rnd}` });
+  await j(`/listings/${c}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
+  const before = await prisma.listing.findUnique({ where: { id: a }, select: { updatedAt: true } });
+
+  const view = (id, token) => j(`/lot-stats/${id}/view`, { method: 'POST', ...(token ? { token } : {}) });
+  const v1 = await view(a);
+  await view(a);
+  await view(a, buyer.token);
+  const own = await view(a, seller.token);
+  const hidden = await view(c);
+  const after = await prisma.listing.findUnique({ where: { id: a }, select: { updatedAt: true, viewsCount: true } });
+  check(
+    'Просмотр: гость и покупатель — да, продавец и снятый лот — нет; updated_at лота не меняется',
+    v1.status === 200 && v1.body.counted === true && own.body.counted === false &&
+      hidden.body.counted === false && after.viewsCount === 3 &&
+      after.updatedAt.getTime() === before.updatedAt.getTime(),
+    JSON.stringify({ v1: v1.body, own: own.body, hidden: hidden.body, views: after.viewsCount }),
+  );
+
+  await j('/favorites', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: a }) });
+  const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: b }) });
+  await pay(buyer.token, order.body.id);
+
+  const s = await j('/lot-stats?days=7', { token: seller.token });
+  const row = (id) => s.body.lots?.find((l) => l.id === id);
+  check(
+    'Статистика: просмотры, избранное, покупки и конверсия по лотам; итог и сегодняшний день',
+    s.status === 200 && row(a)?.views === 3 && row(a)?.favorites === 1 && row(a)?.purchases === 0 &&
+      row(a)?.conversion === 0 && row(b)?.purchases === 1 && row(b)?.conversion === null &&
+      s.body.totals.views === 3 && s.body.totals.purchases === 1 && s.body.daily.length === 7 &&
+      s.body.daily.at(-1).views === 3 && s.body.daily.at(-1).purchases === 1 && s.body.lots[0].id === a,
+    JSON.stringify({ totals: s.body.totals, a: row(a), b: row(b), today: s.body.daily?.at(-1) }),
+  );
+
+  const one = await j(`/lot-stats?days=30&listingId=${b}`, { token: seller.token });
+  const foreign = await j(`/lot-stats?days=30&listingId=${a}`, { token: buyer.token });
+  const badDays = await j('/lot-stats?days=5', { token: seller.token });
+  const anon = await j('/lot-stats');
+  check(
+    'График одного лота — его просмотры и покупки; чужой лот — 404; период не 7/30/90 — 400; без входа — 401',
+    one.body.daily?.length === 30 && one.body.daily.at(-1).views === 0 && one.body.daily.at(-1).purchases === 1 &&
+      foreign.status === 404 && badDays.status === 400 && anon.status === 401,
+    JSON.stringify({ one: one.body.daily?.at(-1), foreign: foreign.status, badDays: badDays.status, anon: anon.status }),
+  );
+}
+
 async function scenarioSecurity(rnd) {
   console.log('\n— Защита: заголовки, CORS, лимиты —');
   const raw = (path, headers = {}, init = {}) => fetch(`${API}/api${path}`, { ...init, headers });
@@ -1652,6 +1709,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioSellerTools(rnd);
   await scenarioSavedSearches(rnd);
   await scenarioPriceDrop(rnd);
+  await scenarioLotStats(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

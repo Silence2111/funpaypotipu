@@ -33,6 +33,10 @@
       "types": "./dist/buyer-data.d.ts",
       "default": "./dist/buyer-data.js"
     },
+    "./lot-stats": {
+      "types": "./dist/lot-stats.d.ts",
+      "default": "./dist/lot-stats.js"
+    },
     "./saved-search": {
       "types": "./dist/saved-search.d.ts",
       "default": "./dist/saved-search.js"

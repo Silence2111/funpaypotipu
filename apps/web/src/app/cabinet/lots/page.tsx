@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowUp, ArrowUpRight, CheckCircle2, Palmtree, Search, X } from 'lucide-react';
+import { ArrowUp, ArrowUpRight, BarChart3, CheckCircle2, Palmtree, Search, X } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
@@ -221,9 +221,14 @@ function MyLots() {
           <h1 className="h1" style={{ fontSize: 32 }}>
             {t('Мои лоты')}
           </h1>
-          <Link href="/cabinet/new" className="btn">
-            {t('Продать лот')}
-          </Link>
+          <div className="row" style={{ gap: 8 }}>
+            <Link href="/cabinet/lots/stats" className="btn secondary">
+              <BarChart3 size={16} strokeWidth={1.75} aria-hidden /> {t('Статистика')}
+            </Link>
+            <Link href="/cabinet/new" className="btn">
+              {t('Продать лот')}
+            </Link>
+          </div>
         </div>
         <div style={{ marginTop: 16 }}>
           <CabinetNav />

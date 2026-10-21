@@ -471,6 +471,7 @@ model Listing {
   digitalGoods DigitalGood[]
   orders       Order[]
   searchHits   SavedSearchHit[]
+  viewDays     ListingViewDay[]
 
   // FTS по (title, description) и GIN по attributes — добавить SQL-миграцией
   @@index([categoryId, price])
@@ -909,6 +910,20 @@ model PushSubscription {
 }
 
 /// Заготовка ответа для чата: вставляется в поле сообщения, {имя} — ник собеседника.
+// Просмотры лота по дням (по Москве) — для статистики продавца. Браузер
+// считает лот один раз в сутки, свои просмотры продавца не в счёте.
+model ListingViewDay {
+  listingId String   @map("listing_id") @db.Uuid
+  day       DateTime @db.Date
+  views     Int      @default(0)
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@id([listingId, day])
+  @@index([day])
+  @@map("listing_view_days")
+}
+
 // Сохранённый поиск покупателя: фильтры раздела и «цена до». Новые лоты,
 // выставленные после сохранения, приходят уведомлением — каждый один раз.
 model SavedSearch {

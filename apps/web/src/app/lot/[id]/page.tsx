@@ -7,6 +7,7 @@ import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/
 import { BuyButton } from '@/components/buy-button';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
+import { ViewBeacon } from '@/components/view-beacon';
 import { isDemoSeller, markupLabel, soldByQty, topupQuote } from '@gamemarket/shared';
 import { JsonLd, breadcrumbLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
@@ -160,6 +161,7 @@ export default async function ListingPage({
 
   return (
     <div className="container" style={{ paddingTop: 32 }}>
+      <ViewBeacon listingId={listing.id} />
       <JsonLd data={productLd} />
       <JsonLd
         data={breadcrumbLd([

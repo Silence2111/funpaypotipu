@@ -4020,6 +4020,102 @@ a.my-lot-title:hover {
   }
 }
 
+/* Статистика лотов: таблица лотов листается вбок внутри карточки, не страница. */
+.lot-stats {
+  padding: 8px 0;
+  overflow-x: auto;
+}
+.lot-stats table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.lot-stats th,
+.lot-stats td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.lot-stats tr:last-child td {
+  border-bottom: 0;
+}
+.lot-stats th {
+  font-weight: 500;
+  color: var(--fg-faint);
+}
+.lot-stats th:first-child,
+.lot-stats td:first-child {
+  width: 40%;
+  text-align: left;
+  white-space: normal;
+}
+.lot-stats tr[aria-selected='true'] td {
+  background: var(--accent-tint);
+}
+.lot-stats-name {
+  margin-right: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+}
+.lot-stats-name:hover,
+.lot-stats-name[aria-pressed='true'] {
+  color: var(--accent);
+}
+/* На телефоне строка лота — карточкой: название сверху, цифры парами. */
+@media (max-width: 640px) {
+  .lot-stats {
+    padding: 0;
+    overflow: visible;
+  }
+  .lot-stats table {
+    min-width: 0;
+  }
+  .lot-stats thead {
+    display: none;
+  }
+  .lot-stats tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 20px;
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .lot-stats tr:last-child {
+    border-bottom: 0;
+  }
+  .lot-stats td {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+  }
+  .lot-stats td::before {
+    content: attr(data-label);
+    color: var(--fg-faint);
+  }
+  .lot-stats th:first-child,
+  .lot-stats td:first-child {
+    display: block;
+    grid-column: 1 / -1;
+    width: auto;
+    margin-bottom: 4px;
+  }
+  .lot-stats td:first-child::before {
+    content: none;
+  }
+}
+
 /* Фото к отзыву: миниатюры под текстом, в форме — с кнопкой «убрать». */
 .review-photos {
   display: flex;

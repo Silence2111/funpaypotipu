@@ -215,4 +215,32 @@ export const CABINET: Record<string, string> = {
   'Лот подешевеет хотя бы на {pct}% — придёт уведомление. Настройка — в группе «Поиски и избранное».':
     'If a listing gets at least {pct}% cheaper, you get a notification. Set it up under “Searches and favorites”.',
   'было {price}': 'was {price}',
+
+  // Статистика лотов
+  Статистика: 'Stats',
+  'снят с продажи': 'off sale',
+  '{day}: просмотров {views}, покупок {purchases}': '{day}: {views} views, {purchases} purchases',
+  'Просмотров: {n}': 'Views: {n}',
+  'Покупок: {n}': 'Purchases: {n}',
+  'Статистика не загрузилась.': 'Couldn’t load the stats.',
+  Просмотры: 'Views',
+  Конверсия: 'Conversion',
+  Заработано: 'Earned',
+  'Статистика лотов': 'Listing stats',
+  'Сколько раз открывали ваши лоты, добавляли в избранное и покупали. Просмотр считается раз в сутки с одного браузера, ваши собственные — нет.':
+    'How often your listings were opened, added to favorites and bought. A view counts once a day per browser; your own views don’t count.',
+  '{n} дней': '{n} days',
+  'Покупки — заказы, оплаченные за эти дни; заработано — по сделкам, завершённым за эти дни, после комиссии. В избранном — сейчас.':
+    'Purchases are orders paid in these days; earned is from deals completed in these days, after the fee. Favorites are as of now.',
+  'Просмотры: {title}': 'Views: {title}',
+  'Просмотры по дням': 'Views by day',
+  'Все лоты': 'All listings',
+  'За эти дни просмотров не было.': 'No views in these days.',
+  'По дням таблицей': 'By day as a table',
+  День: 'Day',
+  'Лотов пока нет — статистика появится после первого.':
+    'No listings yet — stats will appear after your first one.',
+  Лот: 'Listing',
+  'Показать график этого лота': 'Show this listing’s chart',
+  'всего просмотров: {n}': 'all-time views: {n}',
 };

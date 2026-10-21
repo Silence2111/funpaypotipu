@@ -235,6 +235,9 @@ export const EN_API: Phrasebook = {
   'Не больше {n} поисков — удалите ненужные':
     'No more than {n} saved searches — delete the ones you don’t need',
   'Поиск не найден': 'Search not found',
+
+  // Статистика лотов
+  'Период — 7, 30 или 90 дней': 'The period must be 7, 30 or 90 days',
   'Раздел не найден': 'Category not found',
   'Недостаточно средств на балансе': 'Insufficient balance',
   'Неизвестный способ вывода': 'Unknown withdrawal method',
