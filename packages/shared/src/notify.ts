@@ -28,7 +28,12 @@ export const NOTIFY_GROUPS = [
   { key: 'reviews', label: 'Отзывы', hint: 'новый отзыв, ответ продавца', types: ['review_received', 'review_reply'] },
   { key: 'finance', label: 'Деньги', hint: 'кэшбэк и выплаты', types: ['cashback', 'payout_paid', 'payout_rejected'] },
   { key: 'support', label: 'Поддержка', hint: 'ответы на ваши обращения', types: ['support_reply'] },
-  { key: 'searches', label: 'Сохранённые поиски', hint: 'новые предложения по вашим поискам', types: ['saved_search'] },
+  {
+    key: 'searches',
+    label: 'Поиски и избранное',
+    hint: 'новые предложения по сохранённым поискам, снижение цены в избранном',
+    types: ['saved_search', 'price_drop'],
+  },
   {
     key: 'moderation',
     label: 'Решения модерации',
@@ -79,6 +84,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   payout_rejected: 'Выплата отклонена',
   support_reply: 'Поддержка ответила на обращение',
   saved_search: 'Новые предложения по сохранённому поиску',
+  price_drop: 'Лот из избранного подешевел',
 };
 
 export function notifyGroupOf(type: string): NotifyGroup | null {

@@ -66,6 +66,8 @@ export const EN_TEXTS: Record<string, string> = {
   // Сохранённые поиски: превью уведомления
   '«{title}» — {price}': '“{title}” — {price}',
   '«{title}» — {price} и ещё {n}': '“{title}” — {price} and {n} more',
+  // Подешевевший лот из избранного
+  '«{title}»: было {old}, стало {new}': '“{title}”: was {old}, now {new}',
 
   // Бот Telegram
   'Уведомления отключены. Подключить снова — в настройках профиля на сайте.':

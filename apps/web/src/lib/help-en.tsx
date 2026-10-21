@@ -8,6 +8,7 @@ import {
   WITHDRAWAL_METHODS,
   bumpCooldownHours,
   DISPUTE_RESPONSE_HOURS,
+  PRICE_DROP_MIN_PCT,
 } from '@gamemarket/shared';
 import type { HelpSlug, Terms } from './help';
 import { formatPrice } from './format';
@@ -70,7 +71,8 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           “cs”, “wow”, “gta”. In a category you can filter by parameters, show only sellers who are
           online and sort by price. Nothing suitable — tap “Save search” under the filters, set a
           price limit, and a new matching listing will come as a notification. Your searches are in
-          your account.
+          your account. A listing in your favorites drops by at least {PRICE_DROP_MIN_PCT}% — you
+          get a notification too.
         </li>
         <li>
           <b>Choose an offer.</b> Each row shows the seller: rating, number of reviews and whether

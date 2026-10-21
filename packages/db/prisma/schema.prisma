@@ -972,6 +972,11 @@ model Favorite {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @map("user_id") @db.Uuid
   listingId String   @map("listing_id") @db.Uuid
+  // Цена за единицу (копейки / pricePerUnits): при добавлении — для «было» в
+  // избранном, и последняя, о которой сообщили, — снижение считается от неё.
+  // null — лот «на сумму покупателя», его цену не отслеживаем.
+  addedUnitPrice Decimal? @map("added_unit_price") @db.Decimal(24, 6)
+  watchUnitPrice Decimal? @map("watch_unit_price") @db.Decimal(24, 6)
   createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

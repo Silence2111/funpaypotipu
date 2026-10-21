@@ -1319,6 +1319,58 @@ async function scenarioSavedSearches(rnd) {
   );
 }
 
+/**
+ * Снижение цены в избранном: меньше 5% — молчит, 5% и больше — одно
+ * уведомление «было — стало»; подорожал и вернулся к прежней — не повод,
+ * новый минимум — снова уведомление; «было» в избранном.
+ */
+async function scenarioPriceDrop(rnd) {
+  console.log('\n— Снижение цены в избранном —');
+  const buyer = await register('pdb', rnd);
+  const seller = await register('pds', rnd);
+  const lot = await createListing(seller.token, 'accounts', '100000', { title: `Лот pd${rnd}` });
+  await j('/favorites', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) });
+  const price = (p) =>
+    j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ price: p }) });
+  const drops = async () =>
+    (await j('/notifications', { token: buyer.token })).body.filter((n) => n.type === 'price_drop');
+  const waitDrops = async (n) => {
+    for (let i = 0; i < 20; i++) {
+      const list = await drops();
+      if (list.length >= n) return list;
+      await wait(500);
+    }
+    return drops();
+  };
+
+  await price('97000'); // −3% — не повод
+  await wait(3000);
+  const small = await drops();
+  await price('90000'); // −10% от цены при добавлении
+  const first = await waitDrops(1);
+  check(
+    'Подешевел меньше чем на 5% — молчит, на 10% — уведомление «было 1 000, стало 900»',
+    small.length === 0 && first.length === 1 && first[0].payload.listingId === lot &&
+      first[0].payload.oldPrice === '100000' && first[0].payload.newPrice === '90000' &&
+      /1\s000 ₽, стало 900 ₽/.test(first[0].payload.preview),
+    JSON.stringify({ small: small.length, first: first.map((n) => n.payload) }),
+  );
+
+  await price('120000'); // подорожал
+  await price('88000'); // −2% от 900 — не повод
+  await wait(3000);
+  const back = await drops();
+  await price('80000'); // новый минимум: −11% от 900
+  const second = await waitDrops(2);
+  const favs = (await j('/favorites', { token: buyer.token })).body;
+  check(
+    'Подорожал и чуть дешевле прежнего — молчит; новый минимум — уведомление; в избранном «было 1 000 ₽»',
+    back.length === 1 && second.length === 2 && second.some((n) => n.payload.newPrice === '80000') &&
+      favs.find((f) => f.id === lot)?.wasPrice === '100000',
+    JSON.stringify({ back: back.length, second: second.map((n) => n.payload), fav: favs.find((f) => f.id === lot) }),
+  );
+}
+
 async function scenarioSecurity(rnd) {
   console.log('\n— Защита: заголовки, CORS, лимиты —');
   const raw = (path, headers = {}, init = {}) => fetch(`${API}/api${path}`, { ...init, headers });
@@ -1599,6 +1651,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioMyLots(rnd);
   await scenarioSellerTools(rnd);
   await scenarioSavedSearches(rnd);
+  await scenarioPriceDrop(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

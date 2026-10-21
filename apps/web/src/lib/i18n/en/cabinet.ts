@@ -210,4 +210,9 @@ export const CABINET: Record<string, string> = {
   'Уведомления включены': 'Notifications on',
   'Без уведомлений': 'No notifications',
   Открыть: 'Open',
+
+  // Избранное: снижение цены
+  'Лот подешевеет хотя бы на {pct}% — придёт уведомление. Настройка — в группе «Поиски и избранное».':
+    'If a listing gets at least {pct}% cheaper, you get a notification. Set it up under “Searches and favorites”.',
+  'было {price}': 'was {price}',
 };

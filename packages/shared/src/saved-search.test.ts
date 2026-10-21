@@ -52,5 +52,8 @@ describe('адрес раздела', () => {
       '/igra/cs2/accounts?max=1500',
     );
     expect(notifyLink('saved_search', { path: 'https://evil.example' })).toBe('/cabinet/searches');
+    // Подешевевший лот из избранного — в ту же группу, ссылка на лот.
+    expect(notifyGroupOf('price_drop')).toBe('searches');
+    expect(notifyLink('price_drop', { listingId: 'l1' })).toBe('/lot/l1');
   });
 });
