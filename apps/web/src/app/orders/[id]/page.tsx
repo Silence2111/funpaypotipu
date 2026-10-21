@@ -30,6 +30,7 @@ interface Order {
     goods?: string;
     /** Промокод продавца: скидка за его счёт, уже в сумме заказа. */
     sellerPromo?: { code: string; percent: number; discount: string };
+    qtyDiscount?: { from: number; pct: number; discount: string };
   } | null;
   autoConfirmAt?: string | null; sellerPayoutAmount?: string;
 }
@@ -295,6 +296,14 @@ export default function OrderPage() {
         </h1>
         <div className="price" style={{ fontSize: 22, whiteSpace: 'nowrap' }}>{formatPrice(order.amount, order.currency, t)}</div>
       </div>
+      {order.listingSnapshot?.qtyDiscount && (
+        <p className="faint" style={{ fontSize: 13, margin: '4px 0 0', textAlign: 'right' }}>
+          {t('Скидка за количество {pct}%: −{sum}', {
+            pct: order.listingSnapshot.qtyDiscount.pct,
+            sum: formatPrice(order.listingSnapshot.qtyDiscount.discount, order.currency, t),
+          })}
+        </p>
+      )}
       {order.listingSnapshot?.sellerPromo && (
         <p className="faint" style={{ fontSize: 13, margin: '4px 0 0', textAlign: 'right' }}>
           {t('Промокод продавца {code}: −{sum}', {

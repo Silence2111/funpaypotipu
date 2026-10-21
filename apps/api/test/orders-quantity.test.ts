@@ -171,6 +171,29 @@ describe('заказ количеством', () => {
     );
   });
 
+  it('скидка за количество: ступень по количеству, сумма со скидкой, ступень — в заказе', async () => {
+    const tiered = {
+      ...GOLD,
+      qtyDiscounts: [
+        { from: 50_000, pct: 10 },
+        { from: 20_000, pct: 5 },
+      ],
+    };
+    const { svc, state } = setup(tiered);
+    // 25 000 золота — 375 ₽, −5% — 356,25 ₽.
+    expect((await svc.create('buyer', GOLD.id, { qty: 25_000 })).amount).toBe(35_625n);
+    expect(state.created[0]).toMatchObject({
+      listingSnapshot: { qtyDiscount: { from: 20_000, pct: 5, discount: '1875' } },
+    });
+    // 60 000 — 900 ₽, −10% — 810 ₽; комиссия продавца — с 810.
+    const big = await svc.create('buyer', GOLD.id, { qty: 60_000 });
+    expect(big.amount).toBe(81_000n);
+    expect(big.sellerPayoutAmount).toBe(computeFees(81_000n, 0, 0.1).sellerPayout);
+    // Ниже первой ступени — без скидки и без отметки.
+    expect((await svc.create('buyer', GOLD.id, { qty: 10_000 })).amount).toBe(15_000n);
+    expect(state.created[2]!.listingSnapshot).not.toHaveProperty('qtyDiscount');
+  });
+
   it('ключи: несколько штук в одном заказе, но не больше склада', async () => {
     const { svc } = setup(KEYS);
     const order = await svc.create('buyer', KEYS.id, { qty: 3 });

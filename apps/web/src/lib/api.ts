@@ -70,6 +70,8 @@ export interface ListingCard {
   minQty?: number;
   /** Наличие; null — без ограничения. У лота ключей — число ключей на складе. */
   stock?: number | null;
+  /** Скидка за количество: «от 10 000 — 5%», по возрастанию. */
+  qtyDiscounts?: Array<{ from: number; pct: number }> | null;
   /** Платное продвижение до этого времени. */
   promotedUntil?: string | null;
   /** Скидка: прежняя цена и срок; price — уже со скидкой. */

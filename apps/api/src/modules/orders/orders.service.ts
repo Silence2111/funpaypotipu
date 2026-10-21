@@ -26,7 +26,8 @@ import {
   topupQuote,
   maskContacts,
   qtyError,
-  qtyTotal,
+  qtyPrice,
+  qtyTiers,
   soldByQty,
   buyerDataError,
   buyerFieldsOf,
@@ -122,15 +123,19 @@ export class OrdersService {
       throw new BadRequestException('У этого лота фиксированная цена — сумму выбирает продавец');
     }
 
-    // Поштучно: цена лота — за пачку единиц, сумма — за выбранное количество.
-    // Наличие здесь только проверяется, списывается оно при оплате (finalizePaid):
-    // брошенный неоплаченный заказ не должен держать товар.
+    // Поштучно: цена лота — за пачку единиц, сумма — за выбранное количество,
+    // со скидкой за количество, если продавец её задал (оплачивает он: сумма
+    // снижается до расчёта комиссии). Наличие здесь только проверяется,
+    // списывается оно при оплате (finalizePaid): брошенный неоплаченный
+    // заказ не должен держать товар.
     let qty = 1;
+    let qtyDeal: ReturnType<typeof qtyPrice> | null = null;
     if (soldByQty(listing)) {
       qty = opts.qty ?? listing.minQty;
       const qtyErr = qtyError(qty, listing);
       if (qtyErr) throw new BadRequestException(qtyErr);
-      base = qtyTotal(listing.price, listing.pricePerUnits, qty);
+      qtyDeal = qtyPrice(listing.price, listing.pricePerUnits, qty, qtyTiers(listing.qtyDiscounts));
+      base = qtyDeal.total;
     } else if (opts.qty !== undefined && opts.qty !== 1) {
       throw new BadRequestException('Этот лот продаётся целиком');
     } else if (listing.stock != null && listing.stock < 1) {
@@ -209,6 +214,15 @@ export class OrdersService {
               unitName: listing.unitName ?? 'шт.',
               unitPrice: listing.price.toString(),
               pricePerUnits: listing.pricePerUnits,
+            }
+          : {}),
+        ...(qtyDeal?.tier
+          ? {
+              qtyDiscount: {
+                from: qtyDeal.tier.from,
+                pct: qtyDeal.tier.pct,
+                discount: qtyDeal.discount.toString(),
+              },
             }
           : {}),
       } as Prisma.InputJsonValue,

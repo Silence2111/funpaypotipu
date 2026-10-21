@@ -468,6 +468,9 @@ model Listing {
   unitName        String?         @map("unit_name")
   pricePerUnits   Int             @default(1) @map("price_per_units")
   minQty          Int             @default(1) @map("min_qty")
+  // Скидка за количество: [{ from, pct }] по возрастанию, до трёх ступеней
+  // (shared/quantity.ts). null — без скидки.
+  qtyDiscounts    Json?           @map("qty_discounts")
   // Снят на время отпуска продавца — вернётся в продажу вместе с остальными,
   // а снятые раньше вручную останутся снятыми.
   pausedForAway   Boolean         @default(false) @map("paused_for_away")

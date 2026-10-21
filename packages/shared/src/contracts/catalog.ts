@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { QTY_TIERS_MAX } from '../quantity';
 
 /** Контракты каталога — общие для фронта и бэка. */
 
@@ -42,6 +43,12 @@ export const createListingSchema = z.object({
   unitName: z.string().max(24).nullable().optional(),
   pricePerUnits: z.number().int().positive().optional(),
   minQty: z.number().int().positive().optional(),
+  // Скидка за количество (quantity.ts): «от N единиц — X%», до трёх ступеней.
+  qtyDiscounts: z
+    .array(z.object({ from: z.number().int().positive(), pct: z.number().int() }))
+    .max(QTY_TIERS_MAX, `Не больше ${QTY_TIERS_MAX} ступеней скидки`)
+    .nullable()
+    .optional(),
   // Автовыдача со склада строк у аккаунтов, предметов и услуг: покупатель
   // сразу получает свою строку, как ключ. У ключей она всегда, у пополнений — нет.
   autoDelivery: z.boolean().optional(),

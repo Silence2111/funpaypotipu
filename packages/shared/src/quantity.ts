@@ -67,3 +67,80 @@ export function qtyTermsError(terms: QtyTerms): string | null {
 /** Покупает ли покупатель этот лот количеством. */
 export const soldByQty = (l: { unitName: string | null; fulfillmentType: string }): boolean =>
   l.unitName != null || l.fulfillmentType === 'auto_key';
+
+/**
+ * Скидка за количество — «оптом дешевле»: ступени «от 10 000 золота — 5%».
+ * Действует ступень с наибольшим «от», не больше количества в заказе.
+ * Скидка — от суммы за количество, вниз до копейки: её оплачивает продавец.
+ */
+export interface QtyTier {
+  /** От скольки единиц. */
+  from: number;
+  /** Скидка, %. */
+  pct: number;
+}
+
+export const QTY_TIERS_MAX = 3;
+export const QTY_TIER_MIN_PCT = 1;
+export const QTY_TIER_MAX_PCT = 50;
+
+/** Ступени из JSON лота: только целые, по возрастанию «от». */
+export function qtyTiers(raw: unknown): QtyTier[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (x): x is QtyTier =>
+        !!x &&
+        typeof x === 'object' &&
+        Number.isInteger((x as QtyTier).from) &&
+        Number.isInteger((x as QtyTier).pct),
+    )
+    .map((x) => ({ from: x.from, pct: x.pct }))
+    .sort((a, b) => a.from - b.from);
+}
+
+/**
+ * Проверка ступеней продавца. Ступень от минимума за заказ — это просто
+ * другая цена, а скидка, которая с количеством не растёт, сбивает с толку.
+ */
+export function qtyTiersError(tiers: QtyTier[], minQty: number): string | null {
+  if (tiers.length > QTY_TIERS_MAX) return `Не больше ${QTY_TIERS_MAX} ступеней скидки`;
+  for (const t of tiers) {
+    if (!Number.isInteger(t.from) || t.from > QTY_MAX) return 'Укажите, от какого количества скидка';
+    if (t.from <= minQty) return 'Скидка — от количества больше минимума за заказ';
+    if (!Number.isInteger(t.pct) || t.pct < QTY_TIER_MIN_PCT || t.pct > QTY_TIER_MAX_PCT) {
+      return `Скидка за количество — от ${QTY_TIER_MIN_PCT} до ${QTY_TIER_MAX_PCT}%`;
+    }
+  }
+  for (let i = 1; i < tiers.length; i++) {
+    if (tiers[i]!.from <= tiers[i - 1]!.from || tiers[i]!.pct <= tiers[i - 1]!.pct) {
+      return 'Чем больше количество, тем больше скидка: ступени — по возрастанию';
+    }
+  }
+  return null;
+}
+
+/** Ступень для этого количества или null. */
+export function qtyTierFor(tiers: QtyTier[], qty: number): QtyTier | null {
+  let hit: QtyTier | null = null;
+  for (const t of tiers) if (qty >= t.from && (!hit || t.from > hit.from)) hit = t;
+  return hit;
+}
+
+/** Следующая ступень — «возьмите ещё …, и скидка будет …». */
+export function nextQtyTier(tiers: QtyTier[], qty: number): QtyTier | null {
+  return tiers.filter((t) => t.from > qty).sort((a, b) => a.from - b.from)[0] ?? null;
+}
+
+/** Сумма за количество со скидкой: полная, скидка, итог и ступень. */
+export function qtyPrice(
+  price: Minor,
+  pricePerUnits: number,
+  qty: number,
+  tiers: QtyTier[],
+): { full: Minor; discount: Minor; total: Minor; tier: QtyTier | null } {
+  const full = qtyTotal(price, pricePerUnits, qty);
+  const tier = qtyTierFor(tiers, qty);
+  const discount = tier ? (full * BigInt(tier.pct)) / 100n : 0n;
+  return { full, discount, total: full - discount, tier };
+}

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Star, Zap } from 'lucide-react';
-import { isDemoSeller } from '@gamemarket/shared';
+import { isDemoSeller, qtyTiers } from '@gamemarket/shared';
 import type { Attribute, ListingCard, SellerBrief } from '@/lib/api';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { SaleMark } from './sale-mark';
@@ -121,6 +121,8 @@ function OfferRow({
   const promoted = !!l.promotedUntil && new Date(l.promotedUntil).getTime() > Date.now();
   const pack = perPackLabel(l, t);
   const stock = hasStock(l) ? l.stock : null;
+  // Скидка за количество — наибольшая ступень: «оптом до −10%».
+  const bulk = Math.max(0, ...qtyTiers(l.qtyDiscounts).map((x) => x.pct));
   const inline = (list: Attribute[]) =>
     list
       .map((a) => attrValue(a, attrs[a.key], t))
@@ -198,6 +200,7 @@ function OfferRow({
         ) : (
           <ApproxPrice minor={l.price} currency={l.currency} />
         )}
+        {bulk > 0 && <span className="faint">{t('оптом до −{pct}%', { pct: bulk })}</span>}
       </span>
     </Link>
   );

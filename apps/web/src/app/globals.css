@@ -4070,6 +4070,23 @@ a.my-lot-title:hover {
   color: var(--success);
 }
 
+/* Скидка за количество: ступени в форме лота и подсказки у количества. */
+.qty-tiers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px 40px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.qty-tiers-head {
+  font-size: 13px;
+}
+.qty-deal {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 /* Панель скидки под строкой «Моих лотов». */
 .sale-panel {
   display: grid;

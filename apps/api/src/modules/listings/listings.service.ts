@@ -17,6 +17,9 @@ import {
   promoCost,
   promoUntil,
   qtyTermsError,
+  qtyTiers,
+  qtyTiersError,
+  type QtyTier,
   salePrice,
   topupQuote,
   topupTermsError,
@@ -84,6 +87,8 @@ const cardSelect = {
   pricePerUnits: true,
   minQty: true,
   stock: true,
+  // Скидка за количество: страница лота считает сумму, строка раздела — «до −10%».
+  qtyDiscounts: true,
   // Параметры раздела (звание, регион, сервер) — колонки таблицы раздела.
   attributes: true,
   // Продавец в строке раздела, как на FunPay: имя, аватар, рейтинг с числом
@@ -651,6 +656,7 @@ export class ListingsService {
         topupMin: terms?.min ?? null,
         topupMax: terms?.max ?? null,
         ...qty,
+        qtyDiscounts: this.qtyDiscounts(qty, input.qtyDiscounts),
         buyerFields,
         currency: input.currency,
         attributes: input.attributes as Prisma.InputJsonValue,
@@ -763,6 +769,25 @@ export class ListingsService {
     return { ...terms, stock: raw.stock };
   }
 
+  /**
+   * Скидка за количество — только у лота, который продают количеством
+   * («золото», «шт.»); ступени — больше минимума за заказ и растут вместе с
+   * количеством. Пусто — без скидки.
+   */
+  private qtyDiscounts(
+    terms: { unitName: string | null; minQty: number },
+    raw: QtyTier[] | null | undefined,
+  ): Prisma.InputJsonValue | typeof Prisma.DbNull {
+    if (!raw?.length) return Prisma.DbNull;
+    if (!terms.unitName) {
+      throw new BadRequestException('Скидка за количество — у лотов, которые продают количеством');
+    }
+    const tiers = [...raw].sort((a, b) => a.from - b.from).map((t) => ({ from: t.from, pct: t.pct }));
+    const error = qtyTiersError(tiers, terms.minQty);
+    if (error) throw new BadRequestException(error);
+    return tiers;
+  }
+
   /** Проверка атрибутов лота против схемы категории (обязательные + enum-опции). */
   private async validateAttributes(categoryId: string, attrs: Record<string, unknown>) {
     const schema = await this.prisma.attribute.findMany({ where: { categoryId } });
@@ -870,6 +895,17 @@ export class ListingsService {
       data.minQty = q.minQty;
       if (!auto) data.stock = q.stock;
     }
+    // Скидка за количество — по итоговым условиям: лот больше не продают
+    // количеством — ступени снимаются, минимум вырос — ступени проверяются.
+    if (input.qtyDiscounts !== undefined || data.unitName !== undefined || data.minQty !== undefined) {
+      const unitName = data.unitName !== undefined ? (data.unitName as string | null) : current.unitName;
+      const minQty = data.minQty !== undefined ? (data.minQty as number) : current.minQty;
+      const tiers = input.qtyDiscounts !== undefined ? input.qtyDiscounts : qtyTiers(current.qtyDiscounts);
+      data.qtyDiscounts =
+        !unitName && input.qtyDiscounts === undefined
+          ? Prisma.DbNull
+          : this.qtyDiscounts({ unitName, minQty }, tiers);
+    }
     // Распроданный лот с пополненным наличием возвращается в продажу сам —
     // как «восстановление лота» у продавцов FunPay.
     if (current.status === 'sold_out' && input.status === undefined && (!auto || switched)) {
@@ -941,6 +977,7 @@ export class ListingsService {
         pricePerUnits: true,
         minQty: true,
         stock: true,
+        qtyDiscounts: true,
         category: { select: { fulfillmentType: true, unitName: true, pricePerUnits: true } },
       },
     });

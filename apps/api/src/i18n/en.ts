@@ -273,6 +273,10 @@ export const EN_API: Phrasebook = {
   'Такой код у вас уже есть': 'You already have this code',
   'Промокод не найден': 'Promo code not found',
 
+  // Скидка за количество
+  'Скидка за количество — у лотов, которые продают количеством':
+    'A quantity discount is only for listings sold by quantity',
+
   // Подписки на продавцов
   'На себя подписаться нельзя': 'You can’t follow yourself',
   'Не больше {n} подписок — отпишитесь от ненужных':

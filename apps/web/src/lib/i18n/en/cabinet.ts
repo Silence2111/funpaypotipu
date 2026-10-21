@@ -317,4 +317,20 @@ export const CABINET: Record<string, string> = {
     'The seller’s new listings and discounts will come as notifications',
   'Вы подписаны': 'Following',
   Подписаться: 'Follow',
+
+  // Скидка за количество
+  'Скидка за количество': 'Quantity discount',
+  'Скидка за количество {pct}%: −{sum}': 'Quantity discount {pct}%: −{sum}',
+  'Оптом дешевле: {tiers}': 'Cheaper in bulk: {tiers}',
+  'от {qty} — {pct}%': 'from {qty} — {pct}%',
+  'Взять {qty} — скидка {pct}%': 'Take {qty} — {pct}% off',
+  'От, {unit}': 'From, {unit}',
+  'Ступень {n}: от какого количества': 'Tier {n}: starting quantity',
+  'Ступень {n}: скидка, %': 'Tier {n}: discount, %',
+  'Убрать ступень {n}': 'Remove tier {n}',
+  'Добавить ступень': 'Add a tier',
+  'Например, {qty} — {sum} вместо {full}.': 'For example, {qty} — {sum} instead of {full}.',
+  'Берут больше — платят меньше: скидка от суммы за количество, за ваш счёт, до {max}%. Необязательно.':
+    'Buy more, pay less: a discount on the total for the quantity, at your expense, up to {max}%. Optional.',
+  'оптом до −{pct}%': 'bulk up to −{pct}%',
 };

@@ -9,7 +9,7 @@ import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ViewBeacon } from '@/components/view-beacon';
 import { SaleMark } from '@/components/sale-mark';
-import { isDemoSeller, markupLabel, soldByQty, topupQuote } from '@gamemarket/shared';
+import { isDemoSeller, markupLabel, qtyTiers, soldByQty, topupQuote } from '@gamemarket/shared';
 import { JsonLd, breadcrumbLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
 import { SellerReviews } from '@/components/seller-reviews';
@@ -102,6 +102,7 @@ export default async function ListingPage({
           pricePerUnits: listing.pricePerUnits ?? 1,
           minQty: listing.minQty ?? 1,
           stock: listing.stock ?? null,
+          tiers: qtyTiers(listing.qtyDiscounts),
         }
       : undefined;
 

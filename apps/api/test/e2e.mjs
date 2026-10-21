@@ -1498,6 +1498,60 @@ async function scenarioSale(rnd) {
  * на покупателя, отменённый заказ использование возвращает; предел, «только
  * постоянным», выключенный код — отказ с причиной; «Применить» видит код.
  */
+async function scenarioQtyDiscount(rnd) {
+  console.log('\n— Скидка за количество —');
+  const seller = await register('qds', rnd);
+  const buyer = await register('qdb', rnd);
+  const game = await j('/catalog/games/cs2');
+  const cat = game.body.categories.find((c) => c.slug === 'skins');
+  const tryLot = (extra) =>
+    j('/listings', {
+      method: 'POST', token: seller.token,
+      body: JSON.stringify({
+        gameId: game.body.id, categoryId: cat.id, title: `Скидка за количество ${rnd}`, description: 'test',
+        price: '10000', currency: 'RUB', attributes: REQUIRED_ATTRS.skins ?? {},
+        unitName: 'шт.', pricePerUnits: 1, minQty: 2, stock: 100, ...extra,
+      }),
+    });
+  const tiers = [{ from: 50, pct: 10 }, { from: 10, pct: 5 }];
+  const whole = await tryLot({ unitName: null, stock: null, qtyDiscounts: tiers });
+  const atMin = await tryLot({ qtyDiscounts: [{ from: 2, pct: 5 }] });
+  const down = await tryLot({ qtyDiscounts: [{ from: 10, pct: 10 }, { from: 50, pct: 5 }] });
+  const big = await tryLot({ qtyDiscounts: [{ from: 10, pct: 60 }] });
+  const ok = await tryLot({ qtyDiscounts: tiers });
+  const lotId = ok.body.id;
+  const card = (await j(`/listings/${lotId}`)).body;
+  check(
+    'Ступени у целого лота, от минимума, убывающие и 60% — отказ; у поштучного — сохранены по возрастанию',
+    whole.status === 400 && atMin.status === 400 && down.status === 400 && big.status === 400 && ok.status === 201 &&
+      JSON.stringify(card.qtyDiscounts?.map((t) => [t.from, t.pct])) === '[[10,5],[50,10]]',
+    JSON.stringify({ whole: whole.status, atMin: atMin.body?.message, down: down.body?.message, big: big.body?.message, card: card.qtyDiscounts }),
+  );
+
+  const order = (qty) =>
+    j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lotId, qty }) });
+  const [o5, o20, o60] = [await order(5), await order(20), await order(60)];
+  check(
+    'Заказ: 5 шт. — 500 ₽; 20 шт. — 1 900 ₽ (−5%); 60 шт. — 5 400 ₽ (−10%), ступень в заказе',
+    o5.body.amount === '50000' && !o5.body.listingSnapshot?.qtyDiscount && o20.body.amount === '190000' &&
+      o20.body.listingSnapshot?.qtyDiscount?.pct === 5 && o20.body.listingSnapshot.qtyDiscount.discount === '10000' &&
+      o60.body.amount === '540000' && o60.body.listingSnapshot?.qtyDiscount?.pct === 10,
+    JSON.stringify([o5.body.amount, o20.body.amount, o20.body.listingSnapshot?.qtyDiscount, o60.body.amount]),
+  );
+
+  const patch = (body) =>
+    j(`/listings/${lotId}`, { method: 'PATCH', token: seller.token, body: JSON.stringify(body) });
+  const minUp = await patch({ minQty: 20 });
+  const cleared = await patch({ qtyDiscounts: [] });
+  const after = (await j(`/listings/${lotId}`)).body;
+  const o20b = await order(20);
+  check(
+    'Минимум выше ступени — отказ; ступени сняты — 20 шт. снова 2 000 ₽',
+    minUp.status === 400 && cleared.status === 200 && after.qtyDiscounts == null && o20b.body.amount === '200000',
+    JSON.stringify({ minUp: minUp.body?.message, cleared: cleared.status, after: after.qtyDiscounts, o20b: o20b.body.amount }),
+  );
+}
+
 async function scenarioFollow(rnd) {
   console.log('\n— Подписка на продавца —');
   const seller = await register('fws', rnd);
@@ -1912,6 +1966,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioSale(rnd);
   await scenarioSellerPromo(rnd);
   await scenarioFollow(rnd);
+  await scenarioQtyDiscount(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

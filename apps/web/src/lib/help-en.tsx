@@ -189,7 +189,9 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
         <li>
           <b>Sell currency by quantity.</b> In currency categories the price is set per the
           category’s pack, for example per 1,000 gold, and the buyer chooses how much to buy. That
-          way prices in the category are comparable.
+          way prices in the category are comparable. You can set a quantity discount — up to three
+          tiers like “from 10,000 gold — 5%”: the buyer sees it next to the quantity and in the
+          category.
         </li>
         <li>
           <b>Auto-delivery from stock.</b> Keys — and, if you like, logins and passwords, promo

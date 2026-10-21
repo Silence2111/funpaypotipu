@@ -5,7 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ImagePlus, Star, X } from 'lucide-react';
 import { markupLabel, topupQuote, topupTermsError } from '@gamemarket/shared/topup';
-import { PRICE_PER_UNITS, qtyTermsError } from '@gamemarket/shared/quantity';
+import {
+  PRICE_PER_UNITS,
+  QTY_TIER_MAX_PCT,
+  QTY_TIERS_MAX,
+  qtyPrice,
+  qtyTermsError,
+  qtyTiersError,
+} from '@gamemarket/shared/quantity';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice, formatQty } from '@/lib/format';
@@ -45,6 +52,7 @@ export interface EditableListing {
   pricePerUnits: number;
   minQty: number;
   stock: number | null;
+  qtyDiscounts?: Array<{ from: number; pct: number }> | null;
   buyerFields: Array<{ label: string; required: boolean }> | null;
   /** auto_key — выдаётся со склада: ключи или строки товара. */
   fulfillmentType: string;
@@ -127,6 +135,10 @@ export function ListingForm({
   const [perUnits, setPerUnits] = useState<number>(initial?.pricePerUnits ?? 1);
   const [minQty, setMinQty] = useState(initial ? String(initial.minQty) : '1');
   const [stock, setStock] = useState(initial?.unitName != null && initial.stock != null ? String(initial.stock) : '');
+  // Скидка за количество: «от 10 000 — 5%», до трёх ступеней.
+  const [tiers, setTiers] = useState<Array<{ from: string; pct: string }>>(
+    () => initial?.qtyDiscounts?.map((x) => ({ from: String(x.from), pct: String(x.pct) })) ?? [],
+  );
   // Что спросить у покупателя до оплаты: ник, сервер — как поля лота на Playerok.
   const [buyerFields, setBuyerFields] = useState<Array<{ label: string; required: boolean }>>(initial?.buyerFields ?? []);
   // Автовыдача со склада строк у аккаунтов и предметов, как боты на FunPay.
@@ -190,6 +202,9 @@ export function ListingForm({
     stock: stock.trim() ? intOf(stock) : null,
   };
   const unitLabel = (n: number) => formatQty(n, unitName.trim() || t('ед.'), t);
+  const cleanTiers = tiers
+    .map((x) => ({ from: intOf(x.from), pct: intOf(x.pct) }))
+    .sort((a, b) => a.from - b.from);
   // «7,5%» по-английски — «7.5%».
   const pct = (bps: number) => (t.lang === 'en' ? markupLabel(bps).replace(',', '.') : markupLabel(bps));
   const markupPct = parseFloat(markup.replace(',', '.'));
@@ -288,6 +303,13 @@ export function ListingForm({
   const rubValue = parseFloat(price.replace(',', '.').replace(/\s/g, ''));
   // Проверки общих модулей (пополнение, количество) — русской строкой; t.d переводит.
   const qtyError = perPiece ? qtyTermsError(qtyTerms) : null;
+  const tiersError = perPiece && cleanTiers.length ? qtyTiersError(cleanTiers, intOf(minQty)) : null;
+  // Пример для продавца — на верхней ступени: «10 000 золота — 1 425 ₽ вместо 1 500 ₽».
+  const top = cleanTiers.at(-1);
+  const tierExample =
+    perPiece && top && !tiersError && !qtyError && rubValue > 0
+      ? qtyPrice(BigInt(Math.round(rubValue * 100)), perUnits, top.from, cleanTiers)
+      : null;
   const fieldErrors: Record<string, string | null> = {
     game: gameId ? null : t('Выберите игру'),
     category: categoryId ? null : t('Выберите, что продаёте'),
@@ -296,6 +318,7 @@ export function ListingForm({
     price: variable ? null : rubValue > 0 ? null : t('Цена в рублях, например 490'),
     topup: variable && termsError ? t.d(termsError) : null,
     qty: qtyError ? t.d(qtyError) : null,
+    tiers: tiersError ? t.d(tiersError) : null,
     buyer:
       !manualLot
         ? null
@@ -312,7 +335,7 @@ export function ListingForm({
   async function submit(e: FormEvent) {
     e.preventDefault();
     setErr(null);
-    setTouched({ game: true, category: true, title: true, description: true, price: true, topup: true, qty: true, buyer: true });
+    setTouched({ game: true, category: true, title: true, description: true, price: true, topup: true, qty: true, tiers: true, buyer: true });
     if (Object.values(fieldErrors).some(Boolean)) {
       setErr(
         editing
@@ -345,7 +368,7 @@ export function ListingForm({
               };
         // Поштучно → целиком: единица и наличие снимаются вместе.
         const quantity = perPiece
-          ? qtyTerms
+          ? { ...qtyTerms, qtyDiscounts: cleanTiers.length ? cleanTiers : null }
           : initial.unitName != null && initial.category.fulfillmentType === 'manual'
             ? { unitName: null, stock: null }
             : {};
@@ -395,7 +418,7 @@ export function ListingForm({
           ...(variable && terms
             ? { topup: { markupBps: terms.markupBps, min: terms.min.toString(), max: terms.max.toString() } }
             : {}),
-          ...(perPiece ? qtyTerms : {}),
+          ...(perPiece ? { ...qtyTerms, ...(cleanTiers.length ? { qtyDiscounts: cleanTiers } : {}) } : {}),
           ...(manualLot && cleanFields.length ? { buyerFields: cleanFields } : {}),
           ...(autoLines ? { autoDelivery: true } : {}),
           ...(withNote && cleanTemplate ? { deliveryTemplate: cleanTemplate } : {}),
@@ -691,6 +714,57 @@ export function ListingForm({
                 {t('Наличие уменьшается с каждой оплатой; на нуле лот уходит из каталога.')}
               </p>
             )}
+
+            <div className="field" style={{ marginTop: 16 }}>
+              <span className="label">{t('Скидка за количество')}</span>
+              {tiers.length > 0 && (
+                <div className="qty-tiers">
+                  <span className="faint qty-tiers-head">{t('От, {unit}', { unit: unitName.trim() || t('ед.') })}</span>
+                  <span className="faint qty-tiers-head">{t('Скидка, %')}</span>
+                  <span />
+                  {tiers.map((x, i) => (
+                    <div key={i} style={{ display: 'contents' }}>
+                      <input className="input" inputMode="numeric" placeholder="10000" value={x.from}
+                        aria-label={t('Ступень {n}: от какого количества', { n: i + 1 })}
+                        onChange={(e) => setTiers((l) => l.map((y, j) => (j === i ? { ...y, from: e.target.value } : y)))}
+                        onBlur={() => touch('tiers')} />
+                      <input className="input" inputMode="numeric" placeholder="5" maxLength={2} value={x.pct}
+                        aria-label={t('Ступень {n}: скидка, %', { n: i + 1 })}
+                        onChange={(e) => setTiers((l) => l.map((y, j) => (j === i ? { ...y, pct: e.target.value.replace(/\D/g, '') } : y)))}
+                        onBlur={() => touch('tiers')} />
+                      <button type="button" className="icon-btn" aria-label={t('Убрать ступень {n}', { n: i + 1 })}
+                        onClick={() => setTiers((l) => l.filter((_, j) => j !== i))}>
+                        <X size={16} strokeWidth={1.75} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {tiers.length < QTY_TIERS_MAX && (
+                <div>
+                  <button type="button" className="chip" onClick={() => setTiers((l) => [...l, { from: '', pct: '' }])}>
+                    {t('Добавить ступень')}
+                  </button>
+                </div>
+              )}
+              {showErr('tiers') ? (
+                <p className="field-error">{showErr('tiers')}</p>
+              ) : tierExample?.tier ? (
+                <p className="hint">
+                  {t('Например, {qty} — {sum} вместо {full}.', {
+                    qty: unitLabel(tierExample.tier.from),
+                    sum: formatPrice(tierExample.total.toString(), 'RUB', t),
+                    full: formatPrice(tierExample.full.toString(), 'RUB', t),
+                  })}
+                </p>
+              ) : (
+                <p className="hint">
+                  {t('Берут больше — платят меньше: скидка от суммы за количество, за ваш счёт, до {max}%. Необязательно.', {
+                    max: QTY_TIER_MAX_PCT,
+                  })}
+                </p>
+              )}
+            </div>
           </div>
         )}
 

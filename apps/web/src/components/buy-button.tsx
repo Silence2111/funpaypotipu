@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { qtyError, qtyTotal } from '@gamemarket/shared/quantity';
+import { nextQtyTier, qtyError, qtyPrice, type QtyTier } from '@gamemarket/shared/quantity';
 import { buyerDataError, type BuyerField } from '@gamemarket/shared/buyer-data';
 import { sellerPromoDiscount } from '@gamemarket/shared/seller-promo';
 import { apiFetch, getToken } from '@/lib/session';
@@ -20,6 +20,8 @@ export interface QtyOffer {
   pricePerUnits: number;
   minQty: number;
   stock: number | null;
+  /** Скидка за количество; пусто — без неё. */
+  tiers?: QtyTier[];
 }
 
 /** «25 000», «25000», «25 000» → 25000; не число — NaN. */
@@ -65,11 +67,13 @@ export function BuyButton({
   const qty = parseQty(qtyInput);
   const qtyRaw = qtyOffer ? qtyError(qty, qtyOffer) : null;
   const qtyProblem = qtyRaw && t.d(qtyRaw);
-  const base = qtyOffer
-    ? qtyProblem
-      ? null
-      : qtyTotal(BigInt(qtyOffer.price), qtyOffer.pricePerUnits, qty)
-    : BigInt(price);
+  const tiers = qtyOffer?.tiers ?? [];
+  const deal =
+    qtyOffer && !qtyProblem ? qtyPrice(BigInt(qtyOffer.price), qtyOffer.pricePerUnits, qty, tiers) : null;
+  const base = qtyOffer ? (deal?.total ?? null) : BigInt(price);
+  // Следующая ступень — если столько есть в наличии: «Взять 50 шт. — скидка 10%».
+  const next = deal ? nextQtyTier(tiers, qty) : null;
+  const reachable = next && (qtyOffer?.stock == null || next.from <= qtyOffer.stock) ? next : null;
   const sellerOff = base != null && promoInfo?.source === 'seller' ? sellerPromoDiscount(base, promoInfo.percent ?? 0) : 0n;
   const priced = base != null ? base - sellerOff : null;
   const toPay = priced != null ? priceFor(priced, method) : null;
@@ -160,6 +164,34 @@ export function BuyButton({
                 ? ` · ${t('в наличии {qty}', { qty: formatQty(qtyOffer.stock, qtyOffer.unitName, t) })}`
                 : ''}
             </p>
+          )}
+          {tiers.length > 0 && (
+            <div className="qty-deal">
+              <p className="hint" style={{ margin: 0 }}>
+                {t('Оптом дешевле: {tiers}', {
+                  tiers: tiers
+                    .map((x) => t('от {qty} — {pct}%', { qty: formatQty(x.from, qtyOffer.unitName, t), pct: x.pct }))
+                    .join(' · '),
+                })}
+              </p>
+              {deal?.tier && (
+                <p className="promo-applied" style={{ margin: 0 }}>
+                  {t('Скидка за количество {pct}%: −{sum}', {
+                    pct: deal.tier.pct,
+                    sum: formatPrice(deal.discount.toString(), currency, t),
+                  })}
+                </p>
+              )}
+              {reachable && (
+                <button type="button" className="chip" style={{ justifySelf: 'start' }}
+                  onClick={() => { setQtyInput(String(reachable.from)); setErr(null); }}>
+                  {t('Взять {qty} — скидка {pct}%', {
+                    qty: formatQty(reachable.from, qtyOffer.unitName, t),
+                    pct: reachable.pct,
+                  })}
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
