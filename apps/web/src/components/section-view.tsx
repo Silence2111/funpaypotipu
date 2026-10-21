@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { browseListings, getCategoryAttributes, type Category, type GameWithCategories } from '@/lib/api';
-import { offersCount, sellersCount } from '@/lib/format';
+import { formatPrice, offersCount, sellersCount } from '@/lib/format';
 import { getT } from '@/lib/i18n/server';
 import { OfferTable } from './offers';
 import { SectionFilters } from './section-filters';
+import { SaveSearch } from './save-search';
 import { JsonLd, breadcrumbLd } from './json-ld';
 
-/** Параметры адреса раздела: f_<ключ>, online, q, sort, page. */
+/** Параметры адреса раздела: f_<ключ>, online, q, max (цена до, ₽), sort, page. */
 export type SectionSearch = Record<string, string | undefined>;
 
 const PAGE_SIZE = 50;
@@ -54,6 +55,10 @@ export async function SectionView({
   if (sp.online === '1') values.online = '1';
   const q = sp.q?.trim().slice(0, 100);
   if (q) values.q = q;
+  // «Цена до» — из сохранённого поиска: ссылка из уведомления показывает
+  // ровно то, что подобрал поиск. Рубли, целым числом.
+  const maxRub = /^\d{1,8}$/.test(sp.max ?? '') && Number(sp.max) > 0 ? Number(sp.max) : null;
+  if (maxRub) values.max = String(maxRub);
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
 
   const browse = await browseListings({
@@ -63,6 +68,7 @@ export async function SectionView({
     sort,
     attrs: Object.keys(attrs).length ? JSON.stringify(attrs) : undefined,
     online: values.online === '1',
+    maxPrice: maxRub ? maxRub * 100 : undefined,
     limit: PAGE_SIZE,
     page,
   });
@@ -128,7 +134,27 @@ export async function SectionView({
       </nav>
 
       <div style={{ marginTop: 20 }}>
-        <SectionFilters key={base} attributes={filterable} values={values} defaultSort={defaultSort} />
+        <SectionFilters
+          key={base}
+          attributes={filterable}
+          values={values}
+          defaultSort={defaultSort}
+          maxLabel={maxRub ? t('до {price}', { price: formatPrice(String(maxRub * 100), 'RUB', t) }) : undefined}
+        />
+        <div className="save-search-row">
+          <SaveSearch
+            categoryId={section.id}
+            attrs={attrs}
+            q={q || null}
+            maxRub={maxRub}
+            summary={[
+              ...filterable
+                .filter((a) => a.key in attrs)
+                .map((a) => (attrs[a.key] === true ? t.d(a.label) : `${t.d(a.label)}: ${t.d(String(attrs[a.key]))}`)),
+              ...(q ? [t('«{q}»', { q })] : []),
+            ]}
+          />
+        </div>
       </div>
 
       <section style={{ marginTop: 20 }} aria-label={t('Предложения: {category}', { category: t.d(section.title) })}>

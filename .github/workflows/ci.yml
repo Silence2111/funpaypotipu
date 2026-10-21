@@ -63,6 +63,8 @@ jobs:
       ORDER_SWEEP_INTERVAL_MS: 2000
       # Автоподнятие раз в 2 с: e2e проверяет, что лот поднимается сам.
       AUTO_RAISE_INTERVAL_MS: 2000
+      # Сохранённые поиски раз в 2 с: e2e ждёт уведомления о новом лоте.
+      SAVED_SEARCH_INTERVAL_MS: 2000
       # Вход через Google и VK ID — против тестового сервера из e2e (apps/api/test/oauth-mock.mjs).
       OAUTH_TEST_ISSUER: http://localhost:4999
       GOOGLE_CLIENT_ID: ci-google

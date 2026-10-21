@@ -33,6 +33,10 @@
       "types": "./dist/buyer-data.d.ts",
       "default": "./dist/buyer-data.js"
     },
+    "./saved-search": {
+      "types": "./dist/saved-search.d.ts",
+      "default": "./dist/saved-search.js"
+    },
     "./i18n": {
       "types": "./dist/i18n.d.ts",
       "default": "./dist/i18n.js"

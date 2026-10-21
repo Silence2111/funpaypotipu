@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 import type { Attribute } from '@/lib/api';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
@@ -27,12 +27,15 @@ export function SectionFilters({
   attributes,
   values,
   defaultSort = 'new',
+  maxLabel,
 }: {
   attributes: Attribute[];
-  /** Текущие параметры адреса: f_<ключ>, online, q, sort. */
+  /** Текущие параметры адреса: f_<ключ>, online, q, max, sort. */
   values: Record<string, string | undefined>;
   /** Сортировка раздела без параметра в адресе: у валюты — сначала дешёвые. */
   defaultSort?: string;
+  /** «до 1 500 ₽» — цена из сохранённого поиска; снимается крестиком. */
+  maxLabel?: string;
 }) {
   const t = useT();
   const router = useRouter();
@@ -57,7 +60,10 @@ export function SectionFilters({
   const enums = attributes.filter((a) => a.type === 'enum' && a.options?.length);
   const flags = attributes.filter((a) => a.type === 'bool');
   // Сколько параметров выбрано — на кнопке «Фильтры».
-  const chosen = Object.keys(values).filter((k) => k.startsWith('f_') && values[k]).length + (values.online === '1' ? 1 : 0);
+  const chosen =
+    Object.keys(values).filter((k) => k.startsWith('f_') && values[k]).length +
+    (values.online === '1' ? 1 : 0) +
+    (values.max ? 1 : 0);
   const active = chosen > 0 || !!values.q;
 
   const params = (
@@ -105,6 +111,18 @@ export function SectionFilters({
         <span className="dot-online" aria-hidden />
         {t('Продавец в сети')}
       </button>
+      {values.max && maxLabel && (
+        <button
+          type="button"
+          className="chip"
+          aria-pressed
+          aria-label={t('Убрать цену {price}', { price: maxLabel })}
+          onClick={() => go({ max: undefined })}
+        >
+          {maxLabel}
+          <X size={14} strokeWidth={1.75} aria-hidden />
+        </button>
+      )}
     </>
   );
 

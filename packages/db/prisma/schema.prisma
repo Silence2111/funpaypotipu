@@ -222,6 +222,7 @@ model User {
   notifications  Notification[]
   pushSubscriptions PushSubscription[]
   replyTemplates ReplyTemplate[]
+  savedSearches  SavedSearch[]
   favorites      Favorite[]
   roles          UserRole[]
   riskSignals    RiskSignal[]
@@ -398,6 +399,7 @@ model Category {
   children   Category[]  @relation("CategoryTree")
   attributes Attribute[]
   listings   Listing[]
+  savedSearches SavedSearch[]
 
   @@unique([gameId, slug])
   @@index([parentId])
@@ -468,6 +470,7 @@ model Listing {
   category     Category      @relation(fields: [categoryId], references: [id])
   digitalGoods DigitalGood[]
   orders       Order[]
+  searchHits   SavedSearchHit[]
 
   // FTS по (title, description) и GIN по attributes — добавить SQL-миграцией
   @@index([categoryId, price])
@@ -906,6 +909,47 @@ model PushSubscription {
 }
 
 /// Заготовка ответа для чата: вставляется в поле сообщения, {имя} — ник собеседника.
+// Сохранённый поиск покупателя: фильтры раздела и «цена до». Новые лоты,
+// выставленные после сохранения, приходят уведомлением — каждый один раз.
+model SavedSearch {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  categoryId String    @map("category_id") @db.Uuid
+  // Параметры раздела, как ?f_ в адресе: {"rank":"Global Elite","prime":true}.
+  attrs      Json      @default("{}")
+  q          String?   @db.VarChar(100)
+  maxPrice   BigInt?   @map("max_price") // минорные единицы
+  notify     Boolean   @default(true)
+  // С этого момента лоты считаются новыми: сохранение, правка или
+  // включение уведомлений — старые предложения не приходят пачкой.
+  since      DateTime  @default(now())
+  lastHitAt  DateTime? @map("last_hit_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  hits     SavedSearchHit[]
+
+  @@index([userId])
+  @@index([categoryId])
+  @@map("saved_searches")
+}
+
+// Лот, о котором поиск уже сообщил: снятый и вернувшийся лот второй раз
+// уведомление не шлёт.
+model SavedSearchHit {
+  searchId  String   @map("search_id") @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  search  SavedSearch @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  listing Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@id([searchId, listingId])
+  @@index([listingId])
+  @@map("saved_search_hits")
+}
+
 model ReplyTemplate {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @map("user_id") @db.Uuid

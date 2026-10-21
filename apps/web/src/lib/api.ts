@@ -198,6 +198,25 @@ export interface Attribute {
   sortOrder: number;
 }
 
+/** Сохранённый поиск покупателя: раздел, параметры, текст, «цена до». */
+export interface SavedSearch {
+  id: string;
+  categoryId: string;
+  game: { slug: string; title: string } | null;
+  category: { slug: string; title: string };
+  /** Подписи параметров раздела: rank → «Звание». */
+  labels: Record<string, string>;
+  attrs: Record<string, string | boolean>;
+  q: string | null;
+  /** Копейки строкой; null — без предела. */
+  maxPrice: string | null;
+  notify: boolean;
+  createdAt: string;
+  lastHitAt: string | null;
+  /** Раздел с этими условиями. */
+  path: string | null;
+}
+
 export const getCategoryAttributes = (categoryId: string) =>
   apiTry<Attribute[]>(`/catalog/categories/${categoryId}/attributes`);
 
@@ -213,6 +232,8 @@ export function browseListings(params: {
   instant?: boolean;
   /** Только продавцы онлайн (последние 5 минут). */
   online?: boolean;
+  /** «Цена до», в копейках — из сохранённого поиска. */
+  maxPrice?: number;
   limit?: number;
   page?: number;
 }) {

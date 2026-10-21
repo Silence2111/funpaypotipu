@@ -216,6 +216,8 @@ export const EN_SHARED: Phrasebook = {
   'кэшбэк и выплаты': 'cashback and payouts',
   Поддержка: 'Support',
   'ответы на ваши обращения': 'replies to your requests',
+  'Сохранённые поиски': 'Saved searches',
+  'новые предложения по вашим поискам': 'new offers matching your searches',
   'Решения модерации': 'Moderation decisions',
   'жалобы, блокировки, проверка документов — письмом всегда':
     'reports, blocks, ID checks — always by email',
@@ -246,6 +248,7 @@ export const EN_SHARED: Phrasebook = {
   'Выплата отправлена': 'Payout sent',
   'Выплата отклонена': 'Payout rejected',
   'Поддержка ответила на обращение': 'Support replied to your request',
+  'Новые предложения по сохранённому поиску': 'New offers for your saved search',
 
   // Замер выдачи («Как мы меряем выдачу»)
   'Замер невозможен: {reason} Нужно не меньше {a} чистых и {b} проблемных заказов (спор или возврат), чтобы назвать направление, и по {c} — чтобы утверждать разницу в 10 пунктов.':

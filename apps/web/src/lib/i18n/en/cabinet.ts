@@ -197,4 +197,17 @@ export const CABINET: Record<string, string> = {
   'За этот период операций нет.': 'No transactions in this period.',
   'Показаны последние {n} операций из {total} — все в файле.':
     'Showing the latest {n} of {total} transactions — the file has them all.',
+
+  // Мои поиски
+  'Не удалось загрузить поиски.': 'Couldn’t load your searches.',
+  'Поиск удалён.': 'Search deleted.',
+  'Не удалось удалить поиск.': 'Couldn’t delete the search.',
+  'Условия, сохранённые в разделах. Когда выставят подходящий лот, придёт уведомление — о каждом лоте один раз.':
+    'Filters you saved in categories. When a matching listing goes up, you get a notification — once per listing.',
+  'Сохранённых поисков нет. Откройте раздел игры, выберите фильтры и нажмите «Сохранить поиск» — новые предложения придут уведомлением.':
+    'No saved searches yet. Open a game category, pick filters and tap “Save search” — new offers will come as notifications.',
+  'Последний новый лот — {date}': 'Latest new listing — {date}',
+  'Уведомления включены': 'Notifications on',
+  'Без уведомлений': 'No notifications',
+  Открыть: 'Open',
 };

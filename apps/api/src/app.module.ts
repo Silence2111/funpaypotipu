@@ -38,6 +38,7 @@ import { TopupModule } from './modules/topup/topup.module';
 import { AccountModule } from './modules/account/account.module';
 import { SupportModule } from './modules/support/support.module';
 import { SellerToolsModule } from './modules/seller-tools/seller-tools.module';
+import { SavedSearchesModule } from './modules/saved-searches/saved-searches.module';
 import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
@@ -77,6 +78,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     AccountModule,
     SupportModule,
     SellerToolsModule,
+    SavedSearchesModule,
     ReportsModule,
   ],
   providers: [

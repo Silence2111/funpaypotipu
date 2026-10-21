@@ -63,6 +63,10 @@ export const EN_TEXTS: Record<string, string> = {
   'Пароль от GameMarket изменён, другие устройства вышли из аккаунта. Если это были не вы — восстановите доступ через «Забыли пароль».':
     'Your GameMarket password has been changed, and other devices have been signed out. If this wasn’t you, restore access with “Forgot password”.',
 
+  // Сохранённые поиски: превью уведомления
+  '«{title}» — {price}': '“{title}” — {price}',
+  '«{title}» — {price} и ещё {n}': '“{title}” — {price} and {n} more',
+
   // Бот Telegram
   'Уведомления отключены. Подключить снова — в настройках профиля на сайте.':
     'Notifications are off. To turn them back on, go to Settings on the site.',

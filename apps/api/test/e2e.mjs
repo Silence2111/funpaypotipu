@@ -630,7 +630,8 @@ async function scenarioPush(rnd) {
   const user = await register('psh', rnd);
   const s0 = await j('/account/notifications', { token: user.token });
   check('Ключ сервера для подписки есть, устройств нет', /^[A-Za-z0-9_-]{80,}$/.test(s0.body.push?.publicKey ?? '') && s0.body.push?.devices === 0, JSON.stringify(s0.body.push));
-  check('Пуши по умолчанию включены во всех группах', Object.values(s0.body.prefs?.push ?? {}).every(Boolean) && Object.keys(s0.body.prefs?.push ?? {}).length === 7);
+  // Восемь групп: с частью 34 добавились «Сохранённые поиски».
+  check('Пуши по умолчанию включены во всех группах', Object.values(s0.body.prefs?.push ?? {}).every(Boolean) && Object.keys(s0.body.prefs?.push ?? {}).length === 8);
   const ecdh = createECDH('prime256v1');
   const keys = { p256dh: ecdh.generateKeys().toString('base64url'), auth: randomBytes(16).toString('base64url') };
   const endpoint = `https://fcm.googleapis.com/fcm/send/e2e-${rnd}`;
@@ -1229,6 +1230,95 @@ async function scenarioReviewPhotos(rnd) {
  * с адреса. Адрес покупателя приходит в X-Forwarded-For — API верит ему
  * от локального прокси, как за ingress.
  */
+/**
+ * Сохранённые поиски: условия раздела и «цена до»; новый подходящий лот —
+ * уведомление один раз, свой лот и лоты до сохранения — нет, снятый и
+ * вернувшийся — не повторяется, без уведомлений — молчит.
+ */
+async function scenarioSavedSearches(rnd) {
+  console.log('\n— Сохранённые поиски —');
+  const buyer = await register('ssb', rnd);
+  const seller = await register('sss', rnd);
+  const other = await register('sso', rnd);
+  const word = `ss${rnd}`;
+  const lot = (token, price, attrs = {}) =>
+    createListing(token, 'accounts', price, {
+      title: `Аккаунт ${word}`,
+      attributes: { ...REQUIRED_ATTRS.accounts, ...attrs },
+    });
+  const game = await j('/catalog/games/cs2');
+  const cat = game.body.categories.find((c) => c.slug === 'accounts');
+  const before = await lot(seller.token, '110000'); // выставлен до сохранения — не новый
+
+  const save = (body, token = buyer.token) =>
+    j('/saved-searches', { method: 'POST', token, body: JSON.stringify(body) });
+  const terms = { categoryId: cat.id, attrs: { rank: 'Global Elite' }, q: word, maxPrice: 150000 };
+  const s = await save(terms);
+  const dup = await save({ ...terms, q: word.toUpperCase() });
+  const bad = await save({ categoryId: cat.id, attrs: { rank: 'Нет такого' } });
+  check(
+    'Поиск сохранён: ссылка на раздел с условиями; повтор и чужой фильтр — 400',
+    s.status === 201 && s.body.path === `/igra/cs2/accounts?f_rank=Global%20Elite&q=${word}&max=1500` &&
+      s.body.labels?.rank && dup.status === 400 && bad.status === 400,
+    JSON.stringify({ s: s.body, dup: dup.status, bad: bad.status }),
+  );
+
+  const hits = async () =>
+    (await j('/notifications', { token: buyer.token })).body.filter((n) => n.type === 'saved_search');
+  const waitHits = async (n) => {
+    for (let i = 0; i < 20; i++) {
+      const list = await hits();
+      if (list.length >= n) return list;
+      await wait(500);
+    }
+    return hits();
+  };
+  await lot(buyer.token, '100000'); // свой лот — не уведомляет
+  await lot(seller.token, '200000'); // дороже — нет
+  await lot(seller.token, '100000', { rank: 'Silver' }); // другое звание — нет
+  const fit = await lot(seller.token, '120000');
+  const first = await waitHits(1);
+  await wait(2500); // ещё один-два прохода — повтора нет
+  const still = await hits();
+  check(
+    'Новый подходящий лот — одно уведомление со ссылкой на него; свой, дорогой, другой и старый — нет',
+    first.length === 1 && still.length === 1 && first[0].payload.listingId === fit &&
+      first[0].payload.count === 1 && !JSON.stringify(still).includes(before),
+    JSON.stringify(still.map((n) => n.payload)),
+  );
+
+  // Снят и вернулся — уже присылали; второй подходящий — новое уведомление.
+  await j(`/listings/${fit}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
+  await j(`/listings/${fit}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'active' }) });
+  const fit2 = await lot(seller.token, '140000');
+  const second = await waitHits(2);
+  await wait(2500);
+  const after = await hits();
+  check(
+    'Вернувшийся лот не повторяется, следующий подходящий — новое уведомление',
+    after.length === 2 && second.some((n) => n.payload.listingId === fit2),
+    JSON.stringify(after.map((n) => n.payload)),
+  );
+
+  // Без уведомлений — молчит.
+  const off = await j(`/saved-searches/${s.body.id}`, {
+    method: 'PATCH', token: buyer.token, body: JSON.stringify({ notify: false }),
+  });
+  await lot(seller.token, '130000');
+  await wait(3000);
+  const quiet = await hits();
+  const mine = (await j('/saved-searches', { token: buyer.token })).body;
+  const foreign = await j(`/saved-searches/${s.body.id}`, { method: 'DELETE', token: other.token });
+  const del = await j(`/saved-searches/${s.body.id}`, { method: 'DELETE', token: buyer.token });
+  const left = (await j('/saved-searches', { token: buyer.token })).body;
+  check(
+    'Уведомления выключены — молчит; в списке время последнего лота; чужой не удалить, свой — да',
+    off.body.notify === false && quiet.length === 2 && mine[0]?.lastHitAt && foreign.status === 404 &&
+      del.status === 200 && left.length === 0,
+    JSON.stringify({ off: off.body?.notify, quiet: quiet.length, mine: mine[0], foreign: foreign.status, del: del.status }),
+  );
+}
+
 async function scenarioSecurity(rnd) {
   console.log('\n— Защита: заголовки, CORS, лимиты —');
   const raw = (path, headers = {}, init = {}) => fetch(`${API}/api${path}`, { ...init, headers });
@@ -1508,6 +1598,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);
   await scenarioSellerTools(rnd);
+  await scenarioSavedSearches(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

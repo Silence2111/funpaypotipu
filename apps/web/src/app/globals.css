@@ -3695,6 +3695,69 @@ a.my-lot-title:hover {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
 }
 
+/* Сохранённый поиск: кнопка под фильтрами раздела и панель сохранения. */
+.save-search-row {
+  display: flex;
+  margin-top: 12px;
+}
+.save-search-done {
+  color: var(--success);
+}
+.save-search {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 520px;
+  padding: 20px;
+  animation: tpl-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.save-search-title {
+  font-weight: 700;
+}
+.save-search-terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.save-search-price {
+  max-width: 200px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.save-search-price::placeholder {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+}
+
+/* «Мои поиски»: условия слева, уведомления и действия справа. */
+.searches {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.searches-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 20px;
+}
+.searches-main {
+  display: grid;
+  gap: 8px;
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.searches-title {
+  font-weight: 700;
+}
+.searches-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
 /* Выписка по балансу: период, итоги, файлы для Excel, операции. */
 .statement {
   display: grid;

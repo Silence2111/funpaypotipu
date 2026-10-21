@@ -19,3 +19,4 @@ export * from './i18n';
 export * from './statement';
 export * from './dispute';
 export * from './reply';
+export * from './saved-search';

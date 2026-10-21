@@ -68,7 +68,9 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
         <li>
           <b>Find the game and category.</b> Game search in the header understands short names:
           “cs”, “wow”, “gta”. In a category you can filter by parameters, show only sellers who are
-          online and sort by price.
+          online and sort by price. Nothing suitable — tap “Save search” under the filters, set a
+          price limit, and a new matching listing will come as a notification. Your searches are in
+          your account.
         </li>
         <li>
           <b>Choose an offer.</b> Each row shows the seller: rating, number of reviews and whether

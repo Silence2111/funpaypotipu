@@ -100,6 +100,33 @@ const cardSelect = {
   game: { select: { slug: true, title: true } },
 } satisfies Prisma.ListingSelect;
 
+/**
+ * Условия раздела, общие для выдачи и сохранённых поисков: параметры, текст
+ * в названии, цена. Что пришло уведомлением о поиске — то и видно в разделе.
+ */
+export function listingFilters(f: {
+  attrs?: Record<string, string | boolean>;
+  q?: string | null;
+  minPrice?: number | bigint | null;
+  maxPrice?: number | bigint | null;
+}): Prisma.ListingWhereInput {
+  const where: Prisma.ListingWhereInput = {};
+  // Фасетные фильтры по атрибутам (JSON-путь в Postgres).
+  if (f.attrs && Object.keys(f.attrs).length) {
+    where.AND = Object.entries(f.attrs).map(([k, v]) => ({
+      attributes: { path: [k], equals: v },
+    }));
+  }
+  if (f.q) where.title = { contains: f.q, mode: 'insensitive' };
+  if (f.minPrice != null || f.maxPrice != null) {
+    where.price = {
+      gte: f.minPrice != null ? BigInt(f.minPrice) : undefined,
+      lte: f.maxPrice != null ? BigInt(f.maxPrice) : undefined,
+    };
+  }
+  return where;
+}
+
 @Injectable()
 export class ListingsService {
   private readonly logger = new Logger(ListingsService.name);
@@ -237,19 +264,10 @@ export class ListingsService {
         ...(query.segment ? { segment: query.segment } : {}),
       };
     }
-    // Фасетные фильтры по атрибутам (JSON-путь в Postgres).
-    if (attrs) {
-      where.AND = Object.entries(attrs).map(([k, v]) => ({
-        attributes: { path: [k], equals: v },
-      }));
-    }
-    if (query.q) where.title = { contains: query.q, mode: 'insensitive' };
-    if (query.minPrice != null || query.maxPrice != null) {
-      where.price = {
-        gte: query.minPrice != null ? BigInt(query.minPrice) : undefined,
-        lte: query.maxPrice != null ? BigInt(query.maxPrice) : undefined,
-      };
-    }
+    Object.assign(
+      where,
+      listingFilters({ attrs, q: query.q, minPrice: query.minPrice, maxPrice: query.maxPrice }),
+    );
 
     // По умолчанию поднятые лоты (boostUntil) держатся выше — как «поднятие» на FunPay.
     const orderBy: Prisma.ListingOrderByWithRelationInput[] =

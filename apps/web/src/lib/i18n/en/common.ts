@@ -64,6 +64,8 @@ export const COMMON: Record<string, string> = {
   Кошелёк: 'Wallet',
   'Мой профиль на витрине': 'My public profile',
   Избранное: 'Favorites',
+  Поиски: 'Searches',
+  'Сохранённые поиски': 'Saved searches',
   Настройки: 'Settings',
   Безопасность: 'Security',
   Поддержка: 'Support',

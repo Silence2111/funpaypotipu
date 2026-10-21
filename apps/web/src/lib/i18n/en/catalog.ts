@@ -191,4 +191,21 @@ export const CATALOG: Record<string, string> = {
     'Demo listings are excluded: on made-up data the gain is inflated by orders of magnitude.',
   'Нужно по {talk} чистых и проблемных заказов, чтобы назвать направление, и по {claim} — чтобы утверждать разницу в 10 пунктов.':
     'We need {talk} clean and problem orders each to name a direction, and {claim} each to claim a 10-point difference.',
+
+  // Сохранённый поиск в разделе
+  'до {price}': 'up to {price}',
+  '«{q}»': '“{q}”',
+  'Убрать цену {price}': 'Remove price {price}',
+  'Цена — целым числом рублей больше нуля.':
+    'Enter the price as a whole number of rubles above zero.',
+  'Не удалось сохранить поиск.': 'Couldn’t save the search.',
+  'Поиск сохранён, уведомления включены': 'Search saved, notifications on',
+  'Поиск сохранён': 'Search saved',
+  'Сохранить поиск': 'Save search',
+  'Все предложения раздела': 'All offers in this category',
+  'Цена до, ₽': 'Price up to, ₽',
+  'Без предела': 'No limit',
+  'Уведомлять о новых предложениях': 'Notify me about new offers',
+  'Новый подходящий лот придёт уведомлением — на сайте, в Telegram или пушем, как настроено в уведомлениях. О каждом лоте — один раз.':
+    'A new matching listing will come as a notification — on the site, in Telegram or as a push, as set in your notification settings. Once per listing.',
 };

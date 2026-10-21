@@ -226,6 +226,16 @@ export const EN_API: Phrasebook = {
   'Команда — в одну строку': 'A command must fit on one line',
   'Команда {command} уже есть у заготовки «{title}»':
     'The command {command} is already used by the template “{title}”',
+
+  // Сохранённые поиски
+  'Цена — до 10 млн ₽': 'The price can be up to 10 million ₽',
+  'Текст поиска — до 100 символов': 'Search text can be up to 100 characters',
+  'В разделе нет такого фильтра': 'This category has no such filter',
+  'Такой поиск уже сохранён': 'This search is already saved',
+  'Не больше {n} поисков — удалите ненужные':
+    'No more than {n} saved searches — delete the ones you don’t need',
+  'Поиск не найден': 'Search not found',
+  'Раздел не найден': 'Category not found',
   'Недостаточно средств на балансе': 'Insufficient balance',
   'Неизвестный способ вывода': 'Unknown withdrawal method',
   'Минимальная сумма вывода для «{method}» — {sum} ₽':
