@@ -76,7 +76,8 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           online and sort by price. Nothing suitable — tap “Save search” under the filters, set a
           price limit, and a new matching listing will come as a notification. Your searches are in
           your account. A listing in your favorites drops by at least {PRICE_DROP_MIN_PCT}% — you
-          get a notification too.
+          get a notification too. Like a seller — tap “Follow” on their profile, and their new
+          listings and discounts will come as notifications.
         </li>
         <li>
           <b>Choose an offer.</b> Each row shows the seller: rating, number of reviews and whether

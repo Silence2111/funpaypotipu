@@ -472,7 +472,7 @@ export class ListingsService {
     const saleUntil = new Date(Date.now() + days * 24 * 3600_000);
     const r = await this.prisma.listing.updateMany({
       where: { id, sellerId, saleUntil: null, price: listing.price },
-      data: { saleListPrice: listing.price, price, saleUntil },
+      data: { saleListPrice: listing.price, price, saleUntil, saleStartedAt: new Date() },
     });
     if (!r.count) throw new BadRequestException('Лот только что изменился — обновите страницу');
     await this.search.indexListing(id);
@@ -483,7 +483,7 @@ export class ListingsService {
   async endSale(sellerId: string, id: string) {
     const n = await this.prisma.$executeRaw`
       UPDATE listings
-      SET price = sale_list_price, sale_list_price = NULL, sale_until = NULL, updated_at = ${new Date()}
+      SET price = sale_list_price, sale_list_price = NULL, sale_until = NULL, sale_started_at = NULL, updated_at = ${new Date()}
       WHERE id = ${id}::uuid AND seller_id = ${sellerId}::uuid AND sale_until IS NOT NULL`;
     if (!n) throw new NotFoundException('Скидки на этом лоте нет');
     await this.search.indexListing(id);
@@ -496,7 +496,7 @@ export class ListingsService {
     const now = new Date();
     const ended = await this.prisma.$queryRaw<Array<{ id: string }>>`
       UPDATE listings
-      SET price = sale_list_price, sale_list_price = NULL, sale_until = NULL, updated_at = ${now}
+      SET price = sale_list_price, sale_list_price = NULL, sale_until = NULL, sale_started_at = NULL, updated_at = ${now}
       WHERE sale_until IS NOT NULL AND sale_until <= ${now}
       RETURNING id`;
     for (const { id } of ended) {

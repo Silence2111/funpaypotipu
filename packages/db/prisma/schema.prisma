@@ -224,6 +224,8 @@ model User {
   replyTemplates ReplyTemplate[]
   savedSearches  SavedSearch[]
   sellerPromos   SellerPromo[]
+  following      SellerFollow[]     @relation("Following")
+  followers      SellerFollow[]     @relation("Followers")
   favorites      Favorite[]
   roles          UserRole[]
   riskSignals    RiskSignal[]
@@ -449,6 +451,8 @@ model Listing {
   // saleUntil. Срок вышел — фоновая задача возвращает прежнюю (shared/sale.ts).
   saleListPrice   BigInt?         @map("sale_list_price")
   saleUntil       DateTime?       @map("sale_until")
+  // Когда скидка началась — подписчики продавца узнают о ней один раз.
+  saleStartedAt   DateTime?       @map("sale_started_at")
   // Пополнение на сумму покупателя (packages/shared/src/topup.ts): покупатель
   // вводит, сколько зачислить, и платит номинал плюс наценку. Все три поля
   // заданы или все null; у такого лота price — цена минимальной суммы («от»).
@@ -1008,6 +1012,25 @@ model SavedSearchHit {
   @@id([searchId, listingId])
   @@index([listingId])
   @@map("saved_search_hits")
+}
+
+// Подписка на продавца: его новые лоты и скидки приходят уведомлением.
+model SellerFollow {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  sellerId  String   @map("seller_id") @db.Uuid
+  notify    Boolean  @default(true)
+  // Лоты и скидки после этого момента — новые; фоновая задача сдвигает его
+  // после каждого прохода, включение уведомлений — на «сейчас».
+  since     DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User @relation("Following", fields: [userId], references: [id], onDelete: Cascade)
+  seller User @relation("Followers", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sellerId])
+  @@index([sellerId])
+  @@map("seller_follows")
 }
 
 model ReplyTemplate {

@@ -66,6 +66,9 @@ export const EN_TEXTS: Record<string, string> = {
   // Сохранённые поиски: превью уведомления
   '«{title}» — {price}': '“{title}” — {price}',
   '«{title}» — {price} и ещё {n}': '“{title}” — {price} and {n} more',
+  // Скидка у продавца из подписок
+  '«{title}» — {price} вместо {old}': '“{title}” — {price} instead of {old}',
+  '«{title}» — {price} вместо {old} и ещё {n}': '“{title}” — {price} instead of {old} and {n} more',
   // Подешевевший лот из избранного
   '«{title}»: было {old}, стало {new}': '“{title}”: was {old}, now {new}',
 

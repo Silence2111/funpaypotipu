@@ -212,8 +212,8 @@ export const CABINET: Record<string, string> = {
   Открыть: 'Open',
 
   // Избранное: снижение цены
-  'Лот подешевеет хотя бы на {pct}% — придёт уведомление. Настройка — в группе «Поиски и избранное».':
-    'If a listing gets at least {pct}% cheaper, you get a notification. Set it up under “Searches and favorites”.',
+  'Лот подешевеет хотя бы на {pct}% — придёт уведомление. Настройка — в группе «Поиски, избранное и подписки».':
+    'If a listing gets at least {pct}% cheaper, you get a notification. Set it up under “Searches, favorites and follows”.',
   'было {price}': 'was {price}',
 
   // Статистика лотов
@@ -296,4 +296,25 @@ export const CABINET: Record<string, string> = {
   'Скидка — от {min} до {max}%. Не действует на пополнения.':
     'The discount is from {min} to {max}%. It doesn’t apply to top-ups.',
   'Создать промокод': 'Create promo code',
+
+  // Подписки на продавцов
+  Подписки: 'Following',
+  'Подписки на продавцов': 'Sellers you follow',
+  'Не удалось загрузить подписки.': 'Couldn’t load your follows.',
+  'Вы отписались от {name}.': 'You unfollowed {name}.',
+  'Продавцы, на которых вы подписаны. Их новые лоты и скидки приходят уведомлением — на сайте, в Telegram и пушем, как настроено в группе «Поиски, избранное и подписки».':
+    'Sellers you follow. Their new listings and discounts come as notifications — on the site, in Telegram and as push, as set in the “Searches, favorites and follows” group.',
+  'Подписок пока нет. Нажмите «Подписаться» в профиле продавца или в его карточке на странице лота — его новые лоты и скидки придут уведомлением.':
+    'You don’t follow anyone yet. Tap “Follow” on a seller’s profile or in their card on a listing page — their new listings and discounts will come as notifications.',
+  'нет предложений': 'no offers',
+  'со скидкой: {n}': 'on sale: {n}',
+  'Уведомлять о новых лотах и скидках {name}':
+    'Notify me about new listings and discounts from {name}',
+  Отписаться: 'Unfollow',
+  'Новые лоты и скидки продавца приходят уведомлением. Нажмите, чтобы отписаться.':
+    'The seller’s new listings and discounts come as notifications. Tap to unfollow.',
+  'Новые лоты и скидки продавца будут приходить уведомлением':
+    'The seller’s new listings and discounts will come as notifications',
+  'Вы подписаны': 'Following',
+  Подписаться: 'Follow',
 };

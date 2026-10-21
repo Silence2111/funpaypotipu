@@ -11,6 +11,7 @@ import { SellerReviews } from '@/components/seller-reviews';
 import { reviewsCount } from '@/components/seller-card';
 import { ReportButton } from '@/components/report-button';
 import { BlockButton } from '@/components/block-button';
+import { FollowButton } from '@/components/follow-button';
 import { getT } from '@/lib/i18n/server';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -118,7 +119,8 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
                 </div>
               )}
             </dl>
-            <div className="row" style={{ marginTop: 16, gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <div className="row" style={{ marginTop: 16, gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <FollowButton sellerId={seller.id} followers={seller.followers ?? 0} />
               <BlockButton userId={seller.id} username={seller.username} />
               <ReportButton targetType="user" targetId={seller.id} ownerId={seller.id} />
             </div>

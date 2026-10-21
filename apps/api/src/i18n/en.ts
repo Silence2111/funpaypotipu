@@ -272,6 +272,12 @@ export const EN_API: Phrasebook = {
     'No more than {n} promo codes — delete the ones you don’t need',
   'Такой код у вас уже есть': 'You already have this code',
   'Промокод не найден': 'Promo code not found',
+
+  // Подписки на продавцов
+  'На себя подписаться нельзя': 'You can’t follow yourself',
+  'Не больше {n} подписок — отпишитесь от ненужных':
+    'No more than {n} follows — unfollow the ones you don’t need',
+  'Подписка не найдена': 'Follow not found',
   'Раздел не найден': 'Category not found',
   'Недостаточно средств на балансе': 'Insufficient balance',
   'Неизвестный способ вывода': 'Unknown withdrawal method',

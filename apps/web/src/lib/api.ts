@@ -173,6 +173,8 @@ export interface SellerProfile {
   photoReviews?: number;
   /** За сколько обычно отвечает; null — живых ответов пока мало. */
   replyTime?: ReplyTime | null;
+  /** Подписчиков: их уведомляют о новых лотах и скидках. */
+  followers?: number;
 }
 
 export const getSeller = (id: string) => apiTry<SellerProfile>(`/sellers/${id}`);

@@ -49,7 +49,7 @@ export default function FavoritesPage() {
         <Link href="/cabinet" className="chip">← {t('Кабинет')}</Link>
       </div>
       <p className="muted" style={{ margin: '0 0 24px', maxWidth: '60ch' }}>
-        {t('Лот подешевеет хотя бы на {pct}% — придёт уведомление. Настройка — в группе «Поиски и избранное».', {
+        {t('Лот подешевеет хотя бы на {pct}% — придёт уведомление. Настройка — в группе «Поиски, избранное и подписки».', {
           pct: PRICE_DROP_MIN_PCT,
         })}
       </p>

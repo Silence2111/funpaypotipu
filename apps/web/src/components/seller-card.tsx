@@ -5,6 +5,7 @@ import type { SellerProfile } from '@/lib/api';
 import { presenceText, replyWhen, sinceText } from '@/lib/presence';
 import { Avatar } from './offers';
 import { LotChat } from './lot-chat';
+import { FollowButton } from './follow-button';
 import { getT } from '@/lib/i18n/server';
 import { RU, type T } from '@/lib/i18n/lang';
 
@@ -86,6 +87,7 @@ export async function SellerCard({
         <Link href={`/prodavec/${seller.id}`} className="chip">
           {t('Все предложения')}
         </Link>
+        <FollowButton sellerId={seller.id} followers={seller.followers ?? 0} compact />
       </LotChat>
     </section>
   );

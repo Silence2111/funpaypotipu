@@ -1498,6 +1498,75 @@ async function scenarioSale(rnd) {
  * на покупателя, отменённый заказ использование возвращает; предел, «только
  * постоянным», выключенный код — отказ с причиной; «Применить» видит код.
  */
+async function scenarioFollow(rnd) {
+  console.log('\n— Подписка на продавца —');
+  const seller = await register('fws', rnd);
+  const fan = await register('fwa', rnd);
+  const quiet = await register('fwb', rnd); // уведомления по подписке выключены
+  const blocked = await register('fwc', rnd); // в чёрном списке продавца
+  const old = await createListing(seller.token, 'accounts', '100000', { title: `Подписка ${rnd} · старый` });
+  const follow = (u, method = 'POST', body) =>
+    j(`/follows/${seller.id}`, { method, token: u.token, ...(body ? { body: JSON.stringify(body) } : {}) });
+  const self = await follow(seller);
+  const first = await follow(fan);
+  const again = await follow(fan);
+  await follow(quiet);
+  await follow(quiet, 'PATCH', { notify: false });
+  await follow(blocked);
+  await j('/account/blocks', { method: 'POST', token: seller.token, body: JSON.stringify({ userId: blocked.id }) });
+  const profile = (await j(`/sellers/${seller.id}`)).body;
+  const status = (await follow(fan, 'GET')).body;
+  check(
+    'Подписка: на себя — 400; повтор не двоит; в профиле — 3 подписчика; кнопка видит подписку',
+    self.status === 400 && first.status === 201 && again.status === 201 && again.body.followers === 1 &&
+      profile.followers === 3 && status.following === true && status.notify === true,
+    JSON.stringify({ self: self.status, first: first.body, again: again.body, followers: profile.followers, status }),
+  );
+
+  const notes = async (u, type) =>
+    (await j('/notifications', { token: u.token })).body.filter((n) => n.type === type);
+  const waitNotes = async (u, type, n) => {
+    for (let i = 0; i < 20; i++) {
+      const list = await notes(u, type);
+      if (list.length >= n) return list;
+      await wait(500);
+    }
+    return notes(u, type);
+  };
+  const fresh = await createListing(seller.token, 'accounts', '120000', { title: `Подписка ${rnd} · новый` });
+  const got = await waitNotes(fan, 'seller_new_lots', 1);
+  await wait(2500); // ещё один-два прохода — повтора нет
+  const still = await notes(fan, 'seller_new_lots');
+  const others = [...(await notes(quiet, 'seller_new_lots')), ...(await notes(blocked, 'seller_new_lots'))];
+  check(
+    'Новый лот — одно уведомление со ссылкой на лот; старый лот, выключенные уведомления и чёрный список — нет',
+    got.length === 1 && still.length === 1 && still[0].payload.listingId === fresh &&
+      still[0].payload.sellerId === seller.id && others.length === 0 && !JSON.stringify(still).includes(old),
+    JSON.stringify({ still: still.map((n) => n.payload), others: others.length }),
+  );
+
+  await j(`/listings/${old}/sale`, { method: 'POST', token: seller.token, body: JSON.stringify({ percent: 20, days: 3 }) });
+  const sale = await waitNotes(fan, 'seller_sale', 1);
+  check(
+    'Скидка на старый лот — уведомление «800 ₽ вместо 1 000 ₽» со ссылкой на лот',
+    sale.length === 1 && sale[0].payload.listingId === old &&
+      /800 ₽ вместо 1 000 ₽/.test(String(sale[0].payload.preview).replace(/\s/g, ' ')),
+    JSON.stringify(sale.map((n) => n.payload)),
+  );
+
+  const list = (await j('/follows', { token: fan.token })).body;
+  const off = await follow(fan, 'DELETE');
+  await createListing(seller.token, 'accounts', '130000', { title: `Подписка ${rnd} · после отписки` });
+  await wait(3000);
+  const after = await notes(fan, 'seller_new_lots');
+  check(
+    '«Мои подписки»: продавец, 2 лота, 1 со скидкой; после отписки новое не приходит, подписчиков — 2',
+    list.length === 1 && list[0].sellerId === seller.id && list[0].activeListings === 2 && list[0].onSale === 1 &&
+      off.status === 200 && off.body.followers === 2 && after.length === 1,
+    JSON.stringify({ list, off: off.body, after: after.length }),
+  );
+}
+
 async function scenarioSellerPromo(rnd) {
   console.log('\n— Промокоды продавца —');
   const seller = await register('kds', rnd);
@@ -1842,6 +1911,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioLotStats(rnd);
   await scenarioSale(rnd);
   await scenarioSellerPromo(rnd);
+  await scenarioFollow(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

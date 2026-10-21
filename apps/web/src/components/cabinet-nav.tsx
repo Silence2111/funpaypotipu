@@ -16,6 +16,7 @@ const LINKS = [
   { href: '/chat', label: msg('Сообщения') },
   { href: '/cabinet/favorites', label: msg('Избранное') },
   { href: '/cabinet/searches', label: msg('Поиски') },
+  { href: '/cabinet/following', label: msg('Подписки') },
   { href: '/cabinet/settings', label: msg('Профиль') },
   { href: '/cabinet/security', label: msg('Безопасность') },
   { href: '/cabinet/support', label: msg('Поддержка') },

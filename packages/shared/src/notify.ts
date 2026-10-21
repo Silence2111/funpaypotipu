@@ -30,9 +30,9 @@ export const NOTIFY_GROUPS = [
   { key: 'support', label: 'Поддержка', hint: 'ответы на ваши обращения', types: ['support_reply'] },
   {
     key: 'searches',
-    label: 'Поиски и избранное',
-    hint: 'новые предложения по сохранённым поискам, снижение цены в избранном',
-    types: ['saved_search', 'price_drop'],
+    label: 'Поиски, избранное и подписки',
+    hint: 'новые предложения по сохранённым поискам, снижение цены в избранном, новые лоты и скидки продавцов, на которых вы подписаны',
+    types: ['saved_search', 'price_drop', 'seller_new_lots', 'seller_sale'],
   },
   {
     key: 'moderation',
@@ -85,6 +85,8 @@ export const NOTIFY_LABELS: Record<string, string> = {
   support_reply: 'Поддержка ответила на обращение',
   saved_search: 'Новые предложения по сохранённому поиску',
   price_drop: 'Лот из избранного подешевел',
+  seller_new_lots: 'Новые лоты у продавца из подписок',
+  seller_sale: 'Скидка у продавца из подписок',
 };
 
 export function notifyGroupOf(type: string): NotifyGroup | null {
@@ -119,6 +121,11 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
     if (id('listingId')) return `/lot/${id('listingId')}`;
     const path = id('path');
     return path?.startsWith('/igra/') ? path : '/cabinet/searches';
+  }
+  // Подписка: один лот — на него, несколько — в профиль продавца.
+  if (type === 'seller_new_lots' || type === 'seller_sale') {
+    if (id('listingId')) return `/lot/${id('listingId')}`;
+    return id('sellerId') ? `/prodavec/${id('sellerId')}` : '/cabinet/following';
   }
   if (type.startsWith('kyc_')) return '/cabinet/verification';
   if (type === 'new_message' && id('conversationId')) return `/chat/${id('conversationId')}`;

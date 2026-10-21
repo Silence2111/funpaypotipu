@@ -62,6 +62,7 @@ export class SellersService {
     const photoReviews = await this.prisma.review.count({
       where: { targetId: sellerId, photoCount: { gt: 0 } },
     });
+    const followers = await this.prisma.sellerFollow.count({ where: { sellerId } });
 
     return {
       id: profile.userId,
@@ -85,6 +86,7 @@ export class SellersService {
       level: { key: level.key, label: level.label },
       ratingBreakdown,
       photoReviews,
+      followers,
     };
   }
 

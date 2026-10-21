@@ -3758,6 +3758,18 @@ a.my-lot-title:hover {
   justify-items: start;
 }
 
+/* Подписки на продавцов: аватар с именем и сводкой; число подписчиков у кнопки. */
+.following-main {
+  display: flex;
+  flex: 1 1 280px;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.follow-count {
+  font-size: 14px;
+}
+
 /* Выписка по балансу: период, итоги, файлы для Excel, операции. */
 .statement {
   display: grid;
