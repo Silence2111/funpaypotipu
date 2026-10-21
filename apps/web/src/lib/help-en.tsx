@@ -336,6 +336,10 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           The request’s status is under the withdrawal form: being checked, being sent, paid out. If
           the transfer doesn’t go through, the money returns to your balance.
         </li>
+        <li>
+          A balance statement for any period is under the withdrawal form, along with files for
+          Excel: the statement and your sales with the fee and the amount credited to you.
+        </li>
       </ul>
     </>
   ),

@@ -9,7 +9,7 @@ import { logout } from '@/lib/logout';
 import { formatListingPrice, formatPrice } from '@/lib/format';
 import { TopUpForm } from '@/components/topup-form';
 import { PayoutForm } from '@/components/payout-form';
-import { WalletTransactions } from '@/components/wallet-transactions';
+import { StatementView } from '@/components/statement';
 import { loadPublicPricing } from '@/lib/pricing';
 import { BumpButton } from '@/components/bump-button';
 import { SellerDashboard } from '@/components/seller-dashboard';
@@ -177,8 +177,8 @@ export default function CabinetPage() {
         <div className="label">{t('Вывод средств')}</div>
         <PayoutForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
         <hr className="divider" style={{ margin: '20px 0' }} />
-        <div className="label">{t('История операций')}</div>
-        <WalletTransactions />
+        <div className="label">{t('Выписка по балансу')}</div>
+        <StatementView />
       </section>
 
       <button className="btn ghost" type="button" onClick={() => void logout().then(() => router.push('/'))}>

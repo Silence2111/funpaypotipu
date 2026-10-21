@@ -9,6 +9,30 @@ import type { Lang } from './lang';
  * Новая фраза в say() без перевода роняет test/i18n-texts.test.ts.
  */
 export const EN_TEXTS: Record<string, string> = {
+  // Выгрузки для Excel: выписка, продажи, сводка площадки
+  'Дата (МСК)': 'Date (Moscow time)',
+  Операция: 'Transaction',
+  Заказ: 'Order',
+  Приход: 'In',
+  Расход: 'Out',
+  Остаток: 'Balance',
+  'Остаток на начало': 'Opening balance',
+  Поступило: 'Total in',
+  Списано: 'Total out',
+  'Остаток на конец': 'Closing balance',
+  'Дата зачисления (МСК)': 'Credited on (Moscow time)',
+  Лот: 'Listing',
+  Покупатель: 'Buyer',
+  Количество: 'Quantity',
+  'Оплатил покупатель': 'Paid by buyer',
+  'Комиссия площадки': 'Marketplace fee',
+  'Зачислено вам': 'Credited to you',
+  Итого: 'Total',
+  День: 'Day',
+  'Сделок завершено': 'Deals completed',
+  Оборот: 'Turnover',
+  'Доход площадки': 'Marketplace revenue',
+
   // Темы писем об уведомлениях
   'Новый оплаченный заказ': 'New paid order',
   'Товар по заказу выдан': 'Your order has been delivered',

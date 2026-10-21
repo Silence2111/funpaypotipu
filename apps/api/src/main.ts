@@ -14,7 +14,8 @@ import { corsOrigin, securityHeaders, trustProxySetting } from './common/http-se
 async function bootstrap() {
   const env = loadEnv();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    cors: { origin: corsOrigin, credentials: true },
+    // Content-Disposition — имя файла выгрузки (отчёты): без него сайт его не видит.
+    cors: { origin: corsOrigin, credentials: true, exposedHeaders: ['Content-Disposition'] },
   });
   // Настоящий адрес покупателя за ingress — для лимитов запросов и сеансов.
   app.set('trust proxy', trustProxySetting());

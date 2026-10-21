@@ -104,6 +104,28 @@ export const EN_SHARED: Phrasebook = {
   ЮMoney: 'YooMoney',
   'Неизвестный способ оплаты: {key}': 'Unknown payment method: {key}',
 
+  // Выписка по балансу: операции и период
+  'Пополнение баланса': 'Balance top-up',
+  'Оплата заказа с баланса': 'Order paid from balance',
+  'Оплата заказа': 'Order payment',
+  'Зачисление за продажу': 'Sale proceeds',
+  'Зачисление по решению спора': 'Credited by dispute decision',
+  'Кэшбэк за покупку': 'Purchase cashback',
+  'Возврат: заказ отменён': 'Refund: order cancelled',
+  'Возврат: продавец не выдал товар': 'Refund: the seller didn’t deliver',
+  'Возврат от продавца': 'Refund from the seller',
+  'Возврат по решению спора': 'Refund by dispute decision',
+  'Возврат: товар закончился': 'Refund: out of stock',
+  'Повторная оплата заказа — на баланс': 'Repeat order payment — credited to balance',
+  'Продвижение лота': 'Listing promotion',
+  'Заявка на вывод': 'Withdrawal request',
+  'Заявка на вывод отклонена': 'Withdrawal request rejected',
+  'Вывод средств': 'Withdrawal',
+  Операция: 'Transaction',
+  'Даты — в виде ГГГГ-ММ-ДД': 'Dates must look like YYYY-MM-DD',
+  'Начало периода позже конца': 'The period starts after it ends',
+  'Период — не больше {n} дней': 'The period can be at most {n} days',
+
   // Уровни продавца
   Новичок: 'Newcomer',
   Проверенный: 'Trusted',

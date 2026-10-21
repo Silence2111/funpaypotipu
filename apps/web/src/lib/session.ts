@@ -81,19 +81,20 @@ async function tryRefresh(): Promise<string | null> {
   return refreshing;
 }
 
+/** Ответ API как есть (для файлов) — с access-токеном и refresh при 401. */
+export async function apiResponse(path: string, opts: RequestInit = {}): Promise<Response> {
+  const token = getToken();
+  const res = await rawFetch(path, opts, token);
+  if (res.status !== 401 || !token) return res;
+  const next = await tryRefresh();
+  if (next) return rawFetch(path, opts, next);
+  clearSession();
+  return res;
+}
+
 /** Клиентский запрос к API с access-токеном и автоматическим refresh при 401. */
 export async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  let res = await rawFetch(path, opts, token);
-
-  if (res.status === 401 && token) {
-    const next = await tryRefresh();
-    if (next) {
-      res = await rawFetch(path, opts, next);
-    } else {
-      clearSession();
-    }
-  }
+  const res = await apiResponse(path, opts);
 
   if (!res.ok) {
     const text = await res.text();

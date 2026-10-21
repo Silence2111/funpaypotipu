@@ -202,6 +202,9 @@ export const EN_API: Phrasebook = {
   'Эту выплату отправляет ЮKassa — реквизиты у неё':
     'YooKassa sends this payout and holds its details',
 
+  // Отчёты
+  'Период — от 1 до 366 дней': 'The period must be from 1 to 366 days',
+
   // Инструменты продавца
   'Приветствие — до 1000 символов': 'The greeting can be up to 1000 characters',
   'Назовите заготовку': 'Give the template a name',

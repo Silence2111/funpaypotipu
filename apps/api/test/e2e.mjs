@@ -973,6 +973,78 @@ async function scenarioSellerTools(rnd) {
 }
 
 /**
+ * Отчёты: выписка по балансу сходится с балансом, файлы для Excel (BOM,
+ * «;» по-русски, «,» по-английски), продажи за период, сводка площадки —
+ * только финансам.
+ */
+async function scenarioReports(rnd) {
+  console.log('\n— Отчёты: выписка, продажи, сводка —');
+  const seller = await register('rps', rnd);
+  const buyer = await register('rpb', rnd);
+  const fin = await register('rpf', rnd);
+  await grant(fin.id, 'finance');
+  const listingId = await createListing(seller.token, 'accounts', '120000');
+  const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
+  await pay(buyer.token, order.body.id);
+  await j(`/orders/${order.body.id}/deliver`, { method: 'POST', token: seller.token });
+  await j(`/orders/${order.body.id}/confirm`, { method: 'POST', token: buyer.token });
+  const payout = order.body.sellerPayoutAmount;
+  await j('/payouts', { method: 'POST', token: seller.token, body: JSON.stringify({ amount: '50000', method: 'usdt', destination: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE' }) });
+
+  const st = (await j('/reports/statement', { token: seller.token })).body;
+  const wallet = (await j('/wallet', { token: seller.token })).body;
+  const sale = st.rows?.find((r) => r.refType === 'order_release');
+  check(
+    'Выписка: продажа с номером заказа, заявка на вывод; остаток на конец = баланс',
+    st.opening === '0' && sale?.orderNumber === order.body.publicNumber && sale.amount === payout &&
+      st.rows[0].refType === 'payout_hold' && st.rows[0].amount === '-50000' && st.closing === wallet.balance &&
+      st.sales.count === 1 && st.sales.payout === payout,
+    JSON.stringify({ closing: st.closing, balance: wallet.balance, rows: st.rows?.map((r) => [r.refType, r.amount, r.balance]) }),
+  );
+
+  const file = async (path, token, lang = 'ru') => {
+    const res = await fetch(`${API}/api${path}`, { headers: { Authorization: `Bearer ${token}`, 'Accept-Language': lang } });
+    // text() срезал бы BOM — читаем байты как есть.
+    const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(await res.arrayBuffer());
+    return { status: res.status, type: res.headers.get('content-type'), disp: res.headers.get('content-disposition'), text };
+  };
+  const csv = await file('/reports/statement.csv', seller.token);
+  check(
+    'Выписка файлом: Excel-CSV с BOM и «;», операция и заказ, остатки внизу',
+    csv.status === 200 && /^text\/csv/.test(csv.type) && /attachment; filename="gamemarket-statement-/.test(csv.disp) &&
+      csv.text.startsWith('\uFEFFДата (МСК);Операция;Заказ;Приход;Расход;Остаток') &&
+      csv.text.includes(`Зачисление за продажу;${order.body.publicNumber};`) && csv.text.includes('Остаток на конец'),
+    csv.text.slice(0, 300),
+  );
+  const en = await file('/reports/statement.csv', seller.token, 'en');
+  check('По-английски — заголовки и «,»', en.text.startsWith('\uFEFFDate (Moscow time),Transaction,Order,In,Out,Balance') && en.text.includes('Sale proceeds'), en.text.slice(0, 120));
+  const sales = await file('/reports/sales.csv', seller.token);
+  const amount = (minor) => `${BigInt(minor) / 100n},${String(BigInt(minor) % 100n).padStart(2, '0')}`;
+  check(
+    'Продажи файлом: заказ, лот, покупатель, суммы; итог',
+    sales.text.includes(`${order.body.publicNumber};E2E accounts;rpb${rnd};1;${amount(order.body.amount)};`) &&
+      sales.text.includes(`Итого;1;;;;${amount(order.body.amount)};`),
+    sales.text.slice(0, 400),
+  );
+  const old = (await j('/reports/statement?from=2020-01-01&to=2020-01-31', { token: seller.token })).body;
+  const bad = await j('/reports/statement?from=21.10.2026', { token: seller.token });
+  check('Прошлый период — пусто; неверная дата — 400', old.rows?.length === 0 && old.closing === '0' && bad.status === 400, JSON.stringify({ rows: old.rows?.length, bad: bad.status }));
+
+  const denied = await j('/reports/platform', { token: seller.token });
+  const sum = (await j('/reports/platform?days=7', { token: fin.token })).body;
+  const dailyGmv = (sum.daily ?? []).reduce((a, d) => a + BigInt(d.gmv), 0n);
+  check(
+    'Сводка — только финансам; оборот по дням сходится с итогом, сделка в нём есть',
+    denied.status === 403 && sum.daily?.length === 7 && dailyGmv === BigInt(sum.gmv) &&
+      BigInt(sum.gmv) >= BigInt(order.body.amount) && sum.orders.completed >= 1 && BigInt(sum.revenue) > 0n &&
+      sum.payouts.pendingCount >= 1,
+    JSON.stringify({ denied: denied.status, gmv: sum.gmv, revenue: sum.revenue, days: sum.daily?.length, orders: sum.orders }),
+  );
+  const pcsv = await file('/reports/platform.csv?days=7', fin.token);
+  check('Сводка файлом', pcsv.status === 200 && pcsv.text.startsWith('\uFEFFДень;Сделок завершено;Оборот;Доход площадки'), pcsv.text.slice(0, 120));
+}
+
+/**
  * Защита перед запуском: заголовки, CORS только для сайта, лимит запросов
  * с адреса. Адрес покупателя приходит в X-Forwarded-For — API верит ему
  * от локального прокси, как за ingress.
@@ -1256,6 +1328,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);
   await scenarioSellerTools(rnd);
+  await scenarioReports(rnd);
   await scenarioTwoFactor(rnd);
   await scenarioPush(rnd);
   await scenarioFiles(rnd);

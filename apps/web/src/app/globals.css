@@ -20,6 +20,8 @@
   --danger-bg: #fdecec;
   --warning: #8a5a00;
   --warning-bg: #fcf3e1;
+  /* Данные: столбцы графиков (проверено на контраст с фоном карточки). */
+  --data-violet: #6355e6;
   --focus-ring: 0 0 0 3px rgba(34, 90, 234, 0.35);
   --shadow: 0 1px 3px rgba(14, 17, 22, 0.08);
   --shadow-hover: 0 4px 12px rgba(14, 17, 22, 0.08);
@@ -49,6 +51,7 @@
   --danger-bg: rgba(255, 107, 122, 0.12);
   --warning: #ffb43d;
   --warning-bg: rgba(255, 180, 61, 0.12);
+  --data-violet: #7c70f0;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5);
   --header-bg: rgba(18, 19, 23, 0.86);
@@ -72,6 +75,7 @@
     --danger-bg: rgba(255, 107, 122, 0.12);
     --warning: #ffb43d;
     --warning-bg: rgba(255, 180, 61, 0.12);
+  --data-violet: #7c70f0;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
     --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5);
     --header-bg: rgba(18, 19, 23, 0.86);
@@ -3665,4 +3669,266 @@ a.my-lot-title:hover {
 }
 .bubble-auto {
   font-style: italic;
+}
+
+/* Выписка по балансу: период, итоги, файлы для Excel, операции. */
+.statement {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+.statement-periods,
+.statement-files {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.statement-periods .chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.statement-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+.statement-totals dt {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.statement-totals dd {
+  margin: 2px 0 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.statement-rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.statement-rows li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.statement-op {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.statement-op .faint {
+  font-size: 12px;
+}
+.statement-order {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: inherit;
+}
+.statement-order:hover {
+  color: var(--accent);
+}
+.statement-sum {
+  flex: none;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.statement-sum.plus {
+  color: var(--success);
+}
+
+/* Сводка площадки: главное число, график по дням, плитки, деньги. */
+.stats {
+  display: grid;
+  gap: 16px;
+}
+.stats .chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.stats-hero {
+  display: grid;
+  gap: 6px;
+  padding: 24px;
+}
+.stats-label {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.stats-hero-value {
+  font-size: clamp(36px, 8vw, 52px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  font-variant-numeric: proportional-nums;
+}
+.stats-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.stats-tile {
+  padding: 16px;
+}
+.stats-value {
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 18px;
+  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.stats-money {
+  display: grid;
+  gap: 12px;
+  padding: 20px 24px;
+}
+.stats-money dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 24px;
+  margin: 0;
+}
+.stats-money dt {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.stats-money dd {
+  margin: 2px 0 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 17px;
+  font-weight: 600;
+}
+.stats-table summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.stats-table table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.stats-table th,
+.stats-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+.stats-table th:first-child,
+.stats-table td:first-child {
+  text-align: left;
+}
+.stats-table th {
+  font-weight: 500;
+  color: var(--fg-faint);
+}
+
+/* График по дням: столбцы до 24px, скруглённый верх, зазор 2px, ось — волосок. */
+.daily-chart {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+.daily-scale {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 140px;
+  font-size: 11px;
+  color: var(--fg-faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.daily-plot {
+  position: relative;
+  min-width: 0;
+}
+.daily-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 140px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.daily-slot {
+  display: flex;
+  flex: 1 1 0;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+}
+.daily-slot:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 4px;
+}
+.daily-bar {
+  width: 100%;
+  max-width: 24px;
+  border-radius: 4px 4px 0 0;
+  background: var(--data-violet);
+  transition: opacity 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.daily-bars:hover .daily-bar {
+  opacity: 0.55;
+}
+.daily-bars .daily-slot:hover .daily-bar,
+.daily-bars .daily-slot:focus-visible .daily-bar {
+  opacity: 1;
+}
+.daily-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--fg-faint);
+}
+.daily-tip {
+  position: absolute;
+  top: -8px;
+  display: grid;
+  gap: 2px;
+  min-width: 150px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  box-shadow: var(--shadow-hover);
+  font-size: 12px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+.daily-tip b {
+  color: var(--fg);
+}
+@media (max-width: 560px) {
+  /* На телефоне плитки — по две в ряд, а не лентой на два экрана. */
+  .stats-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .stats-value {
+    font-size: 16px;
+  }
+  .stats-hero,
+  .stats-money {
+    padding: 18px;
+  }
 }
