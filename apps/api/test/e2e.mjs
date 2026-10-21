@@ -1641,6 +1641,55 @@ async function scenarioHonestSale(rnd) {
   );
 }
 
+async function scenarioPriceLow(rnd) {
+  console.log('\n— Минимум за 30 дней —');
+  const seller = await register('pls', rnd);
+  const as = { token: seller.token };
+  const lot = await createListing(seller.token, 'accounts', '100000', { title: `Минимум ${rnd}` });
+  const setPrice = (price) => j(`/listings/${lot}`, { method: 'PATCH', ...as, body: JSON.stringify({ price }) });
+  const low = async () => (await j(`/listings/${lot}`)).body.priceLowUntil ?? null;
+  const dropped = async () =>
+    (await j(`/listings?sellerId=${seller.id}&drop=1`)).body.items?.map((x) => x.id) ?? [];
+
+  await setPrice('98000'); // −2% — мало для отметки
+  const small = await low();
+  await setPrice('90000'); // −8% от 980 ₽
+  const marked = await low();
+  const inFilter = await dropped();
+  await setPrice('88000'); // снижение следом — меньше 5%, но ниже прежних
+  const chained = await low();
+  const days30 = marked ? new Date(marked).getTime() - Date.now() - 30 * 86_400_000 : NaN;
+  check(
+    'Снизили на 2% — без отметки; ещё на 8% — «минимум за 30 дней» на 30 дней и фильтр «Цена снижена»; снизили следом — держится',
+    small === null && Math.abs(days30) < 600_000 && inFilter.includes(lot) && !!chained && chained >= marked,
+    JSON.stringify({ small, marked, inFilter, chained }),
+  );
+
+  await setPrice('100000');
+  const raised = await low();
+  await setPrice('88000'); // вернули прежнюю: она не ниже самой себя
+  const back = await low();
+  const outFilter = await dropped();
+  check(
+    'Подняли — отметка снята; подъём и возврат прежней цены отметки не дают, в фильтре лота нет',
+    raised === null && back === null && !outFilter.includes(lot),
+    JSON.stringify({ raised, back, outFilter }),
+  );
+
+  // Скидка — в фильтре со своей пометкой; её завершение отметку не оставляет.
+  const sale = await j(`/listings/${lot}/sale`, { method: 'POST', ...as, body: JSON.stringify({ percent: 20, days: 3 }) });
+  const onSale = await dropped();
+  await j(`/listings/${lot}/sale`, { method: 'DELETE', ...as });
+  const ended = (await j(`/listings/${lot}`)).body;
+  const afterSale = await dropped();
+  check(
+    'Скидка — лот в фильтре «Цена снижена»; скидку завершили — цена вернулась, отметки и фильтра нет',
+    sale.status === 201 && onSale.includes(lot) && ended.price === '88000' && ended.priceLowUntil == null &&
+      !afterSale.includes(lot),
+    JSON.stringify({ sale: sale.status, onSale, ended: [ended.price, ended.priceLowUntil], afterSale }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2114,6 +2163,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioBulkPrice(rnd);
   await scenarioPriceHistory(rnd);
   await scenarioHonestSale(rnd);
+  await scenarioPriceLow(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

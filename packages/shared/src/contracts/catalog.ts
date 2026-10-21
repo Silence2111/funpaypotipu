@@ -81,6 +81,8 @@ export const listingQuerySchema = z.object({
   // «false» в true, и ?instant=false включал фильтр.
   instant: z.preprocess((v) => v === '1' || v === 'true' || v === true, z.boolean()).optional(), // только мгновенная выдача
   online: z.preprocess((v) => v === '1' || v === 'true' || v === true, z.boolean()).optional(), // продавец был на сайте 5 минут назад
+  // «Цена снижена»: идёт скидка или цена — самая низкая у лота за 30 дней.
+  drop: z.preprocess((v) => v === '1' || v === 'true' || v === true, z.boolean()).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(60).default(24),
 });

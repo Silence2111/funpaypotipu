@@ -79,6 +79,8 @@ export interface ListingCard {
   /** От чего скидка показывается: самая низкая цена за неделю до неё. */
   saleRefPrice?: string | null;
   saleUntil?: string | null;
+  /** «Минимум за 30 дней» до этого времени — показывать ли, решает isPriceLow. */
+  priceLowUntil?: string | null;
   /** Параметры раздела: звание, регион, сервер; «да/нет» — булевы. */
   attributes?: Record<string, unknown>;
   seller: { id?: string; profile: SellerBrief | null };
@@ -250,6 +252,8 @@ export function browseListings(params: {
   instant?: boolean;
   /** Только продавцы онлайн (последние 5 минут). */
   online?: boolean;
+  /** «Цена снижена»: идёт скидка или цена — самая низкая за 30 дней. */
+  drop?: boolean;
   /** «Цена до», в копейках — из сохранённого поиска. */
   maxPrice?: number;
   limit?: number;

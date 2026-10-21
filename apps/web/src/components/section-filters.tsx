@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, TrendingDown, X } from 'lucide-react';
+import { PRICE_LOW_DAYS } from '@gamemarket/shared/price-history';
 import type { Attribute } from '@/lib/api';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
@@ -17,7 +18,7 @@ const SORTS: Array<[string, string]> = [
 
 /**
  * Фильтры раздела: параметры (звание, регион, сервер), «продавец в сети»,
- * поиск по предложениям и сортировка. Всё живёт в адресе страницы: ссылкой
+ * «цена снижена», поиск по предложениям и сортировка. Всё живёт в адресе страницы: ссылкой
  * с фильтрами можно поделиться, «назад» в браузере возвращает прежний вид.
  *
  * На телефоне параметры — в шторке за кнопкой «Фильтры» со счётчиком: в
@@ -30,7 +31,7 @@ export function SectionFilters({
   maxLabel,
 }: {
   attributes: Attribute[];
-  /** Текущие параметры адреса: f_<ключ>, online, q, max, sort. */
+  /** Текущие параметры адреса: f_<ключ>, online, drop, q, max, sort. */
   values: Record<string, string | undefined>;
   /** Сортировка раздела без параметра в адресе: у валюты — сначала дешёвые. */
   defaultSort?: string;
@@ -63,6 +64,7 @@ export function SectionFilters({
   const chosen =
     Object.keys(values).filter((k) => k.startsWith('f_') && values[k]).length +
     (values.online === '1' ? 1 : 0) +
+    (values.drop === '1' ? 1 : 0) +
     (values.max ? 1 : 0);
   const active = chosen > 0 || !!values.q;
 
@@ -110,6 +112,16 @@ export function SectionFilters({
       >
         <span className="dot-online" aria-hidden />
         {t('Продавец в сети')}
+      </button>
+      <button
+        type="button"
+        className="chip"
+        aria-pressed={values.drop === '1'}
+        title={t('Идёт скидка или цена — самая низкая у лота за {n} дней', { n: PRICE_LOW_DAYS })}
+        onClick={() => go({ drop: values.drop === '1' ? undefined : '1' })}
+      >
+        <TrendingDown size={14} strokeWidth={1.75} aria-hidden />
+        {t('Цена снижена')}
       </button>
       {values.max && maxLabel && (
         <button

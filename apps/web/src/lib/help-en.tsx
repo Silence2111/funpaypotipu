@@ -9,6 +9,8 @@ import {
   bumpCooldownHours,
   DISPUTE_RESPONSE_HOURS,
   PRICE_DROP_MIN_PCT,
+  PRICE_LOW_DAYS,
+  PRICE_LOW_MIN_PCT,
   SALE_MAX_PCT,
   SALE_REF_DAYS,
   SALE_MIN_PCT,
@@ -84,6 +86,9 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
         <li>
           <b>Choose an offer.</b> Each row shows the seller: rating, number of reviews and whether
           they are online. Ask a question before buying with “Message the seller” right on the
+          listing page. A “{PRICE_LOW_DAYS}-day low” mark by the price means the listing is cheaper
+          now than at any time in the last {PRICE_LOW_DAYS} days; the “Price dropped” filter shows
+          such listings and listings on sale. How the price changed is in “Price history” on the
           listing page.
         </li>
         <li>
@@ -250,6 +255,12 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           by itself. The discount is honest: the crossed-out price is the lowest one in the{' '}
           {SALE_REF_DAYS} days before it — raising the price the day before and “cutting” it won’t
           work.
+        </li>
+        <li>
+          Cut the price by at least {PRICE_LOW_MIN_PCT}% below its lowest in {PRICE_LOW_DAYS} days,
+          and for {PRICE_LOW_DAYS} days the listing gets a “{PRICE_LOW_DAYS}-day low” mark and shows
+          up in the “Price dropped” filter. Cut it again and the mark is extended; raise it and the
+          mark goes. Raising the price for a day and bringing it back won’t earn the mark.
         </li>
         <li>
           Promo codes — in “Tools”: your own code with a {SELLER_PROMO_MIN_PCT}–

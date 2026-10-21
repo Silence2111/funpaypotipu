@@ -7,7 +7,7 @@ import { SectionFilters } from './section-filters';
 import { SaveSearch } from './save-search';
 import { JsonLd, breadcrumbLd } from './json-ld';
 
-/** Параметры адреса раздела: f_<ключ>, online, q, max (цена до, ₽), sort, page. */
+/** Параметры адреса раздела: f_<ключ>, online, drop, q, max (цена до, ₽), sort, page. */
 export type SectionSearch = Record<string, string | undefined>;
 
 const PAGE_SIZE = 50;
@@ -53,6 +53,7 @@ export async function SectionView({
   const sort = SORTS.includes(sp.sort ?? '') ? sp.sort! : defaultSort;
   if (sort !== defaultSort) values.sort = sort;
   if (sp.online === '1') values.online = '1';
+  if (sp.drop === '1') values.drop = '1';
   const q = sp.q?.trim().slice(0, 100);
   if (q) values.q = q;
   // «Цена до» — из сохранённого поиска: ссылка из уведомления показывает
@@ -68,6 +69,7 @@ export async function SectionView({
     sort,
     attrs: Object.keys(attrs).length ? JSON.stringify(attrs) : undefined,
     online: values.online === '1',
+    drop: values.drop === '1',
     maxPrice: maxRub ? maxRub * 100 : undefined,
     limit: PAGE_SIZE,
     page,

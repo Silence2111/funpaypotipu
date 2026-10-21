@@ -4087,6 +4087,20 @@ a.my-lot-title:hover {
 .offer-price .sale-mark {
   justify-content: flex-end;
 }
+/* «Минимум за 30 дней»: тихая строка под ценой — без плашки, её место у скидки. */
+.price-low {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--success);
+  white-space: nowrap;
+}
+.offer-price .price-low {
+  font-size: 12px;
+}
 /* Промокоды продавца: код — моноширинным, форма — код и процент в строку. */
 .promo-code {
   margin-right: 6px;

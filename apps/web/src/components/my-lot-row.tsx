@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Copy, Pencil, Percent, Trash2, TrendingUp } from 'lucide-react';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { isPriceLow } from '@gamemarket/shared/price-history';
 import {
   currencySymbol,
   formatListingPrice,
@@ -20,6 +21,7 @@ import { BumpButton } from './bump-button';
 import { PromotePanel } from './promote-panel';
 import { SalePanel } from './sale-panel';
 import { SaleMark } from './sale-mark';
+import { PriceLowMark } from './price-low-mark';
 
 /** Свой лот — строка ответа `GET /listings/mine`. */
 export interface MyLot {
@@ -37,6 +39,8 @@ export interface MyLot {
   /** От чего скидку видят покупатели — самая низкая цена за неделю до неё. */
   saleRefPrice?: string | null;
   saleUntil?: string | null;
+  /** «Минимум за 30 дней» до этого времени. */
+  priceLowUntil?: string | null;
   topupMarkupBps?: number | null;
   fulfillmentType?: string;
   unitName?: string | null;
@@ -369,6 +373,8 @@ function PriceCell({
       ) : (
         pack && <span className="my-lot-pack">{pack}</span>
       )}
+      {/* Продавцу — что покупатели видят отметку у его лота. */}
+      {draft === null && isPriceLow(lot, Date.now()) && <PriceLowMark t={t} />}
     </div>
   );
 }

@@ -12,12 +12,14 @@ import {
   type Attribute,
 } from '@/lib/api';
 import { PriceHistory } from '@/components/price-history';
+import { isPriceLow } from '@gamemarket/shared/price-history';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { BuyButton } from '@/components/buy-button';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ViewBeacon } from '@/components/view-beacon';
 import { SaleMark } from '@/components/sale-mark';
+import { PriceLowMark } from '@/components/price-low-mark';
 import { isDemoSeller, markupLabel, qtyTiers, soldByQty, topupQuote } from '@gamemarket/shared';
 import { JsonLd, breadcrumbLd } from '@/components/json-ld';
 import { KeysManager } from '@/components/keys-manager';
@@ -260,6 +262,11 @@ export default async function ListingPage({
                   until={listing.saleUntil}
                   t={t}
                 />
+              </div>
+            )}
+            {isPriceLow(listing, Date.now()) && (
+              <div style={{ margin: pack ? '0 0 12px' : '-8px 0 16px' }}>
+                <PriceLowMark t={t} />
               </div>
             )}
             {topup && (

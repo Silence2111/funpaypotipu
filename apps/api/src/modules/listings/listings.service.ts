@@ -85,6 +85,8 @@ const cardSelect = {
   saleListPrice: true,
   saleRefPrice: true,
   saleUntil: true,
+  // «Минимум за 30 дней» — до этого времени (shared/price-history.ts).
+  priceLowUntil: true,
   fulfillmentType: true,
   // Лот «на сумму покупателя»: карточка пишет «от», страница лота — форму суммы.
   topupMarkupBps: true,
@@ -243,7 +245,7 @@ export class ListingsService {
     const attrs = this.parseAttrs(query.attrs);
     // Текстовый запрос + доступный движок → релевантный поиск с typo-tolerance.
     // При фильтре по продавцу/атрибутам идём в Postgres (в Meili они не индексируются).
-    if (query.q && this.search.enabled && !query.sellerId && !attrs && !query.instant && !query.online && !query.segment) {
+    if (query.q && this.search.enabled && !query.sellerId && !attrs && !query.instant && !query.online && !query.segment && !query.drop) {
       const found = await this.search.searchIds(
         query.q,
         {
@@ -288,6 +290,12 @@ export class ListingsService {
       where,
       listingFilters({ attrs, q: query.q, minPrice: query.minPrice, maxPrice: query.maxPrice }),
     );
+    // «Цена снижена»: идёт скидка или цена — самая низкая за 30 дней.
+    if (query.drop) {
+      const now = new Date();
+      const and = where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : [];
+      where.AND = [...and, { OR: [{ saleUntil: { gt: now } }, { priceLowUntil: { gt: now } }] }];
+    }
 
     // По умолчанию поднятые лоты (boostUntil) держатся выше — как «поднятие» на FunPay.
     const orderBy: Prisma.ListingOrderByWithRelationInput[] =

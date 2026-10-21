@@ -35,7 +35,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const t = await getT();
   if (sp.game && sp.category && !sp.q) {
     const rest = new URLSearchParams();
-    for (const [k, v] of Object.entries(sp)) if (v && (k.startsWith('f_') || k === 'online' || k === 'sort')) rest.set(k, v);
+    for (const [k, v] of Object.entries(sp)) if (v && (k.startsWith('f_') || k === 'online' || k === 'drop' || k === 'sort')) rest.set(k, v);
     const s = rest.toString();
     redirect(`/igra/${encodeURIComponent(sp.game)}/${encodeURIComponent(sp.category)}${s ? `?${s}` : ''}`);
   }

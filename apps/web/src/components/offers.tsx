@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { Star, Zap } from 'lucide-react';
 import { isDemoSeller, qtyTiers } from '@gamemarket/shared';
+import { isPriceLow } from '@gamemarket/shared/price-history';
 import type { Attribute, ListingCard, SellerBrief } from '@/lib/api';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { SaleMark } from './sale-mark';
+import { PriceLowMark } from './price-low-mark';
 import { isOnline } from '@/lib/presence';
 import { RU, type T } from '@/lib/i18n/lang';
 import { ApproxPrice } from './approx-price';
@@ -200,6 +202,7 @@ function OfferRow({
           currency={l.currency}
           t={t}
         />
+        {isPriceLow(l, Date.now()) && <PriceLowMark t={t} />}
         {pack ? (
           <span className="faint">{pack}</span>
         ) : (
