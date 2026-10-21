@@ -152,4 +152,44 @@ export const CABINET: Record<string, string> = {
   'Попробовать снова': 'Try again',
   'Номер карты принимает ЮKassa — площадка его не видит и не хранит.':
     'YooKassa takes the card number — the marketplace never sees or stores it.',
+  '{m} мин': '{m} min',
+  '{h} ч {m} мин': '{h} h {m} min',
+  '{h} ч': '{h} h',
+  'Не удалось загрузить настройки.': 'Couldn’t load the settings.',
+  'Автоподнятие выключено.': 'Auto-raise is off.',
+  'Автоподнятие включено.': 'Auto-raise is on.',
+  'Не удалось сохранить.': 'Couldn’t save.',
+  'Приветствие сохранено.': 'Greeting saved.',
+  'Приветствие выключено.': 'Greeting turned off.',
+  'Заготовка изменена.': 'Template updated.',
+  'Заготовка добавлена.': 'Template added.',
+  'Не удалось сохранить заготовку.': 'Couldn’t save the template.',
+  'Заготовка удалена.': 'Template deleted.',
+  'Не удалось удалить заготовку.': 'Couldn’t delete the template.',
+  'Автоподнятие, приветствие и заготовки ответов — без сторонних ботов с доступом к аккаунту.':
+    'Auto-raise, a greeting and reply templates — no third-party bots with access to your account.',
+  Автоподнятие: 'Auto-raise',
+  'Поднимать лоты автоматически': 'Raise listings automatically',
+  Включено: 'On',
+  Выключено: 'Off',
+  'Лоты поднимаются сами, как только проходит пауза между поднятиями. У вас она {h} ч — с ростом продаж короче.':
+    'Listings are raised on their own as soon as the pause between raises is over. Yours is {h} h, and it gets shorter as your sales grow.',
+  'Активных лотов нет — поднимать нечего.': 'No active listings, so there’s nothing to raise.',
+  'Следующее поднятие — через {time}.': 'Next raise in {time}.',
+  'Лоты поднимутся в ближайшие минуты.': 'Your listings will be raised within minutes.',
+  Приветствие: 'Greeting',
+  'Уходит покупателю на первое сообщение в новом диалоге до покупки — с пометкой «автоответ». Контакты скрываются, как в чате.':
+    'Sent to a buyer in reply to their first message in a new pre-purchase chat, marked as an auto-reply. Contacts are hidden, as in chat.',
+  'Текст приветствия': 'Greeting text',
+  'Здравствуйте. Отвечаю в течение часа, товар в наличии.':
+    'Hello. I reply within an hour, and the item is in stock.',
+  'Открываются кнопкой в поле сообщения и вставляются в него. {token} заменится на ник собеседника.':
+    'They open from a button in the message field and go into it. {token} becomes the other person’s username.',
+  'Название заготовки': 'Template name',
+  'Название, например «После оплаты»': 'A name, for example “After payment”',
+  'Текст заготовки': 'Template text',
+  '{token}, спасибо за покупку. Данные для входа — выше в чате.':
+    '{token}, thanks for your purchase. The login details are above in the chat.',
+  'Сохранить заготовку': 'Save template',
+  'Добавить заготовку': 'Add template',
 };

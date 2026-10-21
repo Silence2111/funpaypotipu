@@ -30,6 +30,8 @@ export interface ChatMessageDto {
   createdAt: Date;
   /** Когда собеседник прочитал; null — ещё нет. */
   readAt?: Date | null;
+  /** Автоответ продавца (приветствие) — сайт подписывает его. */
+  auto?: boolean;
 }
 
 /** Новое сообщение: в комнату диалога и в личные комнаты участников (список диалогов). */
@@ -351,6 +353,7 @@ export class ChatService {
             : undefined,
         createdAt: m.createdAt,
         readAt: m.readAt,
+        auto: m.auto,
       })),
     );
   }
@@ -406,7 +409,56 @@ export class ChatService {
       readAt: null,
     };
     this.publish(conversationId, dto, [conv.buyerId, conv.sellerId]);
+    if (!conv.orderId && senderId === conv.buyerId) await this.greet(conv, message.id);
     return dto;
+  }
+
+  /**
+   * Приветствие продавца — автоответ на первое сообщение покупателя в новом
+   * диалоге до сделки, как у бота FunPayCardinal. Один раз: если в диалоге
+   * уже писали, молчит. Подписано «автоответ», чтобы покупатель не принял его
+   * за живой ответ; уведомление не уходит — покупатель и так в чате.
+   */
+  private async greet(conv: { id: string; buyerId: string; sellerId: string }, firstId: string) {
+    const seller = await this.prisma.profile.findUnique({
+      where: { userId: conv.sellerId },
+      select: { greetingText: true },
+    });
+    if (!seller?.greetingText) return;
+    const earlier = await this.prisma.message.count({
+      where: { conversationId: conv.id, senderId: { not: null }, id: { not: firstId } },
+    });
+    if (earlier) return;
+    const { masked, flagged } = maskContacts(seller.greetingText);
+    const message = await this.prisma.message.create({
+      data: {
+        conversationId: conv.id,
+        senderId: conv.sellerId,
+        type: 'text',
+        body: seller.greetingText,
+        bodyMasked: masked,
+        isFlagged: flagged,
+        auto: true,
+      },
+    });
+    await this.prisma.conversation.update({
+      where: { id: conv.id },
+      data: { lastMessageAt: message.createdAt },
+    });
+    this.publish(
+      conv.id,
+      {
+        id: message.id,
+        conversationId: conv.id,
+        senderId: conv.sellerId,
+        body: masked,
+        isFlagged: flagged,
+        createdAt: message.createdAt,
+        readAt: null,
+        auto: true,
+      },
+      [conv.buyerId, conv.sellerId],
+    );
   }
 
   /**

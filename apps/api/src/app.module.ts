@@ -37,6 +37,7 @@ import { RankingModule } from './modules/ranking/ranking.module';
 import { TopupModule } from './modules/topup/topup.module';
 import { AccountModule } from './modules/account/account.module';
 import { SupportModule } from './modules/support/support.module';
+import { SellerToolsModule } from './modules/seller-tools/seller-tools.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { SupportModule } from './modules/support/support.module';
     SellersModule,
     AccountModule,
     SupportModule,
+    SellerToolsModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: PresenceInterceptor },

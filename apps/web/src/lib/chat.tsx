@@ -29,6 +29,8 @@ export interface ChatMsg {
   attachments?: Array<{ url: string; mime: string }>;
   createdAt: string;
   readAt?: string | null;
+  /** Автоответ продавца (приветствие) — подписывается в пузыре. */
+  auto?: boolean;
 }
 
 const Ctx = createContext<{ socket: Socket | null; shared: boolean }>({ socket: null, shared: false });

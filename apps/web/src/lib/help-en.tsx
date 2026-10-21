@@ -191,6 +191,11 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           from 50 — once every {hours(bumpCooldownHours(50))}.
         </li>
         <li>
+          <Link href="/cabinet/tools">“Tools”</Link> in your account: auto-raise raises listings as
+          soon as the pause is over; a greeting for new buyers, marked as an auto-reply; reply
+          templates for chat. No third-party bots with access to your account.
+        </li>
+        <li>
           Promotion — {formatPrice(c.promoDay, 'RUB', t)} per day, packages of{' '}
           {listEn(PROMO_DAYS.map(String))} days, paid from your balance. Buyers see a “promoted”
           label.

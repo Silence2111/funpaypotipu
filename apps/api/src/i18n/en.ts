@@ -201,6 +201,16 @@ export const EN_API: Phrasebook = {
     'The card is stored with YooKassa, so only YooKassa can pay this request. Turn on YooKassa payouts or reject the request',
   'Эту выплату отправляет ЮKassa — реквизиты у неё':
     'YooKassa sends this payout and holds its details',
+
+  // Инструменты продавца
+  'Приветствие — до 1000 символов': 'The greeting can be up to 1000 characters',
+  'Назовите заготовку': 'Give the template a name',
+  'Название — до 60 символов': 'The name can be up to 60 characters',
+  'Текст заготовки пустой': 'The template text is empty',
+  'Заготовка — до 2000 символов': 'A template can be up to 2000 characters',
+  'Не больше {n} заготовок — удалите ненужные':
+    'No more than {n} templates — delete the ones you don’t need',
+  'Заготовка не найдена': 'Template not found',
   'Недостаточно средств на балансе': 'Insufficient balance',
   'Неизвестный способ вывода': 'Unknown withdrawal method',
   'Минимальная сумма вывода для «{method}» — {sum} ₽':

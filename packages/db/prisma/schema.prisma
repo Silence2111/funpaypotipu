@@ -221,6 +221,7 @@ model User {
   messages       Message[]
   notifications  Notification[]
   pushSubscriptions PushSubscription[]
+  replyTemplates ReplyTemplate[]
   favorites      Favorite[]
   roles          UserRole[]
   riskSignals    RiskSignal[]
@@ -241,6 +242,10 @@ model Profile {
   onlineAt    DateTime? @map("online_at")
   // «Отпуск»: продавец снял лоты разом и вернёт их одной кнопкой. null — работает.
   awaySince   DateTime? @map("away_since")
+  // Инструменты продавца: приветствие покупателю в новом диалоге (null —
+  // выключено) и автоподнятие лотов, как только проходит пауза.
+  greetingText String?  @map("greeting_text")
+  autoRaise    Boolean  @default(false) @map("auto_raise")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -666,6 +671,9 @@ model Message {
   body           String
   bodyMasked     String?     @map("body_masked")
   isFlagged      Boolean     @default(false) @map("is_flagged")
+  // Автоответ продавца (приветствие): сайт помечает его, чтобы покупатель не
+  // принял за живой ответ.
+  auto           Boolean     @default(false)
   readAt         DateTime?   @map("read_at")
   createdAt      DateTime    @default(now()) @map("created_at")
 
@@ -882,6 +890,21 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+/// Заготовка ответа для чата: вставляется в поле сообщения, {имя} — ник собеседника.
+model ReplyTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  title     String   @db.VarChar(60)
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("reply_templates")
 }
 
 model Favorite {

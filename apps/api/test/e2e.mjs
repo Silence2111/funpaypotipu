@@ -901,6 +901,78 @@ async function scenarioPayout(rnd) {
 }
 
 /**
+ * Инструменты продавца: приветствие покупателю в новом диалоге (один раз,
+ * с пометкой и скрытыми контактами), заготовки ответов, автоподнятие —
+ * фоновая задача API (в CI раз в 2 с) поднимает лот сама.
+ */
+async function scenarioSellerTools(rnd) {
+  console.log('\n— Инструменты продавца —');
+  const seller = await register('sts', rnd);
+  const buyer = await register('stb', rnd);
+  const other = await register('sto', rnd);
+  const lot = await createListing(seller.token, 'accounts', '90000');
+
+  const fresh = await j('/seller-tools', { token: seller.token });
+  check(
+    'Настройки по умолчанию: приветствия нет, автоподнятие выключено, пауза 4 ч',
+    fresh.body.greeting === null && fresh.body.autoRaise === false && fresh.body.raise?.everyHours === 4 &&
+      fresh.body.raise.activeLots === 1 && fresh.body.templates.length === 0,
+    JSON.stringify(fresh.body),
+  );
+  await j('/seller-tools/greeting', {
+    method: 'PUT', token: seller.token,
+    body: JSON.stringify({ text: 'Здравствуйте. Пишите в телеграм @seller_tg' }),
+  });
+  const ask = (text) =>
+    j(`/conversations/for-listing/${lot}`, { method: 'POST', token: buyer.token, body: JSON.stringify({ body: text }) });
+  const first = await ask('Аккаунт ещё есть?');
+  await ask('Ау');
+  const msgs = (await j(`/conversations/${first.body.id}/messages`, { token: buyer.token })).body;
+  const auto = msgs.filter((m) => m.auto);
+  check(
+    'Приветствие: ответ продавца на первое сообщение, один раз, «автоответ», контакт скрыт',
+    auto.length === 1 && auto[0].senderId === seller.id && !auto[0].body.includes('@seller_tg') &&
+      msgs.indexOf(auto[0]) === msgs.findIndex((m) => m.body === 'Аккаунт ещё есть?') + 1,
+    JSON.stringify(msgs.map((m) => [m.senderId === seller.id ? 'seller' : m.senderId ? 'buyer' : 'system', m.auto, m.body])),
+  );
+
+  const empty = await j('/seller-tools/templates', { method: 'POST', token: seller.token, body: JSON.stringify({ title: ' ', body: 'x' }) });
+  const tpl = await j('/seller-tools/templates', {
+    method: 'POST', token: seller.token,
+    body: JSON.stringify({ title: 'После оплаты', body: '{имя}, спасибо за покупку' }),
+  });
+  const foreign = await j(`/seller-tools/templates/${tpl.body.id}`, {
+    method: 'PUT', token: other.token, body: JSON.stringify({ title: 'чужая', body: 'чужая' }),
+  });
+  const list = (await j('/seller-tools/templates', { token: seller.token })).body;
+  check(
+    'Заготовки: пустое название — 400, чужую не изменить — 404, в списке своя',
+    empty.status === 400 && foreign.status === 404 && list.length === 1 && list[0].title === 'После оплаты',
+    JSON.stringify({ empty: empty.status, foreign: foreign.status, list }),
+  );
+  const del = await j(`/seller-tools/templates/${tpl.body.id}`, { method: 'DELETE', token: seller.token });
+  check('Заготовка удаляется', del.status === 200 && (await j('/seller-tools/templates', { token: seller.token })).body.length === 0);
+
+  // Лот поднимали 5 часов назад — пауза новичка (4 ч) прошла.
+  const old = new Date(Date.now() - 5 * 3600_000 + 24 * 3600_000);
+  await prisma.listing.update({ where: { id: lot }, data: { boostUntil: old } });
+  const on = await j('/seller-tools/auto-raise', { method: 'PUT', token: seller.token, body: JSON.stringify({ on: true }) });
+  let raised = null;
+  for (let i = 0; i < 20 && !raised; i++) {
+    await wait(500);
+    const l = await prisma.listing.findUnique({ where: { id: lot }, select: { boostUntil: true } });
+    if (l.boostUntil > old) raised = l.boostUntil;
+  }
+  check(
+    'Автоподнятие: лот поднялся сам, как только прошла пауза',
+    on.body.autoRaise === true && raised !== null,
+    JSON.stringify({ on: on.body, raised }),
+  );
+  const status = (await j('/seller-tools', { token: seller.token })).body.raise;
+  check('После поднятия — следующее через ~4 ч', status.nextInMinutes > 230 && status.nextInMinutes <= 240, JSON.stringify(status));
+}
+
+/**
  * Защита перед запуском: заголовки, CORS только для сайта, лимит запросов
  * с адреса. Адрес покупателя приходит в X-Forwarded-For — API верит ему
  * от локального прокси, как за ingress.
@@ -1183,6 +1255,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);
+  await scenarioSellerTools(rnd);
   await scenarioTwoFactor(rnd);
   await scenarioPush(rnd);
   await scenarioFiles(rnd);

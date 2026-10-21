@@ -3,8 +3,10 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type FulfillmentType } from '@gamemarket/db';
 import {
@@ -30,6 +32,8 @@ import { assetUrl } from '../storage/asset-url';
 import { ONLINE_MS } from '../../common/presence';
 
 const BOOST_MS = 24 * 3600 * 1000; // лот держится в топе сутки
+/** Как часто проверять автоподнятие: лот поднимется не позже чем через столько после конца паузы. */
+const AUTO_RAISE_MS = Number(process.env.AUTO_RAISE_INTERVAL_MS ?? 5 * 60_000);
 // Цена суток продвижения, копейки. Решение площадки (ПЛАН.md), не код.
 export const PROMO_DAY_PRICE = BigInt(process.env.PROMO_DAY_PRICE ?? 9_900);
 
@@ -98,6 +102,8 @@ const cardSelect = {
 
 @Injectable()
 export class ListingsService {
+  private readonly logger = new Logger(ListingsService.name);
+
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly search: SearchService,
@@ -405,6 +411,48 @@ export class ListingsService {
     return {
       bumped: ready.length,
       waiting: waits.length,
+      nextInMinutes: waits.length ? Math.ceil(Math.min(...waits) / 60000) : null,
+    };
+  }
+
+  /**
+   * Автоподнятие — то, ради чего продавцы FunPay ставят бота: лоты
+   * поднимаются сами, как только проходит пауза. Пауза та же, что у кнопки,
+   * по заслугам, — автоподнятие избавляет только от нажатия каждые 4 часа.
+   * В отпуске и у замороженных или заблокированных аккаунтов не поднимает.
+   */
+  @Interval('auto-raise', AUTO_RAISE_MS)
+  async autoRaise() {
+    const sellers = await this.prisma.profile.findMany({
+      where: { autoRaise: true, awaySince: null, user: { status: 'active' } },
+      select: { userId: true },
+    });
+    let bumped = 0;
+    for (const s of sellers) {
+      try {
+        bumped += (await this.bumpAll(s.userId)).bumped;
+      } catch (e) {
+        this.logger.warn(`Автоподнятие ${s.userId}: ${(e as Error).message}`);
+      }
+    }
+    return { sellers: sellers.length, bumped };
+  }
+
+  /** Для настроек автоподнятия: пауза продавца и когда поднимется следующий лот. */
+  async raiseStatus(sellerId: string) {
+    const [listings, profile] = await Promise.all([
+      this.prisma.listing.findMany({
+        where: { sellerId, status: 'active' },
+        select: { boostUntil: true },
+      }),
+      this.prisma.profile.findUnique({ where: { userId: sellerId }, select: { salesCount: true } }),
+    ]);
+    const everyHours = bumpCooldownHours(profile?.salesCount ?? 0);
+    const now = Date.now();
+    const waits = listings.map((l) => bumpWaitMs(l.boostUntil, everyHours * 3600 * 1000, now));
+    return {
+      everyHours,
+      activeLots: listings.length,
       nextInMinutes: waits.length ? Math.ceil(Math.min(...waits) / 60000) : null,
     };
   }

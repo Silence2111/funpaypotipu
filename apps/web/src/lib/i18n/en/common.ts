@@ -97,4 +97,6 @@ export const COMMON: Record<string, string> = {
   'в сети {n} мин назад': 'seen {n} min ago',
   'в сети {n} ч назад': 'seen {n} h ago',
   'в сети {n} дн назад': 'seen {n} d ago',
+  Инструменты: 'Tools',
+  'Инструменты продавца': 'Seller tools',
 };

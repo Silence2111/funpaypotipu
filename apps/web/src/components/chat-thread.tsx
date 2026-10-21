@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Paperclip, SendHorizontal } from 'lucide-react';
+import { ArrowLeft, MessageSquareText, Paperclip, SendHorizontal } from 'lucide-react';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { uploadViaPresignedUrl } from '@/lib/upload';
@@ -21,6 +21,16 @@ import { useT } from '@/lib/i18n/client';
 
 const PAGE = 50;
 const TYPING_MS = 4000;
+
+interface Template {
+  id: string;
+  title: string;
+  body: string;
+}
+
+/** Ник собеседника вместо {имя} или {name} в заготовке. */
+const fillTemplate = (body: string, name: string | undefined) =>
+  name ? body.replace(/\{(имя|name)\}/gi, name) : body; // i18n-ignore
 
 /**
  * Диалог: шапка с собеседником и заказом, сообщения с днями и временем,
@@ -55,6 +65,10 @@ export function ChatThread({
   const stick = useRef(true); // держать прокрутку у последнего сообщения
   const keepFrom = useRef<number | null>(null); // высота до подгрузки истории
   const lastTyping = useRef(0);
+  const input = useRef<HTMLTextAreaElement>(null);
+  // Заготовки ответов: загружаются при первом открытии списка.
+  const [templates, setTemplates] = useState<Template[] | null>(null);
+  const [tplOpen, setTplOpen] = useState(false);
 
   // Сообщение может прийти дважды — ответом на отправку и по сокету.
   const add = useCallback(
@@ -220,6 +234,28 @@ export function ChatThread({
     }
   }
 
+  function openTemplates() {
+    setTplOpen((open) => !open);
+    if (templates === null) {
+      apiFetch<Template[]>('/seller-tools/templates')
+        .then(setTemplates)
+        .catch(() => setTemplates([]));
+    }
+    // В чате заказа шапки нет — ник собеседника для {имя} берём отдельно.
+    if (!info) {
+      apiFetch<ConversationItem>(`/conversations/${conversationId}`)
+        .then(setInfo)
+        .catch(() => {});
+    }
+  }
+
+  function insertTemplate(tp: Template) {
+    const text = fillTemplate(tp.body, info?.counterpart.username);
+    setDraft((d) => (d.trim() ? `${d.replace(/\s+$/, '')}\n${text}` : text));
+    setTplOpen(false);
+    input.current?.focus();
+  }
+
   function onType(value: string) {
     setDraft(value);
     const now = Date.now();
@@ -316,6 +352,7 @@ export function ChatThread({
                     <span className="bubble-text">{m.body}</span>
                   )}
                   <span className="bubble-time">
+                    {m.auto && <span className="bubble-auto">{t('автоответ')} · </span>}
                     {time}
                     {mine && (
                       <span
@@ -340,12 +377,42 @@ export function ChatThread({
           {err}
         </p>
       )}
+      {tplOpen && (
+        <div className="tpl-menu" role="menu" aria-label={t('Заготовки ответов')}>
+          {templates === null ? (
+            <div className="skeleton" style={{ height: 44 }} aria-busy="true" />
+          ) : templates.length === 0 ? (
+            <p className="hint" style={{ margin: 0 }}>{t('Заготовок пока нет.')}</p>
+          ) : (
+            templates.map((tp) => (
+              <button key={tp.id} type="button" role="menuitem" className="tpl-item" onClick={() => insertTemplate(tp)}>
+                <span className="tpl-title">{tp.title}</span>
+                <span className="tpl-body">{tp.body}</span>
+              </button>
+            ))
+          )}
+          <Link href="/cabinet/tools" className="inline-link tpl-manage">
+            {templates?.length ? t('Изменить заготовки') : t('Добавить заготовки')}
+          </Link>
+        </div>
+      )}
       <form className="thread-compose" onSubmit={send}>
         <label className="chip" style={{ cursor: 'pointer' }} aria-label={t('Прикрепить файл')} title={t('Прикрепить файл')}>
           <Paperclip size={16} strokeWidth={1.75} />
           <input type="file" onChange={onFile} style={{ display: 'none' }} />
         </label>
+        <button
+          type="button"
+          className="chip"
+          aria-label={t('Заготовки ответов')}
+          title={t('Заготовки ответов')}
+          aria-expanded={tplOpen}
+          onClick={openTemplates}
+        >
+          <MessageSquareText size={16} strokeWidth={1.75} />
+        </button>
         <textarea
+          ref={input}
           className="input"
           rows={1}
           enterKeyHint="send"
