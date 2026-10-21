@@ -184,6 +184,8 @@ export const EN_SHARED: Phrasebook = {
   'Цену можно указать за 1, 10, 100, 1 000, 10 000, 100 000 или 1 000 000 единиц':
     'Price can be set per 1, 10, 100, 1,000, 10,000, 100,000 or 1,000,000 units',
   'Минимум за заказ — от 1': 'Minimum per order is 1',
+  'Укажите, на сколько процентов изменить цену': 'Enter by how many percent to change the price',
+  'Цену можно изменить от −{min}% до +{max}%': 'The price can be changed from −{min}% to +{max}%',
   'Не больше {n} ступеней скидки': 'No more than {n} discount tiers',
   'Укажите, от какого количества скидка': 'Enter the quantity the discount starts from',
   'Скидка — от количества больше минимума за заказ':

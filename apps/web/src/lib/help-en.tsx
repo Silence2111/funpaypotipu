@@ -262,6 +262,10 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           A similar listing — “Copy” in “My listings” or on the listing page opens the form with the
           same terms and photos, so you only change the differences. Stock items aren’t copied.
         </li>
+        <li>
+          Prices at once — tick listings and tap “Price ±%”: you see the new prices before you
+          apply. Listings with a running discount and top-ups don’t change.
+        </li>
       </ul>
       <p>
         What the marketplace charges and how to lower the fee — see{' '}

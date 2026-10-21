@@ -8,6 +8,7 @@ import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { MyLotRow, type MyLot } from '@/components/my-lot-row';
+import { BulkPricePanel } from '@/components/bulk-price-panel';
 import { useT } from '@/lib/i18n/client';
 import { msg, type T } from '@/lib/i18n/lang';
 
@@ -77,6 +78,8 @@ function MyLots() {
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  // Панель «Цена ±%» над действиями с выбранными лотами.
+  const [pricing, setPricing] = useState(false);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [flash, setFlash] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -387,13 +390,38 @@ function MyLots() {
               </button>
               <button
                 type="button"
+                className="chip"
+                aria-expanded={pricing}
+                disabled={busy}
+                onClick={() => setPricing((p) => !p)}
+              >
+                {t('Цена ±%')}
+              </button>
+              <button
+                type="button"
                 className="icon-btn"
                 aria-label={t('Снять выбор')}
                 title={t('Снять выбор')}
-                onClick={() => setSelected(new Set())}
+                onClick={() => {
+                  setSelected(new Set());
+                  setPricing(false);
+                }}
               >
                 <X size={16} strokeWidth={1.75} />
               </button>
+              {pricing && (
+                <BulkPricePanel
+                  lots={(rows ?? []).filter((l) => selected.has(l.id))}
+                  onClose={() => setPricing(false)}
+                  onDone={(note) => {
+                    setFlash(note);
+                    setErr(null);
+                    setPricing(false);
+                    setSelected(new Set());
+                    void load();
+                  }}
+                />
+              )}
             </div>
           )}
         </>

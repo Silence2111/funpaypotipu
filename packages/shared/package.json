@@ -41,6 +41,10 @@
       "types": "./dist/sale.d.ts",
       "default": "./dist/sale.js"
     },
+    "./reprice": {
+      "types": "./dist/reprice.d.ts",
+      "default": "./dist/reprice.js"
+    },
     "./seller-promo": {
       "types": "./dist/seller-promo.d.ts",
       "default": "./dist/seller-promo.js"

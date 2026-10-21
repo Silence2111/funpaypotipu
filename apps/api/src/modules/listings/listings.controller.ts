@@ -15,6 +15,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { z } from 'zod';
 import {
+  REPRICE_MAX_PCT,
+  REPRICE_MIN_PCT,
   SALE_MAX_DAYS,
   SALE_MAX_PCT,
   SALE_MIN_PCT,
@@ -36,6 +38,15 @@ const bumpAllSchema = z.object({ categoryId: z.string().uuid().optional() });
 const bulkSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(500),
   action: z.enum(['pause', 'activate', 'bump']),
+});
+const bulkPriceSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(500),
+  percent: z
+    .number()
+    .int()
+    .min(REPRICE_MIN_PCT, `Цену можно изменить от −${-REPRICE_MIN_PCT}% до +${REPRICE_MAX_PCT}%`)
+    .max(REPRICE_MAX_PCT, `Цену можно изменить от −${-REPRICE_MIN_PCT}% до +${REPRICE_MAX_PCT}%`)
+    .refine((v) => v !== 0, 'Укажите, на сколько процентов изменить цену'),
 });
 const awaySchema = z.object({ away: z.boolean() });
 const saleSchema = z.object({
@@ -93,6 +104,16 @@ export class ListingsController {
     // Как и у одного лота: снять можно и в заморозке, вернуть в продажу — нет.
     if (body.action === 'activate') await this.account.assertCanTrade(user.userId);
     return this.listings.bulk(user.userId, [...new Set(body.ids)], body.action);
+  }
+
+  /** Цены выбранных лотов разом: дороже или дешевле на столько-то процентов. */
+  @Post('bulk-price')
+  @UseGuards(JwtAuthGuard)
+  bulkPrice(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(bulkPriceSchema)) body: { ids: string[]; percent: number },
+  ) {
+    return this.listings.bulkPrice(user.userId, [...new Set(body.ids)], body.percent);
   }
 
   @Get('away')

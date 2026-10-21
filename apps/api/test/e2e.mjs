@@ -1534,6 +1534,45 @@ async function scenarioFollowFeed(rnd) {
   );
 }
 
+async function scenarioBulkPrice(rnd) {
+  console.log('\n— Цены разом —');
+  const seller = await register('bps', rnd);
+  const other = await register('bpo', rnd);
+  const buyer = await register('bpb', rnd);
+  const a = await createListing(seller.token, 'accounts', '99900', { title: `Цены ${rnd} · A` });
+  const b = await createListing(seller.token, 'accounts', '200000', { title: `Цены ${rnd} · B` });
+  const foreign = await createListing(other.token, 'accounts', '50000', { title: `Цены ${rnd} · чужой` });
+  await j(`/listings/${b}/sale`, { method: 'POST', token: seller.token, body: JSON.stringify({ percent: 20, days: 3 }) });
+  await j('/favorites', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: a }) });
+  const bulk = (body) => j('/listings/bulk-price', { method: 'POST', token: seller.token, body: JSON.stringify(body) });
+  const zero = await bulk({ ids: [a], percent: 0 });
+  const huge = await bulk({ ids: [a], percent: 150 });
+  const up = await bulk({ ids: [a, b, foreign], percent: 7 });
+  const priceOf = async (id) => (await j(`/listings/${id}`)).body.price;
+  const reasons = Object.fromEntries((up.body.skipped ?? []).map((x) => [x.id, x.reason]));
+  check(
+    '+7%: 999 ₽ → 1 069 ₽; лот со скидкой и чужой — пропуск с причиной; 0% и +150% — отказ',
+    zero.status === 400 && huge.status === 400 && up.status === 201 && up.body.done === 1 &&
+      (await priceOf(a)) === '106900' && (await priceOf(b)) === '160000' && (await priceOf(foreign)) === '50000' &&
+      reasons[b] === 'sale' && reasons[foreign] === 'unavailable',
+    JSON.stringify({ zero: zero.status, huge: huge.status, up: up.body, a: await priceOf(a) }),
+  );
+
+  // −20% — у кого лот в избранном, приходит «подешевел» (часть 35): от 999 ₽,
+  // с которыми его добавили, — подорожание точку отсчёта не двигает.
+  const down = await bulk({ ids: [a], percent: -20 });
+  let drop = null;
+  for (let i = 0; i < 20 && !drop; i++) {
+    drop = (await j('/notifications', { token: buyer.token })).body.find((n) => n.type === 'price_drop' && n.payload.listingId === a) ?? null;
+    if (!drop) await wait(500);
+  }
+  check(
+    '−20%: 1 069 ₽ → 855 ₽, в избранном — уведомление «подешевел»',
+    down.body.done === 1 && (await priceOf(a)) === '85500' && drop?.payload.newPrice === '85500',
+    JSON.stringify({ down: down.body, a: await priceOf(a), drop: drop?.payload }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2004,6 +2043,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioFollow(rnd);
   await scenarioFollowFeed(rnd);
   await scenarioQtyDiscount(rnd);
+  await scenarioBulkPrice(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

@@ -354,4 +354,23 @@ export const CABINET: Record<string, string> = {
     'Stock items aren’t copied — upload them after publishing.',
   'Заблокированный модератором лот скопировать нельзя.':
     'A listing blocked by a moderator can’t be copied.',
+
+  // Цены разом
+  'Цена ±%': 'Price ±%',
+  'Цены изменены: {n}.': 'Prices changed: {n}.',
+  'идёт скидка — {n}': 'discount running — {n}',
+  'пополнение — {n}': 'top-up — {n}',
+  'меньше 1 ₽ — {n}': 'under 1 ₽ — {n}',
+  'без изменений — {n}': 'unchanged — {n}',
+  'недоступны — {n}': 'unavailable — {n}',
+  'Пропустили {n}: {why}.': 'Skipped {n}: {why}.',
+  'На сколько процентов изменить цену, например +7 или −5':
+    'By how many percent to change the price, for example +7 or −5',
+  'и ещё {n}': 'and {n} more',
+  'Цена в целых рублях останется в рублях: 999 ₽ +7% — 1 069 ₽.':
+    'A price in whole rubles stays in whole rubles: 999 ₽ +7% is 1,069 ₽.',
+  'Не изменятся {n}: идёт скидка, пополнение или лот заблокирован.':
+    '{n} won’t change: a discount is running, it’s a top-up or the listing is blocked.',
+  'Изменить цены {pct}: {n}': 'Change prices {pct}: {n}',
+  'Изменить цены': 'Change prices',
 };

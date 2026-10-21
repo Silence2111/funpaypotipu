@@ -11,6 +11,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type FulfillmentType } from '@gamemarket/db';
 import {
   SALE_MIN_PRICE,
+  repriced,
   bumpCooldownHours,
   chargeFromBalance,
   maskContacts,
@@ -615,6 +616,53 @@ export class ListingsService {
       : { count: 0 };
     for (const l of found) await this.search.indexListing(l.id);
     return { done: changed.count, skipped: ids.length - changed.count };
+  }
+
+  /**
+   * Цены выбранных лотов разом: дороже или дешевле на percent процентов
+   * (shared/reprice.ts). Каждый лот меняется условно — с той же ценой и без
+   * скидки, поэтому правка в соседней вкладке не перезапишется. Пропуск — с
+   * причиной: идёт скидка (у неё своя прежняя цена), пополнение (цена из
+   * наценки), меньше 1 ₽, цена не изменилась бы, лот недоступен.
+   */
+  async bulkPrice(sellerId: string, ids: string[], percent: number) {
+    const rows = await this.prisma.listing.findMany({
+      where: { id: { in: ids }, sellerId, status: { notIn: ['archived', 'blocked'] } },
+      select: { id: true, price: true, saleUntil: true, topupMarkupBps: true },
+    });
+    type Reason = 'sale' | 'topup' | 'min' | 'same' | 'unavailable';
+    const skipped: Array<{ id: string; reason: Reason }> = ids
+      .filter((id) => !rows.some((r) => r.id === id))
+      .map((id) => ({ id, reason: 'unavailable' as const }));
+    let done = 0;
+    for (const l of rows) {
+      const price = repriced(l.price, percent);
+      const reason: Reason | null =
+        l.topupMarkupBps != null
+          ? 'topup'
+          : l.saleUntil
+            ? 'sale'
+            : price < SALE_MIN_PRICE
+              ? 'min'
+              : price === l.price
+                ? 'same'
+                : null;
+      if (reason) {
+        skipped.push({ id: l.id, reason });
+        continue;
+      }
+      const r = await this.prisma.listing.updateMany({
+        where: { id: l.id, sellerId, price: l.price, saleUntil: null },
+        data: { price },
+      });
+      if (!r.count) {
+        skipped.push({ id: l.id, reason: 'unavailable' });
+        continue;
+      }
+      done++;
+      await this.search.indexListing(l.id).catch((e: Error) => this.logger.warn(`Индекс ${l.id}: ${e.message}`));
+    }
+    return { done, skipped };
   }
 
   /** Отпуск продавца: с какого времени и сколько лотов ждут возвращения. */
