@@ -32,11 +32,14 @@ import {
   buyerFieldsOf,
   cleanBuyerData,
   DISPUTE_NOTES,
+  SALE_MIN_PRICE,
+  sellerPromoDiscount,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { LedgerService } from '../ledger/ledger.service';
 import { EncryptionService } from '../crypto/encryption.service';
 import { PromoService } from '../promo/promo.service';
+import { SellerPromosService } from '../promo/seller-promos.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatService } from '../chat/chat.service';
 import { FeesService } from './fees.service';
@@ -57,6 +60,7 @@ export class OrdersService {
     private readonly promo: PromoService,
     private readonly notifications: NotificationsService,
     private readonly chat: ChatService,
+    private readonly sellerPromos: SellerPromosService,
   ) {}
 
   /** Системное сообщение о событии сделки в чат (не роняет основной поток). */
@@ -139,6 +143,17 @@ export class OrdersService {
     if (buyerDataErr) throw new BadRequestException(buyerDataErr);
     const buyerData = cleanBuyerData(buyerFields, opts.buyerData);
 
+    // Промокод продавца — раньше кода площадки: скидка за счёт продавца,
+    // цена снижается до расчёта комиссии, и площадка берёт её с того, что
+    // заплатил покупатель. Код продавца не подошёл — отказ с причиной.
+    const listPrice = base;
+    const sellerPromo = promoCode ? await this.sellerPromos.check(promoCode, listing, buyerId) : null;
+    const promoDiscount = sellerPromo ? sellerPromoDiscount(base, sellerPromo.percent) : 0n;
+    if (base - promoDiscount < SALE_MIN_PRICE) {
+      throw new BadRequestException('Со скидкой цена меньше 1 ₽');
+    }
+    base -= promoDiscount;
+
     const f = await this.fees.computeForCategory(
       base,
       listing.categoryId,
@@ -158,48 +173,67 @@ export class OrdersService {
     // способе, пишется в журнал при оплате (logEconomics): запрещать её
     // не повод — покупатель ни при чём, — но знать об этом надо.
     let amount = f.amountToPay;
-    if (promoCode) {
+    if (promoCode && !sellerPromo) {
       const maxDiscount = maxPromoDiscount({ amountToPay: f.amountToPay, sellerPayout: f.sellerPayout });
       amount -= await this.promo.consume(promoCode, f.amountToPay, maxDiscount);
     }
 
-    const order = await this.prisma.order.create({
-      data: {
-        publicNumber: `GM-${Date.now().toString(36).toUpperCase()}-${randomUUID().slice(0, 4)}`,
-        buyerId,
-        sellerId: listing.sellerId,
-        listingId,
-        listingSnapshot: {
-          title: listing.title,
-          basePrice: base.toString(),
-          currency: listing.currency,
-          ...(account ? { account } : {}),
-          ...(topupNominal != null ? { topupAmount: topupNominal.toString() } : {}),
-          ...(buyerData.length ? { buyerData } : {}),
-          // Автовыдача аккаунта или предмета: заказ называет выданное
-          // товаром, а не ключом. Ключи и прежние заказы — без пометки.
-          ...(listing.fulfillmentType === 'auto_key' && listing.category.fulfillmentType === 'manual'
-            ? { goods: 'item' }
-            : {}),
-          ...(soldByQty(listing)
-            ? {
-                unitName: listing.unitName ?? 'шт.',
-                unitPrice: listing.price.toString(),
-                pricePerUnits: listing.pricePerUnits,
-              }
-            : {}),
-        } as Prisma.InputJsonValue,
-        qty,
-        amount,
+    const data: Prisma.OrderUncheckedCreateInput = {
+      publicNumber: `GM-${Date.now().toString(36).toUpperCase()}-${randomUUID().slice(0, 4)}`,
+      buyerId,
+      sellerId: listing.sellerId,
+      listingId,
+      listingSnapshot: {
+        title: listing.title,
+        basePrice: listPrice.toString(),
+        ...(sellerPromo
+          ? {
+              sellerPromo: {
+                code: sellerPromo.code,
+                percent: sellerPromo.percent,
+                discount: promoDiscount.toString(),
+              },
+            }
+          : {}),
         currency: listing.currency,
-        feeBuyer: f.feeBuyer,
-        feeSeller: f.feeSeller,
-        sellerPayoutAmount: f.sellerPayout,
-        status: 'created',
-        fulfillmentType: listing.fulfillmentType,
-        conversation: { create: { buyerId, sellerId: listing.sellerId } },
-      },
-    });
+        ...(account ? { account } : {}),
+        ...(topupNominal != null ? { topupAmount: topupNominal.toString() } : {}),
+        ...(buyerData.length ? { buyerData } : {}),
+        // Автовыдача аккаунта или предмета: заказ называет выданное
+        // товаром, а не ключом. Ключи и прежние заказы — без пометки.
+        ...(listing.fulfillmentType === 'auto_key' && listing.category.fulfillmentType === 'manual'
+          ? { goods: 'item' }
+          : {}),
+        ...(soldByQty(listing)
+          ? {
+              unitName: listing.unitName ?? 'шт.',
+              unitPrice: listing.price.toString(),
+              pricePerUnits: listing.pricePerUnits,
+            }
+          : {}),
+      } as Prisma.InputJsonValue,
+      qty,
+      amount,
+      currency: listing.currency,
+      feeBuyer: f.feeBuyer,
+      feeSeller: f.feeSeller,
+      sellerPayoutAmount: f.sellerPayout,
+      status: 'created',
+      fulfillmentType: listing.fulfillmentType,
+      conversation: { create: { buyerId, sellerId: listing.sellerId } },
+    };
+    // Заказ по коду продавца — в транзакции с блокировкой кода: проверка
+    // повторяется, и два заказа не займут последнее использование вдвоём.
+    const order = sellerPromo
+      ? await this.prisma.$transaction(async (tx) => {
+          await this.sellerPromos.check(promoCode!, listing, buyerId, tx, true);
+          const created = await tx.order.create({ data });
+          await tx.sellerPromoUse.create({
+            data: { promoId: sellerPromo.id, buyerId, orderId: created.id, discount: promoDiscount },
+          });
+          return created;
+        })
+      : await this.prisma.order.create({ data });
     await this.notifications.notify(listing.sellerId, 'order_created', {
       orderId: order.id,
       title: listing.title,

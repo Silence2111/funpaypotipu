@@ -28,6 +28,8 @@ interface Order {
     buyerData?: Array<{ label: string; value: string }>;
     /** «item» — автовыдача аккаунта или предмета со склада, а не ключ. */
     goods?: string;
+    /** Промокод продавца: скидка за его счёт, уже в сумме заказа. */
+    sellerPromo?: { code: string; percent: number; discount: string };
   } | null;
   autoConfirmAt?: string | null; sellerPayoutAmount?: string;
 }
@@ -293,6 +295,14 @@ export default function OrderPage() {
         </h1>
         <div className="price" style={{ fontSize: 22, whiteSpace: 'nowrap' }}>{formatPrice(order.amount, order.currency, t)}</div>
       </div>
+      {order.listingSnapshot?.sellerPromo && (
+        <p className="faint" style={{ fontSize: 13, margin: '4px 0 0', textAlign: 'right' }}>
+          {t('Промокод продавца {code}: −{sum}', {
+            code: order.listingSnapshot.sellerPromo.code,
+            sum: formatPrice(order.listingSnapshot.sellerPromo.discount, order.currency, t),
+          })}
+        </p>
+      )}
       {role === 'buyer' && order.paymentMethod && (
         <p className="faint" style={{ fontSize: 13, margin: '4px 0 0', textAlign: 'right' }}>
           {t('Оплачено {method}', { method: PAID_BY[order.paymentMethod] ? t(PAID_BY[order.paymentMethod]!) : order.paymentMethod })}

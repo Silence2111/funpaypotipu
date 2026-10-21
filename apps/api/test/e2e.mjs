@@ -1493,6 +1493,71 @@ async function scenarioSale(rnd) {
   );
 }
 
+/**
+ * Промокоды продавца: скидка за его счёт — цена до комиссии ниже; один раз
+ * на покупателя, отменённый заказ использование возвращает; предел, «только
+ * постоянным», выключенный код — отказ с причиной; «Применить» видит код.
+ */
+async function scenarioSellerPromo(rnd) {
+  console.log('\n— Промокоды продавца —');
+  const seller = await register('kds', rnd);
+  const b1 = await register('kda', rnd);
+  const b2 = await register('kdb', rnd);
+  const b3 = await register('kdc', rnd);
+  const lot = await createListing(seller.token, 'accounts', '100000', { title: `Промокод ${rnd}` });
+  const code = `SAVE${String(rnd).slice(-6)}`;
+  const mk = (body) => j('/seller-promos', { method: 'POST', token: seller.token, body: JSON.stringify(body) });
+  const p1 = await mk({ code: code.toLowerCase(), percent: 10, maxUses: 2, days: 30 });
+  const p2 = await mk({ code: `LOYAL${String(rnd).slice(-6)}`, percent: 20, repeatOnly: true });
+  const dup = await mk({ code, percent: 15 });
+  const short = await mk({ code: 'AB', percent: 10 });
+  const big = await mk({ code: 'BIGSALE1', percent: 70 });
+  check(
+    'Код в верхнем регистре; повтор, короткий код и скидка больше 50% — отказ',
+    p1.status === 201 && p1.body.code === code && p2.status === 201 && dup.status === 400 &&
+      short.status === 400 && big.status === 400,
+    JSON.stringify({ p1: p1.body?.code, dup: dup.status, short: short.status, big: big.status }),
+  );
+
+  const preview = await j(`/promo/check?code=${code.toLowerCase()}&listingId=${lot}`, { token: b1.token });
+  const plain = await j('/orders', { method: 'POST', token: b3.token, body: JSON.stringify({ listingId: lot }) });
+  const order = (token, promoCode) =>
+    j('/orders', { method: 'POST', token, body: JSON.stringify({ listingId: lot, promoCode }) });
+  const o1 = await order(b1.token, code);
+  const again = await order(b1.token, code);
+  check(
+    '«Применить» видит код продавца; заказ 900 ₽ вместо 1 000, выплата продавцу — от 900; второй раз — отказ',
+    preview.body.source === 'seller' && preview.body.percent === 10 && o1.status === 201 &&
+      o1.body.amount === '90000' && BigInt(o1.body.sellerPayoutAmount) < BigInt(plain.body.sellerPayoutAmount) &&
+      o1.body.listingSnapshot?.sellerPromo?.discount === '10000' && again.status === 400,
+    JSON.stringify({ preview: preview.body, o1: [o1.body.amount, o1.body.sellerPayoutAmount], plain: plain.body.sellerPayoutAmount, again: again.body?.message }),
+  );
+
+  // Отменённый заказ использование возвращает.
+  await j(`/orders/${o1.body.id}/cancel`, { method: 'POST', token: b1.token });
+  const reuse = await order(b1.token, code);
+  const o2 = await order(b2.token, code);
+  const over = await order(b3.token, code);
+  const loyal = await order(b2.token, `LOYAL${String(rnd).slice(-6)}`);
+  check(
+    'После отмены код снова доступен; предел 2 — третьему отказ; «только постоянным» без сделок — отказ',
+    reuse.status === 201 && o2.status === 201 && over.status === 400 && /закончился/.test(over.body.message) &&
+      loyal.status === 400 && /уже покупал у этого/.test(loyal.body.message),
+    JSON.stringify({ reuse: reuse.status, o2: o2.status, over: over.body?.message, loyal: loyal.body?.message }),
+  );
+
+  await j(`/seller-promos/${p1.body.id}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ active: false }) });
+  const off = await j(`/promo/check?code=${code}&listingId=${lot}`, { token: b3.token });
+  const unknown = await j(`/promo/check?code=NOPE${rnd}&listingId=${lot}`);
+  const listed = (await j('/seller-promos', { token: seller.token })).body;
+  check(
+    'Выключенный код — отказ с причиной, неизвестный — 404; в списке продавца — 2 использования',
+    off.status === 400 && /выключил/.test(off.body.message) && unknown.status === 404 &&
+      listed.find((p) => p.code === code)?.used === 2,
+    JSON.stringify({ off: off.body?.message, unknown: unknown.status, used: listed.find((p) => p.code === code)?.used }),
+  );
+}
+
 async function scenarioSecurity(rnd) {
   console.log('\n— Защита: заголовки, CORS, лимиты —');
   const raw = (path, headers = {}, init = {}) => fetch(`${API}/api${path}`, { ...init, headers });
@@ -1776,6 +1841,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioPriceDrop(rnd);
   await scenarioLotStats(rnd);
   await scenarioSale(rnd);
+  await scenarioSellerPromo(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

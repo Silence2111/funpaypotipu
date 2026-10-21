@@ -41,6 +41,10 @@
       "types": "./dist/sale.d.ts",
       "default": "./dist/sale.js"
     },
+    "./seller-promo": {
+      "types": "./dist/seller-promo.d.ts",
+      "default": "./dist/seller-promo.js"
+    },
     "./saved-search": {
       "types": "./dist/saved-search.d.ts",
       "default": "./dist/saved-search.js"

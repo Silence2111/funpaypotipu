@@ -223,6 +223,7 @@ model User {
   pushSubscriptions PushSubscription[]
   replyTemplates ReplyTemplate[]
   savedSearches  SavedSearch[]
+  sellerPromos   SellerPromo[]
   favorites      Favorite[]
   roles          UserRole[]
   riskSignals    RiskSignal[]
@@ -535,6 +536,7 @@ model Order {
   buyer        User          @relation("BuyerOrders", fields: [buyerId], references: [id])
   seller       User          @relation("SellerOrders", fields: [sellerId], references: [id])
   listing      Listing       @relation(fields: [listingId], references: [id])
+  sellerPromoUse SellerPromoUse?
   delivery     Delivery?
   dispute      Dispute?
   review       Review?
@@ -915,6 +917,44 @@ model PushSubscription {
 }
 
 /// Заготовка ответа для чата: вставляется в поле сообщения, {имя} — ник собеседника.
+// Промокод продавца: скидка за его счёт — цена снижается до расчёта
+// комиссии. Один раз на покупателя; «только постоянным» — тем, у кого с
+// продавцом уже есть завершённая сделка (shared/seller-promo.ts).
+model SellerPromo {
+  id         String    @id @default(uuid()) @db.Uuid
+  sellerId   String    @map("seller_id") @db.Uuid
+  code       String    @db.VarChar(20) // в верхнем регистре
+  percent    Int
+  maxUses    Int?      @map("max_uses")
+  validUntil DateTime? @map("valid_until")
+  repeatOnly Boolean   @default(false) @map("repeat_only")
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  seller User             @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  uses   SellerPromoUse[]
+
+  @@unique([sellerId, code])
+  @@map("seller_promos")
+}
+
+// Заказ по промокоду продавца. Отменённый и истёкший заказ использование
+// не занимает: счёт — по заказам, которые не отменены.
+model SellerPromoUse {
+  id        String   @id @default(uuid()) @db.Uuid
+  promoId   String   @map("promo_id") @db.Uuid
+  buyerId   String   @map("buyer_id") @db.Uuid
+  orderId   String   @unique @map("order_id") @db.Uuid
+  discount  BigInt
+  createdAt DateTime @default(now()) @map("created_at")
+
+  promo SellerPromo @relation(fields: [promoId], references: [id], onDelete: Cascade)
+  order Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([promoId, buyerId])
+  @@map("seller_promo_uses")
+}
+
 // Просмотры лота по дням (по Москве) — для статистики продавца. Браузер
 // считает лот один раз в сутки, свои просмотры продавца не в счёте.
 model ListingViewDay {

@@ -4033,6 +4033,31 @@ a.my-lot-title:hover {
 .offer-price .sale-mark {
   justify-content: flex-end;
 }
+/* Промокоды продавца: код — моноширинным, форма — код и процент в строку. */
+.promo-code {
+  margin-right: 6px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.tools-template-title .badge {
+  margin-left: 8px;
+}
+.promo-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.promo-form-row > .input {
+  flex: 1 1 200px;
+}
+.promo-applied {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--success);
+}
+
 /* Панель скидки под строкой «Моих лотов». */
 .sale-panel {
   display: grid;

@@ -254,6 +254,24 @@ export const EN_API: Phrasebook = {
   'Скидки на этом лоте нет': 'This listing has no discount',
   'Идёт скидка — завершите её, потом меняйте цену':
     'A discount is running — end it before changing the price',
+
+  // Промокоды продавца
+  'Укажите код': 'Enter a code',
+  'Код — до 20 знаков': 'A code can be up to 20 characters',
+  'Использований — от одного': 'At least one use',
+  'Срок — до года': 'The period can be up to a year',
+  'Продавец выключил этот промокод': 'The seller has turned this promo code off',
+  'Срок промокода продавца истёк': 'The seller’s promo code has expired',
+  'Промокод продавца не действует на пополнение':
+    'The seller’s promo code doesn’t apply to top-ups',
+  'Промокод продавца закончился': 'The seller’s promo code has run out',
+  'Вы уже покупали по этому промокоду': 'You have already used this promo code',
+  'Промокод — для тех, кто уже покупал у этого продавца':
+    'This promo code is for those who have bought from this seller before',
+  'Не больше {n} промокодов — удалите ненужные':
+    'No more than {n} promo codes — delete the ones you don’t need',
+  'Такой код у вас уже есть': 'You already have this code',
+  'Промокод не найден': 'Promo code not found',
   'Раздел не найден': 'Category not found',
   'Недостаточно средств на балансе': 'Insufficient balance',
   'Неизвестный способ вывода': 'Unknown withdrawal method',

@@ -148,8 +148,8 @@ export const CABINET: Record<string, string> = {
   'Не удалось сохранить заготовку.': 'Couldn’t save the template.',
   'Заготовка удалена.': 'Template deleted.',
   'Не удалось удалить заготовку.': 'Couldn’t delete the template.',
-  'Автоподнятие, приветствие, заготовки ответов и автоответы на команды — без сторонних ботов с доступом к аккаунту.':
-    'Auto-raise, a greeting, reply templates and command auto-replies — no third-party bots with access to your account.',
+  'Автоподнятие, приветствие, заготовки ответов, автоответы на команды и промокоды — без сторонних ботов с доступом к аккаунту.':
+    'Auto-raise, a greeting, reply templates, command auto-replies and promo codes — no third-party bots with access to your account.',
   'Команда для автоответа': 'Command for the auto-reply',
   'Команда, например !оплата': 'Command, for example !payment',
   'Команда — по желанию: покупатель пишет её отдельным сообщением, и заготовка уходит сама, с пометкой «автоответ». Регистр не важен.':
@@ -263,4 +263,37 @@ export const CABINET: Record<string, string> = {
   'Начать скидку': 'Start discount',
   'Покупатели увидят зачёркнутую цену и «−{pct}%». У кого лот в избранном, придёт уведомление. По окончании срока цена вернётся сама.':
     'Buyers will see the crossed-out price and “−{pct}%”. Those who have the listing in favorites get a notification. When the period ends, the price returns by itself.',
+
+  // Промокоды продавца
+  'Промокод продавца {code}: −{sum}': 'Seller’s promo code {code}: −{sum}',
+  'Промокод не подошёл.': 'The promo code didn’t work.',
+  Применить: 'Apply',
+  'Скидка продавца {pct}% — уже в цене.': 'Seller’s discount {pct}% — already in the price.',
+  'Промокод площадки: скидка учтётся в сумме заказа.':
+    'Marketplace promo code: the discount will be applied to the order total.',
+  'без срока': 'no end date',
+  'Промокод создан.': 'Promo code created.',
+  'Не удалось создать промокод.': 'Couldn’t create the promo code.',
+  'Промокод выключен.': 'Promo code turned off.',
+  'Промокод включён.': 'Promo code turned on.',
+  'Промокод удалён.': 'Promo code deleted.',
+  'Не удалось удалить промокод.': 'Couldn’t delete the promo code.',
+  Промокоды: 'Promo codes',
+  'Свой код со скидкой за ваш счёт: цена снижается до расчёта комиссии. Покупатель вводит его при оплате; один покупатель — один раз.':
+    'Your own discount code at your expense: the price is reduced before the fee is calculated. A buyer enters it at checkout; once per buyer.',
+  постоянным: 'repeat buyers',
+  'срок вышел': 'expired',
+  выключен: 'off',
+  'использований: {used} из {max}': 'uses: {used} of {max}',
+  'использований: {used}': 'uses: {used}',
+  'Промокод {code} включён': 'Promo code {code} is on',
+  'Удалить промокод {code}': 'Delete promo code {code}',
+  Код: 'Code',
+  'Например SUMMER10': 'e.g. SUMMER10',
+  'Сколько раз можно использовать': 'How many times it can be used',
+  'Сколько раз — без лимита': 'Max uses — unlimited',
+  'Только тем, кто уже покупал у вас': 'Only for those who have bought from you',
+  'Скидка — от {min} до {max}%. Не действует на пополнения.':
+    'The discount is from {min} to {max}%. It doesn’t apply to top-ups.',
+  'Создать промокод': 'Create promo code',
 };

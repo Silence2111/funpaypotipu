@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { qtyError, qtyTotal } from '@gamemarket/shared/quantity';
 import { buyerDataError, type BuyerField } from '@gamemarket/shared/buyer-data';
+import { sellerPromoDiscount } from '@gamemarket/shared/seller-promo';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { payOrder } from '@/lib/checkout';
@@ -49,6 +50,10 @@ export function BuyButton({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [promo, setPromo] = useState('');
+  // Проверенный промокод: у кода продавца скидка уже в цене, у кода
+  // площадки — при оплате (её потолок считает сервер).
+  const [promoInfo, setPromoInfo] = useState<{ source: 'seller' | 'platform'; percent?: number } | null>(null);
+  const [promoErr, setPromoErr] = useState<string | null>(null);
   const [account, setAccount] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [qtyInput, setQtyInput] = useState(qtyOffer ? String(qtyOffer.minQty) : '1');
@@ -65,7 +70,9 @@ export function BuyButton({
       ? null
       : qtyTotal(BigInt(qtyOffer.price), qtyOffer.pricePerUnits, qty)
     : BigInt(price);
-  const toPay = base != null ? priceFor(base, method) : null;
+  const sellerOff = base != null && promoInfo?.source === 'seller' ? sellerPromoDiscount(base, promoInfo.percent ?? 0) : 0n;
+  const priced = base != null ? base - sellerOff : null;
+  const toPay = priced != null ? priceFor(priced, method) : null;
   const answersRaw = buyerDataError(buyerFields, answers);
   const answersProblem = answersRaw && t.d(answersRaw);
   const canBuy = (!isTopUp || (account.trim().length > 0 && confirmed)) && !qtyProblem;
@@ -82,6 +89,20 @@ export function BuyButton({
       }),
     });
     return order.id;
+  }
+
+  async function applyPromo() {
+    setPromoErr(null);
+    setPromoInfo(null);
+    try {
+      setPromoInfo(
+        await apiFetch<{ source: 'seller' | 'platform'; percent?: number }>(
+          `/promo/check?code=${encodeURIComponent(promo.trim())}&listingId=${listingId}`,
+        ),
+      );
+    } catch (e) {
+      setPromoErr(apiErrorMessage(e, t('Промокод не подошёл.')));
+    }
   }
 
   async function buy() {
@@ -181,15 +202,33 @@ export function BuyButton({
         <summary className="faint" style={{ fontSize: 13, cursor: 'pointer', minHeight: 32 }}>{t('Есть промокод?')}</summary>
         <div className="field" style={{ marginTop: 8 }}>
           <label className="label" htmlFor="promo" style={{ fontSize: 13 }}>{t('Промокод')}</label>
-          <input id="promo" className="input" placeholder={t('Например, START10')} value={promo}
-            autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false}
-            onChange={(e) => setPromo(e.target.value)} />
-          <p className="hint">{t('Скидка учтётся в сумме заказа при оплате.')}</p>
+          <div className="row" style={{ gap: 8 }}>
+            <input id="promo" className="input" placeholder={t('Например, START10')} value={promo}
+              autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false}
+              style={{ flex: 1, minWidth: 0 }}
+              onChange={(e) => {
+                setPromo(e.target.value);
+                setPromoInfo(null);
+                setPromoErr(null);
+              }} />
+            <button type="button" className="chip" disabled={promo.trim().length < 3} onClick={() => void applyPromo()}>
+              {t('Применить')}
+            </button>
+          </div>
+          {promoInfo?.source === 'seller' ? (
+            <p className="promo-applied">{t('Скидка продавца {pct}% — уже в цене.', { pct: promoInfo.percent ?? 0 })}</p>
+          ) : promoInfo ? (
+            <p className="promo-applied">{t('Промокод площадки: скидка учтётся в сумме заказа.')}</p>
+          ) : promoErr ? (
+            <p className="field-error">{promoErr}</p>
+          ) : (
+            <p className="hint">{t('Скидка учтётся в сумме заказа при оплате.')}</p>
+          )}
         </div>
       </details>
 
       <div style={{ marginBottom: 14 }}>
-        <PayMethods base={base} currency={currency} value={method} onChange={setMethod} />
+        <PayMethods base={priced} currency={currency} value={method} onChange={setMethod} />
       </div>
 
       <button className="btn block lg" onClick={buy} disabled={busy || !canBuy} type="button">

@@ -22,3 +22,4 @@ export * from './reply';
 export * from './saved-search';
 export * from './lot-stats';
 export * from './sale';
+export * from './seller-promo';

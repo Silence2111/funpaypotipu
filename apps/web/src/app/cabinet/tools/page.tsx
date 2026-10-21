@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
+import { SellerPromos } from '@/components/seller-promos';
 import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
 import { COMMAND_MAX } from '@gamemarket/shared';
@@ -168,7 +169,7 @@ export default function ToolsPage() {
         </h1>
         <p className="muted" style={{ margin: '8px 0 0', maxWidth: '60ch' }}>
           {t(
-            'Автоподнятие, приветствие, заготовки ответов и автоответы на команды — без сторонних ботов с доступом к аккаунту.',
+            'Автоподнятие, приветствие, заготовки ответов, автоответы на команды и промокоды — без сторонних ботов с доступом к аккаунту.',
           )}
         </p>
         <div style={{ marginTop: 16 }}>
@@ -380,6 +381,8 @@ export default function ToolsPage() {
               </div>
             </form>
           </section>
+
+          <SellerPromos />
         </>
       )}
     </div>

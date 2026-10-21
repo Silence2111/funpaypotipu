@@ -251,6 +251,8 @@ export const EN_SHARED: Phrasebook = {
   'Поддержка ответила на обращение': 'Support replied to your request',
   'Новые предложения по сохранённому поиску': 'New offers for your saved search',
   'Лот из избранного подешевел': 'A listing in your favorites got cheaper',
+  // Промокод продавца
+  'Код — 4–20 латинских букв и цифр': 'A code must be 4–20 Latin letters and digits',
 
   // Замер выдачи («Как мы меряем выдачу»)
   'Замер невозможен: {reason} Нужно не меньше {a} чистых и {b} проблемных заказов (спор или возврат), чтобы назвать направление, и по {c} — чтобы утверждать разницу в 10 пунктов.':

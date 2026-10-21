@@ -11,6 +11,8 @@ import {
   PRICE_DROP_MIN_PCT,
   SALE_MAX_PCT,
   SALE_MIN_PCT,
+  SELLER_PROMO_MAX_PCT,
+  SELLER_PROMO_MIN_PCT,
 } from '@gamemarket/shared';
 import type { HelpSlug, Terms } from './help';
 import { formatPrice } from './format';
@@ -241,6 +243,12 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           {SALE_MAX_PCT}% for a day, 3 or 7 days. Buyers see the crossed-out price, and those who
           have the listing in favorites get a notification. When the period ends, the price returns
           by itself.
+        </li>
+        <li>
+          Promo codes — in “Tools”: your own code with a {SELLER_PROMO_MIN_PCT}–
+          {SELLER_PROMO_MAX_PCT}% discount at your expense, with a use limit, an end date and “only
+          for those who have bought before”. The price is reduced before the fee is calculated; each
+          buyer can use a code once.
         </li>
         <li>
           Going away — “Vacation” in “My listings” takes all your listings off sale at once and
