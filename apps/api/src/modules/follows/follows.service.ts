@@ -3,6 +3,7 @@ import { Interval } from '@nestjs/schedule';
 import { PrismaClient } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ListingsService } from '../listings/listings.service';
 import { assetUrl } from '../storage/asset-url';
 import { ONLINE_MS } from '../../common/presence';
 import { langOf, say } from '../../i18n/texts';
@@ -18,6 +19,8 @@ const LAG_MS = 1000;
 /** Сколько новых лотов и скидок одного продавца разбирать за проход. */
 const BATCH = 50;
 export const MAX_FOLLOWS = 200;
+/** Лотов на страницу ленты подписок. */
+export const FEED_LIMIT = 20;
 
 interface Lot {
   id: string;
@@ -50,6 +53,7 @@ export class FollowsService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly notifications: NotificationsService,
+    private readonly listings: ListingsService,
   ) {}
 
   /** «Мои подписки»: кто, в сети ли, сколько лотов и сколько со скидкой. */
@@ -103,6 +107,32 @@ export class FollowsService {
           createdAt: r.createdAt,
         },
       ];
+    });
+  }
+
+  /**
+   * Лента подписок. Первая страница новых — это «посмотрел ленту»: отметка
+   * визита сдвигается на сейчас, а прежняя считает «с прошлого визита».
+   * Первый визит — без счётчика: новым тогда было бы всё.
+   */
+  async feed(userId: string, tab: 'new' | 'sale', page: number) {
+    let freshSince: Date | null = null;
+    if (tab === 'new' && page === 1) {
+      const profile = await this.prisma.profile.findUnique({
+        where: { userId },
+        select: { followFeedSeenAt: true },
+      });
+      freshSince = profile?.followFeedSeenAt ?? null;
+      await this.prisma.profile.updateMany({
+        where: { userId },
+        data: { followFeedSeenAt: new Date() },
+      });
+    }
+    return this.listings.followFeed(userId, {
+      sale: tab === 'sale',
+      page,
+      limit: FEED_LIMIT,
+      freshSince,
     });
   }
 

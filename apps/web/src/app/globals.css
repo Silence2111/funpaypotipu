@@ -3769,6 +3769,10 @@ a.my-lot-title:hover {
 .follow-count {
   font-size: 14px;
 }
+.following-tabs {
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
 /* Выписка по балансу: период, итоги, файлы для Excel, операции. */
 .statement {

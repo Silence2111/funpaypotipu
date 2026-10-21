@@ -1498,6 +1498,42 @@ async function scenarioSale(rnd) {
  * на покупателя, отменённый заказ использование возвращает; предел, «только
  * постоянным», выключенный код — отказ с причиной; «Применить» видит код.
  */
+async function scenarioFollowFeed(rnd) {
+  console.log('\n— Лента подписок —');
+  const [a, b, c, d] = [await register('ffa', rnd), await register('ffb', rnd), await register('ffc', rnd), await register('ffd', rnd)];
+  const fan = await register('ffu', rnd);
+  const a1 = await createListing(a.token, 'accounts', '100000', { title: `Лента ${rnd} · A1` });
+  const a2 = await createListing(a.token, 'accounts', '200000', { title: `Лента ${rnd} · A2` });
+  const b1 = await createListing(b.token, 'accounts', '300000', { title: `Лента ${rnd} · B1` });
+  const c1 = await createListing(c.token, 'accounts', '400000', { title: `Лента ${rnd} · C1` }); // в чёрном списке
+  const d1 = await createListing(d.token, 'accounts', '500000', { title: `Лента ${rnd} · D1` }); // без подписки
+  for (const s of [a, b, c]) await j(`/follows/${s.id}`, { method: 'POST', token: fan.token });
+  await j('/account/blocks', { method: 'POST', token: fan.token, body: JSON.stringify({ userId: c.id }) });
+  await j(`/listings/${a1}/sale`, { method: 'POST', token: a.token, body: JSON.stringify({ percent: 20, days: 3 }) });
+  const feed = (tab = 'new') => j(`/follows/feed?tab=${tab}`, { token: fan.token });
+  const first = await feed();
+  const ids = first.body.items.map((l) => l.id);
+  const sale = (await feed('sale')).body;
+  check(
+    'Лента: лоты продавцов из подписок, новые сверху; без подписки и чёрный список — нет; «со скидкой» — только скидка',
+    first.status === 200 && JSON.stringify(ids) === JSON.stringify([b1, a2, a1]) && !ids.includes(c1) &&
+      !ids.includes(d1) && first.body.fresh === null && sale.items.length === 1 && sale.items[0].id === a1 &&
+      sale.items[0].saleListPrice === '100000',
+    JSON.stringify({ ids, expected: [b1, a2, a1], fresh: first.body.fresh, sale: sale.items.map((l) => l.id) }),
+  );
+
+  await wait(20); // отметка визита — раньше нового лота
+  const b2 = await createListing(b.token, 'accounts', '310000', { title: `Лента ${rnd} · B2` });
+  const second = (await feed()).body;
+  const third = (await feed()).body;
+  const guest = await j('/follows/feed');
+  check(
+    'С прошлого визита — 1 новый лот, сверху; следующий визит — 0; без входа — 401',
+    second.fresh === 1 && second.items[0].id === b2 && third.fresh === 0 && guest.status === 401,
+    JSON.stringify({ second: second.fresh, top: second.items[0]?.id, b2, third: third.fresh, guest: guest.status }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -1966,6 +2002,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioSale(rnd);
   await scenarioSellerPromo(rnd);
   await scenarioFollow(rnd);
+  await scenarioFollowFeed(rnd);
   await scenarioQtyDiscount(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);

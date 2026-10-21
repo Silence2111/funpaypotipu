@@ -302,8 +302,8 @@ export const CABINET: Record<string, string> = {
   'Подписки на продавцов': 'Sellers you follow',
   'Не удалось загрузить подписки.': 'Couldn’t load your follows.',
   'Вы отписались от {name}.': 'You unfollowed {name}.',
-  'Продавцы, на которых вы подписаны. Их новые лоты и скидки приходят уведомлением — на сайте, в Telegram и пушем, как настроено в группе «Поиски, избранное и подписки».':
-    'Sellers you follow. Their new listings and discounts come as notifications — on the site, in Telegram and as push, as set in the “Searches, favorites and follows” group.',
+  'Новые лоты и скидки продавцов, на которых вы подписаны. Они же приходят уведомлением — на сайте, в Telegram и пушем, как настроено в группе «Поиски, избранное и подписки».':
+    'New listings and discounts from sellers you follow. They also come as notifications — on the site, in Telegram and as push, as set in the “Searches, favorites and follows” group.',
   'Подписок пока нет. Нажмите «Подписаться» в профиле продавца или в его карточке на странице лота — его новые лоты и скидки придут уведомлением.':
     'You don’t follow anyone yet. Tap “Follow” on a seller’s profile or in their card on a listing page — their new listings and discounts will come as notifications.',
   'нет предложений': 'no offers',
@@ -333,4 +333,14 @@ export const CABINET: Record<string, string> = {
   'Берут больше — платят меньше: скидка от суммы за количество, за ваш счёт, до {max}%. Необязательно.':
     'Buy more, pay less: a discount on the total for the quantity, at your expense, up to {max}%. Optional.',
   'оптом до −{pct}%': 'bulk up to −{pct}%',
+
+  // Лента подписок
+  'Не удалось загрузить ленту.': 'Couldn’t load the feed.',
+  'Что показать': 'What to show',
+  Новое: 'New',
+  'Со скидкой': 'On sale',
+  'Продавцы · {n}': 'Sellers · {n}',
+  'У продавцов из подписок сейчас нет предложений.': 'Sellers you follow have no offers right now.',
+  'Скидок у продавцов из подписок сейчас нет.': 'Sellers you follow have no discounts right now.',
+  'С прошлого визита: {lots}': 'Since your last visit: {lots}',
 };

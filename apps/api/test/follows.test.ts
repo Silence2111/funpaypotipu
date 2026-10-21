@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { FollowsService, MAX_FOLLOWS } from '../src/modules/follows/follows.service';
+import { FEED_LIMIT, FollowsService, MAX_FOLLOWS } from '../src/modules/follows/follows.service';
 
 /**
  * Подписки на продавцов. Проверяется: на себя и на несуществующего — отказ,
@@ -46,14 +46,17 @@ function setup(
           ? { username: 'seller1', user: { status: 'active' } }
           : opts.seller,
       ),
+      updateMany: vi.fn(async () => ({ count: 1 })),
     },
     userBlock: { findMany: vi.fn(async () => opts.blocks ?? []) },
   };
   const notifications = { notify: vi.fn(async () => undefined) };
+  const listings = { followFeed: vi.fn(async () => ({ items: [], total: 0 })) };
   return {
-    svc: new FollowsService(prisma as never, notifications as never),
+    svc: new FollowsService(prisma as never, notifications as never, listings as never),
     prisma,
     notifications,
+    listings,
   };
 }
 
@@ -149,5 +152,28 @@ describe('проход по подпискам', () => {
     });
     expect(await svc.sweep()).toEqual({ sellers: 1, notified: 0 });
     expect(notifications.notify).not.toHaveBeenCalled();
+  });
+});
+
+describe('лента подписок', () => {
+  it('первая страница новых отмечает визит и считает новое с прошлого; скидки и дальние страницы — нет', async () => {
+    const { svc, prisma, listings } = setup({ seller: { followFeedSeenAt: t(0) } });
+    await svc.feed('u1', 'new', 1);
+    expect(listings.followFeed).toHaveBeenLastCalledWith('u1', {
+      sale: false,
+      page: 1,
+      limit: FEED_LIMIT,
+      freshSince: t(0),
+    });
+    expect(prisma.profile.updateMany).toHaveBeenCalledTimes(1);
+    await svc.feed('u1', 'sale', 1);
+    await svc.feed('u1', 'new', 2);
+    expect(prisma.profile.updateMany).toHaveBeenCalledTimes(1);
+    expect(listings.followFeed).toHaveBeenLastCalledWith('u1', {
+      sale: false,
+      page: 2,
+      limit: FEED_LIMIT,
+      freshSince: null,
+    });
   });
 });

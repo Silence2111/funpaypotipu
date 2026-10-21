@@ -315,6 +315,51 @@ export class ListingsService {
     };
   }
 
+  /**
+   * Лента подписок: лоты в продаже у продавцов, на которых подписан человек,
+   * новые сверху; «со скидкой» — идущие скидки, недавно начатые сверху.
+   * Чёрный список в обе стороны в ленту не попадает. `freshSince` — сколько
+   * лотов выставлено после прошлого визита.
+   */
+  async followFeed(
+    userId: string,
+    opts: { sale: boolean; page: number; limit: number; freshSince?: Date | null },
+  ) {
+    const where: Prisma.ListingWhereInput = {
+      status: 'active',
+      ...(opts.sale ? { saleUntil: { gt: new Date() } } : {}),
+      seller: {
+        status: 'active',
+        followers: { some: { userId } },
+        blocksMade: { none: { blockedId: userId } },
+        blocksReceived: { none: { blockerId: userId } },
+      },
+    };
+    const orderBy: Prisma.ListingOrderByWithRelationInput[] = opts.sale
+      ? [{ saleStartedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }, { id: 'desc' }]
+      : [{ createdAt: 'desc' }, { id: 'desc' }];
+    const [items, total, fresh] = await Promise.all([
+      this.prisma.listing.findMany({
+        where,
+        orderBy,
+        select: cardSelect,
+        skip: (opts.page - 1) * opts.limit,
+        take: opts.limit,
+      }),
+      this.prisma.listing.count({ where }),
+      opts.freshSince
+        ? this.prisma.listing.count({ where: { ...where, createdAt: { gt: opts.freshSince } } })
+        : Promise.resolve(null),
+    ]);
+    return {
+      items: items.map((r) => this.resolveImages(r)),
+      total,
+      page: opts.page,
+      limit: opts.limit,
+      fresh,
+    };
+  }
+
   async getById(id: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },

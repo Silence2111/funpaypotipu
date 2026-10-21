@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
@@ -16,6 +17,10 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { FollowsService } from './follows.service';
 
 const notifySchema = z.object({ notify: z.boolean() });
+const feedSchema = z.object({
+  tab: z.enum(['new', 'sale']).default('new'),
+  page: z.coerce.number().int().positive().max(50).default(1),
+});
 
 @Controller('follows')
 @UseGuards(JwtAuthGuard)
@@ -26,6 +31,15 @@ export class FollowsController {
   @Get()
   list(@CurrentUser() user: AuthUser) {
     return this.follows.list(user.userId);
+  }
+
+  /** Лента: новые лоты или идущие скидки продавцов из подписок (перед :sellerId). */
+  @Get('feed')
+  feed(
+    @CurrentUser() user: AuthUser,
+    @Query(new ZodValidationPipe(feedSchema)) q: { tab: 'new' | 'sale'; page: number },
+  ) {
+    return this.follows.feed(user.userId, q.tab, q.page);
   }
 
   /** Подписан ли на продавца и сколько у него подписчиков — для кнопки. */
