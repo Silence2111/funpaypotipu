@@ -7,6 +7,14 @@ import { PRISMA } from '../../prisma/prisma.module';
 import { EncryptionService } from '../crypto/encryption.service';
 import { AttemptLimiter } from './attempts';
 
+/**
+ * Код из приложения проверяется с соседними 30-секундными окнами. Иначе
+ * верный код, набранный в последнюю секунду окна или с отстающими часами
+ * телефона, отклонялся: пока запрос доходит, окно сменилось (так однажды
+ * упал и e2e). Одно окно в обе стороны — допуск, который советует RFC 6238.
+ */
+const otp = authenticator.clone({ window: 1 });
+
 const RECOVERY_COUNT = 8;
 // Без похожих символов: 0/o, 1/l/i — код переписывают с бумаги.
 const RECOVERY_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -69,7 +77,7 @@ export class TwoFactorService {
   async enable(userId: string, code: string) {
     const tf = await this.prisma.twoFactor.findUnique({ where: { userId } });
     if (!tf) throw new BadRequestException('Сначала вызовите /auth/2fa/setup');
-    if (!authenticator.verify({ token: code, secret: this.encryption.decrypt(tf.secretEnc) })) {
+    if (!otp.verify({ token: code, secret: this.encryption.decrypt(tf.secretEnc) })) {
       throw new BadRequestException('Неверный код');
     }
     const recoveryCodes = newRecoveryCodes();
@@ -96,7 +104,7 @@ export class TwoFactorService {
   async regenerate(userId: string, code: string) {
     const tf = await this.prisma.twoFactor.findUnique({ where: { userId } });
     if (!tf?.enabledAt) throw new BadRequestException('Двухфакторная защита не включена');
-    if (!authenticator.verify({ token: code, secret: this.encryption.decrypt(tf.secretEnc) })) {
+    if (!otp.verify({ token: code, secret: this.encryption.decrypt(tf.secretEnc) })) {
       throw new BadRequestException('Неверный код');
     }
     const recoveryCodes = newRecoveryCodes();
@@ -132,7 +140,7 @@ export class TwoFactorService {
     const totp = code.replace(/\s/g, '');
     if (
       /^\d{6}$/.test(totp) &&
-      authenticator.verify({ token: totp, secret: this.encryption.decrypt(tf.secretEnc) })
+      otp.verify({ token: totp, secret: this.encryption.decrypt(tf.secretEnc) })
     ) {
       this.attempts.reset(userId);
       return 'ok';

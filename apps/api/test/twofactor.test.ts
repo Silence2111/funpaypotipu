@@ -49,6 +49,18 @@ describe('вход с кодом из приложения', () => {
     expect(await svc.check('u1', authenticator.generate(secret))).toBe('ok');
   });
 
+  it('код прошлого окна ещё принимается, позапрошлого — нет', async () => {
+    const { svc, secret } = setup();
+    await svc.enable('u1', authenticator.generate(secret));
+    const at = (stepsAgo: number) => {
+      const past = authenticator.clone({ epoch: Date.now() - stepsAgo * 30_000 });
+      return past.generate(secret);
+    };
+    // Набрал в последнюю секунду окна — запрос пришёл уже в следующем.
+    expect(await svc.check('u1', at(1))).toBe('ok');
+    expect(await svc.check('u1', at(3))).toBe('invalid');
+  });
+
   it('резервный код работает один раз и в любом написании', async () => {
     const { svc, secret } = setup();
     const { recoveryCodes } = await svc.enable('u1', authenticator.generate(secret));
