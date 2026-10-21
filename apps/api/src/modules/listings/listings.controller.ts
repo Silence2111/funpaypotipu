@@ -147,6 +147,12 @@ export class ListingsController {
     return this.listings.getById(id);
   }
 
+  /** «История цены» на странице лота: точки за 30 дней в текущей пачке. */
+  @Get(':id/price-history')
+  priceHistory(@Param('id', ParseUUIDPipe) id: string) {
+    return this.listings.priceHistory(id);
+  }
+
   // ── Продавец (защищено) ──
   @Post()
   @UseGuards(JwtAuthGuard)

@@ -2,7 +2,16 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Info, ShieldCheck } from 'lucide-react';
-import { browseListings, getCategoryAttributes, getListing, getPublicPricing, getSeller, type Attribute } from '@/lib/api';
+import {
+  browseListings,
+  getCategoryAttributes,
+  getListing,
+  getPriceHistory,
+  getPublicPricing,
+  getSeller,
+  type Attribute,
+} from '@/lib/api';
+import { PriceHistory } from '@/components/price-history';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { BuyButton } from '@/components/buy-button';
 import { GameTopupForm } from '@/components/game-topup-form';
@@ -69,11 +78,12 @@ export default async function ListingPage({
   if (!listing) notFound();
   // Всё, что вокруг лота: продавец целиком, подписи параметров, его другие
   // предложения и похожие у других продавцов — дешёвые сверху.
-  const [seller, defs, mine, section] = await Promise.all([
+  const [seller, defs, mine, section, history] = await Promise.all([
     getSeller(listing.seller.id),
     getCategoryAttributes(listing.category.id),
     browseListings({ sellerId: listing.seller.id, limit: 7 }),
     browseListings({ gameSlug: listing.game.slug, categorySlug: listing.category.slug, sort: 'price_asc', limit: 12 }),
+    getPriceHistory(listing.id),
   ]);
   const sellerOthers = (mine?.items ?? []).filter((l) => l.id !== listing.id).slice(0, 6);
   const similar = (section?.items ?? [])
@@ -389,6 +399,22 @@ export default async function ListingPage({
               {listing.description}
             </p>
           </section>
+
+          {/* История цены: видно, была ли цена до скидки выше на деле. */}
+          {history && !history.topup && history.points.length > 0 && (
+            <section aria-labelledby="price-history-title">
+              <h2 className="h2 lot-h2" id="price-history-title">
+                {t('История цены')}
+              </h2>
+              <PriceHistory
+                points={history.points}
+                days={history.days}
+                currency={listing.currency}
+                pack={pack}
+                now={Date.now()}
+              />
+            </section>
+          )}
 
           {/* Похожие и другие лоты продавца — здесь, а не под страницей: колонка
               с покупкой и продавцом высокая, и слева оставалась пустота. */}

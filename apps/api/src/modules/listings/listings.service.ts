@@ -11,6 +11,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type FulfillmentType } from '@gamemarket/db';
 import {
   SALE_MIN_PRICE,
+  PRICE_HISTORY_DAYS,
   repriced,
   bumpCooldownHours,
   chargeFromBalance,
@@ -358,6 +359,52 @@ export class ListingsService {
       page: opts.page,
       limit: opts.limit,
       fresh,
+    };
+  }
+
+  /**
+   * История цены за 30 дней — точки пишет триггер базы. Цена до начала
+   * периода становится его первой точкой; цена за другую пачку пересчитана
+   * в текущую, иначе «15 ₽ за 1 000» и «1,5 ₽ за 100» выглядели бы скачком;
+   * повторы подряд убраны.
+   */
+  async priceHistory(id: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id },
+      select: { status: true, pricePerUnits: true, topupMarkupBps: true },
+    });
+    if (!listing || (listing.status !== 'active' && listing.status !== 'sold_out')) {
+      throw new NotFoundException('Лот не найден');
+    }
+    const since = new Date(Date.now() - PRICE_HISTORY_DAYS * 86_400_000);
+    const select = { price: true, pricePerUnits: true, at: true } as const;
+    const [before, inside] = await Promise.all([
+      this.prisma.listingPricePoint.findFirst({
+        where: { listingId: id, at: { lt: since } },
+        orderBy: { at: 'desc' },
+        select,
+      }),
+      this.prisma.listingPricePoint.findMany({
+        where: { listingId: id, at: { gte: since } },
+        orderBy: [{ at: 'asc' }, { id: 'asc' }],
+        take: 1000,
+        select,
+      }),
+    ]);
+    const pack = BigInt(listing.pricePerUnits);
+    const norm = (p: { price: bigint; pricePerUnits: number }) =>
+      p.pricePerUnits === listing.pricePerUnits
+        ? p.price
+        : (p.price * pack + BigInt(p.pricePerUnits) / 2n) / BigInt(p.pricePerUnits);
+    const series = [
+      ...(before ? [{ at: since, price: norm(before) }] : []),
+      ...inside.map((p) => ({ at: p.at, price: norm(p) })),
+    ].filter((p, i, all) => i === 0 || p.price !== all[i - 1]!.price);
+    return {
+      days: PRICE_HISTORY_DAYS,
+      // У пополнения цена «от» зависит от наценки, а не от скидок: её историю не показываем.
+      topup: listing.topupMarkupBps != null,
+      points: series.map((p) => ({ at: p.at, price: p.price.toString() })),
     };
   }
 

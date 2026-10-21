@@ -45,6 +45,10 @@
       "types": "./dist/reprice.d.ts",
       "default": "./dist/reprice.js"
     },
+    "./price-history": {
+      "types": "./dist/price-history.d.ts",
+      "default": "./dist/price-history.js"
+    },
     "./seller-promo": {
       "types": "./dist/seller-promo.d.ts",
       "default": "./dist/seller-promo.js"

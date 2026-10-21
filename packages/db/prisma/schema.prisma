@@ -487,6 +487,7 @@ model Listing {
   orders       Order[]
   searchHits   SavedSearchHit[]
   viewDays     ListingViewDay[]
+  pricePoints  ListingPricePoint[]
 
   // FTS по (title, description) и GIN по attributes — добавить SQL-миграцией
   @@index([categoryId, price])
@@ -1018,6 +1019,22 @@ model SavedSearchHit {
   @@id([searchId, listingId])
   @@index([listingId])
   @@map("saved_search_hits")
+}
+
+// Цена лота во времени — для «Истории цены» на странице лота. Точку пишет
+// триггер базы при создании лота и при каждой смене цены или пачки — любым
+// путём: правкой, скидкой, ценами разом, возвратом цены по сроку.
+model ListingPricePoint {
+  id            BigInt   @id @default(autoincrement())
+  listingId     String   @map("listing_id") @db.Uuid
+  price         BigInt
+  pricePerUnits Int      @map("price_per_units")
+  at            DateTime @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, at])
+  @@map("listing_price_points")
 }
 
 // Подписка на продавца: его новые лоты и скидки приходят уведомлением.

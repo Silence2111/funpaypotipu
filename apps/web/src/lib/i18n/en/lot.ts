@@ -197,4 +197,19 @@ export const LOT: Record<string, string> = {
     'Up to {n} photos — screenshots of the item or the game. All buyers will see them.',
   'С фото': 'With photos',
   'Таких отзывов нет.': 'No such reviews.',
+
+  // История цены
+  'История цены': 'Price history',
+  'Цена не менялась с {date} — {price}.': 'The price hasn’t changed since {date} — {price}.',
+  'Цена не менялась последние {n} дней — {price}.':
+    'The price hasn’t changed in the last {n} days — {price}.',
+  '{price} с {from} по {to}': '{price} from {from} to {to}',
+  сегодня: 'today',
+  'с {from} по {to}': 'from {from} to {to}',
+  'с {from} — сейчас': 'from {from} — now',
+  Сейчас: 'Now',
+  минимум: 'lowest',
+  максимум: 'highest',
+  'Все изменения: {n}': 'All changes: {n}',
+  Когда: 'When',
 };

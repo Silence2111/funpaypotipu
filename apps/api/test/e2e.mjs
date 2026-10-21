@@ -1573,6 +1573,36 @@ async function scenarioBulkPrice(rnd) {
   );
 }
 
+async function scenarioPriceHistory(rnd) {
+  console.log('\n— История цены —');
+  const seller = await register('phs', rnd);
+  const lot = await createListing(seller.token, 'accounts', '100000', { title: `История ${rnd}` });
+  const as = { token: seller.token };
+  // Каждый путь смены цены: правка, цены разом, скидка, её завершение; правка без смены цены — не точка.
+  await j(`/listings/${lot}`, { method: 'PATCH', ...as, body: JSON.stringify({ price: '120000' }) });
+  await j(`/listings/${lot}`, { method: 'PATCH', ...as, body: JSON.stringify({ title: `История ${rnd} · правка` }) });
+  await j('/listings/bulk-price', { method: 'POST', ...as, body: JSON.stringify({ ids: [lot], percent: -10 }) });
+  await j(`/listings/${lot}/sale`, { method: 'POST', ...as, body: JSON.stringify({ percent: 20, days: 3 }) });
+  await j(`/listings/${lot}/sale`, { method: 'DELETE', ...as });
+  const h = await j(`/listings/${lot}/price-history`);
+  const prices = h.body.points?.map((p) => p.price);
+  check(
+    'Правка, цены разом, скидка и её завершение — точки истории; правка без смены цены — нет',
+    h.status === 200 && h.body.days === 30 && h.body.topup === false &&
+      JSON.stringify(prices) === JSON.stringify(['100000', '120000', '108000', '86400', '108000']),
+    JSON.stringify(h.body),
+  );
+
+  await j(`/listings/${lot}`, { method: 'PATCH', ...as, body: JSON.stringify({ status: 'paused' }) });
+  const paused = await j(`/listings/${lot}/price-history`);
+  const bad = await j('/listings/not-a-uuid/price-history');
+  check(
+    'Снятый лот — 404, неверный адрес — 400',
+    paused.status === 404 && bad.status === 400,
+    JSON.stringify({ paused: paused.status, bad: bad.status }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2044,6 +2074,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioFollowFeed(rnd);
   await scenarioQtyDiscount(rnd);
   await scenarioBulkPrice(rnd);
+  await scenarioPriceHistory(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

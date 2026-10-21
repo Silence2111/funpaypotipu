@@ -22,6 +22,8 @@
   --warning-bg: #fcf3e1;
   /* Данные: столбцы графиков (проверено на контраст с фоном карточки). */
   --data-violet: #6355e6;
+  /* Данные: линии графиков. Светлая — поэтому у графика всегда подписи и таблица. */
+  --data-sky: #7fbff0;
   --focus-ring: 0 0 0 3px rgba(34, 90, 234, 0.35);
   --shadow: 0 1px 3px rgba(14, 17, 22, 0.08);
   --shadow-hover: 0 4px 12px rgba(14, 17, 22, 0.08);
@@ -52,6 +54,7 @@
   --warning: #ffb43d;
   --warning-bg: rgba(255, 180, 61, 0.12);
   --data-violet: #7c70f0;
+  --data-sky: #7fbff0;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5);
   --header-bg: rgba(18, 19, 23, 0.86);
@@ -76,6 +79,7 @@
     --warning: #ffb43d;
     --warning-bg: rgba(255, 180, 61, 0.12);
   --data-violet: #7c70f0;
+  --data-sky: #7fbff0;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
     --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5);
     --header-bg: rgba(18, 19, 23, 0.86);
@@ -4307,4 +4311,97 @@ a.my-lot-title:hover {
 .review-photo-add[aria-disabled='true'] {
   opacity: 0.6;
   pointer-events: none;
+}
+
+/* История цены: ступенчатая линия 2px, точки изменений 8px с кольцом фона,
+   подсказка и подписи — как у графика по дням. */
+.price-history {
+  display: grid;
+  gap: 12px;
+}
+.price-chart {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.price-scale {
+  height: 120px;
+}
+.price-plot {
+  position: relative;
+  min-width: 0;
+}
+.price-area {
+  position: relative;
+  height: 120px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.price-area svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.price-line {
+  fill: none;
+  stroke: var(--data-sky);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.price-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--data-sky);
+  box-shadow: 0 0 0 2px var(--bg);
+  transform: translate(-50%, -50%);
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.price-dot[data-active='true'] {
+  transform: translate(-50%, -50%) scale(1.3);
+}
+.price-cross {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-strong);
+  pointer-events: none;
+}
+.price-hit {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+}
+.price-hit:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 4px;
+}
+.price-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.price-summary b {
+  color: var(--fg);
+}
+.price-table summary {
+  min-height: 32px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.price-table table {
+  margin-top: 8px;
 }

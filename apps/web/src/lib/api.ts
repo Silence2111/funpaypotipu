@@ -118,6 +118,15 @@ export const getGames = () => apiTry<Game[]>('/catalog/games');
 export const getGame = (slug: string) => apiTry<GameWithCategories>(`/catalog/games/${slug}`);
 export const getListing = (id: string) => apiTry<ListingDetail>(`/listings/${id}`);
 
+/** «История цены»: точки за 30 дней в текущей пачке лота, без повторов подряд. */
+export interface PriceHistory {
+  days: number;
+  /** Пополнение: цена «от» из наценки — историю не показываем. */
+  topup: boolean;
+  points: Array<{ at: string; price: string }>;
+}
+export const getPriceHistory = (id: string) => apiTry<PriceHistory>(`/listings/${id}/price-history`);
+
 /** Все игры с разделами и числом лотов — для указателя А–Я и поиска по играм. */
 export interface GameIndexEntry {
   id: string;
