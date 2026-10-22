@@ -19,6 +19,7 @@ import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
 import { StockWatchButton } from '@/components/stock-watch-button';
 import { ViewBeacon } from '@/components/view-beacon';
+import { RecentLots } from '@/components/recent-lots';
 import { SaleMark } from '@/components/sale-mark';
 import { PriceLowMark } from '@/components/price-low-mark';
 import { isDemoSeller, markupLabel, qtyTiers, soldByQty, topupQuote } from '@gamemarket/shared';
@@ -176,7 +177,7 @@ export default async function ListingPage({
 
   return (
     <div className="container" style={{ paddingTop: 32 }}>
-      <ViewBeacon listingId={listing.id} />
+      <ViewBeacon listingId={listing.id} sellerId={listing.seller.id} />
       <JsonLd data={productLd} />
       <JsonLd
         data={breadcrumbLd([
@@ -455,6 +456,8 @@ export default async function ListingPage({
               <OfferTable items={sellerOthers} showSection compact hideSeller t={t} />
             </section>
           )}
+
+          <RecentLots exclude={listing.id} compact />
         </div>
       </div>
 

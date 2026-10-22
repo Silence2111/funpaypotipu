@@ -344,6 +344,24 @@ export class ListingsService {
   }
 
   /**
+   * Карточки лотов по id — «Вы недавно смотрели»: в продаже и закончившиеся
+   * (у них «Сообщить о поступлении»), в том порядке, в каком смотрели.
+   * Снятые, заблокированные и удалённые пропадают из списка молча.
+   */
+  async cards(ids: string[]) {
+    if (!ids.length) return [];
+    const rows = await this.prisma.listing.findMany({
+      where: { id: { in: ids }, status: { in: ['active', 'sold_out'] } },
+      select: cardSelect,
+    });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    return ids.flatMap((id) => {
+      const row = byId.get(id);
+      return row ? [this.resolveImages(row)] : [];
+    });
+  }
+
+  /**
    * Лента подписок: лоты в продаже у продавцов, на которых подписан человек,
    * новые сверху; «со скидкой» — идущие скидки, недавно начатые сверху.
    * Чёрный список в обе стороны в ленту не попадает. `freshSince` — сколько

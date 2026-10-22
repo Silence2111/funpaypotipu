@@ -1758,6 +1758,28 @@ async function scenarioStockWatch(rnd) {
   );
 }
 
+async function scenarioRecentCards(rnd) {
+  console.log('\n— Вы недавно смотрели —');
+  const seller = await register('rcs', rnd);
+  const as = { token: seller.token };
+  const a = await createListing(seller.token, 'accounts', '10000', { title: `Смотрели ${rnd} · А`, stock: 2 });
+  const b = await createListing(seller.token, 'accounts', '20000', { title: `Смотрели ${rnd} · Б` });
+  const gone = await createListing(seller.token, 'accounts', '30000', { title: `Смотрели ${rnd} · снят` });
+  await j(`/listings/${a}`, { method: 'PATCH', ...as, body: JSON.stringify({ stock: 0 }) });
+  await j(`/listings/${gone}`, { method: 'PATCH', ...as, body: JSON.stringify({ status: 'paused' }) });
+  const unknown = '00000000-0000-4000-8000-000000000000';
+  const got = await j(`/listings/cards?ids=${[b, gone, a, unknown, b].join(',')}`);
+  const ids = Array.isArray(got.body) ? got.body.map((x) => x.id) : got.body;
+  const bad = await j('/listings/cards?ids=not-a-uuid');
+  const many = await j(`/listings/cards?ids=${Array.from({ length: 25 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`).join(',')}`);
+  check(
+    'Карточки по id — в том же порядке, закончившийся с «закончился», снятый и неизвестный пропадают, повтор — один раз; неверный id и больше 24 — 400',
+    got.status === 200 && JSON.stringify(ids) === JSON.stringify([b, a]) && got.body[1]?.status === 'sold_out' &&
+      bad.status === 400 && many.status === 400,
+    JSON.stringify({ status: got.status, ids, expected: [b, a], bad: bad.status, many: many.status }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2233,6 +2255,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioHonestSale(rnd);
   await scenarioPriceLow(rnd);
   await scenarioStockWatch(rnd);
+  await scenarioRecentCards(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

@@ -58,6 +58,15 @@ const saleSchema = z.object({
   days: z.number().int().min(1, 'Срок — от суток').max(SALE_MAX_DAYS, `Срок — до ${SALE_MAX_DAYS} суток`),
 });
 
+/** «Вы недавно смотрели»: до 24 id через запятую, повторы убираются. */
+const cardsQuerySchema = z.object({
+  ids: z
+    .string()
+    .max(24 * 37)
+    .transform((v) => [...new Set(v.split(',').filter(Boolean))])
+    .pipe(z.array(z.string().uuid()).max(24)),
+});
+
 @Controller('listings')
 export class ListingsController {
   constructor(
@@ -69,6 +78,12 @@ export class ListingsController {
   @Get()
   browse(@Query(new ZodValidationPipe(listingQuerySchema)) query: ListingQuery) {
     return this.listings.browse(query);
+  }
+
+  /** Карточки по списку id — «Вы недавно смотрели»: в продаже и закончившиеся, в том же порядке. */
+  @Get('cards')
+  cards(@Query(new ZodValidationPipe(cardsQuerySchema)) query: { ids: string[] }) {
+    return this.listings.cards(query.ids);
   }
 
   @Get('mine')

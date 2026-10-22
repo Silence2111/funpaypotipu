@@ -5,6 +5,7 @@ import { GameTopupForm } from '@/components/game-topup-form';
 import { GameSearch } from '@/components/game-search';
 import { GameDirectory, PopularGames } from '@/components/game-directory';
 import { OfferTable } from '@/components/offers';
+import { RecentLots } from '@/components/recent-lots';
 import { getT } from '@/lib/i18n/server';
 import type { T } from '@/lib/i18n/lang';
 
@@ -125,6 +126,8 @@ export default async function HomePage({
           <PopularGames games={games} />
         </section>
       )}
+
+      <RecentLots />
 
       {listings.length > 0 && (
         <section aria-labelledby="fresh-title">

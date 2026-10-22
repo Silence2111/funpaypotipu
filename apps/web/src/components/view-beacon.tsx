@@ -1,15 +1,18 @@
 'use client';
 
 import { useEffect } from 'react';
-import { apiFetch } from '@/lib/session';
+import { apiFetch, getUser } from '@/lib/session';
+import { rememberLot } from '@/lib/recent';
 
 /**
  * Отметка просмотра лота для статистики продавца: раз в сутки с браузера.
  * Без JavaScript (роботы) просмотр не считается; сбой отметки ничего не
- * ломает — страница её не ждёт.
+ * ломает — страница её не ждёт. Заодно лот попадает в «Вы недавно
+ * смотрели» — кроме своих лотов продавца.
  */
-export function ViewBeacon({ listingId }: { listingId: string }) {
+export function ViewBeacon({ listingId, sellerId }: { listingId: string; sellerId?: string }) {
   useEffect(() => {
+    if (!sellerId || getUser()?.id !== sellerId) rememberLot(listingId);
     const key = `gm_viewed_${listingId}`;
     const today = new Date().toISOString().slice(0, 10);
     try {
@@ -19,6 +22,6 @@ export function ViewBeacon({ listingId }: { listingId: string }) {
       // Приватный режим без хранилища — просто отметим.
     }
     apiFetch(`/lot-stats/${listingId}/view`, { method: 'POST' }).catch(() => {});
-  }, [listingId]);
+  }, [listingId, sellerId]);
   return null;
 }

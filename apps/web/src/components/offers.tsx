@@ -177,6 +177,8 @@ function OfferRow({
               </span>
             )}
             {promoted && <span>{t('продвижение')}</span>}
+            {/* Раздел их не показывает; закончившийся бывает в «Вы недавно смотрели». */}
+            {l.status === 'sold_out' && <span className="badge">{t('Закончился')}</span>}
           </span>
         </span>
       </span>
