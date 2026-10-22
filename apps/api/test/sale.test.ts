@@ -123,6 +123,8 @@ describe('скидка на лот', () => {
     expect(search.indexListing).toHaveBeenCalledTimes(2);
     // Сначала — срок без прежней цены: такая строка не должна ронять возврат остальным.
     expect(String(prisma.$executeRaw.mock.calls[0]![0])).toMatch(/sale_list_price IS NULL/);
+    // Истёкшая отметка «минимум за 30 дней» уходит из сортировки снижений.
+    expect(String(prisma.$executeRaw.mock.calls.at(-1)![0])).toMatch(/SET price_low_until = NULL/);
   });
 
   it('во время скидки новая цена или пачка — отказ', async () => {

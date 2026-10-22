@@ -14,6 +14,7 @@ const SORTS: Array<[string, string]> = [
   ['price_asc', msg('Сначала дешёвые')],
   ['price_desc', msg('Сначала дорогие')],
   ['popular', msg('Часто покупают')],
+  ['drop', msg('Сначала большие снижения')],
 ];
 
 /**

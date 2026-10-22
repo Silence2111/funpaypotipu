@@ -1656,14 +1656,32 @@ async function scenarioPriceLow(rnd) {
   await setPrice('90000'); // −8% от 980 ₽
   const marked = await low();
   const inFilter = await dropped();
+  const first = (await j(`/listings/${lot}`)).body;
   await setPrice('88000'); // снижение следом — меньше 5%, но ниже прежних
   const chained = await low();
+  const second = (await j(`/listings/${lot}`)).body;
   const days30 = marked ? new Date(marked).getTime() - Date.now() - 30 * 86_400_000 : NaN;
   check(
-    'Снизили на 2% — без отметки; ещё на 8% — «минимум за 30 дней» на 30 дней и фильтр «Цена снижена»; снизили следом — держится',
-    small === null && Math.abs(days30) < 600_000 && inFilter.includes(lot) && !!chained && chained >= marked,
-    JSON.stringify({ small, marked, inFilter, chained }),
+    'Снизили на 2% — без отметки; ещё на 8% — «минимум за 30 дней», −8% от 980 ₽, на 30 дней, в фильтре «Цена снижена»; снизили следом — держится, −10% от тех же 980 ₽',
+    small === null && Math.abs(days30) < 600_000 && inFilter.includes(lot) && !!chained && chained >= marked &&
+      first.priceLowRef === '98000' && first.priceDropPct === 8 &&
+      second.priceLowRef === '98000' && second.priceDropPct === 10,
+    JSON.stringify({ small, marked, inFilter, chained, first: [first.priceLowRef, first.priceDropPct], second: [second.priceLowRef, second.priceDropPct] }),
   );
+
+  // Сортировка «Сначала большие снижения»: −30% выше −10%, лот без снижения — ниже обоих.
+  const big = await createListing(seller.token, 'accounts', '100000', { title: `Минимум ${rnd} · большой` });
+  const flat = await createListing(seller.token, 'accounts', '100000', { title: `Минимум ${rnd} · ровный` });
+  await j(`/listings/${big}`, { method: 'PATCH', ...as, body: JSON.stringify({ price: '70000' }) });
+  const sorted = (await j(`/listings?sellerId=${seller.id}&sort=drop`)).body.items?.map((x) => x.id) ?? [];
+  const badSort = await j('/listings?sort=biggest');
+  check(
+    'Сначала большие снижения: −30%, затем −10%, затем лот без снижения; неизвестная сортировка — 400',
+    JSON.stringify(sorted) === JSON.stringify([big, lot, flat]) && badSort.status === 400,
+    JSON.stringify({ sorted, expected: [big, lot, flat], badSort: badSort.status }),
+  );
+  await j(`/listings/${big}`, { method: 'PATCH', ...as, body: JSON.stringify({ status: 'paused' }) });
+  await j(`/listings/${flat}`, { method: 'PATCH', ...as, body: JSON.stringify({ status: 'paused' }) });
 
   await setPrice('100000');
   const raised = await low();
@@ -1679,14 +1697,15 @@ async function scenarioPriceLow(rnd) {
   // Скидка — в фильтре со своей пометкой; её завершение отметку не оставляет.
   const sale = await j(`/listings/${lot}/sale`, { method: 'POST', ...as, body: JSON.stringify({ percent: 20, days: 3 }) });
   const onSale = await dropped();
+  const saleCard = (await j(`/listings/${lot}`)).body;
   await j(`/listings/${lot}/sale`, { method: 'DELETE', ...as });
   const ended = (await j(`/listings/${lot}`)).body;
   const afterSale = await dropped();
   check(
-    'Скидка — лот в фильтре «Цена снижена»; скидку завершили — цена вернулась, отметки и фильтра нет',
-    sale.status === 201 && onSale.includes(lot) && ended.price === '88000' && ended.priceLowUntil == null &&
-      !afterSale.includes(lot),
-    JSON.stringify({ sale: sale.status, onSale, ended: [ended.price, ended.priceLowUntil], afterSale }),
+    'Скидка — лот в фильтре «Цена снижена», снижение −20% как у скидки; скидку завершили — цена вернулась, отметки и фильтра нет',
+    sale.status === 201 && onSale.includes(lot) && saleCard.priceDropPct === 20 && ended.price === '88000' &&
+      ended.priceLowUntil == null && ended.priceDropPct == null && !afterSale.includes(lot),
+    JSON.stringify({ sale: sale.status, onSale, saleDrop: saleCard.priceDropPct, ended: [ended.price, ended.priceLowUntil, ended.priceDropPct], afterSale }),
   );
 }
 

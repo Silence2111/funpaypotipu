@@ -266,7 +266,7 @@ export default async function ListingPage({
             )}
             {isPriceLow(listing, Date.now()) && (
               <div style={{ margin: pack ? '0 0 12px' : '-8px 0 16px' }}>
-                <PriceLowMark t={t} />
+                <PriceLowMark l={listing} t={t} />
               </div>
             )}
             {topup && (

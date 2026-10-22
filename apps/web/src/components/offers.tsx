@@ -202,7 +202,7 @@ function OfferRow({
           currency={l.currency}
           t={t}
         />
-        {isPriceLow(l, Date.now()) && <PriceLowMark t={t} />}
+        {isPriceLow(l, Date.now()) && <PriceLowMark l={l} t={t} />}
         {pack ? (
           <span className="faint">{pack}</span>
         ) : (

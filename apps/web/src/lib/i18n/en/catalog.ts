@@ -68,6 +68,8 @@ export const CATALOG: Record<string, string> = {
   Игра: 'Game',
   'Продавец в сети': 'Seller online',
   'Цена снижена': 'Price dropped',
+  'Сначала большие снижения': 'Biggest drops first',
+  'Большие снижения': 'Biggest drops',
   'Идёт скидка или цена — самая низкая у лота за {n} дней':
     'On sale, or the lowest price this offer has had in {n} days',
   'Разделы: {game}': 'Categories: {game}',

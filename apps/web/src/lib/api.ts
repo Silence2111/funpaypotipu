@@ -81,6 +81,9 @@ export interface ListingCard {
   saleUntil?: string | null;
   /** «Минимум за 30 дней» до этого времени — показывать ли, решает isPriceLow. */
   priceLowUntil?: string | null;
+  /** С какой цены снижали; priceDropPct — «−12%» (у скидки — её «−N%»). */
+  priceLowRef?: string | null;
+  priceDropPct?: number | null;
   /** Параметры раздела: звание, регион, сервер; «да/нет» — булевы. */
   attributes?: Record<string, unknown>;
   seller: { id?: string; profile: SellerBrief | null };

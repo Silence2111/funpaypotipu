@@ -41,6 +41,8 @@ export interface MyLot {
   saleUntil?: string | null;
   /** «Минимум за 30 дней» до этого времени. */
   priceLowUntil?: string | null;
+  priceLowRef?: string | null;
+  priceDropPct?: number | null;
   topupMarkupBps?: number | null;
   fulfillmentType?: string;
   unitName?: string | null;
@@ -374,7 +376,7 @@ function PriceCell({
         pack && <span className="my-lot-pack">{pack}</span>
       )}
       {/* Продавцу — что покупатели видят отметку у его лота. */}
-      {draft === null && isPriceLow(lot, Date.now()) && <PriceLowMark t={t} />}
+      {draft === null && isPriceLow(lot, Date.now()) && <PriceLowMark l={lot} t={t} />}
     </div>
   );
 }

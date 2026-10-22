@@ -72,7 +72,8 @@ export const listingQuerySchema = z.object({
   q: z.string().trim().max(100).optional(),
   minPrice: z.coerce.number().int().nonnegative().optional(),
   maxPrice: z.coerce.number().int().nonnegative().optional(),
-  sort: z.enum(['new', 'price_asc', 'price_desc', 'popular']).default('new'),
+  // drop — сначала большие снижения: скидка или «минимум за 30 дней».
+  sort: z.enum(['new', 'price_asc', 'price_desc', 'popular', 'drop']).default('new'),
   // Тип товара во всех играх: «все аккаунты», «весь донат» — как строка
   // категорий на главной Playerok.
   segment: z.enum(['accounts', 'currency', 'items', 'service', 'key', 'topup']).optional(),

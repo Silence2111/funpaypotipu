@@ -87,9 +87,10 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           <b>Choose an offer.</b> Each row shows the seller: rating, number of reviews and whether
           they are online. Ask a question before buying with “Message the seller” right on the
           listing page. A “{PRICE_LOW_DAYS}-day low” mark by the price means the listing is cheaper
-          now than at any time in the last {PRICE_LOW_DAYS} days; the “Price dropped” filter shows
-          such listings and listings on sale. How the price changed is in “Price history” on the
-          listing page.
+          now than at any time in the last {PRICE_LOW_DAYS} days, and “−12%” next to it says how
+          much it was cut; the “Price dropped” filter shows such listings and listings on sale, and
+          “Biggest drops first” puts the deepest cuts on top. How the price changed is in “Price
+          history” on the listing page.
         </li>
         <li>
           <b>Pay.</b> {cap(methodsWhere(false, c))} — no surcharge; {methodsWhere(true, c)} — plus{' '}

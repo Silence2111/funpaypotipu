@@ -85,8 +85,11 @@ const cardSelect = {
   saleListPrice: true,
   saleRefPrice: true,
   saleUntil: true,
-  // «Минимум за 30 дней» — до этого времени (shared/price-history.ts).
+  // «Минимум за 30 дней» — до этого времени и с какой цены снижали
+  // (shared/price-history.ts); priceDropPct — «−12%» у отметки.
   priceLowUntil: true,
+  priceLowRef: true,
+  priceDropPct: true,
   fulfillmentType: true,
   // Лот «на сумму покупателя»: карточка пишет «от», страница лота — форму суммы.
   topupMarkupBps: true,
@@ -245,7 +248,7 @@ export class ListingsService {
     const attrs = this.parseAttrs(query.attrs);
     // Текстовый запрос + доступный движок → релевантный поиск с typo-tolerance.
     // При фильтре по продавцу/атрибутам идём в Postgres (в Meili они не индексируются).
-    if (query.q && this.search.enabled && !query.sellerId && !attrs && !query.instant && !query.online && !query.segment && !query.drop) {
+    if (query.q && this.search.enabled && !query.sellerId && !attrs && !query.instant && !query.online && !query.segment && !query.drop && query.sort !== 'drop') {
       const found = await this.search.searchIds(
         query.q,
         {
@@ -305,7 +308,16 @@ export class ListingsService {
           ? [{ price: 'desc' }]
           : query.sort === 'popular'
             ? [{ salesCount: 'desc' }, { createdAt: 'desc' }]
-            : [
+            : query.sort === 'drop'
+              ? // Процент снижения ставит триггер базы, истёкшие отметки снимает
+                // фоновая задача скидок; без снижения — как по умолчанию.
+                [
+                  { priceDropPct: { sort: 'desc', nulls: 'last' } },
+                  { promotedUntil: { sort: 'desc', nulls: 'last' } },
+                  { boostUntil: { sort: 'desc', nulls: 'last' } },
+                  { createdAt: 'desc' },
+                ]
+              : [
                 // Оплаченное продвижение — выше всех; истёкшее обнуляет фоновая задача.
                 { promotedUntil: { sort: 'desc', nulls: 'last' } },
                 { boostUntil: { sort: 'desc', nulls: 'last' } },
@@ -640,7 +652,7 @@ export class ListingsService {
     return { ok: true };
   }
 
-  /** Срок скидки вышел — прежняя цена возвращается одним запросом. */
+  /** Срок скидки вышел — прежняя цена возвращается одним запросом; заодно снимаются истёкшие «минимумы за 30 дней». */
   @Interval('sales', SALE_SWEEP_MS)
   async endExpiredSales(): Promise<number> {
     const now = new Date();
@@ -658,6 +670,13 @@ export class ListingsService {
     for (const { id } of ended) {
       await this.search.indexListing(id).catch((e: Error) => this.logger.warn(`Индекс ${id}: ${e.message}`));
     }
+    // Отметка «минимум за 30 дней» вышла по сроку — снижение больше не в
+    // сортировке «Сначала большие снижения»; у скидки процент остаётся её.
+    await this.prisma.$executeRaw`
+      UPDATE listings
+      SET price_low_until = NULL, price_low_ref = NULL,
+          price_drop_pct = CASE WHEN sale_until IS NOT NULL THEN price_drop_pct END
+      WHERE price_low_until IS NOT NULL AND price_low_until <= ${now}`;
     return ended.length;
   }
 

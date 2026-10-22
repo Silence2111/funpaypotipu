@@ -213,6 +213,8 @@ export const LOT: Record<string, string> = {
   'Все изменения: {n}': 'All changes: {n}',
   Когда: 'When',
   'минимум за {n} дней': '{n}-day low',
+  'Цена снижена с {price} и ниже, чем когда-либо у этого лота за последние {n} дней':
+    'Cut from {price} and lower than this offer has been at any time in the last {n} days',
   'Цена ниже, чем когда-либо у этого лота за последние {n} дней':
     'Lower than this offer has been at any time in the last {n} days',
 };

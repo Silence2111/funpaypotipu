@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { TrendingDown } from 'lucide-react';
+import { PRICE_LOW_DAYS } from '@gamemarket/shared/price-history';
 import { browseListings, getGameIndex, getCategoryAttributes, SEGMENTS, type Attribute } from '@/lib/api';
 import { OfferTable } from '@/components/offers';
 import { SearchBar } from '@/components/search-bar';
@@ -23,6 +25,7 @@ const SORTS: Array<[string, string]> = [
   ['price_asc', msg('Дешевле')],
   ['price_desc', msg('Дороже')],
   ['popular', msg('Часто покупают')],
+  ['drop', msg('Большие снижения')],
 ];
 
 /**
@@ -41,7 +44,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   }
 
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
-  const sort = ['price_asc', 'price_desc', 'popular'].includes(sp.sort ?? '') ? sp.sort! : 'new';
+  const sort = ['price_asc', 'price_desc', 'popular', 'drop'].includes(sp.sort ?? '') ? sp.sort! : 'new';
   const segment = SEGMENTS.find(([k]) => k === sp.segment);
 
   // Значения фасетов приходят как f_<key>=value.
@@ -62,6 +65,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       limit: PAGE_SIZE,
       page,
       online: sp.online === '1',
+      drop: sp.drop === '1',
     }),
   ]);
   const games = index ?? [];
@@ -129,6 +133,15 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
           >
             <span className="dot-online" aria-hidden />
             {t('Продавец в сети')}
+          </Link>
+          <Link
+            href={qs({ drop: sp.drop === '1' ? undefined : '1' })}
+            className="chip"
+            aria-pressed={sp.drop === '1'}
+            title={t('Идёт скидка или цена — самая низкая у лота за {n} дней', { n: PRICE_LOW_DAYS })}
+          >
+            <TrendingDown size={14} strokeWidth={1.75} aria-hidden />
+            {t('Цена снижена')}
           </Link>
         </div>
         <div className="filters-group filters-side">

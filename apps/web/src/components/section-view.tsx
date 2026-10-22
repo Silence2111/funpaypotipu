@@ -11,7 +11,7 @@ import { JsonLd, breadcrumbLd } from './json-ld';
 export type SectionSearch = Record<string, string | undefined>;
 
 const PAGE_SIZE = 50;
-const SORTS = ['new', 'price_asc', 'price_desc', 'popular'];
+const SORTS = ['new', 'price_asc', 'price_desc', 'popular', 'drop'];
 
 /** Раздел для /igra/<игра>: первый с предложениями, а если пусто везде — первый. */
 export function defaultSection(game: GameWithCategories): Category | undefined {
