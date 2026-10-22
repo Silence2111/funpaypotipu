@@ -9,6 +9,7 @@ import { formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { apiErrorMessage } from '@/lib/errors';
 import { OrderChat } from '@/components/order-chat';
 import { OrderReview } from '@/components/order-review';
+import { BuyAgain } from '@/components/buy-again';
 import { PayMethods, priceFor, type PayMethod } from '@/components/pay-methods';
 import { payOrder } from '@/lib/checkout';
 import { useT } from '@/lib/i18n/client';
@@ -424,6 +425,14 @@ export default function OrderPage() {
               }}>
               {t('Отменить заказ')}
             </button>
+          )}
+          {role === 'buyer' && order.listingId && (order.status === 'completed' || closed) && (
+            <BuyAgain
+              listingId={order.listingId}
+              qty={order.qty}
+              account={topupAccount}
+              topupAmount={topupAmount}
+            />
           )}
           {role === 'seller' && ['paid', 'delivered', 'disputed'].includes(order.status) && (
             <button className="btn ghost" disabled={busy} type="button" onClick={refund}>

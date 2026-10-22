@@ -102,6 +102,8 @@ export const ORDERS: Record<string, string> = {
   'Ваши ключи · {n}': 'Your keys · {n}',
   'Ваш ключ': 'Your key',
   'Всё получил, подтвердить': 'Got everything, confirm',
+  'Купить снова': 'Buy again',
+  'Закончился — сообщить о поступлении': 'Sold out — notify me when back',
   'Отменить заказ? Деньги вернутся на ваш баланс.':
     'Cancel the order? The money will return to your balance.',
   'Отменить заказ': 'Cancel order',

@@ -74,10 +74,19 @@ export default async function ListingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string; updated?: string; stock?: string; account?: string; amount?: string }>;
+  searchParams: Promise<{
+    created?: string;
+    updated?: string;
+    stock?: string;
+    account?: string;
+    amount?: string;
+    qty?: string;
+  }>;
 }) {
   const { id } = await params;
-  const { created, updated, stock, account, amount } = await searchParams;
+  const { created, updated, stock, account, amount, qty } = await searchParams;
+  // «Купить снова» из заказа — с тем же количеством.
+  const initialQty = /^\d{1,9}$/.test(qty ?? '') ? Number(qty) : undefined;
   const [listing, pricing, t] = await Promise.all([getListing(id), getPublicPricing(), getT()]);
   if (!listing) notFound();
   // Всё, что вокруг лота: продавец целиком, подписи параметров, его другие
@@ -308,6 +317,7 @@ export default async function ListingPage({
                 price={listing.price}
                 currency={listing.currency}
                 qtyOffer={qtyOffer}
+                initialQty={initialQty}
                 buyerFields={listing.fulfillmentType === 'manual' ? listing.buyerFields ?? [] : []}
               />
             )}

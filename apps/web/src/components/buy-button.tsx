@@ -38,6 +38,7 @@ export function BuyButton({
   currency,
   qtyOffer,
   buyerFields = [],
+  initialQty,
 }: {
   listingId: string;
   fulfillmentType?: string;
@@ -47,6 +48,8 @@ export function BuyButton({
   qtyOffer?: QtyOffer;
   /** Что продавец спрашивает у покупателя: ник, сервер. */
   buyerFields?: BuyerField[];
+  /** Количество из «Купить снова» — не меньше минимума и не больше наличия. */
+  initialQty?: number;
 }) {
   const t = useT();
   const router = useRouter();
@@ -58,7 +61,11 @@ export function BuyButton({
   const [promoErr, setPromoErr] = useState<string | null>(null);
   const [account, setAccount] = useState('');
   const [confirmed, setConfirmed] = useState(false);
-  const [qtyInput, setQtyInput] = useState(qtyOffer ? String(qtyOffer.minQty) : '1');
+  const [qtyInput, setQtyInput] = useState(() => {
+    if (!qtyOffer) return '1';
+    const want = Math.min(initialQty ?? qtyOffer.minQty, qtyOffer.stock ?? Infinity);
+    return String(Math.max(qtyOffer.minQty, want));
+  });
   const [method, setMethod] = useState<PayMethod>('sbp');
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
