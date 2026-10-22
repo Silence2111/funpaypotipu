@@ -219,7 +219,7 @@ describe('вход запоминает язык сайта', () => {
         })),
         updateMany: vi.fn(async () => ({ count: 1 })),
       },
-      authSession: { create: vi.fn(async () => ({})) },
+      authSession: { create: vi.fn(async () => ({})), count: vi.fn(async () => 0) },
       userRole: { findMany: vi.fn(async () => []) },
     };
     const tokens = {

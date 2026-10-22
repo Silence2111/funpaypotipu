@@ -71,6 +71,9 @@ export const EN_TEXTS: Record<string, string> = {
   '«{title}» — {price} вместо {old} и ещё {n}': '“{title}” — {price} instead of {old} and {n} more',
   // Подешевевший лот из избранного
   '«{title}»: было {old}, стало {new}': '“{title}”: was {old}, now {new}',
+  // Вход с нового устройства
+  'Вход с нового устройства: {device}, IP {ip}. Если это были не вы — завершите сеанс в «Безопасности» и смените пароль.':
+    'Sign-in from a new device: {device}, IP {ip}. If it wasn’t you, end the session in “Security” and change your password.',
   // Оценка покупателя продавцом
   '{seller} рекомендует вас как покупателя': '{seller} recommends you as a buyer',
   '{seller} не рекомендует вас как покупателя': '{seller} doesn’t recommend you as a buyer',

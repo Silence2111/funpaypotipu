@@ -630,8 +630,8 @@ async function scenarioPush(rnd) {
   const user = await register('psh', rnd);
   const s0 = await j('/account/notifications', { token: user.token });
   check('Ключ сервера для подписки есть, устройств нет', /^[A-Za-z0-9_-]{80,}$/.test(s0.body.push?.publicKey ?? '') && s0.body.push?.devices === 0, JSON.stringify(s0.body.push));
-  // Восемь групп: с частью 34 добавились «Сохранённые поиски».
-  check('Пуши по умолчанию включены во всех группах', Object.values(s0.body.prefs?.push ?? {}).every(Boolean) && Object.keys(s0.body.prefs?.push ?? {}).length === 8);
+  // Девять групп: с частью 34 добавились «Сохранённые поиски», с частью 56 — «Безопасность».
+  check('Пуши по умолчанию включены во всех группах', Object.values(s0.body.prefs?.push ?? {}).every(Boolean) && Object.keys(s0.body.prefs?.push ?? {}).length === 9);
   const ecdh = createECDH('prime256v1');
   const keys = { p256dh: ecdh.generateKeys().toString('base64url'), auth: randomBytes(16).toString('base64url') };
   const endpoint = `https://fcm.googleapis.com/fcm/send/e2e-${rnd}`;
@@ -2011,6 +2011,42 @@ async function scenarioSellerToday(rnd) {
   );
 }
 
+async function scenarioLoginAlert(rnd) {
+  console.log('\n— Вход с нового устройства —');
+  const user = await register('lgn', rnd);
+  const email = `lgn${rnd}@e2e.local`;
+  const FIREFOX = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0';
+  const login = (ua) =>
+    j('/auth/login', {
+      method: 'POST',
+      headers: ua ? { 'User-Agent': ua } : {},
+      body: JSON.stringify({ email, password: 'password123' }),
+    });
+  const alerts = async () =>
+    (await j('/notifications', { token: user.token })).body.filter((n) => n.type === 'new_login');
+  await wait(500);
+  const afterRegister = await alerts();
+  const same = await login();
+  await wait(500);
+  const afterSame = await alerts();
+  const other = await login(FIREFOX);
+  let got = [];
+  for (let i = 0; i < 10 && !got.length; i++) {
+    await wait(300);
+    got = await alerts();
+  }
+  await login(FIREFOX);
+  await wait(500);
+  const again = await alerts();
+  check(
+    'Вход: регистрация и тот же браузер — молчат; новый (Firefox) — «Вход с нового устройства» с устройством; повторный вход с него — не новость',
+    afterRegister.length === 0 && same.status === 200 && afterSame.length === 0 && other.status === 200 &&
+      got.length === 1 && got[0].payload?.device === 'Firefox · Windows' && /Вход с нового устройства/.test(got[0].payload?.preview ?? '') &&
+      again.length === 1,
+    JSON.stringify({ afterRegister: afterRegister.length, same: same.status, afterSame: afterSame.length, other: other.status, got: got.map((n) => n.payload), again: again.length }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2492,6 +2528,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioExportEdit(rnd);
   await scenarioBuyerReview(rnd);
   await scenarioSellerToday(rnd);
+  await scenarioLoginAlert(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

@@ -262,6 +262,9 @@ export const EN_SHARED: Phrasebook = {
   'Лот из избранного подешевел': 'A listing in your favorites got cheaper',
   'Лот снова в продаже': 'A listing is back in stock',
   'Продавец оценил вас как покупателя': 'A seller rated you as a buyer',
+  'Вход в аккаунт с нового устройства': 'Sign-in from a new device',
+  Безопасность: 'Security',
+  'вход с нового устройства — письмом всегда': 'sign-in from a new device — always by email',
   'Новые лоты у продавца из подписок': 'New listings from a seller you follow',
   'Скидка у продавца из подписок': 'A discount from a seller you follow',
   // Промокод продавца

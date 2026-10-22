@@ -5,14 +5,17 @@ import {
   HttpException,
   Inject,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { createHash, randomUUID } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
 import { PrismaClient } from '@gamemarket/db';
-import type { LoginInput, RegisterInput } from '@gamemarket/shared';
+import { deviceOf, type LoginInput, type RegisterInput } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { MailService } from '../mail/mail.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { TokenService } from './token.service';
 import { TwoFactorService } from './twofactor.service';
 import { AttemptLimiter } from './attempts';
@@ -38,16 +41,23 @@ const sha256 = (v: string): string => createHash('sha256').update(v).digest('hex
 
 const BANNED = 'Аккаунт заблокирован. Если это ошибка — напишите в поддержку.';
 
+/** Устройство «знакомое», если с него входили за столько дней. */
+export const KNOWN_DEVICE_DAYS = 180;
+
 /** Неверный пароль десять раз за 15 минут — пауза для этой почты. */
 const passwordAttempts = new AttemptLimiter(10, 15 * 60_000);
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly tokens: TokenService,
     private readonly twoFactor: TwoFactorService,
     private readonly mail: MailService,
+    // Уведомления берутся по требованию: их модуль сам зависит от входа.
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   async register(input: RegisterInput, ctx: RequestCtx): Promise<IssuedAuth> {
@@ -250,6 +260,8 @@ export class AuthService {
     const accessToken = this.tokens.signAccess({ sub: userId, username, fam: family });
     const refreshToken = this.tokens.signRefresh({ sub: userId, sid });
     const ttl = Number(process.env.JWT_REFRESH_TTL ?? 2592000);
+    // Новый вход сверяется с прежними до записи своего сеанса.
+    const fresh = !familyId && (await this.isNewDevice(userId, ctx));
 
     await this.prisma.authSession.create({
       data: {
@@ -263,9 +275,52 @@ export class AuthService {
         expiresAt: new Date(Date.now() + ttl * 1000),
       },
     });
+    // Письмо и уведомление — не задерживая вход: сбой почты вход не ломает.
+    if (fresh) {
+      void this.alertNewLogin(userId, ctx).catch((e: Error) =>
+        this.logger.warn(`Вход с нового устройства ${userId}: ${e.message}`),
+      );
+    }
 
     const roles = await this.rolesOf(userId);
     return { user: { id: userId, email, username, roles }, accessToken, refreshToken };
+  }
+
+  /**
+   * Вход с устройства, с которого человек не входил KNOWN_DEVICE_DAYS дней:
+   * ни отпечатка устройства, ни той же строки браузера в его сеансах. Самый
+   * первый вход — регистрация — не новость.
+   */
+  private async isNewDevice(userId: string, ctx: RequestCtx): Promise<boolean> {
+    const since = new Date(Date.now() - KNOWN_DEVICE_DAYS * 86_400_000);
+    const same = [
+      ...(ctx.fingerprint ? [{ fingerprint: ctx.fingerprint }] : []),
+      ...(ctx.userAgent ? [{ userAgent: ctx.userAgent }] : []),
+    ];
+    const [ever, known] = await Promise.all([
+      this.prisma.authSession.count({ where: { userId }, take: 1 }),
+      same.length
+        ? this.prisma.authSession.count({ where: { userId, createdAt: { gte: since }, OR: same }, take: 1 })
+        : Promise.resolve(0),
+    ]);
+    return ever > 0 && known === 0;
+  }
+
+  /** «Вход с нового устройства»: на сайте, в Telegram и пушем — по настройкам, письмом — всегда. */
+  private async alertNewLogin(userId: string, ctx: RequestCtx) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { locale: true } });
+    const lang = langOf(user?.locale);
+    const device = deviceOf(ctx.userAgent, lang);
+    const ip = ctx.ip ?? '—';
+    await this.moduleRef.get(NotificationsService, { strict: false }).notify(userId, 'new_login', {
+      device,
+      ip,
+      preview: say(
+        lang,
+        'Вход с нового устройства: {device}, IP {ip}. Если это были не вы — завершите сеанс в «Безопасности» и смените пароль.',
+        { device, ip },
+      ),
+    });
   }
 
   // ── Пароль и сеансы из кабинета ──

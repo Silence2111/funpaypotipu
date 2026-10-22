@@ -25,4 +25,5 @@ export * from './sale';
 export * from './reprice';
 export * from './price-history';
 export * from './lot-import';
+export * from './device';
 export * from './seller-promo';

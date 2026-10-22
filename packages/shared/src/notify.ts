@@ -34,6 +34,7 @@ export const NOTIFY_GROUPS = [
     hint: 'новые предложения по сохранённым поискам, снижение цены в избранном, поступление закончившихся лотов, новые лоты и скидки продавцов, на которых вы подписаны',
     types: ['saved_search', 'price_drop', 'back_in_stock', 'seller_new_lots', 'seller_sale'],
   },
+  { key: 'security', label: 'Безопасность', hint: 'вход с нового устройства — письмом всегда', types: ['new_login'] },
   {
     key: 'moderation',
     label: 'Решения модерации',
@@ -50,13 +51,16 @@ export type NotifyPrefs = Partial<Record<NotifyChannel, Partial<Record<NotifyGro
  * их включают ради быстрых уведомлений о заказах и сообщениях.
  */
 export const DEFAULT_NOTIFY: Record<NotifyChannel, Record<NotifyGroup, boolean>> = {
-  email: { orders: true, messages: false, disputes: true, reviews: false, finance: true, support: true, searches: false, moderation: true },
-  telegram: { orders: true, messages: true, disputes: true, reviews: true, finance: true, support: true, searches: true, moderation: true },
-  push: { orders: true, messages: true, disputes: true, reviews: true, finance: true, support: true, searches: true, moderation: true },
+  email: { orders: true, messages: false, disputes: true, reviews: false, finance: true, support: true, searches: false, security: true, moderation: true },
+  telegram: { orders: true, messages: true, disputes: true, reviews: true, finance: true, support: true, searches: true, security: true, moderation: true },
+  push: { orders: true, messages: true, disputes: true, reviews: true, finance: true, support: true, searches: true, security: true, moderation: true },
 };
 
-/** Решения модерации доходят письмом всегда: человек должен знать, почему его ограничили. */
-export const LOCKED_NOTIFY: Partial<Record<NotifyChannel, NotifyGroup[]>> = { email: ['moderation'] };
+/**
+ * Решения модерации и вход с нового устройства доходят письмом всегда:
+ * человек должен знать, почему его ограничили и что в аккаунт вошёл кто-то ещё.
+ */
+export const LOCKED_NOTIFY: Partial<Record<NotifyChannel, NotifyGroup[]>> = { email: ['moderation', 'security'] };
 
 export const NOTIFY_LABELS: Record<string, string> = {
   order_created: 'Новый заказ по вашему лоту',
@@ -70,6 +74,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   review_received: 'Новый отзыв',
   review_reply: 'Продавец ответил на ваш отзыв',
   buyer_review: 'Продавец оценил вас как покупателя',
+  new_login: 'Вход в аккаунт с нового устройства',
   cashback: 'Кэшбэк за покупку зачислен на баланс',
   new_message: 'Новое сообщение',
   dispute_opened: 'Спор по сделке',
@@ -130,6 +135,7 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
     return id('sellerId') ? `/prodavec/${id('sellerId')}` : '/cabinet/following';
   }
   if (type.startsWith('kyc_')) return '/cabinet/verification';
+  if (type === 'new_login') return '/cabinet/security';
   if (type === 'new_message' && id('conversationId')) return `/chat/${id('conversationId')}`;
   if (id('orderId')) return `/orders/${id('orderId')}`;
   if (id('listingId')) return type === 'listing_blocked' ? '/cabinet/lots' : `/lot/${id('listingId')}`;
