@@ -219,6 +219,18 @@ export const CABINET: Record<string, string> = {
   // Статистика лотов
   Статистика: 'Stats',
 
+  // Сводка «Сегодня»
+  'Выдать товар': 'Deliver the goods',
+  'Непрочитанные сообщения': 'Unread messages',
+  'Ждут подтверждения покупателя': 'Waiting for the buyer to confirm',
+  'Лоты закончились': 'Listings sold out',
+  'Скидки кончаются сегодня': 'Discounts ending today',
+  'вчера {n}': 'yesterday {n}',
+  'Просмотры лотов': 'Listing views',
+  'Что ждёт вас': 'Waiting for you',
+  'Ничего не ждёт: заказы выданы, споров и новых сообщений нет.':
+    'Nothing is waiting: orders are delivered, no disputes or new messages.',
+
   // Загрузка из таблицы
   'Из таблицы': 'From a table',
   'Загрузить из таблицы': 'Upload from a table',

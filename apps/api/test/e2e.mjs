@@ -1987,6 +1987,30 @@ async function scenarioBuyerReview(rnd) {
   );
 }
 
+async function scenarioSellerToday(rnd) {
+  console.log('\n— Сводка «Сегодня» —');
+  const seller = await register('tds', rnd);
+  const buyer = await register('tdb', rnd);
+  const fresh = (await j('/sellers/me/today', { token: seller.token })).body;
+  const lot = await createListing(seller.token, 'accounts', '20000', { title: `Сегодня ${rnd}` });
+  const empty = await createListing(seller.token, 'accounts', '30000', { title: `Сегодня ${rnd} · кончился`, stock: 1 });
+  await j(`/listings/${empty}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ stock: 0 }) });
+  const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) });
+  await pay(buyer.token, order.body.id);
+  const chat = await j(`/conversations/for-listing/${empty}`, { method: 'POST', token: buyer.token });
+  await j(`/conversations/${chat.body.id}/messages`, { method: 'POST', token: buyer.token, body: JSON.stringify({ body: 'Будет ещё?' }) });
+  const today = (await j('/sellers/me/today', { token: seller.token })).body;
+  const guest = await j('/sellers/me/today');
+  check(
+    'Сегодня: новичку без лотов — не нужна; продажа, заработанное, выдать, закончившийся лот и непрочитанное — числами; без входа — 401',
+    fresh.seller === false && today.seller === true && today.sales?.count === 1 &&
+      today.sales.earned === order.body.sellerPayoutAmount && today.waiting?.toDeliver === 1 &&
+      today.waiting.soldOut === 1 && today.waiting.unreadMessages >= 1 && today.waiting.disputes === 0 &&
+      /^\d{4}-\d{2}-\d{2}$/.test(today.day) && guest.status === 401,
+    JSON.stringify({ fresh: fresh.seller, today, guest: guest.status }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2467,6 +2491,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioImport(rnd);
   await scenarioExportEdit(rnd);
   await scenarioBuyerReview(rnd);
+  await scenarioSellerToday(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

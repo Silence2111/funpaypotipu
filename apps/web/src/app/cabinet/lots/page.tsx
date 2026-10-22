@@ -74,7 +74,11 @@ function MyLots() {
   const params = useSearchParams();
   const [rows, setRows] = useState<MyLot[] | null>(null);
   const [away, setAway] = useState<Away | null>(null);
-  const [filter, setFilter] = useState<Filter>('all');
+  // ?f=sold_out — из сводки «Сегодня»: «Лоты закончились» открывает сразу их.
+  const [filter, setFilter] = useState<Filter>(() => {
+    const f = params.get('f');
+    return FILTERS.some(([key]) => key === f) ? (f as Filter) : 'all';
+  });
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);

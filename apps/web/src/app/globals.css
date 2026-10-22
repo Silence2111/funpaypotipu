@@ -4087,6 +4087,57 @@ a.my-lot-title:hover {
 .offer-price .sale-mark {
   justify-content: flex-end;
 }
+/* «Сегодня» в кабинете: крупные числа моноширинным, подписи тихие; что ждёт — строки-ссылки со счётчиком. */
+.seller-today {
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+}
+.today-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+.today-kpis dt {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.today-kpis dd {
+  margin: 0;
+  text-align: left;
+}
+.today-kpis dd.num {
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.today-kpis dd.faint {
+  font-size: 13px;
+}
+.today-waiting {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  border-top: 1px solid var(--border);
+}
+.today-waiting a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+}
+.today-waiting a span {
+  flex: 1;
+}
+.today-waiting a:hover span {
+  color: var(--accent);
+}
 /* Оценка покупателя в заказе: сведения о нём одной строкой, вердикт — с иконкой цвета смысла. */
 .buyer-rating {
   display: grid;
