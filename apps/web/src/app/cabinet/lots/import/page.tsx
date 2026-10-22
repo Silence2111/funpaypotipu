@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Download, FileUp } from 'lucide-react';
 import {
   IMPORT_MAX_ROWS,
+  exportLots,
   importTemplate,
   parseCsv,
   readImport,
@@ -29,8 +30,18 @@ interface Category {
   fulfillmentType: string;
   unitName?: string | null;
 }
+interface ExportedLot {
+  id: string;
+  title: string;
+  description: string;
+  price: string;
+  stock: number | null;
+  attributes: Record<string, unknown>;
+}
 interface Result {
   created: Array<{ line: number; id: string }>;
+  updated: Array<{ line: number; id: string }>;
+  unchanged: Array<{ line: number; id: string }>;
   failed: Array<{ line: number; message: string }>;
 }
 
@@ -58,6 +69,7 @@ export default function ImportLotsPage() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -97,14 +109,33 @@ export default function ImportLotsPage() {
   const read: ImportRead | null =
     category && text.trim() ? readImport(parseCsv(text), attrs) : null;
 
-  function download() {
-    if (!game || !category) return;
-    const blob = new Blob(['﻿', importTemplate(attrs, t.lang)], { type: 'text/csv;charset=utf-8' });
+  // BOM — чтобы Excel открыл кириллицу без вопросов о кодировке.
+  function save(csv: string, name: string) {
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `gamemarket-${game.slug}-${category.slug}.csv`;
+    a.href = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = name;
     a.click();
     URL.revokeObjectURL(a.href);
+  }
+
+  function downloadTemplate() {
+    if (!game || !category) return;
+    save(importTemplate(attrs, t.lang), `gamemarket-${game.slug}-${category.slug}.csv`);
+  }
+
+  async function exportMine() {
+    if (!game || !category) return;
+    setNotice(null);
+    try {
+      const mine = await apiFetch<ExportedLot[]>(`/listings/export?categoryId=${category.id}`);
+      if (!mine.length) {
+        setNotice(t('В этом разделе нет ваших лотов, которые правятся таблицей.'));
+        return;
+      }
+      save(exportLots(mine, attrs, t.lang), `gamemarket-${game.slug}-${category.slug}-mine.csv`);
+    } catch (e) {
+      setError(apiErrorMessage(e, t('Не получилось. Попробуйте ещё раз.')));
+    }
   }
 
   async function submit() {
@@ -117,7 +148,7 @@ export default function ImportLotsPage() {
         body: JSON.stringify({ gameId: game.id, categoryId: category.id, lots: read.lots }),
       });
       setResult(r);
-      if (r.created.length) {
+      if (r.created.length || r.updated.length) {
         setText('');
         setFileName(null);
       }
@@ -128,6 +159,7 @@ export default function ImportLotsPage() {
     }
   }
 
+  const edits = read?.lots.filter((l) => l.id).length ?? 0;
   const errorsByLine = new Map((read?.errors ?? []).map((e) => [e.line, e.message]));
   const preview = [
     ...(read?.lots ?? []).map((l) => ({
@@ -135,6 +167,7 @@ export default function ImportLotsPage() {
       title: l.title,
       price: l.price,
       stock: l.stock,
+      edit: !!l.id,
       error: null,
     })),
     ...(read?.errors ?? []).map((e) => ({
@@ -142,6 +175,7 @@ export default function ImportLotsPage() {
       title: '',
       price: '',
       stock: null,
+      edit: false,
       error: e.message,
     })),
   ].sort((a, b) => a.line - b.line);
@@ -241,11 +275,20 @@ export default function ImportLotsPage() {
                 </ul>
               </details>
             )}
-            <div>
-              <button type="button" className="btn secondary" onClick={download}>
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" className="btn secondary" onClick={downloadTemplate}>
                 <Download size={16} strokeWidth={1.75} aria-hidden /> {t('Скачать шаблон')}
               </button>
+              <button type="button" className="btn secondary" onClick={() => void exportMine()}>
+                <Download size={16} strokeWidth={1.75} aria-hidden /> {t('Выгрузить мои лоты')}
+              </button>
             </div>
+            <p className="hint" style={{ margin: 0 }}>
+              {notice ??
+                t(
+                  'В выгрузке — столбец ID: поправьте цены, описания, наличие и загрузите таблицу обратно. Строка с ID меняет лот, без ID — выставляет новый; пустая ячейка у лота с ID — «оставить как есть».',
+                )}
+            </p>
           </div>
         )}
       </section>
@@ -292,7 +335,9 @@ export default function ImportLotsPage() {
           {read && !read.fatal && (
             <>
               <p className="import-summary" role="status">
-                {t('Готово к выставлению: {ok}', { ok: read.lots.length })}
+                {edits
+                  ? t('Новых: {n} · изменить: {m}', { n: read.lots.length - edits, m: edits })
+                  : t('Готово к выставлению: {ok}', { ok: read.lots.length })}
                 {read.errors.length > 0 && (
                   <span className="import-bad">
                     {' '}
@@ -306,6 +351,7 @@ export default function ImportLotsPage() {
                     <tr>
                       <th scope="col">{t('Строка')}</th>
                       <th scope="col">{t('Название')}</th>
+                      <th scope="col">{t('Что будет')}</th>
                       <th scope="col">{t('Цена')}</th>
                       <th scope="col">{t('Наличие')}</th>
                     </tr>
@@ -315,12 +361,13 @@ export default function ImportLotsPage() {
                       r.error ? (
                         <tr key={r.line} className="import-row-bad">
                           <td className="num">{r.line}</td>
-                          <td colSpan={3}>{t.d(r.error)}</td>
+                          <td colSpan={4}>{t.d(r.error)}</td>
                         </tr>
                       ) : (
                         <tr key={r.line}>
                           <td className="num">{r.line}</td>
                           <td>{r.title}</td>
+                          <td className="faint">{r.edit ? t('изменить') : t('новый')}</td>
                           <td className="num">{formatPrice(r.price, 'RUB', t)}</td>
                           <td className="num">{r.stock ?? '—'}</td>
                         </tr>
@@ -341,7 +388,13 @@ export default function ImportLotsPage() {
                   disabled={busy || !read.lots.length}
                   onClick={() => void submit()}
                 >
-                  {t('Выставить {lots}', { lots: t.n(read.lots.length, 'лот', 'лота', 'лотов') })}
+                  {edits
+                    ? t('Сохранить: {lots}', {
+                        lots: t.n(read.lots.length, 'лот', 'лота', 'лотов'),
+                      })
+                    : t('Выставить {lots}', {
+                        lots: t.n(read.lots.length, 'лот', 'лота', 'лотов'),
+                      })}
                 </button>
                 {errorsByLine.size > 0 && (
                   <span className="hint">
@@ -357,7 +410,13 @@ export default function ImportLotsPage() {
       {result && (
         <section className="card import-step" aria-labelledby="import-result" role="status">
           <h2 className="h2" id="import-result" style={{ fontSize: 18 }}>
-            {t('Выставлено: {n}', { n: result.created.length })}
+            {result.updated.length || result.unchanged.length
+              ? t('Выставлено: {n} · изменено: {m} · без изменений: {k}', {
+                  n: result.created.length,
+                  m: result.updated.length,
+                  k: result.unchanged.length,
+                })
+              : t('Выставлено: {n}', { n: result.created.length })}
           </h2>
           {result.failed.length > 0 && (
             <ul className="import-failed">

@@ -283,7 +283,9 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           Many listings at once — “From a table” in “My listings”: pick a category, download the
           template, fill it in Excel or Google Sheets and upload the CSV or paste the rows. Up to{' '}
           {IMPORT_MAX_ROWS} listings at a time; rows with errors show up before you upload. Keys,
-          top-ups and currency go one by one through the listing form.
+          top-ups and currency go one by one through the listing form. “Export my listings” there
+          gives your listings as a table with an ID column: edit prices and descriptions and upload
+          it back — a row with an ID changes that listing, one without adds a new listing.
         </li>
         <li>
           Prices at once — tick listings and tap “Price ±%”: you see the new prices before you

@@ -70,6 +70,7 @@ const importSchema = z.object({
     .array(
       z.object({
         line: z.number().int().positive(),
+        id: z.string().uuid().optional(),
         title: z.string().max(200),
         description: z.string().max(10_100),
         price: z.string().max(12),
@@ -115,6 +116,16 @@ export class ListingsController {
   @Get('cards')
   cards(@Query(new ZodValidationPipe(cardsQuerySchema)) query: { ids: string[] }) {
     return this.listings.cards(query.ids);
+  }
+
+  /** Свои лоты раздела для таблицы: ID, название, описание, цена, наличие, характеристики. */
+  @Get('export')
+  @UseGuards(JwtAuthGuard)
+  exportLots(
+    @CurrentUser() user: AuthUser,
+    @Query(new ZodValidationPipe(z.object({ categoryId: z.string().uuid() }))) query: { categoryId: string },
+  ) {
+    return this.listings.exportLots(user.userId, query.categoryId);
   }
 
   /** «В разделе сейчас: от 450 ₽, чаще всего 600–900 ₽» — у поля цены в форме лота. */

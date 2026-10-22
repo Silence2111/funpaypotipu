@@ -34,6 +34,7 @@ import {
   topupTermsError,
   type CreateListingInput,
   type ImportLot,
+  IMPORT_MAX_ROWS,
   createListingSchema,
   lotImportError,
   type ListingQuery,
@@ -68,6 +69,10 @@ const sectionPack = (c: { unitName: string | null; pricePerUnits: number | null 
  * штука. Покупатель берёт сколько нужно, наличие считает склад.
  */
 const PER_LINE = { unitName: null, pricePerUnits: 1, minQty: 1, stock: 0 };
+
+/** Объект с ключами по алфавиту — сравнить характеристики без оглядки на порядок. */
+const sortKeys = (o: Record<string, unknown>) =>
+  Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
 
 const formatUnits = (n: number, unit: string) => `${new Intl.NumberFormat('ru-RU').format(n)} ${unit}`;
 
@@ -947,29 +952,61 @@ export class ListingsService {
     return created;
   }
 
-  /**
-   * Лоты из таблицы — в один раздел, целиком, с выдачей вручную. Каждая
-   * строка проверяется той же функцией, что на сайте, и создаётся тем же
-   * путём, что лот из формы; годные выставляются, у негодных — причина.
-   * Ключи, пополнения и валюта со своей пачкой загружаются по одному: у
-   * них склад, наценка или цена за пачку, которых в таблице нет.
-   */
-  async importLots(sellerId: string, gameId: string, categoryId: string, lots: ImportLot[]) {
+  /** Раздел, куда можно грузить таблицей, и его характеристики. */
+  private async importSection(gameId: string | null, categoryId: string) {
     const category = await this.prisma.category.findFirst({
-      where: { id: categoryId, gameId },
+      where: { id: categoryId, ...(gameId ? { gameId } : {}) },
       select: { fulfillmentType: true, unitName: true },
     });
     if (!category) throw new NotFoundException('Категория не найдена для указанной игры');
     if (category.fulfillmentType !== 'manual' || category.unitName) {
       throw new BadRequestException('В этот раздел лоты выставляются по одному: из таблицы — аккаунты, предметы и услуги');
     }
-    const attrs = (
+    return (
       await this.prisma.attribute.findMany({
         where: { categoryId },
         select: { key: true, label: true, type: true, options: true, isRequired: true },
       })
     ).map((a) => ({ ...a, options: Array.isArray(a.options) ? a.options.map(String) : null }));
+  }
+
+  /**
+   * Свои лоты раздела для таблицы: те, что можно править таблицей, — целиком
+   * и с выдачей вручную; поштучные и с автовыдачей правятся в форме.
+   */
+  async exportLots(sellerId: string, categoryId: string) {
+    await this.importSection(null, categoryId);
+    const rows = await this.prisma.listing.findMany({
+      where: {
+        sellerId,
+        categoryId,
+        status: { in: ['active', 'paused', 'sold_out'] },
+        unitName: null,
+        fulfillmentType: 'manual',
+        topupMarkupBps: null,
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, title: true, description: true, price: true, stock: true, attributes: true },
+      take: IMPORT_MAX_ROWS * 5,
+    });
+    return rows.map((r) => ({ ...r, price: r.price.toString() }));
+  }
+
+  /**
+   * Лоты из таблицы — в один раздел, целиком, с выдачей вручную. Каждая
+   * строка проверяется той же функцией, что на сайте; строка без ID
+   * создаёт лот тем же путём, что форма, строка с ID меняет свой лот тем
+   * же путём, что его правка (скидка и блокировка не обходятся). Пустое
+   * описание и характеристика у строки с ID — оставить как есть; ничего не
+   * поменялось — лот не трогается. Ключи, пополнения и валюта со своей
+   * пачкой загружаются по одному: у них склад, наценка или цена за пачку,
+   * которых в таблице нет.
+   */
+  async importLots(sellerId: string, gameId: string, categoryId: string, lots: ImportLot[]) {
+    const attrs = await this.importSection(gameId, categoryId);
     const created: Array<{ line: number; id: string }> = [];
+    const updated: Array<{ line: number; id: string }> = [];
+    const unchanged: Array<{ line: number; id: string }> = [];
     const failed: Array<{ line: number; message: string }> = [];
     for (const lot of lots) {
       const problem = lotImportError(lot, attrs);
@@ -978,6 +1015,12 @@ export class ListingsService {
         continue;
       }
       try {
+        const id = lot.id;
+        if (id) {
+          const outcome = await this.importUpdate(sellerId, categoryId, { ...lot, id });
+          (outcome === 'updated' ? updated : unchanged).push({ line: lot.line, id });
+          continue;
+        }
         const input = createListingSchema.parse({
           gameId,
           categoryId,
@@ -995,7 +1038,45 @@ export class ListingsService {
         });
       }
     }
-    return { created, failed };
+    return { created, updated, unchanged, failed };
+  }
+
+  /** Строка таблицы с ID — правка своего лота; только то, что правда поменялось. */
+  private async importUpdate(sellerId: string, categoryId: string, lot: ImportLot & { id: string }) {
+    const current = await this.prisma.listing.findUnique({
+      where: { id: lot.id },
+      select: {
+        sellerId: true,
+        categoryId: true,
+        status: true,
+        unitName: true,
+        fulfillmentType: true,
+        title: true,
+        description: true,
+        price: true,
+        stock: true,
+        attributes: true,
+      },
+    });
+    if (!current || current.sellerId !== sellerId || current.status === 'archived') {
+      throw new NotFoundException('Лот не найден');
+    }
+    if (current.categoryId !== categoryId) throw new BadRequestException('Этот лот — из другого раздела');
+    if (current.unitName || current.fulfillmentType !== 'manual') {
+      throw new BadRequestException('Поштучный лот и лот с автовыдачей меняются в форме лота');
+    }
+    const before = (current.attributes ?? {}) as Record<string, unknown>;
+    const attributes = { ...before, ...lot.attributes };
+    const title = lot.title.trim();
+    const input: UpdateListingInput = {};
+    if (title !== current.title) input.title = title;
+    if (lot.description && lot.description !== current.description) input.description = lot.description;
+    if (BigInt(lot.price) !== current.price) input.price = lot.price;
+    if (lot.stock !== current.stock) input.stock = lot.stock;
+    if (JSON.stringify(sortKeys(attributes)) !== JSON.stringify(sortKeys(before))) input.attributes = attributes;
+    if (!Object.keys(input).length) return 'unchanged' as const;
+    await this.update(sellerId, lot.id, input);
+    return 'updated' as const;
   }
 
   /**

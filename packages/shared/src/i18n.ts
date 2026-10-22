@@ -304,6 +304,8 @@ export const EN_SHARED: Phrasebook = {
   'Нет столбца «Цена»': 'No “price” column',
   'Не больше {n} лотов за раз — разделите таблицу': 'No more than {n} listings at once — split the table',
   'В таблице нет строк с лотами': 'The table has no rows with listings',
+  'Неверный ID — оставьте его как в выгрузке или очистите': 'Invalid ID — keep it as exported or clear it',
+  'Этот лот уже есть в таблице выше': 'This listing is already in the table above',
   как_сейчас_новые_первыми: 'as_now_newest_first',
   дешевле_сверху: 'cheapest_first',
   по_сделкам_продавца: 'by_seller_deals',

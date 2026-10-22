@@ -1876,6 +1876,65 @@ async function scenarioImport(rnd) {
   );
 }
 
+async function scenarioExportEdit(rnd) {
+  console.log('\n— Выгрузка своих лотов и правка таблицей —');
+  const seller = await register('exs', rnd);
+  const other = await register('exo', rnd);
+  const as = { token: seller.token };
+  const game = await j('/catalog/games/cs2');
+  const accounts = game.body.categories.find((c) => c.slug === 'accounts');
+  const a = await createListing(seller.token, 'accounts', '50000', { title: `Выгрузка ${rnd} · А`, description: 'Описание А' });
+  const b = await createListing(seller.token, 'accounts', '60000', { title: `Выгрузка ${rnd} · Б`, stock: 2 });
+  const onSale = await createListing(seller.token, 'accounts', '70000', { title: `Выгрузка ${rnd} · скидка` });
+  const auto = await createListing(seller.token, 'accounts', '80000', { title: `Выгрузка ${rnd} · авто`, autoDelivery: true });
+  const skin = await createListing(seller.token, 'skins', '9000', { title: `Выгрузка ${rnd} · скин` });
+  const foreign = await createListing(other.token, 'accounts', '50000', { title: `Выгрузка ${rnd} · чужой` });
+  await j(`/listings/${onSale}/sale`, { method: 'POST', ...as, body: JSON.stringify({ percent: 20, days: 3 }) });
+  const exp = await j(`/listings/export?categoryId=${accounts.id}`, as);
+  const ids = Array.isArray(exp.body) ? exp.body.map((l) => l.id) : [];
+  const rowA = exp.body.find?.((l) => l.id === a);
+  check(
+    'Выгрузка: свои лоты раздела целиком с описанием и наличием; с автовыдачей, другого раздела и чужие — нет; без входа — 401',
+    exp.status === 200 && ids.includes(a) && ids.includes(b) && ids.includes(onSale) && !ids.includes(auto) &&
+      !ids.includes(skin) && !ids.includes(foreign) && rowA?.description === 'Описание А' && rowA?.price === '50000' &&
+      exp.body.find((l) => l.id === b)?.stock === 2 &&
+      (await j(`/listings/export?categoryId=${accounts.id}`)).status === 401,
+    JSON.stringify({ status: exp.status, ids: ids.length, rowA }),
+  );
+
+  const attrs = { ...REQUIRED_ATTRS.accounts };
+  const row = (line, over) => ({ line, title: '', description: '', price: '', stock: null, attributes: {}, ...over });
+  const res = await j('/listings/import', {
+    method: 'POST', ...as,
+    body: JSON.stringify({
+      gameId: game.body.id,
+      categoryId: accounts.id,
+      lots: [
+        row(2, { id: a, title: `Выгрузка ${rnd} · А, новое название`, price: '45000' }),
+        row(3, { id: b, title: `Выгрузка ${rnd} · Б`, description: 'test', price: '60000', stock: 2, attributes: attrs }),
+        row(4, { id: foreign, title: `Выгрузка ${rnd} · чужой`, price: '1000' }),
+        row(5, { id: skin, title: `Выгрузка ${rnd} · скин`, price: '1000' }),
+        row(6, { id: onSale, title: `Выгрузка ${rnd} · скидка`, price: '10000' }),
+        row(7, { title: `Выгрузка ${rnd} · новый`, description: 'Новый из таблицы', price: '30000', attributes: attrs }),
+      ],
+    }),
+  });
+  const after = (await j(`/listings/${a}`)).body;
+  check(
+    'Таблица с ID: лот изменён (пустое описание — оставлено), без изменений — не тронут, чужой — «не найден», другой раздел и скидка — с причиной, строка без ID — новый лот',
+    res.status === 201 && JSON.stringify(res.body.updated?.map((x) => x.line)) === '[2]' &&
+      JSON.stringify(res.body.unchanged?.map((x) => x.line)) === '[3]' &&
+      JSON.stringify(res.body.created?.map((x) => x.line)) === '[7]' &&
+      JSON.stringify(res.body.failed) === JSON.stringify([
+        { line: 4, message: 'Лот не найден' },
+        { line: 5, message: 'Этот лот — из другого раздела' },
+        { line: 6, message: 'Идёт скидка — завершите её, потом меняйте цену' },
+      ]) &&
+      after.title === `Выгрузка ${rnd} · А, новое название` && after.price === '45000' && after.description === 'Описание А',
+    JSON.stringify({ status: res.status, body: res.body, after: [after.title, after.price, after.description] }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2354,6 +2413,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioRecentCards(rnd);
   await scenarioPriceStats(rnd);
   await scenarioImport(rnd);
+  await scenarioExportEdit(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

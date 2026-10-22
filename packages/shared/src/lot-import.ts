@@ -4,6 +4,10 @@
  * «Наличие» и характеристики раздела. Сайт разбирает файл и показывает
  * строки с ошибками до загрузки, API проверяет каждую строку той же
  * функцией и выставляет годные. Один раздел за раз, лоты целиком.
+ *
+ * Свои лоты выгружаются в ту же таблицу со столбцом «ID»: строка с ID
+ * меняет этот лот, без ID — выставляет новый. Пустое описание или
+ * характеристика у строки с ID — «оставить как есть».
  */
 
 /** Столько лотов за одну загрузку — больше разбивайте на несколько файлов. */
@@ -22,6 +26,8 @@ export interface ImportAttr {
 export interface ImportLot {
   /** Номер строки в файле: заголовок — первая. */
   line: number;
+  /** Свой лот из выгрузки — его и изменить; нет — новый лот. */
+  id?: string;
   title: string;
   description: string;
   /** Копейки строкой. */
@@ -87,7 +93,8 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-const FIELDS: Record<'title' | 'description' | 'price' | 'stock', string[]> = {
+const FIELDS: Record<'id' | 'title' | 'description' | 'price' | 'stock', string[]> = {
+  id: ['id'],
   title: ['название', 'title'],
   description: ['описание', 'description'],
   price: ['цена', 'price'],
@@ -103,6 +110,7 @@ const headerKey = (h: string) =>
     .replace(/,?\s*₽$/, '')
     .trim();
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const YES = ['да', 'yes', 'true', '1', '+'];
 const NO = ['нет', 'no', 'false', '0', '-'];
 
@@ -121,8 +129,11 @@ export function importPrice(raw: string): string | null {
  */
 export function lotImportError(lot: ImportLot, attrs: ImportAttr[]): string | null {
   const title = lot.title.trim();
+  if (lot.id !== undefined && !UUID.test(lot.id))
+    return 'Неверный ID — оставьте его как в выгрузке или очистите';
   if (title.length < 3 || title.length > 120) return 'Название — от 3 до 120 знаков';
-  if (!lot.description.trim()) return 'Нет описания';
+  // У своего лота пустое — «оставить как есть»: описание и характеристики уже есть.
+  if (!lot.description.trim() && !lot.id) return 'Нет описания';
   if (lot.description.length > 10_000) return 'Описание — до 10 000 знаков';
   if (!/^\d+$/.test(lot.price) || BigInt(lot.price) <= 0n)
     return 'Цена — число больше нуля, например 490';
@@ -135,7 +146,7 @@ export function lotImportError(lot: ImportLot, attrs: ImportAttr[]): string | nu
   for (const a of attrs) {
     const v = lot.attributes[a.key];
     const empty = v === undefined || v === '';
-    if (a.isRequired && empty) return `Укажите характеристику «${a.label}»`;
+    if (a.isRequired && empty && !lot.id) return `Укажите характеристику «${a.label}»`;
     if (!empty && a.type === 'enum' && a.options && !a.options.includes(String(v))) {
       return `Недопустимое значение «${a.label}»`;
     }
@@ -216,7 +227,9 @@ export function readImport(table: string[][], attrs: ImportAttr[]): ImportRead {
         }
         return;
       }
-      if (c.field === 'title') lot.title = raw;
+      if (c.field === 'id') {
+        if (raw) lot.id = raw.toLowerCase();
+      } else if (c.field === 'title') lot.title = raw;
       else if (c.field === 'description') lot.description = (cells[i] ?? '').trim();
       else if (c.field === 'price') {
         const p = importPrice(raw);
@@ -228,7 +241,9 @@ export function readImport(table: string[][], attrs: ImportAttr[]): ImportRead {
         else problem = 'Наличие — целое число или пусто';
       }
     });
-    const message = problem ?? lotImportError(lot, attrs);
+    const twice = lot.id && out.lots.some((l) => l.id === lot.id);
+    const message =
+      problem ?? lotImportError(lot, attrs) ?? (twice ? 'Этот лот уже есть в таблице выше' : null);
     if (message) out.errors.push({ line, message });
     else out.lots.push(lot);
   }
@@ -244,4 +259,55 @@ export function importTemplate(attrs: ImportAttr[], lang: 'ru' | 'en' = 'ru'): s
       : ['Название', 'Описание', 'Цена, ₽', 'Наличие'];
   const cols = [...base, ...attrs.map((a) => (lang === 'en' ? a.key : a.label))];
   return `${cols.map((c) => (/[;"\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(';')}\r\n`;
+}
+
+/** Ячейка CSV: с «;», кавычкой или переносом — в кавычках, кавычки удваиваются. */
+const csvCell = (v: string) => (/[;"\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+
+/**
+ * Свои лоты раздела — в таблицу для правки: «ID» и те же столбцы, что у
+ * шаблона. Цена — рублями, копейки через запятую (по-английски — через
+ * точку), как их читает Excel; пустое наличие — без ограничения.
+ */
+export function exportLots(
+  lots: Array<{
+    id: string;
+    title: string;
+    description: string;
+    price: string;
+    stock: number | null;
+    attributes: Record<string, unknown>;
+  }>,
+  attrs: ImportAttr[],
+  lang: 'ru' | 'en' = 'ru',
+): string {
+  const head = importTemplate(attrs, lang).trimEnd();
+  const rub = (minor: string) => {
+    const v = BigInt(minor);
+    const kop = v % 100n;
+    return kop
+      ? `${v / 100n}${lang === 'en' ? '.' : ','}${kop.toString().padStart(2, '0')}`
+      : `${v / 100n}`;
+  };
+  const value = (v: unknown) =>
+    v === undefined || v === null || v === false
+      ? ''
+      : v === true
+        ? lang === 'en'
+          ? 'yes'
+          : 'да'
+        : String(v);
+  const rows = lots.map((l) =>
+    [
+      l.id,
+      l.title,
+      l.description,
+      rub(l.price),
+      l.stock == null ? '' : String(l.stock),
+      ...attrs.map((a) => value(l.attributes[a.key])),
+    ]
+      .map(csvCell)
+      .join(';'),
+  );
+  return [`ID;${head}`, ...rows].join('\r\n') + '\r\n';
 }

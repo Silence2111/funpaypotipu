@@ -289,6 +289,9 @@ export const EN_API: Phrasebook = {
   'В этот раздел лоты выставляются по одному: из таблицы — аккаунты, предметы и услуги':
     'Listings in this category are added one by one: tables are for accounts, items and services',
   'Не удалось выставить лот': 'Couldn’t list this one',
+  'Этот лот — из другого раздела': 'This listing is from another category',
+  'Поштучный лот и лот с автовыдачей меняются в форме лота':
+    'Listings sold by quantity or with auto-delivery are edited in the listing form',
 
   // Сообщить о поступлении
   'Лот в продаже — его можно купить сейчас': 'The listing is in stock — you can buy it now',

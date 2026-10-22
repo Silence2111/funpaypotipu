@@ -245,6 +245,17 @@ export const CABINET: Record<string, string> = {
     'Rows with errors will be skipped — fix them and upload them separately.',
   'Выставлено: {n}': 'Listed: {n}',
   'Строка {line}: {message}': 'Row {line}: {message}',
+  'В этом разделе нет ваших лотов, которые правятся таблицей.':
+    'You have no listings in this category that can be edited with a table.',
+  'Выгрузить мои лоты': 'Export my listings',
+  'В выгрузке — столбец ID: поправьте цены, описания, наличие и загрузите таблицу обратно. Строка с ID меняет лот, без ID — выставляет новый; пустая ячейка у лота с ID — «оставить как есть».':
+    'The export has an ID column: edit prices, descriptions and stock, then upload the table back. A row with an ID changes that listing, a row without one adds a new listing; an empty cell on a row with an ID means “leave as is”.',
+  'Новых: {n} · изменить: {m}': 'New: {n} · to change: {m}',
+  'Что будет': 'What happens',
+  изменить: 'change',
+  новый: 'new',
+  'Сохранить: {lots}': 'Save: {lots}',
+  'Выставлено: {n} · изменено: {m} · без изменений: {k}': 'Listed: {n} · changed: {m} · unchanged: {k}',
   'снят с продажи': 'off sale',
   '{day}: просмотров {views}, покупок {purchases}': '{day}: {views} views, {purchases} purchases',
   'Просмотров: {n}': 'Views: {n}',
