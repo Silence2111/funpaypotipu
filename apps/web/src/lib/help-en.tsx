@@ -8,6 +8,7 @@ import {
   WITHDRAWAL_METHODS,
   bumpCooldownHours,
   DISPUTE_RESPONSE_HOURS,
+  IMPORT_MAX_ROWS,
   PRICE_DROP_MIN_PCT,
   PRICE_LOW_DAYS,
   PRICE_LOW_MIN_PCT,
@@ -277,6 +278,12 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
         <li>
           A similar listing — “Copy” in “My listings” or on the listing page opens the form with the
           same terms and photos, so you only change the differences. Stock items aren’t copied.
+        </li>
+        <li>
+          Many listings at once — “From a table” in “My listings”: pick a category, download the
+          template, fill it in Excel or Google Sheets and upload the CSV or paste the rows. Up to{' '}
+          {IMPORT_MAX_ROWS} listings at a time; rows with errors show up before you upload. Keys,
+          top-ups and currency go one by one through the listing form.
         </li>
         <li>
           Prices at once — tick listings and tap “Price ±%”: you see the new prices before you

@@ -218,6 +218,33 @@ export const CABINET: Record<string, string> = {
 
   // Статистика лотов
   Статистика: 'Stats',
+
+  // Загрузка из таблицы
+  'Из таблицы': 'From a table',
+  'Загрузить из таблицы': 'Upload from a table',
+  'Не удалось загрузить игры.': 'Couldn’t load the games.',
+  'Много лотов разом: строка таблицы — лот. Подойдёт CSV из Excel или Google Таблиц или строки, скопированные прямо из таблицы. Один раздел за раз, до {n} лотов; ключи, пополнения и валюта — по одному, через форму лота.':
+    'Many listings at once: one table row is one listing. A CSV from Excel or Google Sheets works, or rows copied straight from the table. One category at a time, up to {n} listings; keys, top-ups and currency go one by one through the listing form.',
+  '1. Раздел': '1. Category',
+  '{category} — по одному': '{category} — one by one',
+  'Столбцы: {columns}. Обязательные — со звёздочкой, порядок любой.':
+    'Columns: {columns}. Required ones have an asterisk; any order.',
+  'Допустимые значения': 'Allowed values',
+  'да или нет': 'yes or no',
+  'Скачать шаблон': 'Download template',
+  '2. Таблица': '2. Table',
+  'Выбрать файл CSV': 'Choose a CSV file',
+  '…или вставьте строки таблицы вместе с заголовками': '…or paste the table rows with the header row',
+  'Строки таблицы': 'Table rows',
+  'Готово к выставлению: {ok}': 'Ready to list: {ok}',
+  'с ошибками: {n}': 'with errors: {n}',
+  Строка: 'Row',
+  'И ещё {n} строк без ошибок.': 'And {n} more rows without errors.',
+  'Выставить {lots}': 'List {lots}',
+  'Строки с ошибками пропустим — исправьте их и загрузите отдельно.':
+    'Rows with errors will be skipped — fix them and upload them separately.',
+  'Выставлено: {n}': 'Listed: {n}',
+  'Строка {line}: {message}': 'Row {line}: {message}',
   'снят с продажи': 'off sale',
   '{day}: просмотров {views}, покупок {purchases}': '{day}: {views} views, {purchases} purchases',
   'Просмотров: {n}': 'Views: {n}',

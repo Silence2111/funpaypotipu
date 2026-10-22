@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -15,6 +16,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { z } from 'zod';
 import {
+  IMPORT_MAX_ROWS,
   REPRICE_MAX_PCT,
   REPRICE_MIN_PCT,
   SALE_MAX_DAYS,
@@ -33,6 +35,8 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { AccountStatusService } from '../access/account-status.service';
 import { ListingsService } from './listings.service';
 import { RateLimit } from '../../common/rate-limit';
+import { requestLang } from '../../i18n/lang';
+import { toEnglish } from '../../i18n/translate';
 
 const bumpAllSchema = z.object({ categoryId: z.string().uuid().optional() });
 const bulkSchema = z.object({
@@ -56,6 +60,25 @@ const saleSchema = z.object({
     .min(SALE_MIN_PCT, `Скидка — от ${SALE_MIN_PCT}%`)
     .max(SALE_MAX_PCT, `Скидка — до ${SALE_MAX_PCT}%`),
   days: z.number().int().min(1, 'Срок — от суток').max(SALE_MAX_DAYS, `Срок — до ${SALE_MAX_DAYS} суток`),
+});
+
+/** Лоты из таблицы — уже разобранные сайтом строки; API проверит каждую заново. */
+const importSchema = z.object({
+  gameId: z.string().uuid(),
+  categoryId: z.string().uuid(),
+  lots: z
+    .array(
+      z.object({
+        line: z.number().int().positive(),
+        title: z.string().max(200),
+        description: z.string().max(10_100),
+        price: z.string().max(12),
+        stock: z.number().int().nullable(),
+        attributes: z.record(z.union([z.string().max(200), z.boolean()])),
+      }),
+    )
+    .min(1)
+    .max(IMPORT_MAX_ROWS),
 });
 
 /** Разброс цен для подсказки продавцу: раздел, параметры лота, его пачка, сам лот — не в счёт. */
@@ -191,6 +214,27 @@ export class ListingsController {
   ) {
     await this.account.assertCanTrade(user.userId);
     return this.listings.create(user.userId, body);
+  }
+
+  /**
+   * Загрузка лотов из таблицы: годные строки выставляются, у негодных —
+   * номер строки и причина на языке сайта.
+   */
+  @Post('import')
+  @RateLimit('imports', 10, 600)
+  @UseGuards(JwtAuthGuard)
+  async importLots(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(importSchema)) body: z.infer<typeof importSchema>,
+    @Headers('accept-language') lang?: string,
+  ) {
+    await this.account.assertCanTrade(user.userId);
+    const result = await this.listings.importLots(user.userId, body.gameId, body.categoryId, body.lots);
+    if (requestLang(lang) !== 'en') return result;
+    return {
+      ...result,
+      failed: result.failed.map((f) => ({ ...f, message: toEnglish(f.message) ?? f.message })),
+    };
   }
 
   /** Продвинуть лот за деньги с баланса: 1, 3 или 7 суток. */

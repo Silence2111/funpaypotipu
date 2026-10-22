@@ -4087,6 +4087,60 @@ a.my-lot-title:hover {
 .offer-price .sale-mark {
   justify-content: flex-end;
 }
+/* Загрузка из таблицы: шаги карточками, предпросмотр строк, ошибки — красным текстом без плашек. */
+.import-step {
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+}
+.import-pickers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.import-columns {
+  display: grid;
+  gap: 10px;
+}
+.import-values {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.import-file {
+  justify-self: start;
+  gap: 8px;
+  cursor: pointer;
+}
+.import-summary {
+  margin: 0;
+  font-weight: 600;
+}
+.import-bad,
+.import-row-bad td,
+.import-failed {
+  color: var(--danger);
+}
+.import-bad {
+  font-weight: 500;
+}
+.import-table {
+  overflow-x: auto;
+}
+.import-table th:nth-child(2),
+.import-table td:nth-child(2) {
+  text-align: left;
+}
+.import-failed {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
 /* «Сообщить о поступлении» у закончившегося лота: кнопка во всю ширину, пояснение под ней. */
 .stock-watch {
   display: grid;

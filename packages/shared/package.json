@@ -49,6 +49,10 @@
       "types": "./dist/price-history.d.ts",
       "default": "./dist/price-history.js"
     },
+    "./lot-import": {
+      "types": "./dist/lot-import.d.ts",
+      "default": "./dist/lot-import.js"
+    },
     "./seller-promo": {
       "types": "./dist/seller-promo.d.ts",
       "default": "./dist/seller-promo.js"

@@ -1829,6 +1829,53 @@ async function scenarioPriceStats(rnd) {
   }
 }
 
+async function scenarioImport(rnd) {
+  console.log('\n— Загрузка из таблицы —');
+  const seller = await register('ims', rnd);
+  const game = await j('/catalog/games/cs2');
+  const accounts = game.body.categories.find((c) => c.slug === 'accounts');
+  const keys = game.body.categories.find((c) => c.slug === 'keys');
+  const lot = (line, over = {}) => ({
+    line, title: `Импорт ${rnd} · ${line}`, description: 'Из таблицы', price: '50000', stock: null,
+    attributes: { ...REQUIRED_ATTRS.accounts }, ...over,
+  });
+  const send = (categoryId, lots, opts = {}) =>
+    j('/listings/import', {
+      method: 'POST', token: seller.token, ...opts,
+      body: JSON.stringify({ gameId: game.body.id, categoryId, lots }),
+    });
+  const res = await send(accounts.id, [
+    lot(2),
+    lot(3, { stock: 2 }),
+    lot(4, { attributes: { region: 'EU' } }),
+    lot(5, { attributes: { ...REQUIRED_ATTRS.accounts, rank: 'Нет такого' } }),
+    lot(6, { price: '0' }),
+  ]);
+  const mine = (await j('/listings/mine', { token: seller.token })).body.filter((l) => l.title.startsWith(`Импорт ${rnd}`));
+  const third = mine.find((l) => l.title.endsWith('· 3'));
+  check(
+    'Из таблицы: годные строки выставлены (с наличием), у негодных — номер строки и причина',
+    res.status === 201 && JSON.stringify(res.body.created.map((c) => c.line)) === '[2,3]' &&
+      JSON.stringify(res.body.failed) === JSON.stringify([
+        { line: 4, message: 'Укажите характеристику «Звание»' },
+        { line: 5, message: 'Недопустимое значение «Звание»' },
+        { line: 6, message: 'Цена — число больше нуля, например 490' },
+      ]) && mine.length === 2 && third?.stock === 2 && mine.every((l) => l.status === 'active'),
+    JSON.stringify({ status: res.status, body: res.body, mine: mine.map((l) => [l.title, l.stock, l.status]) }),
+  );
+
+  const en = await send(accounts.id, [lot(7, { price: '0' })], { headers: { 'Accept-Language': 'en' } });
+  const wrong = await send(keys.id, [lot(2)]);
+  const guest = await j('/listings/import', { method: 'POST', body: JSON.stringify({ gameId: game.body.id, categoryId: accounts.id, lots: [lot(2)] }) });
+  const tooMany = await send(accounts.id, Array.from({ length: 201 }, (_, i) => lot(i + 2)));
+  check(
+    'Причина по-английски на английском сайте; ключи из таблицы — 400; без входа — 401; больше 200 строк — 400',
+    en.body.failed?.[0]?.message === 'The price must be a number above zero, for example 490' && en.body.created.length === 0 &&
+      wrong.status === 400 && guest.status === 401 && tooMany.status === 400,
+    JSON.stringify({ en: en.body, wrong: [wrong.status, wrong.body?.message], guest: guest.status, tooMany: tooMany.status }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2306,6 +2353,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioStockWatch(rnd);
   await scenarioRecentCards(rnd);
   await scenarioPriceStats(rnd);
+  await scenarioImport(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

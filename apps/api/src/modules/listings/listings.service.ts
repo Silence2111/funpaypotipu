@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
   Inject,
   Injectable,
   Logger,
@@ -32,6 +33,9 @@ import {
   topupQuote,
   topupTermsError,
   type CreateListingInput,
+  type ImportLot,
+  createListingSchema,
+  lotImportError,
   type ListingQuery,
   type TopupTerms,
   type TopupTermsInput,
@@ -941,6 +945,57 @@ export class ListingsService {
     });
     await this.search.indexListing(created.id);
     return created;
+  }
+
+  /**
+   * Лоты из таблицы — в один раздел, целиком, с выдачей вручную. Каждая
+   * строка проверяется той же функцией, что на сайте, и создаётся тем же
+   * путём, что лот из формы; годные выставляются, у негодных — причина.
+   * Ключи, пополнения и валюта со своей пачкой загружаются по одному: у
+   * них склад, наценка или цена за пачку, которых в таблице нет.
+   */
+  async importLots(sellerId: string, gameId: string, categoryId: string, lots: ImportLot[]) {
+    const category = await this.prisma.category.findFirst({
+      where: { id: categoryId, gameId },
+      select: { fulfillmentType: true, unitName: true },
+    });
+    if (!category) throw new NotFoundException('Категория не найдена для указанной игры');
+    if (category.fulfillmentType !== 'manual' || category.unitName) {
+      throw new BadRequestException('В этот раздел лоты выставляются по одному: из таблицы — аккаунты, предметы и услуги');
+    }
+    const attrs = (
+      await this.prisma.attribute.findMany({
+        where: { categoryId },
+        select: { key: true, label: true, type: true, options: true, isRequired: true },
+      })
+    ).map((a) => ({ ...a, options: Array.isArray(a.options) ? a.options.map(String) : null }));
+    const created: Array<{ line: number; id: string }> = [];
+    const failed: Array<{ line: number; message: string }> = [];
+    for (const lot of lots) {
+      const problem = lotImportError(lot, attrs);
+      if (problem) {
+        failed.push({ line: lot.line, message: problem });
+        continue;
+      }
+      try {
+        const input = createListingSchema.parse({
+          gameId,
+          categoryId,
+          title: lot.title.trim(),
+          description: lot.description,
+          price: lot.price,
+          stock: lot.stock,
+          attributes: lot.attributes,
+        });
+        created.push({ line: lot.line, id: (await this.create(sellerId, input)).id });
+      } catch (e) {
+        failed.push({
+          line: lot.line,
+          message: e instanceof HttpException ? e.message : 'Не удалось выставить лот',
+        });
+      }
+    }
+    return { created, failed };
   }
 
   /**

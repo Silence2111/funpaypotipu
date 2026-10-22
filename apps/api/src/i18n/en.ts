@@ -285,6 +285,11 @@ export const EN_API: Phrasebook = {
     'No more than {n} follows — unfollow the ones you don’t need',
   'Подписка не найдена': 'Follow not found',
 
+  // Загрузка лотов из таблицы
+  'В этот раздел лоты выставляются по одному: из таблицы — аккаунты, предметы и услуги':
+    'Listings in this category are added one by one: tables are for accounts, items and services',
+  'Не удалось выставить лот': 'Couldn’t list this one',
+
   // Сообщить о поступлении
   'Лот в продаже — его можно купить сейчас': 'The listing is in stock — you can buy it now',
   'Ждать можно не больше {n} лотов сразу': 'You can wait for no more than {n} listings at once',
