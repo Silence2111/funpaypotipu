@@ -1780,6 +1780,55 @@ async function scenarioRecentCards(rnd) {
   );
 }
 
+async function scenarioPriceStats(rnd) {
+  console.log('\n— Подсказка цены —');
+  const seller = await register('pss', rnd);
+  const as = { token: seller.token };
+  const game = await j('/catalog/games/cs2');
+  const other = game.body.categories.find((c) => c.slug === 'other');
+  const service = game.body.categories.find((c) => c.slug === 'service');
+  const stats = async (cat, q = '') => (await j(`/listings/price-stats?categoryId=${cat.id}${q}`)).body;
+  const coaching = encodeURIComponent(JSON.stringify({ kind: 'Обучение' }));
+  // «Прочее» в CS2 пустое: тест снимает свои лоты в конце.
+  const before = await stats(other);
+  const ids = [];
+  for (const rub of [100, 200, 300, 400, 500]) {
+    ids.push(await createListing(seller.token, 'other', String(rub * 100), { title: `Цены ${rnd} · ${rub}` }));
+  }
+  const all = await stats(other);
+  const mine = await stats(other, `&except=${ids[0]}`);
+  const packed = await stats(other, '&pack=10');
+  const fallback = await stats(other, `&attrs=${coaching}`);
+  check(
+    'Подсказка цены: пустой раздел — без цен; 5 лотов 100…500 ₽ — от 100, чаще всего 200–400, медиана 300; свой лот не в счёт; пачка ×10; параметров нет — по разделу',
+    before.count === 0 && before.min === undefined && all.scope === 'category' && all.count === 5 &&
+      all.min === '10000' && all.p25 === '20000' && all.median === '30000' && all.p75 === '40000' &&
+      mine.count === 4 && mine.min === '20000' && packed.min === '100000' &&
+      fallback.scope === 'category' && fallback.count === 5,
+    JSON.stringify({ before, all, mine, packed, fallback }),
+  );
+
+  const svc = [];
+  for (const rub of [1000, 2000, 3000]) {
+    svc.push(
+      await createListing(seller.token, 'service', String(rub * 100), {
+        title: `Обучение ${rnd} · ${rub}`,
+        attributes: { kind: 'Обучение' },
+      }),
+    );
+  }
+  const same = await stats(service, `&attrs=${coaching}`);
+  const bad = await j('/listings/price-stats?categoryId=nope');
+  check(
+    'С теми же параметрами («Обучение» в услугах) — подсказка по ним; неверный раздел — 400',
+    same.scope === 'attrs' && same.count >= 3 && bad.status === 400,
+    JSON.stringify({ same, bad: bad.status }),
+  );
+  for (const id of [...ids, ...svc]) {
+    await j(`/listings/${id}`, { method: 'PATCH', ...as, body: JSON.stringify({ status: 'paused' }) });
+  }
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2256,6 +2305,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioPriceLow(rnd);
   await scenarioStockWatch(rnd);
   await scenarioRecentCards(rnd);
+  await scenarioPriceStats(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

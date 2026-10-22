@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isPriceLow, priceSummary } from './price-history';
+import { isPriceLow, pricePlace, priceStats, priceSummary } from './price-history';
 
 describe('история цены', () => {
   it('сейчас, минимум и максимум с датой, число изменений', () => {
@@ -37,5 +37,19 @@ describe('отметка «минимум за 30 дней»', () => {
     // У скидки своя пометка «−20%».
     expect(isPriceLow({ priceLowUntil: until, saleListPrice: '120000' }, now)).toBe(false);
     expect(isPriceLow({ priceLowUntil: until, topupMarkupBps: 500 }, now)).toBe(false);
+  });
+});
+
+describe('разброс цен в разделе', () => {
+  it('сколько, от какой, медиана и «чаще всего»; меньше трёх — нет', () => {
+    // По порядку: 100 200 300 400 500 700 800 900.
+    const prices = [900n, 100n, 500n, 300n, 700n, 200n, 800n, 400n];
+    const stats = priceStats(prices)!;
+    expect(stats).toEqual({ count: 8, min: '100', p25: '200', median: '400', p75: '700' });
+    expect(priceStats([100n, 200n])).toBeNull();
+    expect(pricePlace(150n, stats)).toBe('low');
+    expect(pricePlace(200n, stats)).toBe('usual');
+    expect(pricePlace(700n, stats)).toBe('usual');
+    expect(pricePlace(701n, stats)).toBe('high');
   });
 });

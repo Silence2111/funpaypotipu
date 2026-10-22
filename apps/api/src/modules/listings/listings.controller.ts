@@ -58,6 +58,14 @@ const saleSchema = z.object({
   days: z.number().int().min(1, 'Срок — от суток').max(SALE_MAX_DAYS, `Срок — до ${SALE_MAX_DAYS} суток`),
 });
 
+/** Разброс цен для подсказки продавцу: раздел, параметры лота, его пачка, сам лот — не в счёт. */
+const priceStatsQuerySchema = z.object({
+  categoryId: z.string().uuid(),
+  attrs: z.string().max(2000).optional(),
+  pack: z.coerce.number().int().min(1).max(1_000_000_000).default(1),
+  except: z.string().uuid().optional(),
+});
+
 /** «Вы недавно смотрели»: до 24 id через запятую, повторы убираются. */
 const cardsQuerySchema = z.object({
   ids: z
@@ -84,6 +92,12 @@ export class ListingsController {
   @Get('cards')
   cards(@Query(new ZodValidationPipe(cardsQuerySchema)) query: { ids: string[] }) {
     return this.listings.cards(query.ids);
+  }
+
+  /** «В разделе сейчас: от 450 ₽, чаще всего 600–900 ₽» — у поля цены в форме лота. */
+  @Get('price-stats')
+  priceStats(@Query(new ZodValidationPipe(priceStatsQuerySchema)) query: z.infer<typeof priceStatsQuerySchema>) {
+    return this.listings.priceStats(query);
   }
 
   @Get('mine')

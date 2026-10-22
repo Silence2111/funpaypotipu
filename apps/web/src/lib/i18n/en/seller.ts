@@ -124,6 +124,13 @@ export const SELLER: Record<string, string> = {
   'Покупатель вводит сумму в этих границах и платит её плюс вашу наценку.':
     'The buyer enters an amount within these limits and pays it plus your markup.',
   'Цена, ₽': 'Price, ₽',
+  'С такими же параметрами сейчас {offers}: от {min}, чаще всего {range}.':
+    'With the same parameters there are {offers} now: from {min}, mostly {range}.',
+  'В разделе сейчас {offers}: от {min}, чаще всего {range}.':
+    'This category has {offers} now: from {min}, mostly {range}.',
+  'Ваша цена — среди самых низких.': 'Your price is among the lowest.',
+  'Ваша цена — в обычном разбросе.': 'Your price is in the usual range.',
+  'Ваша цена выше, чем у большинства.': 'Your price is higher than most.',
   'Цена за {qty}, ₽': 'Price per {qty}, ₽',
   'Цена в рублях, например 490': 'Price in rubles, for example 490',
   'Покупатель пополняет {nominal} и платит {price} с наценкой {markup}':

@@ -18,6 +18,7 @@ import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice, formatQty } from '@/lib/format';
 import { useT } from '@/lib/i18n/client';
 import { shrink } from '@/lib/photo';
+import { PriceHint } from './price-hint';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -313,6 +314,13 @@ export function ListingForm({
   }
 
   const rubValue = parseFloat(price.replace(',', '.').replace(/\s/g, ''));
+  // Для подсказки цены — выбранные параметры из списков и «да/нет»: по
+  // свободному тексту лоты не сравнить.
+  const hintAttrs = Object.fromEntries(
+    attrs
+      .filter((a) => (a.type === 'enum' || a.type === 'bool') && attrValues[a.key])
+      .map((a) => [a.key, attrValues[a.key]!]),
+  );
   // Проверки общих модулей (пополнение, количество) — русской строкой; t.d переводит.
   const qtyError = perPiece ? qtyTermsError(qtyTerms) : null;
   const tiersError = perPiece && cleanTiers.length ? qtyTiersError(cleanTiers, intOf(minQty)) : null;
@@ -817,7 +825,17 @@ export function ListingForm({
             </label>
             <input id="price" className="input" placeholder="490" inputMode="decimal" value={price} style={{ maxWidth: 220 }}
               onChange={(e) => setPrice(e.target.value)} onBlur={() => touch('price')} aria-invalid={!!showErr('price')} />
-            {showErr('price') && <p className="field-error">{showErr('price')}</p>}
+            {showErr('price') ? (
+              <p className="field-error">{showErr('price')}</p>
+            ) : (
+              <PriceHint
+                categoryId={categoryId}
+                attrs={hintAttrs}
+                pack={perUnits}
+                except={editing ? base?.id : undefined}
+                price={rubValue > 0 ? Math.round(rubValue * 100) : 0}
+              />
+            )}
           </div>
         )}
 

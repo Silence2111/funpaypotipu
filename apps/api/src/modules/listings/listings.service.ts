@@ -16,6 +16,8 @@ import {
   saleOff,
   saleReference,
   PRICE_HISTORY_DAYS,
+  PRICE_STATS_MIN,
+  priceStats,
   repriced,
   bumpCooldownHours,
   chargeFromBalance,
@@ -341,6 +343,36 @@ export class ListingsService {
       page: query.page,
       limit: query.limit,
     };
+  }
+
+  /**
+   * Разброс цен в разделе — подсказка продавцу у поля цены. Сначала по лотам
+   * с теми же параметрами (звание, регион), мало таких — по всему разделу.
+   * Цены — в пачке лота продавца; пополнения не в счёт: их цена «от»
+   * следует из наценки. Свой лот при изменении не учитывается.
+   */
+  async priceStats(q: { categoryId: string; attrs?: string; pack: number; except?: string }) {
+    const base: Prisma.ListingWhereInput = {
+      categoryId: q.categoryId,
+      status: 'active',
+      topupMarkupBps: null,
+      currency: 'RUB',
+      ...(q.except ? { id: { not: q.except } } : {}),
+    };
+    const load = (where: Prisma.ListingWhereInput) =>
+      this.prisma.listing.findMany({ where, select: { price: true, pricePerUnits: true }, take: 5000 });
+    const attrs = this.parseAttrs(q.attrs);
+    let scope: 'attrs' | 'category' = 'attrs';
+    let rows = attrs ? await load({ ...base, ...listingFilters({ attrs }) }) : [];
+    if (rows.length < PRICE_STATS_MIN) {
+      scope = 'category';
+      rows = await load(base);
+    }
+    const pack = BigInt(q.pack);
+    const stats = priceStats(
+      rows.map((r) => (r.price * pack + BigInt(r.pricePerUnits) / 2n) / BigInt(r.pricePerUnits)),
+    );
+    return stats ? { ...stats, scope } : { count: rows.length, scope };
   }
 
   /**
