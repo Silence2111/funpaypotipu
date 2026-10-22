@@ -313,6 +313,9 @@ model AuthSession {
   fingerprint      String?   @map("device_fingerprint")
   expiresAt        DateTime  @map("expires_at")
   revokedAt        DateTime? @map("revoked_at")
+  // «Это не я» после входа с нового устройства: такое устройство не считается
+  // знакомым, и следующий вход с него снова даст предупреждение.
+  deniedAt         DateTime? @map("denied_at")
   createdAt        DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -2,7 +2,8 @@
 
 import { Suspense, useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { KeyRound, MonitorSmartphone } from 'lucide-react';
+import { KeyRound, MonitorSmartphone, ShieldAlert } from 'lucide-react';
+import { deviceOf } from '@gamemarket/shared';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
@@ -19,16 +20,6 @@ interface Session {
   signedInAt: string;
   lastActiveAt: string;
   current: boolean;
-}
-
-/** «Chrome · Windows» из User-Agent — достаточно, чтобы узнать своё устройство. */
-function deviceOf(ua: string | null, t: T): string {
-  if (!ua) return t('Неизвестное устройство');
-  const browser = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /YaBrowser/.test(ua) ? t('Яндекс Браузер')
-    : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : t('Браузер');
-  const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Windows/.test(ua) ? 'Windows'
-    : /Mac OS X/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '';
-  return os ? `${browser} · ${os}` : browser;
 }
 
 const when = (iso: string, t: T) =>
@@ -53,7 +44,11 @@ export default function SecurityPage() {
 function Security() {
   const t = useT();
   const router = useRouter();
-  const linked = useSearchParams().get('social');
+  const params = useSearchParams();
+  const linked = params.get('social');
+  // Пришли из уведомления «Вход с нового устройства»: какой сеанс проверить.
+  const asked = params.get('session');
+  const [answer, setAnswer] = useState<'me' | 'ended' | null>(null);
   const [notice, setMsg] = useState<{ ok: boolean; text: string } | null>(() => {
     const r = linked ? LINKED[linked] : undefined;
     return r ? { ok: r.ok, text: t(r.text) } : null;
@@ -71,11 +66,12 @@ function Security() {
 
   useEffect(() => {
     if (!getToken()) {
-      router.replace('/login?next=/cabinet/security');
+      const back = asked ? `/cabinet/security?session=${encodeURIComponent(asked)}` : '/cabinet/security';
+      router.replace(`/login?next=${encodeURIComponent(back)}`);
       return;
     }
     void load();
-  }, [router, load]);
+  }, [router, load, asked]);
 
   async function run(fn: () => Promise<string>, fallback: string) {
     setBusy(true);
@@ -111,6 +107,28 @@ function Security() {
   }
 
   const others = (sessions ?? []).filter((s) => !s.current);
+  // Вопрос «Это были вы?» — пока не ответили; сеанс мог уже закончиться.
+  const asking = !!asked && sessions !== null && answer === null;
+  const target = asking ? (sessions.find((s) => s.id === asked) ?? null) : null;
+  const suspect = target && !target.current ? target : null;
+
+  /** «Это не я»: завершить этот сеанс, забыть устройство и перейти к смене пароля. */
+  function notMe(s: Session) {
+    void run(async () => {
+      await apiFetch(`/auth/sessions/${s.id}/not-me`, { method: 'POST' });
+      setAnswer('ended');
+      // Смена пароля выводит и остальные устройства — к ней и ведём.
+      setTimeout(() => document.getElementById(firstPassword ? 'pwd-next' : 'pwd-current')?.focus(), 0);
+      return firstPassword
+        ? t('Сеанс завершён — устройство вышло из аккаунта. Проверьте, какие сервисы подключены для входа.')
+        : t('Сеанс завершён — устройство вышло из аккаунта. Смените пароль: тогда выйдут и все остальные устройства.');
+    }, t('Не удалось завершить сеанс.'));
+  }
+
+  function itWasMe() {
+    setAnswer('me');
+    router.replace('/cabinet/security', { scroll: false });
+  }
 
   return (
     <div className="container stack-lg" style={{ paddingTop: 40 }}>
@@ -125,6 +143,45 @@ function Security() {
         <div className={notice.ok ? 'alert success' : 'alert error'} role={notice.ok ? 'status' : 'alert'}>
           {notice.text}
         </div>
+      )}
+
+      {asking && (
+        <section className="card new-login" style={{ padding: 24, maxWidth: 600 }} aria-labelledby="new-login-title">
+          <h2 id="new-login-title" className="h2 row" style={{ fontSize: 18, gap: 8 }}>
+            <ShieldAlert size={18} strokeWidth={1.75} /> {t('Вход с нового устройства')}
+          </h2>
+          {suspect ? (
+            <>
+              <p style={{ margin: '12px 0 0' }}>
+                <span style={{ fontWeight: 600 }}>{deviceOf(suspect.userAgent, t.lang)}</span>
+                <span className="faint" style={{ display: 'block', fontSize: 13 }}>
+                  {t('вход {when}', { when: when(suspect.signedInAt, t) })}
+                  {suspect.ip ? ` · IP ${suspect.ip}` : ''}
+                </span>
+              </p>
+              <p style={{ margin: '16px 0 0', fontWeight: 600 }}>{t('Это были вы?')}</p>
+              <div className="row" style={{ gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+                <button type="button" className="btn" disabled={busy} onClick={() => notMe(suspect)}>
+                  {t('Это не я — завершить сеанс')}
+                </button>
+                <button type="button" className="btn secondary" disabled={busy} onClick={itWasMe}>
+                  {t('Да, это я')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="muted" style={{ margin: '12px 0 0', fontSize: 14 }}>
+                {target
+                  ? t('Этот вход — с устройства, на котором вы сейчас. Если это были вы, ничего делать не нужно.')
+                  : t('Этот сеанс уже завершён: устройство вышло из аккаунта. Если входили не вы — смените пароль.')}
+              </p>
+              <div style={{ marginTop: 12 }}>
+                <button type="button" className="chip" onClick={itWasMe}>{t('Понятно')}</button>
+              </div>
+            </>
+          )}
+        </section>
       )}
 
       <section className="card" style={{ padding: 24, maxWidth: 600 }}>
@@ -161,7 +218,9 @@ function Security() {
               </p>
             </div>
             <div>
-              <button className="btn" type="submit" disabled={busy || (!firstPassword && !current) || !next}>
+              {/* Пока ждёт ответ «Это были вы?» — акцент у него, а не у пароля. */}
+              <button className={suspect ? 'btn secondary' : 'btn'} type="submit"
+                disabled={busy || (!firstPassword && !current) || !next}>
                 {firstPassword ? t('Задать пароль') : t('Сменить пароль')}
               </button>
             </div>
@@ -191,10 +250,11 @@ function Security() {
         ) : (
           <div className="grid" style={{ gap: 8, marginTop: 14 }}>
             {sessions.map((s) => (
-              <div key={s.id} className="row" style={{ justifyContent: 'space-between', gap: 12, padding: '10px 0', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
+              <div key={s.id} className={`row session-row${s.id === suspect?.id ? ' flagged' : ''}`}>
                 <span>
-                  <span style={{ fontWeight: 600 }}>{deviceOf(s.userAgent, t)}</span>
+                  <span style={{ fontWeight: 600 }}>{deviceOf(s.userAgent, t.lang)}</span>
                   {s.current && <span className="badge success" style={{ marginLeft: 8 }}>{t('это устройство')}</span>}
+                  {s.id === suspect?.id && <span className="badge" style={{ marginLeft: 8 }}>{t('новый вход')}</span>}
                   <span className="faint" style={{ display: 'block', fontSize: 13 }}>
                     {t('вход {when}', { when: when(s.signedInAt, t) })}{s.ip ? ` · ${s.ip}` : ''}
                   </span>

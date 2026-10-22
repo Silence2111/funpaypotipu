@@ -1,9 +1,21 @@
 /** Аккаунт: настройки, безопасность, код из приложения, уведомления, проверка личности, вход через сервисы. */
 export const ACCOUNT: Record<string, string> = {
   // Безопасность: пароль и сеансы
-  'Неизвестное устройство': 'Unknown device',
-  'Яндекс Браузер': 'Yandex Browser',
-  Браузер: 'Browser',
+  // Вопрос «Это были вы?» после входа с нового устройства
+  'Вход с нового устройства': 'Sign-in from a new device',
+  'Это были вы?': 'Was this you?',
+  'Это не я — завершить сеанс': 'It wasn’t me — end the session',
+  'Да, это я': 'Yes, it was me',
+  Понятно: 'Got it',
+  'новый вход': 'new sign-in',
+  'Сеанс завершён — устройство вышло из аккаунта. Смените пароль: тогда выйдут и все остальные устройства.':
+    'Session ended — the device was signed out. Change your password to sign out all other devices too.',
+  'Сеанс завершён — устройство вышло из аккаунта. Проверьте, какие сервисы подключены для входа.':
+    'Session ended — the device was signed out. Check which services are connected for sign-in.',
+  'Этот вход — с устройства, на котором вы сейчас. Если это были вы, ничего делать не нужно.':
+    'This sign-in is from the device you’re using now. If it was you, there’s nothing to do.',
+  'Этот сеанс уже завершён: устройство вышло из аккаунта. Если входили не вы — смените пароль.':
+    'This session has already ended: the device was signed out. If it wasn’t you, change your password.',
   'Сервис подключён: теперь можно входить через него.':
     'Service connected: you can now sign in with it.',
   'Этот аккаунт сервиса уже привязан к другому пользователю площадки.':

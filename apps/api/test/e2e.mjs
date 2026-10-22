@@ -2035,7 +2035,7 @@ async function scenarioLoginAlert(rnd) {
     await wait(300);
     got = await alerts();
   }
-  await login(FIREFOX);
+  const twice = await login(FIREFOX);
   await wait(500);
   const again = await alerts();
   check(
@@ -2044,6 +2044,33 @@ async function scenarioLoginAlert(rnd) {
       got.length === 1 && got[0].payload?.device === 'Firefox · Windows' && /Вход с нового устройства/.test(got[0].payload?.preview ?? '') &&
       again.length === 1,
     JSON.stringify({ afterRegister: afterRegister.length, same: same.status, afterSame: afterSame.length, other: other.status, got: got.map((n) => n.payload), again: again.length }),
+  );
+
+  // «Это не я»: уведомление ведёт к сеансу; завершаются оба входа с Firefox,
+  // свои сеансы живут, а следующий вход с Firefox снова даёт предупреждение.
+  const session = got[0]?.payload?.session;
+  const mine = (await j('/auth/sessions', { token: user.token })).body;
+  const current = mine.find((s) => s.current)?.id;
+  const self = await j(`/auth/sessions/${current}/not-me`, { method: 'POST', token: user.token });
+  const stranger = await register('lgx', rnd);
+  const foreign = await j(`/auth/sessions/${session}/not-me`, { method: 'POST', token: stranger.token });
+  const before = (await j('/notifications', { token: twice.body.accessToken })).status;
+  const denied = await j(`/auth/sessions/${session}/not-me`, { method: 'POST', token: user.token });
+  const firstFf = (await j('/notifications', { token: other.body.accessToken })).status;
+  const secondFf = (await j('/notifications', { token: twice.body.accessToken })).status;
+  const own = (await j('/notifications', { token: same.body.accessToken })).status;
+  await login(FIREFOX);
+  let back = [];
+  for (let i = 0; i < 10 && back.length < 2; i++) {
+    await wait(300);
+    back = await alerts();
+  }
+  check(
+    '«Это не я»: сеанс из уведомления в списке; свой текущий и чужой — отказ; оба входа с Firefox завершены, свой остался; новый вход с Firefox — снова предупреждение',
+    typeof session === 'string' && mine.some((s) => s.id === session) && self.status === 400 && foreign.status === 404 &&
+      before === 200 && denied.status === 200 && denied.body.closedSessions === 2 && firstFf === 401 && secondFf === 401 &&
+      own === 200 && back.length === 2 && back[0].payload?.session !== session,
+    JSON.stringify({ session, listed: mine.length, self: self.status, foreign: foreign.status, before, denied: denied.body, firstFf, secondFf, own, back: back.length }),
   );
 }
 

@@ -68,6 +68,7 @@ export const EN_API: Phrasebook = {
   'Это текущий сеанс — чтобы выйти на этом устройстве, нажмите «Выйти»':
     'This is your current session — to sign out on this device, click “Sign out”',
   'Сеанс уже завершён': 'Session already ended',
+  'Сеанс не найден': 'Session not found',
   'Нет токена': 'No token',
   'Невалидный токен': 'Invalid token',
   'Сеанс завершён': 'Session ended',

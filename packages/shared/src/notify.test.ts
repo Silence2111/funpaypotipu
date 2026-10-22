@@ -42,5 +42,9 @@ describe('уведомления', () => {
     expect(notifyLink('kyc_rejected', { reason: 'Размыто' })).toBe('/cabinet/verification');
     expect(notifyLink('seller_new_lots', { sellerId: 's1', listingId: 'l1' })).toBe('/lot/l1');
     expect(notifyLink('seller_sale', { sellerId: 's1', count: 3 })).toBe('/prodavec/s1');
+    expect(notifyLink('new_login', { session: 'f1', device: 'Firefox · Windows' })).toBe(
+      '/cabinet/security?session=f1',
+    );
+    expect(notifyLink('new_login', {})).toBe('/cabinet/security');
   });
 });

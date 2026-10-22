@@ -6,6 +6,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
@@ -43,6 +44,8 @@ const BANNED = 'Аккаунт заблокирован. Если это оши�
 
 /** Устройство «знакомое», если с него входили за столько дней. */
 export const KNOWN_DEVICE_DAYS = 180;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Неверный пароль десять раз за 15 минут — пауза для этой почты. */
 const passwordAttempts = new AttemptLimiter(10, 15 * 60_000);
@@ -277,7 +280,7 @@ export class AuthService {
     });
     // Письмо и уведомление — не задерживая вход: сбой почты вход не ломает.
     if (fresh) {
-      void this.alertNewLogin(userId, ctx).catch((e: Error) =>
+      void this.alertNewLogin(userId, family, ctx).catch((e: Error) =>
         this.logger.warn(`Вход с нового устройства ${userId}: ${e.message}`),
       );
     }
@@ -289,7 +292,8 @@ export class AuthService {
   /**
    * Вход с устройства, с которого человек не входил KNOWN_DEVICE_DAYS дней:
    * ни отпечатка устройства, ни той же строки браузера в его сеансах. Самый
-   * первый вход — регистрация — не новость.
+   * первый вход — регистрация — не новость. Сеанс, о котором сказали «Это не
+   * я», знакомым устройство не делает.
    */
   private async isNewDevice(userId: string, ctx: RequestCtx): Promise<boolean> {
     const since = new Date(Date.now() - KNOWN_DEVICE_DAYS * 86_400_000);
@@ -300,19 +304,27 @@ export class AuthService {
     const [ever, known] = await Promise.all([
       this.prisma.authSession.count({ where: { userId }, take: 1 }),
       same.length
-        ? this.prisma.authSession.count({ where: { userId, createdAt: { gte: since }, OR: same }, take: 1 })
+        ? this.prisma.authSession.count({
+            where: { userId, createdAt: { gte: since }, deniedAt: null, OR: same },
+            take: 1,
+          })
         : Promise.resolve(0),
     ]);
     return ever > 0 && known === 0;
   }
 
-  /** «Вход с нового устройства»: на сайте, в Telegram и пушем — по настройкам, письмом — всегда. */
-  private async alertNewLogin(userId: string, ctx: RequestCtx) {
+  /**
+   * «Вход с нового устройства»: на сайте, в Telegram и пушем — по настройкам,
+   * письмом — всегда. Ссылка ведёт к этому сеансу в «Безопасности»: «Это не я»
+   * завершает именно его.
+   */
+  private async alertNewLogin(userId: string, session: string, ctx: RequestCtx) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { locale: true } });
     const lang = langOf(user?.locale);
     const device = deviceOf(ctx.userAgent, lang);
     const ip = ctx.ip ?? '—';
     await this.moduleRef.get(NotificationsService, { strict: false }).notify(userId, 'new_login', {
+      session,
       device,
       ip,
       preview: say(
@@ -393,6 +405,41 @@ export class AuthService {
     });
     if (!res.count) throw new BadRequestException('Сеанс уже завершён');
     return { ok: true };
+  }
+
+  /**
+   * «Это не я» после входа с нового устройства: завершаются все сеансы этого
+   * устройства (тот же отпечаток или та же строка браузера с того же адреса —
+   * чужой мог войти и не раз), и оно перестаёт быть знакомым: следующий вход
+   * с него снова даст предупреждение. Текущий сеанс не трогается.
+   */
+  async denySession(userId: string, familyId: string, currentFamily?: string) {
+    if (familyId === currentFamily) {
+      throw new BadRequestException('Это текущий сеанс — чтобы выйти на этом устройстве, нажмите «Выйти»');
+    }
+    if (!UUID_RE.test(familyId)) throw new NotFoundException('Сеанс не найден');
+    const seen = await this.prisma.authSession.findFirst({
+      where: { userId, familyId },
+      orderBy: { createdAt: 'desc' },
+      select: { userAgent: true, ip: true, fingerprint: true },
+    });
+    if (!seen) throw new NotFoundException('Сеанс не найден');
+    const device = seen.fingerprint
+      ? [{ fingerprint: seen.fingerprint }]
+      : seen.userAgent
+        ? [{ userAgent: seen.userAgent, ip: seen.ip }]
+        : [];
+    const where = {
+      userId,
+      ...(currentFamily ? { familyId: { not: currentFamily } } : {}),
+      OR: [{ familyId }, ...device],
+    };
+    const now = new Date();
+    const [closed] = await this.prisma.$transaction([
+      this.prisma.authSession.updateMany({ where: { ...where, revokedAt: null }, data: { revokedAt: now } }),
+      this.prisma.authSession.updateMany({ where: { ...where, deniedAt: null }, data: { deniedAt: now } }),
+    ]);
+    return { ok: true, closedSessions: closed.count };
   }
 
   async revokeOtherSessions(userId: string, currentFamily?: string) {

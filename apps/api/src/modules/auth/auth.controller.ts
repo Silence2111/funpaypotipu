@@ -140,6 +140,14 @@ export class AuthController {
     return this.auth.revokeSession(user.userId, id, user.sessionFamily);
   }
 
+  /** «Это не я» из предупреждения о входе: завершить сеанс и забыть устройство. */
+  @Post('sessions/:id/not-me')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  denySession(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.auth.denySession(user.userId, id, user.sessionFamily);
+  }
+
   @Post('sessions/revoke-others')
   @HttpCode(200)
   @UseGuards(JwtAuthGuard)

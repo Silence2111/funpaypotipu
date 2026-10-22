@@ -4565,3 +4565,21 @@ a.my-lot-title:hover {
 .price-table table {
   margin-top: 8px;
 }
+
+/* Безопасность: сеансы и вопрос «Это были вы?» после входа с нового устройства */
+.session-row {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.session-row.flagged {
+  padding: 10px 12px;
+  border-top-color: transparent;
+  border-radius: 12px;
+  background: var(--accent-tint);
+}
+.new-login {
+  animation: pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}

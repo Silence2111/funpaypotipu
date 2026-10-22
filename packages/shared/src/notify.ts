@@ -135,7 +135,11 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
     return id('sellerId') ? `/prodavec/${id('sellerId')}` : '/cabinet/following';
   }
   if (type.startsWith('kyc_')) return '/cabinet/verification';
-  if (type === 'new_login') return '/cabinet/security';
+  // Вход с нового устройства — к этому сеансу: «Это не я» завершит именно его.
+  if (type === 'new_login') {
+    const session = id('session');
+    return session ? `/cabinet/security?session=${encodeURIComponent(session)}` : '/cabinet/security';
+  }
   if (type === 'new_message' && id('conversationId')) return `/chat/${id('conversationId')}`;
   if (id('orderId')) return `/orders/${id('orderId')}`;
   if (id('listingId')) return type === 'listing_blocked' ? '/cabinet/lots' : `/lot/${id('listingId')}`;
