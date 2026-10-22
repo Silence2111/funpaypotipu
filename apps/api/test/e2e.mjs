@@ -1709,6 +1709,55 @@ async function scenarioPriceLow(rnd) {
   );
 }
 
+async function scenarioStockWatch(rnd) {
+  console.log('\n— Сообщить о поступлении —');
+  const seller = await register('sws', rnd);
+  const buyer = await register('swb', rnd);
+  const quitter = await register('swq', rnd);
+  const lot = await createListing(seller.token, 'accounts', '50000', { title: `Поступление ${rnd}`, stock: 3 });
+  const stock = (n) =>
+    j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ stock: n }) });
+  const watch = (u, method = 'POST') => j(`/stock-watches/${lot}`, { method, token: u.token });
+  const inStock = await watch(buyer);
+  await stock(0);
+  const soldOut = (await j(`/listings/${lot}`)).body.status;
+  const own = await watch(seller);
+  const first = await watch(buyer);
+  const again = await watch(buyer);
+  const status = await j(`/stock-watches/${lot}`, { token: buyer.token });
+  await watch(quitter);
+  const left = await watch(quitter, 'DELETE');
+  const guest = await j(`/stock-watches/${lot}`, { method: 'POST' });
+  check(
+    'Лот в продаже и свой — ждать нельзя; закончился — «Сообщить о поступлении», повтор не двоит; передумал — снято; без входа — 401',
+    inStock.status === 400 && soldOut === 'sold_out' && own.status === 400 && first.status === 201 &&
+      first.body.watching === true && again.body.watching === true && status.body.watching === true &&
+      left.body.watching === false && guest.status === 401,
+    JSON.stringify({ inStock: inStock.status, soldOut, own: own.status, first: first.body, again: again.body, status: status.body, left: left.body, guest: guest.status }),
+  );
+
+  await stock(5);
+  const notes = async (u) =>
+    (await j('/notifications', { token: u.token })).body.filter((n) => n.type === 'back_in_stock');
+  let got = [];
+  for (let i = 0; i < 20 && !got.length; i++) {
+    await wait(500);
+    got = await notes(buyer);
+  }
+  const after = await j(`/stock-watches/${lot}`, { token: buyer.token });
+  const quiet = await notes(quitter);
+  await stock(0);
+  await stock(4);
+  await wait(3000);
+  const once = await notes(buyer);
+  check(
+    'Пополнили наличие — одно уведомление «снова в продаже» со ссылкой на лот, ожидание снято; передумавшему — ничего; следующее пополнение — без повтора',
+    got.length === 1 && got[0].payload?.listingId === lot && /снова в продаже/.test(got[0].payload?.preview ?? '') &&
+      after.body.watching === false && quiet.length === 0 && once.length === 1,
+    JSON.stringify({ got: got.map((n) => n.payload), after: after.body, quiet: quiet.length, once: once.length }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2183,6 +2232,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioPriceHistory(rnd);
   await scenarioHonestSale(rnd);
   await scenarioPriceLow(rnd);
+  await scenarioStockWatch(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

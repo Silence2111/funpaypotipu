@@ -17,6 +17,7 @@ import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/
 import { BuyButton } from '@/components/buy-button';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
+import { StockWatchButton } from '@/components/stock-watch-button';
 import { ViewBeacon } from '@/components/view-beacon';
 import { SaleMark } from '@/components/sale-mark';
 import { PriceLowMark } from '@/components/price-low-mark';
@@ -285,11 +286,10 @@ export default async function ListingPage({
             {soldOut ? (
               <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
                 <p style={{ margin: 0, fontWeight: 600 }}>{t('Лот закончился')}</p>
-                <p className="hint" style={{ margin: '4px 0 0' }}>
-                  {t(
-                    'Продавец может пополнить наличие. Добавьте лот в избранное, чтобы не потерять его, или посмотрите похожие предложения ниже.',
-                  )}
+                <p className="hint" style={{ margin: '4px 0 12px' }}>
+                  {t('Пока его нельзя купить — посмотрите похожие предложения ниже.')}
                 </p>
+                <StockWatchButton listingId={listing.id} sellerId={listing.seller.id} />
               </div>
             ) : topup ? (
               <GameTopupForm

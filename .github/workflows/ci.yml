@@ -71,6 +71,8 @@ jobs:
       SALE_SWEEP_INTERVAL_MS: 2000
       # Подписки на продавцов раз в 2 с: e2e ждёт уведомления о новом лоте и скидке.
       FOLLOW_INTERVAL_MS: 2000
+      # Ожидание поступления раз в 2 с: e2e ждёт уведомления, что лот снова в продаже.
+      STOCK_WATCH_INTERVAL_MS: 2000
       # Вход через Google и VK ID — против тестового сервера из e2e (apps/api/test/oauth-mock.mjs).
       OAUTH_TEST_ISSUER: http://localhost:4999
       GOOGLE_CLIENT_ID: ci-google

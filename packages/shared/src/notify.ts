@@ -31,8 +31,8 @@ export const NOTIFY_GROUPS = [
   {
     key: 'searches',
     label: 'Поиски, избранное и подписки',
-    hint: 'новые предложения по сохранённым поискам, снижение цены в избранном, новые лоты и скидки продавцов, на которых вы подписаны',
-    types: ['saved_search', 'price_drop', 'seller_new_lots', 'seller_sale'],
+    hint: 'новые предложения по сохранённым поискам, снижение цены в избранном, поступление закончившихся лотов, новые лоты и скидки продавцов, на которых вы подписаны',
+    types: ['saved_search', 'price_drop', 'back_in_stock', 'seller_new_lots', 'seller_sale'],
   },
   {
     key: 'moderation',
@@ -85,6 +85,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   support_reply: 'Поддержка ответила на обращение',
   saved_search: 'Новые предложения по сохранённому поиску',
   price_drop: 'Лот из избранного подешевел',
+  back_in_stock: 'Лот снова в продаже',
   seller_new_lots: 'Новые лоты у продавца из подписок',
   seller_sale: 'Скидка у продавца из подписок',
 };

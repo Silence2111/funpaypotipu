@@ -71,6 +71,8 @@ export const EN_TEXTS: Record<string, string> = {
   '«{title}» — {price} вместо {old} и ещё {n}': '“{title}” — {price} instead of {old} and {n} more',
   // Подешевевший лот из избранного
   '«{title}»: было {old}, стало {new}': '“{title}”: was {old}, now {new}',
+  // Закончившийся лот снова в продаже
+  '«{title}» снова в продаже': '“{title}” is back in stock',
 
   // Бот Telegram
   'Уведомления отключены. Подключить снова — в настройках профиля на сайте.':

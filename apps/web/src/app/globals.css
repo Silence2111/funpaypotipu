@@ -4087,6 +4087,19 @@ a.my-lot-title:hover {
 .offer-price .sale-mark {
   justify-content: flex-end;
 }
+/* «Сообщить о поступлении» у закончившегося лота: кнопка во всю ширину, пояснение под ней. */
+.stock-watch {
+  display: grid;
+  gap: 8px;
+}
+.stock-watch .btn {
+  width: 100%;
+  justify-content: center;
+  gap: 8px;
+}
+.stock-watch .hint {
+  margin: 0;
+}
 /* «Минимум за 30 дней»: тихая строка под ценой — без плашки, её место у скидки. */
 .price-low {
   display: inline-flex;

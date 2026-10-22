@@ -31,8 +31,14 @@ export const LOT: Record<string, string> = {
   'Количество выбираете вы, от {qty}': 'You choose the quantity, from {qty}',
   'Количество выбираете вы': 'You choose the quantity',
   'Лот закончился': 'Out of stock',
-  'Продавец может пополнить наличие. Добавьте лот в избранное, чтобы не потерять его, или посмотрите похожие предложения ниже.':
-    'The seller may restock it. Add the listing to favorites so you don’t lose it, or see similar offers below.',
+  'Пока его нельзя купить — посмотрите похожие предложения ниже.':
+    'You can’t buy it right now — see similar offers below.',
+  'Сообщить о поступлении': 'Notify me when back in stock',
+  'Сообщим о поступлении': 'We’ll let you know',
+  'Продавец может пополнить наличие — пришлём одно уведомление, когда лот снова появится.':
+    'The seller may restock it — we’ll send one notification when it’s back.',
+  'Пришлём уведомление, когда лот снова появится в продаже. Нажмите ещё раз, чтобы не ждать.':
+    'We’ll notify you when it’s back in stock. Tap again to stop waiting.',
   'Демо-оплата: платёжка не подключена, деньги не списываются.':
     'Demo payment: no payment provider is connected, no money is charged.',
   'Как защищена покупка': 'How your purchase is protected',

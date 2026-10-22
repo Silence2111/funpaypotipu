@@ -227,6 +227,7 @@ model User {
   following      SellerFollow[]     @relation("Following")
   followers      SellerFollow[]     @relation("Followers")
   favorites      Favorite[]
+  stockWatches   StockWatch[]
   roles          UserRole[]
   riskSignals    RiskSignal[]
 
@@ -500,6 +501,7 @@ model Listing {
   searchHits   SavedSearchHit[]
   viewDays     ListingViewDay[]
   pricePoints  ListingPricePoint[]
+  stockWatches StockWatch[]
 
   // FTS по (title, description) и GIN по attributes — добавить SQL-миграцией
   @@index([categoryId, price])
@@ -1066,6 +1068,22 @@ model SellerFollow {
   @@unique([userId, sellerId])
   @@index([sellerId])
   @@map("seller_follows")
+}
+
+// «Сообщить о поступлении»: лот закончился, человек ждёт его снова в
+// продаже. Пришло уведомление — запись удаляется: одно на ожидание.
+model StockWatch {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@index([listingId])
+  @@map("stock_watches")
 }
 
 model ReplyTemplate {

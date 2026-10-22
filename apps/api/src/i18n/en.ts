@@ -284,6 +284,10 @@ export const EN_API: Phrasebook = {
   'Не больше {n} подписок — отпишитесь от ненужных':
     'No more than {n} follows — unfollow the ones you don’t need',
   'Подписка не найдена': 'Follow not found',
+
+  // Сообщить о поступлении
+  'Лот в продаже — его можно купить сейчас': 'The listing is in stock — you can buy it now',
+  'Ждать можно не больше {n} лотов сразу': 'You can wait for no more than {n} listings at once',
   'Раздел не найден': 'Category not found',
   'Недостаточно средств на балансе': 'Insufficient balance',
   'Неизвестный способ вывода': 'Unknown withdrawal method',

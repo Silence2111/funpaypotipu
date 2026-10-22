@@ -40,6 +40,7 @@ import { SupportModule } from './modules/support/support.module';
 import { SellerToolsModule } from './modules/seller-tools/seller-tools.module';
 import { SavedSearchesModule } from './modules/saved-searches/saved-searches.module';
 import { FollowsModule } from './modules/follows/follows.module';
+import { StockWatchesModule } from './modules/stock-watches/stock-watches.module';
 import { LotStatsModule } from './modules/lot-stats/lot-stats.module';
 import { ReportsModule } from './modules/reports/reports.module';
 
@@ -82,6 +83,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     SellerToolsModule,
     SavedSearchesModule,
     FollowsModule,
+    StockWatchesModule,
     LotStatsModule,
     ReportsModule,
   ],
