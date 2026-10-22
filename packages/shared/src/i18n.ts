@@ -220,7 +220,7 @@ export const EN_SHARED: Phrasebook = {
   'открыт спор, ждём вашего ответа, решение арбитра':
     'dispute opened, your reply needed, arbiter’s decision',
   Отзывы: 'Reviews',
-  'новый отзыв, ответ продавца': 'new review, seller’s reply',
+  'новый отзыв, ответ продавца, оценка вас как покупателя': 'new review, seller’s reply, a rating of you as a buyer',
   Деньги: 'Money',
   'кэшбэк и выплаты': 'cashback and payouts',
   Поддержка: 'Support',
@@ -261,6 +261,7 @@ export const EN_SHARED: Phrasebook = {
   'Новые предложения по сохранённому поиску': 'New offers for your saved search',
   'Лот из избранного подешевел': 'A listing in your favorites got cheaper',
   'Лот снова в продаже': 'A listing is back in stock',
+  'Продавец оценил вас как покупателя': 'A seller rated you as a buyer',
   'Новые лоты у продавца из подписок': 'New listings from a seller you follow',
   'Скидка у продавца из подписок': 'A discount from a seller you follow',
   // Промокод продавца

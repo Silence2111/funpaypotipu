@@ -218,6 +218,8 @@ model User {
   payouts        Payout[]
   reviewsAuthored Review[]          @relation("ReviewAuthor")
   reviewsReceived Review[]          @relation("ReviewTarget")
+  buyerReviewsGiven    BuyerReview[] @relation("BuyerReviewSeller")
+  buyerReviewsReceived BuyerReview[] @relation("BuyerReviewBuyer")
   messages       Message[]
   notifications  Notification[]
   pushSubscriptions PushSubscription[]
@@ -565,6 +567,7 @@ model Order {
   delivery     Delivery?
   dispute      Dispute?
   review       Review?
+  buyerReview  BuyerReview?
   conversation Conversation?
   ledgerEntries LedgerEntry[]
   payments     Payment[]
@@ -1068,6 +1071,27 @@ model SellerFollow {
   @@unique([userId, sellerId])
   @@index([sellerId])
   @@map("seller_follows")
+}
+
+// Оценка покупателя продавцом после сделки: «порекомендую» или нет. Числа
+// видны продавцам в заказе и всем в профиле, комментарий — только самому
+// покупателю: слова о человеке на витрину не выносим.
+model BuyerReview {
+  id        String   @id @default(uuid()) @db.Uuid
+  orderId   String   @unique @map("order_id") @db.Uuid
+  sellerId  String   @map("seller_id") @db.Uuid
+  buyerId   String   @map("buyer_id") @db.Uuid
+  good      Boolean
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  order  Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  seller User  @relation("BuyerReviewSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  buyer  User  @relation("BuyerReviewBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@index([buyerId])
+  @@map("buyer_reviews")
 }
 
 // «Сообщить о поступлении»: лот закончился, человек ждёт его снова в

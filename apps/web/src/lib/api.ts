@@ -193,6 +193,8 @@ export interface SellerProfile {
   replyTime?: ReplyTime | null;
   /** Подписчиков: их уведомляют о новых лотах и скидках. */
   followers?: number;
+  /** Как покупатель: завершённые покупки и оценки продавцов. */
+  asBuyer?: { deals: number; good: number; bad: number };
 }
 
 export const getSeller = (id: string) => apiTry<SellerProfile>(`/sellers/${id}`);

@@ -71,6 +71,9 @@ export const EN_TEXTS: Record<string, string> = {
   '«{title}» — {price} вместо {old} и ещё {n}': '“{title}” — {price} instead of {old} and {n} more',
   // Подешевевший лот из избранного
   '«{title}»: было {old}, стало {new}': '“{title}”: was {old}, now {new}',
+  // Оценка покупателя продавцом
+  '{seller} рекомендует вас как покупателя': '{seller} recommends you as a buyer',
+  '{seller} не рекомендует вас как покупателя': '{seller} doesn’t recommend you as a buyer',
   // Закончившийся лот снова в продаже
   '«{title}» снова в продаже': '“{title}” is back in stock',
 

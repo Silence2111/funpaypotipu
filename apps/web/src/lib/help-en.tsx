@@ -288,6 +288,11 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           it back — a row with an ID changes that listing, one without adds a new listing.
         </li>
         <li>
+          An order shows who is buying: how many purchases they have and how other sellers rated
+          them. After the deal, “Recommend” or “Don’t recommend” the buyer within 30 days; only they
+          see your comment, and their profile shows just the numbers.
+        </li>
+        <li>
           Prices at once — tick listings and tap “Price ±%”: you see the new prices before you
           apply. Listings with a running discount and top-ups don’t change.
         </li>

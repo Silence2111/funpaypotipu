@@ -293,6 +293,12 @@ export const EN_API: Phrasebook = {
   'Поштучный лот и лот с автовыдачей меняются в форме лота':
     'Listings sold by quantity or with auto-delivery are edited in the listing form',
 
+  // Оценка покупателя
+  'Оценить покупателя может только продавец': 'Only the seller can rate the buyer',
+  'Оценить покупателя можно после завершения сделки': 'You can rate the buyer once the deal is closed',
+  'Оценку ставят в течение {n} дней после сделки': 'A rating can be given within {n} days of the deal',
+  'Комментарий — до 300 знаков': 'The comment must be up to 300 characters',
+
   // Сообщить о поступлении
   'Лот в продаже — его можно купить сейчас': 'The listing is in stock — you can buy it now',
   'Ждать можно не больше {n} лотов сразу': 'You can wait for no more than {n} listings at once',

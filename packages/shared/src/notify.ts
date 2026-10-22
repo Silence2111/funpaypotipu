@@ -25,7 +25,7 @@ export const NOTIFY_GROUPS = [
   },
   { key: 'messages', label: 'Сообщения', hint: 'новые сообщения в чатах', types: ['new_message'] },
   { key: 'disputes', label: 'Споры', hint: 'открыт спор, ждём вашего ответа, решение арбитра', types: ['dispute_opened', 'dispute_reply_needed', 'dispute_resolved'] },
-  { key: 'reviews', label: 'Отзывы', hint: 'новый отзыв, ответ продавца', types: ['review_received', 'review_reply'] },
+  { key: 'reviews', label: 'Отзывы', hint: 'новый отзыв, ответ продавца, оценка вас как покупателя', types: ['review_received', 'review_reply', 'buyer_review'] },
   { key: 'finance', label: 'Деньги', hint: 'кэшбэк и выплаты', types: ['cashback', 'payout_paid', 'payout_rejected'] },
   { key: 'support', label: 'Поддержка', hint: 'ответы на ваши обращения', types: ['support_reply'] },
   {
@@ -69,6 +69,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   listing_out_of_stock: 'Склад лота опустел — заказ возвращён',
   review_received: 'Новый отзыв',
   review_reply: 'Продавец ответил на ваш отзыв',
+  buyer_review: 'Продавец оценил вас как покупателя',
   cashback: 'Кэшбэк за покупку зачислен на баланс',
   new_message: 'Новое сообщение',
   dispute_opened: 'Спор по сделке',

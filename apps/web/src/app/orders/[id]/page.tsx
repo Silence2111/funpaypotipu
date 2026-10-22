@@ -10,6 +10,7 @@ import { apiErrorMessage } from '@/lib/errors';
 import { OrderChat } from '@/components/order-chat';
 import { OrderReview } from '@/components/order-review';
 import { BuyAgain } from '@/components/buy-again';
+import { BuyerRating } from '@/components/buyer-rating';
 import { PayMethods, priceFor, type PayMethod } from '@/components/pay-methods';
 import { payOrder } from '@/lib/checkout';
 import { useT } from '@/lib/i18n/client';
@@ -484,6 +485,7 @@ export default function OrderPage() {
       )}
 
       {order.status === 'completed' && <OrderReview orderId={id} role={role} />}
+      <BuyerRating orderId={id} role={role} />
 
       {err && <div className="alert error" role="alert" style={{ marginTop: 16 }}>{err}</div>}
 

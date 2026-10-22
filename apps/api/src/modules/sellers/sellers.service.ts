@@ -63,6 +63,12 @@ export class SellersService {
       where: { targetId: sellerId, photoCount: { gt: 0 } },
     });
     const followers = await this.prisma.sellerFollow.count({ where: { sellerId } });
+    // Как покупатель: завершённые покупки и оценки продавцов — только числа.
+    const [buyerDeals, buyerGood, buyerBad] = await Promise.all([
+      this.prisma.order.count({ where: { buyerId: sellerId, status: 'completed' } }),
+      this.prisma.buyerReview.count({ where: { buyerId: sellerId, good: true } }),
+      this.prisma.buyerReview.count({ where: { buyerId: sellerId, good: false } }),
+    ]);
 
     return {
       id: profile.userId,
@@ -87,6 +93,7 @@ export class SellersService {
       ratingBreakdown,
       photoReviews,
       followers,
+      asBuyer: { deals: buyerDeals, good: buyerGood, bad: buyerBad },
     };
   }
 

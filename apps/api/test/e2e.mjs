@@ -1935,6 +1935,58 @@ async function scenarioExportEdit(rnd) {
   );
 }
 
+async function scenarioBuyerReview(rnd) {
+  console.log('\n— Оценка покупателя продавцом —');
+  const seller = await register('brs', rnd);
+  const seller2 = await register('brt', rnd);
+  const buyer = await register('brb', rnd);
+  const deal = async (s) => {
+    const listingId = await createListing(s.token, 'accounts', '20000', { title: `Оценка ${rnd}` });
+    const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
+    await pay(buyer.token, order.body.id);
+    return order.body.id;
+  };
+  const rate = (u, orderId, body) =>
+    j(`/orders/${orderId}/buyer-review`, { method: 'PUT', token: u.token, body: JSON.stringify(body) });
+  const o1 = await deal(seller);
+  const early = await rate(seller, o1, { good: true });
+  const before = (await j(`/orders/${o1}/buyer-review`, { token: seller.token })).body;
+  await j(`/orders/${o1}/deliver`, { method: 'POST', token: seller.token });
+  await j(`/orders/${o1}/confirm`, { method: 'POST', token: buyer.token });
+  const byBuyer = await rate(buyer, o1, { good: true });
+  const first = await rate(seller, o1, { good: true, comment: 'Быстро подтвердил' });
+  const edited = await rate(seller, o1, { good: true, comment: 'Быстро подтвердил, спасибо' });
+  const notes = (await j('/notifications', { token: buyer.token })).body.filter((n) => n.type === 'buyer_review');
+  const asBuyer = (await j(`/orders/${o1}/buyer-review`, { token: buyer.token })).body;
+  const stranger = await j(`/orders/${o1}/buyer-review`, { token: seller2.token });
+  check(
+    'Оценка покупателя: до завершения — 400, покупатель сам себе — 403; продавец — «рекомендую» с комментарием, уведомление одно; покупатель видит оценку без статистики; чужой — 403',
+    early.status === 400 && before.canRate === false && before.stats?.deals === 0 && byBuyer.status === 403 &&
+      first.status === 200 && edited.body.comment === 'Быстро подтвердил, спасибо' && notes.length === 1 &&
+      /рекомендует вас как покупателя/.test(notes[0].payload?.preview ?? '') &&
+      asBuyer.review?.good === true && asBuyer.review?.comment === 'Быстро подтвердил, спасибо' && asBuyer.stats === null &&
+      stranger.status === 403,
+    JSON.stringify({ early: early.status, before, byBuyer: byBuyer.status, first: first.status, notes: notes.length, asBuyer, stranger: stranger.status }),
+  );
+
+  // Второй продавец: видит прошлую сделку покупателя и чужую оценку, ставит свою.
+  const o2 = await deal(seller2);
+  const seen = (await j(`/orders/${o2}/buyer-review`, { token: seller2.token })).body;
+  await j(`/orders/${o2}/deliver`, { method: 'POST', token: seller2.token });
+  await j(`/orders/${o2}/confirm`, { method: 'POST', token: buyer.token });
+  const bad = await rate(seller2, o2, { good: false });
+  const profile = (await j(`/sellers/${buyer.id}`)).body;
+  const removed = await j(`/orders/${o2}/buyer-review`, { method: 'DELETE', token: seller2.token });
+  const profileAfter = (await j(`/sellers/${buyer.id}`)).body;
+  check(
+    'Другой продавец видит покупки и оценки покупателя; в профиле — «как покупатель» числами; оценку можно убрать',
+    seen.stats?.deals === 1 && seen.stats?.good === 1 && seen.stats?.bad === 0 && seen.canRate === false &&
+      bad.status === 200 && profile.asBuyer?.deals === 2 && profile.asBuyer?.good === 1 && profile.asBuyer?.bad === 1 &&
+      removed.status === 200 && profileAfter.asBuyer?.bad === 0,
+    JSON.stringify({ seen, bad: bad.status, asBuyer: profile.asBuyer, after: profileAfter.asBuyer }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2414,6 +2466,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioPriceStats(rnd);
   await scenarioImport(rnd);
   await scenarioExportEdit(rnd);
+  await scenarioBuyerReview(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

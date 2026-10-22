@@ -103,6 +103,22 @@ export const ORDERS: Record<string, string> = {
   'Ваш ключ': 'Your key',
   'Всё получил, подтвердить': 'Got everything, confirm',
   'Купить снова': 'Buy again',
+  // Оценка покупателя
+  'Продавец рекомендует вас как покупателя': 'The seller recommends you as a buyer',
+  'Продавец не рекомендует вас как покупателя': 'The seller doesn’t recommend you as a buyer',
+  'Комментарий видите только вы, в профиле — только число оценок.':
+    'Only you see the comment; your profile shows just the number of ratings.',
+  'Покупатель: первая покупка на площадке.': 'Buyer: first purchase on the marketplace.',
+  'Покупатель: {deals}; продавцы рекомендуют — {good}, не рекомендуют — {bad}.':
+    'Buyer: {deals}; sellers recommend — {good}, don’t recommend — {bad}.',
+  'Вы рекомендуете этого покупателя': 'You recommend this buyer',
+  'Вы не рекомендуете этого покупателя': 'You don’t recommend this buyer',
+  'Оцените покупателя': 'Rate the buyer',
+  Порекомендую: 'Recommend',
+  'Не порекомендую': 'Don’t recommend',
+  'Комментарий — необязательно, его увидит только покупатель': 'Comment — optional, only the buyer will see it',
+  'Комментарий для покупателя': 'Comment for the buyer',
+  'Сохранить оценку': 'Save rating',
   'Закончился — сообщить о поступлении': 'Sold out — notify me when back',
   'Отменить заказ? Деньги вернутся на ваш баланс.':
     'Cancel the order? The money will return to your balance.',

@@ -4087,6 +4087,34 @@ a.my-lot-title:hover {
 .offer-price .sale-mark {
   justify-content: flex-end;
 }
+/* Оценка покупателя в заказе: сведения о нём одной строкой, вердикт — с иконкой цвета смысла. */
+.buyer-rating {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+.buyer-rating-stats,
+.buyer-rating-comment {
+  margin: 0;
+  font-size: 14px;
+}
+.buyer-rating-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-weight: 600;
+}
+.buyer-rating-verdict[data-good='true'] svg {
+  color: var(--success);
+}
+.buyer-rating-verdict[data-good='false'] svg {
+  color: var(--danger);
+}
+.buyer-rating-form {
+  display: grid;
+  gap: 10px;
+}
 /* Загрузка из таблицы: шаги карточками, предпросмотр строк, ошибки — красным текстом без плашек. */
 .import-step {
   display: grid;

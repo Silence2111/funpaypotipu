@@ -108,6 +108,23 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
                 <dt>{t('Продаж')}</dt>
                 <dd>{t.num(seller.salesCount)}</dd>
               </div>
+              {seller.asBuyer && seller.asBuyer.deals > 0 && (
+                <div>
+                  <dt>{t('Покупок')}</dt>
+                  <dd>{t.num(seller.asBuyer.deals)}</dd>
+                </div>
+              )}
+              {seller.asBuyer && seller.asBuyer.good + seller.asBuyer.bad > 0 && (
+                <div>
+                  <dt>{t('Рекомендуют как покупателя')}</dt>
+                  <dd>
+                    {t('{good} из {all}', {
+                      good: seller.asBuyer.good,
+                      all: seller.asBuyer.good + seller.asBuyer.bad,
+                    })}
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt>{t('На сайте')}</dt>
                 <dd>{sinceText(seller.memberSince, t)}</dd>
