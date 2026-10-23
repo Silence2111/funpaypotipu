@@ -50,5 +50,6 @@ describe('уведомления', () => {
       '/cabinet/security',
     );
     expect(notifyLink('two_factor_enabled', {})).toBe('/cabinet/security');
+    expect(notifyLink('recovery_requested', { recoveryId: 'r1' })).toBe('/cabinet/security');
   });
 });

@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { KeyRound, MonitorSmartphone, ShieldAlert } from 'lucide-react';
+import { KeyRound, LifeBuoy, MonitorSmartphone, ShieldAlert } from 'lucide-react';
 import { deviceOf } from '@gamemarket/shared';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
@@ -12,6 +12,15 @@ import { KycCard } from '@/components/kyc-card';
 import { SocialAccounts, type LoginWays } from '@/components/social-accounts';
 import { useT } from '@/lib/i18n/client';
 import { msg, type T } from '@/lib/i18n/lang';
+
+/** Заявка «Не могу войти» на этот аккаунт, которая ждёт решения сотрудника. */
+interface Recovery {
+  id: string;
+  createdAt: string;
+  userAgent: string | null;
+  objected: boolean;
+  decideAfter: string;
+}
 
 interface Session {
   id: string;
@@ -58,10 +67,12 @@ function Security() {
   const [next, setNext] = useState('');
   const [busy, setBusy] = useState(false);
   const [sessions, setSessions] = useState<Session[] | null>(null);
+  const [recovery, setRecovery] = useState<Recovery | null>(null);
 
   const load = useCallback(async () => {
     setSessions(await apiFetch<Session[]>('/auth/sessions').catch(() => []));
     setWays(await apiFetch<LoginWays>('/auth/social/accounts').catch(() => null));
+    setRecovery((await apiFetch<{ request: Recovery | null }>('/recovery/mine').catch(() => null))?.request ?? null);
   }, []);
 
   useEffect(() => {
@@ -125,6 +136,14 @@ function Security() {
     }, t('Не удалось завершить сеанс.'));
   }
 
+  /** «Заявку подал не я»: не отмена — знак сотруднику, что заявку подал не владелец. */
+  function objectRecovery(r: Recovery) {
+    void run(async () => {
+      await apiFetch(`/recovery/${r.id}/object`, { method: 'POST' });
+      return t('Отмечено: сотрудник увидит, что заявку подали не вы.');
+    }, t('Не удалось отметить заявку.'));
+  }
+
   function itWasMe() {
     setAnswer('me');
     router.replace('/cabinet/security', { scroll: false });
@@ -143,6 +162,34 @@ function Security() {
         <div className={notice.ok ? 'alert success' : 'alert error'} role={notice.ok ? 'status' : 'alert'}>
           {notice.text}
         </div>
+      )}
+
+      {recovery && (
+        <section className="card new-login" style={{ padding: 24, maxWidth: 600 }} aria-labelledby="recovery-title">
+          <h2 id="recovery-title" className="h2 row" style={{ fontSize: 18, gap: 8 }}>
+            <LifeBuoy size={18} strokeWidth={1.75} /> {t('Заявка на восстановление доступа')}
+          </h2>
+          <p style={{ margin: '12px 0 0' }}>
+            <span style={{ fontWeight: 600 }}>{deviceOf(recovery.userAgent, t.lang)}</span>
+            <span className="faint" style={{ display: 'block', fontSize: 13 }}>
+              {t('подана {when}', { when: when(recovery.createdAt, t) })}
+            </span>
+          </p>
+          <p className="muted" style={{ fontSize: 14, margin: '12px 0 0' }}>
+            {t('Кто-то сообщил поддержке, что не может войти в этот аккаунт. Сотрудник решит не раньше {date}. Если это вы — ждите ответа на почту. Если не вы — отметьте это, сотрудник увидит до решения.', {
+              date: when(recovery.decideAfter, t),
+            })}
+          </p>
+          <div style={{ marginTop: 12 }}>
+            {recovery.objected ? (
+              <span className="badge">{t('Отмечено: заявку подали не вы')}</span>
+            ) : (
+              <button type="button" className="btn secondary" disabled={busy} onClick={() => objectRecovery(recovery)}>
+                {t('Заявку подал не я')}
+              </button>
+            )}
+          </div>
+        </section>
       )}
 
       {asking && (

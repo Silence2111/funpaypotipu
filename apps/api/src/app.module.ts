@@ -43,6 +43,7 @@ import { FollowsModule } from './modules/follows/follows.module';
 import { StockWatchesModule } from './modules/stock-watches/stock-watches.module';
 import { LotStatsModule } from './modules/lot-stats/lot-stats.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { RecoveryModule } from './modules/recovery/recovery.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     StockWatchesModule,
     LotStatsModule,
     ReportsModule,
+    RecoveryModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: PresenceInterceptor },

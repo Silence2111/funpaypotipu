@@ -106,6 +106,34 @@ export const AUTH: Record<string, string> = {
     'Access restored: the password is new, and all devices have been signed out.',
   'Войти с новым паролем': 'Sign in with the new password',
   'Запросить новую ссылку': 'Request a new link',
+  // «Не могу войти»: заявка в поддержку без входа
+  'Не могу войти': 'Can’t sign in',
+  'Вход с кодом включил не я': 'Someone else turned on the sign-in code',
+  'Пароль сменили, а потом включили вход с кодом — «Это не я» из писем не помогает':
+    'The password was changed and then the sign-in code was turned on — “It wasn’t me” from the emails doesn’t help',
+  'Пароль сменил не я': 'Someone else changed the password',
+  'Ссылка «Это не я» из письма истекла или не пришла':
+    'The “It wasn’t me” link in the email expired or never arrived',
+  Другое: 'Other',
+  'Опишите, что случилось': 'Describe what happened',
+  'Опишите, что случилось, — от 10 символов': 'Describe what happened — at least 10 characters',
+  'Не больше трёх номеров заказов': 'No more than three order numbers',
+  'Не удалось отправить заявку. Попробуйте ещё раз.': 'Couldn’t send the request. Try again.',
+  'Заявка принята.': 'Request received.',
+  'Если аккаунт с такой почтой есть, сотрудник проверит, что он ваш, и ответит на почту аккаунта. Решение — не раньше чем через 3 дня: за это время владелец аккаунта увидит заявку и сможет сказать, что подавал её не он.':
+    'If an account with this email exists, staff will check that it’s yours and reply to the account’s email. The decision takes at least 3 days: in that time the account owner will see the request and can say they didn’t file it.',
+  'Когда «Это не я» из писем не помогло. Сотрудник сверит заявку с историей аккаунта: сделки, входы, смены пароля.':
+    'For when “It wasn’t me” from the emails didn’t help. Staff will check the request against the account’s history: deals, sign-ins, password changes.',
+  'Почта аккаунта': 'Account email',
+  'Что случилось': 'What happened',
+  'Номера заказов — необязательно': 'Order numbers — optional',
+  'До трёх, через запятую. Подтверждают, что сделки — ваши.':
+    'Up to three, separated by commas. They confirm the deals are yours.',
+  Подробности: 'Details',
+  'Когда перестали входить, что пришло на почту, с чего обычно входите':
+    'When you stopped being able to sign in, what arrived by email, what you usually sign in from',
+  'Отправить заявку': 'Send request',
+  'Не помните тот пароль? Заявка в поддержку': 'Don’t remember that password? Ask support',
   // «Это не я» из письма «Вход с кодом из приложения включён»
   'Выключить вход с кодом': 'Turn off the sign-in code',
   'Вход с кодом из приложения включили не вы? Введите пароль, который был у аккаунта в тот момент, и задайте новый.':

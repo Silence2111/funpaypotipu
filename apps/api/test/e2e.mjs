@@ -2171,6 +2171,67 @@ async function scenarioTwoFactorAlert(rnd) {
   }
 }
 
+// «Не могу войти»: ответ один для любой почты, владельцу — уведомление и
+// «Заявку подал не я», сотруднику — совпадения заказов; раньше 3 дней —
+// нельзя, потом — вход с кодом, сеансы и пароль сброшены.
+async function scenarioRecovery(rnd) {
+  console.log('\n— Не могу войти —');
+  const seller = await register('qrs', rnd);
+  const owner = await register('qro', rnd);
+  const agent = await register('qra', rnd);
+  await grant(agent.id, 'agent');
+  const lot = await createListing(seller.token, 'accounts', '15000', { title: `Восстановление ${rnd}` });
+  const order = await j('/orders', { method: 'POST', token: owner.token, body: JSON.stringify({ listingId: lot }) });
+  // «Чужой» включил вход с кодом на аккаунте владельца.
+  const setup = await j('/auth/2fa/setup', { method: 'POST', token: owner.token });
+  await j('/auth/2fa/enable', { method: 'POST', token: owner.token, body: JSON.stringify({ code: authenticator.generate(setup.body.secret) }) });
+  const CHROME = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
+  const ask = (email) =>
+    j('/recovery', {
+      method: 'POST', headers: { 'User-Agent': CHROME },
+      body: JSON.stringify({ email, reason: 'two_factor', orderNumbers: [order.body.publicNumber.toLowerCase(), 'GM-NOPE-0000'], details: 'Чужой включил вход с кодом, не могу войти' }),
+    });
+  const none = await ask(`nobody${rnd}@e2e.local`);
+  const first = await ask(`QRO${rnd}@e2e.local`);
+  const again = await ask(`qro${rnd}@e2e.local`);
+  let alerts = [];
+  for (let i = 0; i < 10 && !alerts.length; i++) {
+    await wait(300);
+    alerts = (await j('/notifications', { token: owner.token })).body.filter((n) => n.type === 'recovery_requested');
+  }
+  const mine = (await j('/recovery/mine', { token: owner.token })).body.request;
+  const queue = (await j('/recovery/queue', { token: agent.token })).body;
+  const row = queue.find((r) => r.id === mine?.id);
+  const outsider = await j('/recovery/queue', { token: seller.token });
+  const objected = await j(`/recovery/${mine?.id}/object`, { method: 'POST', token: owner.token });
+  const detail = (await j(`/recovery/${mine?.id}`, { token: agent.token })).body;
+  const early = await j(`/recovery/${mine?.id}/restore`, { method: 'POST', token: agent.token });
+  check(
+    '«Не могу войти»: ответ один для любой почты; заявка одна; владельцу — уведомление; сотруднику — 1 из 2 заказов, возражение владельца, вход с кодом; раньше 3 дней — 400; чужому — 403',
+    [none, first, again].every((r) => r.status === 201 && JSON.stringify(r.body) === '{"ok":true}') &&
+      alerts.length === 1 && /^Подана заявка на восстановление доступа к аккаунту: Chrome · Windows/.test(alerts[0].payload?.preview ?? '') &&
+      row?.orders?.given === 2 && row.orders.found === 1 && outsider.status === 403 && objected.status === 200 &&
+      detail.objected?.from?.startsWith('Браузер') && detail.orders?.[0]?.found === true && detail.orders[0].role === 'buyer' &&
+      detail.orders[1]?.found === false && !!detail.account?.twoFactorSince &&
+      detail.history?.some((h) => h.type === 'two_factor_enabled') && early.status === 400,
+    JSON.stringify({ none: none.status, first: first.status, alerts: alerts.length, row: row?.orders, outsider: outsider.status, objected: objected.status, detail: { objected: detail.objected, orders: detail.orders }, early: early.status }),
+  );
+  await prisma.accountRecovery.update({ where: { id: mine.id }, data: { createdAt: new Date(Date.now() - 73 * 3_600_000) } });
+  const restored = await j(`/recovery/${mine.id}/restore`, { method: 'POST', token: agent.token });
+  const oldSession = (await j('/notifications', { token: owner.token })).status;
+  const oldPassword = (await j('/auth/login', { method: 'POST', body: JSON.stringify({ email: `qro${rnd}@e2e.local`, password: 'password123' }) })).status;
+  const tf = await prisma.twoFactor.findUnique({ where: { userId: owner.id } });
+  const user = await prisma.user.findUnique({ where: { id: owner.id }, select: { passwordHash: true } });
+  const twice = await j(`/recovery/${mine.id}/restore`, { method: 'POST', token: agent.token });
+  const logged = await prisma.auditLog.count({ where: { action: 'recovery.restore', entityId: owner.id, actorId: agent.id } });
+  check(
+    'Через 3 дня сотрудник восстанавливает: вход с кодом выключен, сеансы и пароль сброшены, в журнале; второй раз — 400',
+    restored.status === 200 && oldSession === 401 && oldPassword === 401 && tf === null && user?.passwordHash === null &&
+      twice.status === 400 && logged === 1,
+    JSON.stringify({ restored: restored.status, oldSession, oldPassword, tf: !!tf, hash: user?.passwordHash === null, twice: twice.status, logged }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2655,6 +2716,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioLoginAlert(rnd);
   await scenarioPasswordChanged(rnd);
   await scenarioTwoFactorAlert(rnd);
+  await scenarioRecovery(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

@@ -64,6 +64,13 @@ export const EN_API: Phrasebook = {
     'This can’t be turned off this way: the account had no password when the sign-in code was turned on',
   'Это не тот пароль, что был у аккаунта, когда включали вход с кодом':
     'This isn’t the password the account had when the sign-in code was turned on',
+  // «Не могу войти»: заявка на восстановление доступа
+  'Не больше трёх номеров заказов': 'No more than three order numbers',
+  'Опишите, что случилось, — от 10 символов': 'Describe what happened — at least 10 characters',
+  'Причина — от 5 символов': 'The reason must be at least 5 characters',
+  'По заявке уже решено': 'This request has already been decided',
+  'Решить можно через 3 дня после заявки: владелец должен успеть её увидеть':
+    'You can decide 3 days after the request: the owner must have time to see it',
   'Неверные данные': 'Incorrect email or password',
   'Невалидный refresh-токен': 'Invalid refresh token',
   'Сессия недействительна': 'Session is no longer valid',

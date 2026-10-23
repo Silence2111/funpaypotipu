@@ -64,7 +64,10 @@ function RecoverInner() {
               <p className="hint">{t('От 8 символов. Все устройства выйдут из аккаунта.')}</p>
             </div>
             {err && (
-              <p role="alert" style={{ color: 'var(--danger)', fontSize: 14, margin: 0 }}>{err}</p>
+              <div role="alert" style={{ fontSize: 14 }}>
+                <p style={{ color: 'var(--danger)', margin: 0 }}>{err}</p>
+                <Link href="/recover" style={{ display: 'inline-block', marginTop: 6 }}>{t('Не помните тот пароль? Заявка в поддержку')}</Link>
+              </div>
             )}
             <button className="btn" type="submit" disabled={busy || !password || !next} style={{ width: '100%' }}>
               {busy ? '…' : t('Выключить и сменить пароль')}

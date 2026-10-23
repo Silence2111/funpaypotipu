@@ -229,6 +229,8 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
       {!isRegister && (
         <p style={{ fontSize: 14, marginTop: 4, textAlign: 'center' }}>
           <Link href="/forgot" className="faint">{t('Забыли пароль?')}</Link>
+          <span className="faint"> · </span>
+          <Link href="/recover" className="faint">{t('Не могу войти')}</Link>
         </p>
       )}
     </div>

@@ -54,7 +54,7 @@ export const NOT_ME_RESET_TTL = 86_400;
  * Отпечаток пароля в ссылке сброса. Пароль сменился — отпечаток другой, и
  * ссылка больше не действует: одна ссылка — один сброс.
  */
-const passwordStamp = (hash: string | null): string => sha256(`pwd:${hash ?? ''}`).slice(0, 16);
+export const passwordStamp = (hash: string | null): string => sha256(`pwd:${hash ?? ''}`).slice(0, 16);
 
 /** Неверный пароль десять раз за 15 минут — пауза для этой почты. */
 const passwordAttempts = new AttemptLimiter(10, 15 * 60_000);

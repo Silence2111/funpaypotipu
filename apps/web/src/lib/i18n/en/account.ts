@@ -1,6 +1,16 @@
 /** Аккаунт: настройки, безопасность, код из приложения, уведомления, проверка личности, вход через сервисы. */
 export const ACCOUNT: Record<string, string> = {
   // Безопасность: пароль и сеансы
+  // Заявка «Не могу войти» на этот аккаунт
+  'Заявка на восстановление доступа': 'Account recovery request',
+  'подана {when}': 'filed {when}',
+  'Кто-то сообщил поддержке, что не может войти в этот аккаунт. Сотрудник решит не раньше {date}. Если это вы — ждите ответа на почту. Если не вы — отметьте это, сотрудник увидит до решения.':
+    'Someone told support they can’t sign in to this account. Staff won’t decide before {date}. If it was you, wait for a reply by email. If not, mark it — staff will see this before deciding.',
+  'Отмечено: заявку подали не вы': 'Marked: you didn’t file this request',
+  'Заявку подал не я': 'I didn’t file this',
+  'Отмечено: сотрудник увидит, что заявку подали не вы.':
+    'Marked: staff will see that you didn’t file this request.',
+  'Не удалось отметить заявку.': 'Couldn’t mark the request.',
   // Вопрос «Это были вы?» после входа с нового устройства
   'Вход с нового устройства': 'Sign-in from a new device',
   'Это были вы?': 'Was this you?',

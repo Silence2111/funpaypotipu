@@ -232,6 +232,7 @@ model User {
   stockWatches   StockWatch[]
   roles          UserRole[]
   riskSignals    RiskSignal[]
+  recoveries     AccountRecovery[]
 
   @@map("users")
 }
@@ -857,6 +858,37 @@ model SupportMessage {
 
   @@index([ticketId, createdAt])
   @@map("support_messages")
+}
+
+/// «Не могу войти»: заявка на восстановление доступа без входа. Пишется,
+/// только если аккаунт с такой почтой есть, — ответ на форму всегда один.
+/// Сотрудник решает не раньше чем через 3 дня: владелец, если он ещё в
+/// аккаунте, успеет отметить «Заявку подал не я».
+model AccountRecovery {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  /// two_factor — вход с кодом включил не владелец, password — пароль сменили, other
+  reason       String
+  /// Номера заказов из формы — сотрудник видит, какие из них у этого аккаунта.
+  orderNumbers String[]  @map("order_numbers")
+  details      String
+  ip           String?
+  userAgent    String?   @map("user_agent")
+  /// pending — ждёт решения, restored — доступ восстановлен, rejected — отклонена
+  status       String    @default("pending")
+  /// Из аккаунта отметили «Заявку подал не я»: когда и с какого устройства.
+  objectedAt   DateTime? @map("objected_at")
+  objectedFrom String?   @map("objected_from")
+  decidedById  String?   @map("decided_by_id") @db.Uuid
+  decidedAt    DateTime? @map("decided_at")
+  note         String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@map("account_recoveries")
 }
 
 model AuditLog {

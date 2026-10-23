@@ -71,6 +71,14 @@ export const EN_TEXTS: Record<string, string> = {
   'Вход с кодом из приложения выключен: {device}, IP {ip}.':
     'Sign-in code turned off: {device}, IP {ip}.',
   'Это не я — выключить вход с кодом': 'It wasn’t me — turn off the sign-in code',
+  // «Не могу войти»: заявка на восстановление доступа
+  'Подана заявка на восстановление доступа к аккаунту: {device}. Если это не вы — отметьте «Заявку подал не я» в «Безопасности».':
+    'An account recovery request was filed: {device}. If it wasn’t you, mark “I didn’t file this” in “Security”.',
+  'Доступ к аккаунту восстановлен: вход с кодом выключен, вход через сервисы отвязан, все устройства вышли. Задайте новый пароль по ссылке из письма.':
+    'Account access restored: the sign-in code is off, sign-in services are unlinked, and all devices are signed out. Set a new password with the link in the email.',
+  'Задать новый пароль': 'Set a new password',
+  'Заявка на восстановление доступа отклонена: {note}':
+    'The account recovery request was declined: {note}',
 
   // Сохранённые поиски: превью уведомления
   '«{title}» — {price}': '“{title}” — {price}',
