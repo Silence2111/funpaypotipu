@@ -3,15 +3,25 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { PrismaClient } from '@gamemarket/db';
-import { maskContacts } from '@gamemarket/shared';
+import { Prisma, PrismaClient } from '@gamemarket/db';
+import {
+  COMMAND_MAX,
+  addReplySample,
+  maskContacts,
+  maskContactsExcept,
+  normalizeCommand,
+  replyTime,
+} from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StorageService } from '../storage/storage.service';
 import { ScanService } from '../antivirus/scan.service';
+import { BlocksService } from '../access/blocks.service';
+import { assetUrl } from '../storage/asset-url';
 
 export interface ChatAttachmentDto {
   url: string;
@@ -26,16 +36,61 @@ export interface ChatMessageDto {
   isFlagged: boolean;
   attachments?: ChatAttachmentDto[];
   createdAt: Date;
+  /** Когда собеседник прочитал; null — ещё нет. */
+  readAt?: Date | null;
+  /** Автоответ продавца (приветствие, ответ на команду) — сайт подписывает его. */
+  auto?: boolean;
 }
+
+/** Новое сообщение: в комнату диалога и в личные комнаты участников (список диалогов). */
+type Publish = (conversationId: string, message: ChatMessageDto, participants: string[]) => void;
+/** Собеседник прочитал диалог: у отправителя сообщения становятся «прочитано». */
+type PublishRead = (conversationId: string, readerId: string, at: Date) => void;
+
+/** Превью сообщения в списке диалогов: замаскированный текст, у вложения — слово. */
+const previewOf = (m: { type: string; body: string; bodyMasked: string | null }) => {
+  const text = m.type === 'attachment' ? 'Вложение' : (m.bodyMasked ?? m.body);
+  return text.length > 120 ? `${text.slice(0, 120)}…` : text;
+};
 
 @Injectable()
 export class ChatService {
+  private readonly logger = new Logger(ChatService.name);
+
+  /**
+   * Доставка нового сообщения в открытые чаты. Её подключает шлюз сокетов
+   * (ChatGateway.afterInit): сервис не знает о транспорте. Раньше в комнату
+   * уходили только сообщения, отправленные через сокет, — системные («Оплата
+   * поступила», «Продавец вернул деньги») и отправленные через REST
+   * появлялись у собеседника только после перезагрузки.
+   */
+  private publish: Publish = () => {};
+  private publishRead: PublishRead = () => {};
+
+  setPublisher(fn: Publish) {
+    this.publish = fn;
+  }
+
+  setReadPublisher(fn: PublishRead) {
+    this.publishRead = fn;
+  }
+
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
     private readonly scanner: ScanService,
+    private readonly blocks: BlocksService,
   ) {}
+
+  /**
+   * Чёрный список закрывает переписку до сделки. Диалог оплаченного заказа
+   * остаётся открытым: без него товар не передать и спор не разобрать.
+   */
+  private async assertNotBlocked(conv: { orderId: string | null; buyerId: string; sellerId: string }, senderId: string) {
+    if (conv.orderId) return;
+    await this.blocks.assertCanContact(senderId, conv.buyerId === senderId ? conv.sellerId : conv.buyerId, 'message');
+  }
 
   /** Presigned PUT для прямой загрузки вложения клиентом. */
   async requestUpload(conversationId: string, userId: string, mime: string) {
@@ -55,6 +110,7 @@ export class ChatService {
     size: number,
   ): Promise<ChatMessageDto> {
     const conv = await this.assertParticipant(conversationId, senderId);
+    await this.assertNotBlocked(conv, senderId);
     await this.scan(key);
     const message = await this.prisma.message.create({
       data: {
@@ -71,9 +127,13 @@ export class ChatService {
       data: { lastMessageAt: message.createdAt },
     });
     const recipientId = conv.buyerId === senderId ? conv.sellerId : conv.buyerId;
-    await this.notifications.notify(recipientId, 'new_message', { conversationId });
+    await this.notifications.notify(recipientId, 'new_message', {
+      conversationId,
+      preview: 'Вложение',
+      from: await this.nameOf(senderId),
+    });
 
-    return {
+    const dto: ChatMessageDto = {
       id: message.id,
       conversationId,
       senderId,
@@ -81,56 +141,174 @@ export class ChatService {
       isFlagged: false,
       attachments: [{ url: await this.storage.presignGet(key), mime }],
       createdAt: message.createdAt,
+      readAt: null,
     };
+    this.publish(conversationId, dto, [conv.buyerId, conv.sellerId]);
+    if (senderId === conv.sellerId) await this.noteReply(conv, message.createdAt);
+    return dto;
   }
 
-  async listConversations(userId: string) {
+  /**
+   * Список диалогов для мессенджера, как у FunPay: собеседник и в сети ли он,
+   * последнее сообщение, непрочитанные, заказ, если диалог по сделке. Раньше
+   * список отдавал голые строки диалогов, и сайт писал «Диалог по сделке» без
+   * имени собеседника и текста.
+   */
+  listConversations(userId: string) {
+    return this.describe(userId, {});
+  }
+
+  /** Один диалог для шапки мессенджера: собеседник и заказ — без загрузки всего списка. */
+  async getConversation(conversationId: string, userId: string) {
+    await this.assertParticipant(conversationId, userId);
+    const [conv] = await this.describe(userId, { id: conversationId });
+    if (!conv) throw new NotFoundException('Диалог не найден');
+    return conv;
+  }
+
+  private async describe(userId: string, where: Prisma.ConversationWhereInput) {
     const convs = await this.prisma.conversation.findMany({
-      where: { OR: [{ buyerId: userId }, { sellerId: userId }] },
-      orderBy: { lastMessageAt: { sort: 'desc', nulls: 'last' } },
+      where: { ...where, OR: [{ buyerId: userId }, { sellerId: userId }] },
+      orderBy: [{ lastMessageAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
+      take: 200,
+      select: {
+        id: true,
+        orderId: true,
+        buyerId: true,
+        sellerId: true,
+        lastMessageAt: true,
+        createdAt: true,
+        order: { select: { publicNumber: true, status: true, listingSnapshot: true } },
+      },
     });
     if (!convs.length) return [];
-    const grouped = await this.prisma.message.groupBy({
-      by: ['conversationId'],
-      where: {
-        conversationId: { in: convs.map((c) => c.id) },
-        senderId: { not: userId },
-        readAt: null,
-      },
-      _count: { _all: true },
-    });
+    const ids = convs.map((c) => c.id);
+    const others = [...new Set(convs.map((c) => (c.buyerId === userId ? c.sellerId : c.buyerId)))];
+    const [grouped, lastRows, profiles] = await Promise.all([
+      this.prisma.message.groupBy({
+        by: ['conversationId'],
+        where: { conversationId: { in: ids }, senderId: { not: userId }, readAt: null },
+        _count: { _all: true },
+      }),
+      // Последнее сообщение каждого диалога одним запросом.
+      this.prisma.$queryRaw<
+        Array<{ conversation_id: string; sender_id: string | null; type: string; body: string; body_masked: string | null; created_at: Date }>
+      >`SELECT DISTINCT ON (conversation_id) conversation_id, sender_id, type::text AS type, body, body_masked, created_at
+        FROM messages WHERE conversation_id = ANY(${ids}::uuid[])
+        ORDER BY conversation_id, created_at DESC`,
+      this.prisma.profile.findMany({
+        where: { userId: { in: others } },
+        select: { userId: true, username: true, avatarUrl: true, onlineAt: true, replySamples: true },
+      }),
+    ]);
     const unread = new Map(grouped.map((g) => [g.conversationId, g._count._all]));
-    return convs.map((c) => ({ ...c, unread: unread.get(c.id) ?? 0 }));
+    const last = new Map(lastRows.map((r) => [r.conversation_id, r]));
+    const people = new Map(profiles.map((p) => [p.userId, p]));
+    return convs.map((c) => {
+      const otherId = c.buyerId === userId ? c.sellerId : c.buyerId;
+      const p = people.get(otherId);
+      const m = last.get(c.id);
+      const snapshot = (c.order?.listingSnapshot ?? {}) as { title?: string };
+      return {
+        id: c.id,
+        orderId: c.orderId,
+        lastMessageAt: c.lastMessageAt ?? c.createdAt,
+        role: c.buyerId === userId ? ('buyer' as const) : ('seller' as const),
+        unread: unread.get(c.id) ?? 0,
+        counterpart: {
+          id: otherId,
+          username: p?.username ?? 'пользователь',
+          avatarUrl: assetUrl(p?.avatarUrl),
+          onlineAt: p?.onlineAt ?? null,
+          // Покупателю — за сколько обычно отвечает продавец.
+          replyTime: c.buyerId === userId ? replyTime(p?.replySamples) : null,
+        },
+        order: c.order
+          ? { publicNumber: c.order.publicNumber, status: c.order.status, title: snapshot.title ?? 'Заказ' }
+          : null,
+        last: m
+          ? {
+              senderId: m.sender_id,
+              system: m.sender_id === null,
+              text: previewOf({ type: m.type, body: m.body, bodyMasked: m.body_masked }),
+              createdAt: m.created_at,
+            }
+          : null,
+      };
+    });
   }
 
   /** Отметить входящие сообщения диалога прочитанными. */
   async markRead(conversationId: string, userId: string) {
     await this.assertParticipant(conversationId, userId);
-    await this.prisma.message.updateMany({
+    const at = new Date();
+    const res = await this.prisma.message.updateMany({
       where: { conversationId, senderId: { not: userId }, readAt: null },
-      data: { readAt: new Date() },
+      data: { readAt: at },
     });
+    if (res.count > 0) this.publishRead(conversationId, userId, at);
     return { ok: true };
   }
 
-  /** Начать (или открыть существующий) предпродажный диалог с продавцом лота. */
-  async startWithSeller(buyerId: string, listingId: string) {
+  /**
+   * Уже начатый предпродажный диалог с продавцом лота — без создания нового —
+   * и сколько в нём непрочитанных ответов. Чат на странице лота показывает
+   * историю, а пустой диалог появляется у продавца только с первым
+   * сообщением покупателя.
+   */
+  async findWithSeller(buyerId: string, listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: { sellerId: true },
     });
     if (!listing) throw new NotFoundException('Лот не найден');
-    if (listing.sellerId === buyerId) throw new ForbiddenException('Это ваш лот');
-
     const existing = await this.prisma.conversation.findFirst({
       where: { buyerId, sellerId: listing.sellerId, orderId: null },
+      select: { id: true },
     });
-    if (existing) return { id: existing.id };
+    if (!existing) return { id: null, unread: 0 };
+    const unread = await this.prisma.message.count({
+      where: { conversationId: existing.id, senderId: { not: buyerId }, readAt: null },
+    });
+    return { id: existing.id, unread };
+  }
 
-    const conv = await this.prisma.conversation.create({
-      data: { buyerId, sellerId: listing.sellerId },
+  /**
+   * Начать (или открыть существующий) предпродажный диалог с продавцом лота.
+   * С текстом — сразу и написать: перед вопросом встаёт строка «Вопрос о
+   * лоте …», чтобы продавец с десятком лотов понял, о чём речь. Пока
+   * покупатель пишет о том же лоте, строка не повторяется.
+   */
+  async startWithSeller(buyerId: string, listingId: string, body?: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { sellerId: true, title: true },
     });
-    return { id: conv.id };
+    if (!listing) throw new NotFoundException('Лот не найден');
+    if (listing.sellerId === buyerId) throw new ForbiddenException('Это ваш лот');
+    await this.blocks.assertCanContact(buyerId, listing.sellerId, 'message');
+
+    const conv =
+      (await this.prisma.conversation.findFirst({
+        where: { buyerId, sellerId: listing.sellerId, orderId: null },
+        select: { id: true, buyerId: true, sellerId: true },
+      })) ??
+      (await this.prisma.conversation.create({
+        data: { buyerId, sellerId: listing.sellerId },
+        select: { id: true, buyerId: true, sellerId: true },
+      }));
+    if (!body) return { id: conv.id };
+
+    const messages: ChatMessageDto[] = [];
+    const context = `Вопрос о лоте «${listing.title}»`;
+    const lastSystem = await this.prisma.message.findFirst({
+      where: { conversationId: conv.id, senderId: null },
+      orderBy: { createdAt: 'desc' },
+      select: { body: true },
+    });
+    if (lastSystem?.body !== context) messages.push(await this.system(conv, context));
+    messages.push(await this.sendMessage(conv.id, buyerId, body));
+    return { id: conv.id, messages };
   }
 
   /** Антивирус-скан вложения через ScanService. Заражённое удаляется из хранилища. */
@@ -152,14 +330,24 @@ export class ChatService {
     return conv;
   }
 
-  async getMessages(conversationId: string, userId: string, limit = 100): Promise<ChatMessageDto[]> {
+  /**
+   * Последние сообщения диалога (или те, что раньше `before`) — по порядку.
+   * Раньше брались первые сто: в долгой переписке свежие сообщения не
+   * доходили до экрана вовсе.
+   */
+  async getMessages(
+    conversationId: string,
+    userId: string,
+    opts: { before?: Date; limit?: number } = {},
+  ): Promise<ChatMessageDto[]> {
     await this.assertParticipant(conversationId, userId);
     const rows = await this.prisma.message.findMany({
-      where: { conversationId },
-      orderBy: { createdAt: 'asc' },
-      take: limit,
+      where: { conversationId, ...(opts.before ? { createdAt: { lt: opts.before } } : {}) },
+      orderBy: { createdAt: 'desc' },
+      take: opts.limit ?? 100,
       include: { attachments: true },
     });
+    rows.reverse();
     return Promise.all(
       rows.map(async (m) => ({
         id: m.id,
@@ -177,6 +365,8 @@ export class ChatService {
               )
             : undefined,
         createdAt: m.createdAt,
+        readAt: m.readAt,
+        auto: m.auto,
       })),
     );
   }
@@ -188,7 +378,8 @@ export class ChatService {
     rawBody: string,
   ): Promise<ChatMessageDto> {
     const conv = await this.assertParticipant(conversationId, senderId);
-    const { masked, flagged } = maskContacts(rawBody);
+    await this.assertNotBlocked(conv, senderId);
+    const { masked, flagged } = await this.mask(conv, rawBody);
 
     const message = await this.prisma.message.create({
       data: {
@@ -213,25 +404,223 @@ export class ChatService {
     }
 
     const recipientId = conv.buyerId === senderId ? conv.sellerId : conv.buyerId;
-    await this.notifications.notify(recipientId, 'new_message', { conversationId });
+    // Превью — замаскированный текст: в Telegram и пушах контакты не утекают тоже.
+    const preview = masked.length > 140 ? `${masked.slice(0, 140)}…` : masked;
+    await this.notifications.notify(recipientId, 'new_message', {
+      conversationId,
+      preview,
+      from: await this.nameOf(senderId),
+    });
 
-    return {
+    const dto: ChatMessageDto = {
       id: message.id,
       conversationId,
       senderId,
       body: masked,
       isFlagged: flagged,
       createdAt: message.createdAt,
+      readAt: null,
     };
+    this.publish(conversationId, dto, [conv.buyerId, conv.sellerId]);
+    if (senderId === conv.buyerId) {
+      if (!conv.orderId) await this.greet(conv, message.id);
+      await this.answerCommand(conv, rawBody);
+    } else if (senderId === conv.sellerId) {
+      await this.noteReply(conv, message.createdAt);
+    }
+    return dto;
+  }
+
+  /**
+   * Живой ответ продавца — замер для «обычно отвечает за …»: сколько ждало
+   * первое сообщение покупателя после прошлого ответа продавца. Автоответы
+   * ответом не считаются; покупатель ничего не спрашивал — замера нет.
+   * Сбой замера сообщение не роняет: оно уже доставлено.
+   */
+  private async noteReply(conv: { id: string; buyerId: string; sellerId: string }, at: Date) {
+    try {
+      const before = await this.prisma.message.findFirst({
+        where: { conversationId: conv.id, senderId: conv.sellerId, auto: false, createdAt: { lt: at } },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      });
+      const asked = await this.prisma.message.findFirst({
+        where: {
+          conversationId: conv.id,
+          senderId: conv.buyerId,
+          createdAt: { gt: before?.createdAt ?? new Date(0), lt: at },
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { createdAt: true },
+      });
+      if (!asked) return;
+      const profile = await this.prisma.profile.findUnique({
+        where: { userId: conv.sellerId },
+        select: { replySamples: true },
+      });
+      if (!profile) return;
+      const waited = (at.getTime() - asked.createdAt.getTime()) / 1000;
+      await this.prisma.profile.update({
+        where: { userId: conv.sellerId },
+        data: { replySamples: addReplySample(profile.replySamples, at, waited) },
+      });
+    } catch (e) {
+      this.logger.warn(`Время ответа не записано: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * Автоответ на команду, как у бота FunPayCardinal: покупатель написал
+   * ровно команду заготовки («!оплата») — заготовка уходит от продавца с
+   * пометкой «автоответ», в любом диалоге с ним, до сделки и в заказе. Ник
+   * покупателя подставляется, как при вставке заготовки вручную. Та же
+   * команда ещё раз в течение минуты ответа не дублирует.
+   */
+  private async answerCommand(conv: { id: string; buyerId: string; sellerId: string }, rawBody: string) {
+    const command = normalizeCommand(rawBody);
+    if (!command || command.length > COMMAND_MAX) return;
+    const template = await this.prisma.replyTemplate.findFirst({
+      where: { userId: conv.sellerId, command },
+      select: { body: true },
+    });
+    if (!template) return;
+    const name = await this.nameOf(conv.buyerId);
+    const text = name ? template.body.replace(/\{(имя|name)\}/gi, name) : template.body;
+    const last = await this.prisma.message.findFirst({
+      where: { conversationId: conv.id, senderId: conv.sellerId },
+      orderBy: { createdAt: 'desc' },
+      select: { body: true, auto: true, createdAt: true },
+    });
+    if (last?.auto && last.body === text && Date.now() - last.createdAt.getTime() < 60_000) return;
+    await this.postAuto(conv, text);
+  }
+
+  /**
+   * Скрытие контактов, не трогая ники участников диалога: заготовка с {имя}
+   * вставляет ник покупателя, и «stb73721881» скрывался как телефон, а
+   * продавцу писался сигнал о сливе контактов.
+   */
+  private async mask(conv: { buyerId: string; sellerId: string }, text: string) {
+    const people = await this.prisma.profile.findMany({
+      where: { userId: { in: [conv.buyerId, conv.sellerId] } },
+      select: { username: true },
+    });
+    return maskContactsExcept(text, people.map((p) => p.username));
+  }
+
+  /**
+   * Приветствие продавца — автоответ на первое сообщение покупателя в новом
+   * диалоге до сделки, как у бота FunPayCardinal. Один раз: если в диалоге
+   * уже писали, молчит. Подписано «автоответ», чтобы покупатель не принял его
+   * за живой ответ; уведомление не уходит — покупатель и так в чате.
+   */
+  private async greet(conv: { id: string; buyerId: string; sellerId: string }, firstId: string) {
+    const seller = await this.prisma.profile.findUnique({
+      where: { userId: conv.sellerId },
+      select: { greetingText: true },
+    });
+    if (!seller?.greetingText) return;
+    const earlier = await this.prisma.message.count({
+      where: { conversationId: conv.id, senderId: { not: null }, id: { not: firstId } },
+    });
+    if (earlier) return;
+    await this.postAuto(conv, seller.greetingText);
+  }
+
+  /** Сообщение от продавца без его участия, с пометкой «автоответ». */
+  private async postAuto(conv: { id: string; buyerId: string; sellerId: string }, text: string) {
+    const { masked, flagged } = await this.mask(conv, text);
+    const message = await this.prisma.message.create({
+      data: {
+        conversationId: conv.id,
+        senderId: conv.sellerId,
+        type: 'text',
+        body: text,
+        bodyMasked: masked,
+        isFlagged: flagged,
+        auto: true,
+      },
+    });
+    await this.prisma.conversation.update({
+      where: { id: conv.id },
+      data: { lastMessageAt: message.createdAt },
+    });
+    this.publish(
+      conv.id,
+      {
+        id: message.id,
+        conversationId: conv.id,
+        senderId: conv.sellerId,
+        body: masked,
+        isFlagged: flagged,
+        createdAt: message.createdAt,
+        readAt: null,
+        auto: true,
+      },
+      [conv.buyerId, conv.sellerId],
+    );
+  }
+
+  /**
+   * Сообщение продавца в чат заказа без его участия — текст из лота сразу
+   * после оплаты. От его имени, а не от площадки: инструкцию пишет он.
+   * Контакты скрыты, как в любом его сообщении.
+   */
+  async postFromSeller(orderId: string, text: string): Promise<void> {
+    const conv = await this.prisma.conversation.findUnique({
+      where: { orderId },
+      select: { id: true, buyerId: true, sellerId: true },
+    });
+    if (!conv) return;
+    const { masked, flagged } = maskContacts(text);
+    const message = await this.prisma.message.create({
+      data: {
+        conversationId: conv.id,
+        senderId: conv.sellerId,
+        type: 'text',
+        body: text,
+        bodyMasked: masked,
+        isFlagged: flagged,
+      },
+    });
+    await this.prisma.conversation.update({
+      where: { id: conv.id },
+      data: { lastMessageAt: message.createdAt },
+    });
+    this.publish(
+      conv.id,
+      {
+        id: message.id,
+        conversationId: conv.id,
+        senderId: conv.sellerId,
+        body: masked,
+        isFlagged: flagged,
+        createdAt: message.createdAt,
+        readAt: null,
+      },
+      [conv.buyerId, conv.sellerId],
+    );
+  }
+
+  /** Ник отправителя — для пуша «Сообщение от …». */
+  private async nameOf(userId: string): Promise<string | null> {
+    const p = await this.prisma.profile.findUnique({ where: { userId }, select: { username: true } });
+    return p?.username ?? null;
   }
 
   /** Системное сообщение о событии сделки в чат заказа (senderId = null). */
   async postSystem(orderId: string, text: string): Promise<void> {
     const conv = await this.prisma.conversation.findUnique({
       where: { orderId },
-      select: { id: true },
+      select: { id: true, buyerId: true, sellerId: true },
     });
-    if (!conv) return;
+    if (conv) await this.system(conv, text);
+  }
+
+  private async system(
+    conv: { id: string; buyerId: string; sellerId: string },
+    text: string,
+  ): Promise<ChatMessageDto> {
     const message = await this.prisma.message.create({
       data: { conversationId: conv.id, senderId: null, type: 'system', body: text },
     });
@@ -239,5 +628,16 @@ export class ChatService {
       where: { id: conv.id },
       data: { lastMessageAt: message.createdAt },
     });
+    const dto: ChatMessageDto = {
+      id: message.id,
+      conversationId: conv.id,
+      senderId: null,
+      body: text,
+      isFlagged: false,
+      createdAt: message.createdAt,
+      readAt: null,
+    };
+    this.publish(conv.id, dto, [conv.buyerId, conv.sellerId]);
+    return dto;
   }
 }

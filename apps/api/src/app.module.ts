@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { PresenceInterceptor } from './common/presence.interceptor';
+import { I18nExceptionFilter } from './common/i18n-exception.filter';
+import { RateLimitGuard } from './common/rate-limit';
 import { SellersModule } from './modules/sellers/sellers.module';
 import { AccessModule } from './modules/access/access.module';
 import { CryptoModule } from './modules/crypto/crypto.module';
@@ -31,6 +33,17 @@ import { DisputesModule } from './modules/disputes/disputes.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { KycModule } from './modules/kyc/kyc.module';
+import { RankingModule } from './modules/ranking/ranking.module';
+import { TopupModule } from './modules/topup/topup.module';
+import { AccountModule } from './modules/account/account.module';
+import { SupportModule } from './modules/support/support.module';
+import { SellerToolsModule } from './modules/seller-tools/seller-tools.module';
+import { SavedSearchesModule } from './modules/saved-searches/saved-searches.module';
+import { FollowsModule } from './modules/follows/follows.module';
+import { StockWatchesModule } from './modules/stock-watches/stock-watches.module';
+import { LotStatsModule } from './modules/lot-stats/lot-stats.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { RecoveryModule } from './modules/recovery/recovery.module';
 
 @Module({
   imports: [
@@ -63,8 +76,25 @@ import { KycModule } from './modules/kyc/kyc.module';
     ModerationModule,
     AdminModule,
     KycModule,
+    RankingModule,
+    TopupModule,
     SellersModule,
+    AccountModule,
+    SupportModule,
+    SellerToolsModule,
+    SavedSearchesModule,
+    FollowsModule,
+    StockWatchesModule,
+    LotStatsModule,
+    ReportsModule,
+    RecoveryModule,
   ],
-  providers: [{ provide: APP_INTERCEPTOR, useClass: PresenceInterceptor }],
+  providers: [
+    { provide: APP_INTERCEPTOR, useClass: PresenceInterceptor },
+    // Ошибки на языке сайта: Accept-Language en → английский текст и lang: 'en'.
+    { provide: APP_FILTER, useClass: I18nExceptionFilter },
+    // Лимиты частоты запросов с адреса — до любых других проверок маршрута.
+    { provide: APP_GUARD, useClass: RateLimitGuard },
+  ],
 })
 export class AppModule {}

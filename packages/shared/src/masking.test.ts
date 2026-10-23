@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { maskContacts } from './masking';
+import { maskContacts, maskContactsExcept } from './masking';
 
 describe('maskContacts', () => {
   it('маскирует email', () => {
@@ -34,5 +34,33 @@ describe('maskContacts', () => {
     const r = maskContacts('Здравствуйте, аккаунт ещё в продаже?');
     expect(r.flagged).toBe(false);
     expect(r.masked).toBe('Здравствуйте, аккаунт ещё в продаже?');
+  });
+});
+
+describe('maskContactsExcept', () => {
+  it('ники участников диалога не скрываются, контакты рядом — скрываются', () => {
+    const r = maskContactsExcept('Stb73721881, звоните 89161234567', ['stb73721881', 'seller']);
+    expect(r.masked).toBe('Stb73721881, звоните [скрыто]');
+    expect(r.flagged).toBe(true);
+    expect(maskContactsExcept('telegram_fan, спасибо', ['telegram_fan'])).toEqual({
+      masked: 'telegram_fan, спасибо',
+      flagged: false,
+    });
+  });
+
+  it('ник внутри @ника, почты или ссылки не спасает контакт', () => {
+    const names = ['seller', 'stb73721881'];
+    expect(maskContactsExcept('пиши @seller_tg', names).masked).toBe('пиши [скрыто]');
+    expect(maskContactsExcept('seller@mail.ru', names).masked).toBe('[скрыто]');
+    expect(maskContactsExcept('t.me/stb73721881', names).masked).not.toContain('7372');
+    expect(maskContactsExcept('Спасибо, stb73721881.', names)).toEqual({
+      masked: 'Спасибо, stb73721881.',
+      flagged: false,
+    });
+  });
+
+  it('ник, который целиком контакт, скрывается как обычно', () => {
+    expect(maskContactsExcept('пиши 89161234567', ['89161234567']).masked).toBe('пиши [скрыто]');
+    expect(maskContactsExcept('я в telegram', ['telegram']).flagged).toBe(true);
   });
 });

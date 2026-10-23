@@ -1,7 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, PrismaClient, type FeeScope } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import { AuditService } from '../access/audit.service';
+
+export const DISPLAY_RATES_KEY = 'display_rates';
 
 export interface FeeRuleInput {
   scope: FeeScope;
@@ -22,8 +24,16 @@ export class AdminService {
   ) {}
 
   // ── Комиссии ──
-  listFeeRules() {
-    return this.prisma.feeRule.findMany({ orderBy: [{ scope: 'asc' }, { priority: 'desc' }] });
+  /** Правила с названием раздела: в scopeRef лежит id категории, по нему правило не узнать. */
+  async listFeeRules() {
+    const rules = await this.prisma.feeRule.findMany({ orderBy: [{ scope: 'asc' }, { priority: 'desc' }] });
+    const categoryIds = rules.filter((r) => r.scope === 'category' && r.scopeRef).map((r) => r.scopeRef!);
+    const categories = await this.prisma.category.findMany({
+      where: { id: { in: categoryIds } },
+      select: { id: true, title: true, game: { select: { title: true } } },
+    });
+    const title = new Map(categories.map((c) => [c.id, c.game ? `${c.game.title} · ${c.title}` : c.title]));
+    return rules.map((r) => ({ ...r, scopeTitle: r.scopeRef ? title.get(r.scopeRef) ?? null : null }));
   }
 
   createFeeRule(input: FeeRuleInput) {
@@ -65,11 +75,47 @@ export class AdminService {
   }
 
   async revokeRole(actorId: string, userId: string, roleKey: string) {
+    // Последний администратор не должен случайно запереть консоль от всех.
+    if (roleKey === 'admin' && actorId === userId) {
+      throw new BadRequestException('Свою роль администратора снять нельзя — попросите другого администратора');
+    }
     const role = await this.prisma.role.findUnique({ where: { key: roleKey } });
     if (!role) throw new NotFoundException('Роль не найдена');
     await this.prisma.userRole.deleteMany({ where: { userId, roleId: role.id } });
     await this.audit.log({ actorId, action: 'role.revoke', entityType: 'user', entityId: userId, after: { roleKey } });
     return { ok: true };
+  }
+
+  // ── Курсы для показа цен ──
+  /**
+   * Сколько рублей в долларе и евро — только для показа «≈ 10,84 $» рядом с
+   * ценой. Оплата всегда в рублях, поэтому курс задаёт площадка, а не биржа.
+   */
+  async setDisplayRates(actorId: string, rates: { USD: number; EUR: number }) {
+    const value = { USD: rates.USD, EUR: rates.EUR, setBy: actorId, setAt: new Date().toISOString() };
+    await this.prisma.systemSetting.upsert({
+      where: { key: DISPLAY_RATES_KEY },
+      update: { value },
+      create: { key: DISPLAY_RATES_KEY, value },
+    });
+    await this.audit.log({ actorId, action: 'rates.set', entityType: 'setting', entityId: DISPLAY_RATES_KEY, after: value });
+    return value;
+  }
+
+  listRoles() {
+    return this.prisma.role.findMany({ orderBy: { key: 'asc' }, select: { key: true, description: true } });
+  }
+
+  // ── Журнал ──
+  /** Последние значимые действия: деньги, модерация, права — кто, что и когда. */
+  async auditLog(limit = 100) {
+    const rows = await this.prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: Math.min(limit, 300) });
+    const actors = await this.prisma.profile.findMany({
+      where: { userId: { in: [...new Set(rows.map((r) => r.actorId).filter((v): v is string => !!v))] } },
+      select: { userId: true, username: true },
+    });
+    const name = new Map(actors.map((a) => [a.userId, a.username]));
+    return rows.map((r) => ({ ...r, actor: r.actorId ? name.get(r.actorId) ?? null : null }));
   }
 
   // ── Пользователи ──

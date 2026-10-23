@@ -1,12 +1,25 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaClient } from '@gamemarket/db';
-import { computeFees, sellerLevel, type FeeBreakdown, type SellerLevel } from '@gamemarket/shared';
+import {
+  computeFees,
+  effectiveSellerPct,
+  sellerLevel,
+  type FeeBreakdown,
+  type SellerLevel,
+} from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 
 /** Резолв правила комиссии (category → global), скидка по уровню продавца, расчёт разбивки. */
 @Injectable()
 export class FeesService {
   constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+
+  /** Курсы для показа цен в долларах и евро (рублей за единицу) или null, если не заданы. */
+  async displayRates(): Promise<{ USD: number; EUR: number; setAt: string } | null> {
+    const row = await this.prisma.systemSetting.findUnique({ where: { key: 'display_rates' } });
+    const v = row?.value as { USD?: number; EUR?: number; setAt?: string } | undefined;
+    return v && v.USD && v.EUR ? { USD: v.USD, EUR: v.EUR, setAt: v.setAt ?? '' } : null;
+  }
 
   /**
    * Комиссия сделки. Если передан sellerId — комиссия ПРОДАВЦА уменьшается на
@@ -33,13 +46,21 @@ export class FeesService {
     const sellerPct = rule?.feeSellerPct ?? 0;
 
     let level: SellerLevel | undefined;
-    let effSellerPct = sellerPct;
-    if (sellerId) {
-      level = await this.levelOf(sellerId);
-      effSellerPct = Math.max(0, sellerPct - level.feeDiscountBps / 100);
-    }
+    if (sellerId) level = await this.levelOf(sellerId);
+    // Перевод bps → доля — только через shared: здесь раньше вычитали
+    // процентные пункты из доли, и комиссия уровней обнулялась.
+    const effSellerPct = effectiveSellerPct(sellerPct, level);
 
     return { ...computeFees(base, buyerPct, effSellerPct), level };
+  }
+
+  /** Активные правила комиссии по валюте — для публичного прайса. */
+  activeRules(currency: string) {
+    return this.prisma.feeRule.findMany({
+      where: { active: true, currency },
+      select: { scope: true, feeBuyerPct: true, feeSellerPct: true },
+      orderBy: { priority: 'desc' },
+    });
   }
 
   /** Уровень продавца из продаж + рейтинга + верификации. */

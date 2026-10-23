@@ -1,3 +1,6 @@
+import type { ReplyTime } from '@gamemarket/shared';
+import { msg } from './i18n/lang';
+
 // SSR внутри контейнера ходит на внутренний адрес (api:4000), браузер — на публичный.
 const API_URL =
   process.env.API_URL_INTERNAL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -34,9 +37,19 @@ export interface Category {
   segment: string;
   fulfillmentType: string;
   listingCount?: number;
+  /** Сколько продавцов торгует в разделе и сколько из них в сети. */
+  sellers?: SellersNow;
+  /** Общая пачка раздела валюты: «за 1 000 золота». */
+  unitName?: string | null;
+  pricePerUnits?: number | null;
 }
 
-export type GameWithCategories = Game & { categories: Category[] };
+export interface SellersNow {
+  sellers: number;
+  online: number;
+}
+
+export type GameWithCategories = Game & { categories: Category[]; sellers?: SellersNow };
 
 export interface ListingCard {
   id: string;
@@ -47,16 +60,56 @@ export interface ListingCard {
   status: string;
   createdAt: string;
   fulfillmentType?: string;
-  seller: { profile: { username: string; ratingAvg: number; onlineAt?: string | null } | null };
-  category: { slug: string; title: string };
+  /** Лот «на сумму покупателя»: наценка и границы суммы; price — цена минимума («от»). */
+  topupMarkupBps?: number | null;
+  topupMin?: string | null;
+  topupMax?: string | null;
+  /** Поштучно: цена price — за pricePerUnits единиц; null — лот продаётся целиком. */
+  unitName?: string | null;
+  pricePerUnits?: number;
+  minQty?: number;
+  /** Наличие; null — без ограничения. У лота ключей — число ключей на складе. */
+  stock?: number | null;
+  /** Скидка за количество: «от 10 000 — 5%», по возрастанию. */
+  qtyDiscounts?: Array<{ from: number; pct: number }> | null;
+  /** Платное продвижение до этого времени. */
+  promotedUntil?: string | null;
+  /** Скидка: прежняя цена и срок; price — уже со скидкой. */
+  saleListPrice?: string | null;
+  /** От чего скидка показывается: самая низкая цена за неделю до неё. */
+  saleRefPrice?: string | null;
+  saleUntil?: string | null;
+  /** «Минимум за 30 дней» до этого времени — показывать ли, решает isPriceLow. */
+  priceLowUntil?: string | null;
+  /** С какой цены снижали; priceDropPct — «−12%» (у скидки — её «−N%»). */
+  priceLowRef?: string | null;
+  priceDropPct?: number | null;
+  /** Параметры раздела: звание, регион, сервер; «да/нет» — булевы. */
+  attributes?: Record<string, unknown>;
+  seller: { id?: string; profile: SellerBrief | null };
+  category: { id?: string; slug: string; title: string };
   game: { slug: string; title: string };
+}
+
+/** Продавец в строке выдачи: кто продаёт, его репутация и в сети ли он. */
+export interface SellerBrief {
+  username: string;
+  displayName?: string;
+  avatarUrl?: string | null;
+  ratingAvg: number;
+  ratingCount?: number;
+  onlineAt?: string | null;
 }
 
 export type ListingDetail = ListingCard & {
   description: string;
   attributes: Record<string, unknown>;
+  /** Что продавец спрашивает у покупателя при покупке. */
+  buyerFields?: Array<{ label: string; required: boolean }> | null;
   fulfillmentType: string;
   salesCount: number;
+  /** Выдача раздела: автовыдача у аккаунтов — со склада строк, а не ключи. */
+  category: { id: string; slug: string; title: string; fulfillmentType?: string };
   seller: { id: string; profile: { username: string; ratingAvg: number; ratingCount: number } | null };
 };
 
@@ -72,6 +125,49 @@ export const getGames = () => apiTry<Game[]>('/catalog/games');
 export const getGame = (slug: string) => apiTry<GameWithCategories>(`/catalog/games/${slug}`);
 export const getListing = (id: string) => apiTry<ListingDetail>(`/listings/${id}`);
 
+/** «История цены»: точки за 30 дней в текущей пачке лота, без повторов подряд. */
+export interface PriceHistory {
+  days: number;
+  /** Пополнение: цена «от» из наценки — историю не показываем. */
+  topup: boolean;
+  points: Array<{ at: string; price: string }>;
+}
+export const getPriceHistory = (id: string) => apiTry<PriceHistory>(`/listings/${id}/price-history`);
+
+/** Все игры с разделами и числом лотов — для указателя А–Я и поиска по играм. */
+export interface GameIndexEntry {
+  id: string;
+  slug: string;
+  title: string;
+  /** game — игра, mobile — мобильная игра, app — приложение или сервис. */
+  kind: 'game' | 'mobile' | 'app';
+  /** Как игру ищут: «кс», «дота». */
+  aliases: string[];
+  /** Место в «Популярных»; 100 — не в них. */
+  sortOrder: number;
+  /** Продавцов игры в сети прямо сейчас. */
+  onlineSellers?: number;
+  categories: Array<{ id: string; slug: string; title: string; listingCount: number }>;
+}
+
+/** Типы товаров во всех играх — как строка категорий на главной Playerok. Подписи — через t(). */
+export const SEGMENTS: Array<[string, string]> = [
+  ['accounts', msg('Аккаунты')],
+  ['currency', msg('Валюта')],
+  ['items', msg('Предметы')],
+  ['key', msg('Ключи')],
+  ['topup', msg('Донат')],
+  ['service', msg('Услуги')],
+];
+
+/** Подписи видов игр; показывать через t(). */
+export const KIND_LABELS: Record<GameIndexEntry['kind'], string> = {
+  game: msg('Игры'),
+  mobile: msg('Мобильные игры'),
+  app: msg('Приложения и сервисы'),
+};
+export const getGameIndex = () => apiTry<GameIndexEntry[]>('/catalog/index');
+
 export interface SellerProfile {
   id: string;
   username: string;
@@ -86,9 +182,19 @@ export interface SellerProfile {
   memberSince: string;
   onlineAt: string | null;
   online: boolean;
+  /** В отпуске: лоты сняты до возвращения продавца. */
+  away?: boolean;
   verified: boolean;
   level: { key: string; label: string };
   ratingBreakdown: { star: number; count: number }[];
+  /** Отзывов с фото — для фильтра «С фото». */
+  photoReviews?: number;
+  /** За сколько обычно отвечает; null — живых ответов пока мало. */
+  replyTime?: ReplyTime | null;
+  /** Подписчиков: их уведомляют о новых лотах и скидках. */
+  followers?: number;
+  /** Как покупатель: завершённые покупки и оценки продавцов. */
+  asBuyer?: { deals: number; good: number; bad: number };
 }
 
 export const getSeller = (id: string) => apiTry<SellerProfile>(`/sellers/${id}`);
@@ -117,6 +223,25 @@ export interface Attribute {
   sortOrder: number;
 }
 
+/** Сохранённый поиск покупателя: раздел, параметры, текст, «цена до». */
+export interface SavedSearch {
+  id: string;
+  categoryId: string;
+  game: { slug: string; title: string } | null;
+  category: { slug: string; title: string };
+  /** Подписи параметров раздела: rank → «Звание». */
+  labels: Record<string, string>;
+  attrs: Record<string, string | boolean>;
+  q: string | null;
+  /** Копейки строкой; null — без предела. */
+  maxPrice: string | null;
+  notify: boolean;
+  createdAt: string;
+  lastHitAt: string | null;
+  /** Раздел с этими условиями. */
+  path: string | null;
+}
+
 export const getCategoryAttributes = (categoryId: string) =>
   apiTry<Attribute[]>(`/catalog/categories/${categoryId}/attributes`);
 
@@ -127,7 +252,15 @@ export function browseListings(params: {
   q?: string;
   sort?: string;
   attrs?: string;
+  /** Тип товара во всех играх: accounts, currency, items, key, topup, service. */
+  segment?: string;
   instant?: boolean;
+  /** Только продавцы онлайн (последние 5 минут). */
+  online?: boolean;
+  /** «Цена снижена»: идёт скидка или цена — самая низкая за 30 дней. */
+  drop?: boolean;
+  /** «Цена до», в копейках — из сохранённого поиска. */
+  maxPrice?: number;
   limit?: number;
   page?: number;
 }) {
@@ -138,3 +271,75 @@ export function browseListings(params: {
   const s = qs.toString();
   return apiTry<BrowseResult>(`/listings${s ? `?${s}` : ''}`);
 }
+
+/**
+ * Публичный прайс площадки.
+ *
+ * Цифры на витрине берутся из тех же правил, по которым считается реальная
+ * сделка. Иначе комиссия на лендинге и комиссия в кошельке разъезжаются
+ * при первой же правке в админке, и покупатель узнаёт об этом после оплаты.
+ */
+export interface PublicPricing {
+  currency: string;
+  sellerFeeMinPct: number;
+  sellerFeeMaxPct: number;
+  levelDiscountMaxPp: number;
+  cashbackPct: number;
+  /** Часов на проверку после выдачи, потом заказ подтверждается сам. */
+  autoConfirmHours?: number;
+  /** Часов у продавца на ручную выдачу, потом деньги возвращаются сами. */
+  fulfillHours?: number;
+  /** Платёжка — заглушка: оплата на стенде демонстрационная. */
+  paymentsDemo?: boolean;
+  /** Способы оплаты, которые принимает шлюз. */
+  payMethods?: string[];
+  /** Цена суток продвижения лота, копейки. */
+  promoDayPrice?: string;
+  /** Часов на проверку после автоматической выдачи: ключ, пополнение, товар со склада. */
+  autoGoodsConfirmHours?: number;
+  /** Вывод свыше этой суммы (копейки) — после верификации личности. */
+  payoutKycAboveMinor?: string;
+  /** Дней ждёт первый вывод у пользователя без продаж. */
+  payoutNewbieHoldDays?: number;
+  withdrawal: Array<{ key: string; label: string; feePct: number; minFeeMinor: string }>;
+}
+
+export const getPublicPricing = () => apiTry<PublicPricing>('/fees/public');
+
+/** Предложение «на сумму покупателя» для виджета пополнения (деньги — строкой). */
+export interface TopupOffer {
+  listingId: string;
+  title: string;
+  currency: string;
+  markupBps: number;
+  min: string;
+  max: string;
+  seller: { username: string | null };
+}
+
+export interface TopupOffers {
+  game: { slug: string; title: string };
+  currency: string;
+  offers: TopupOffer[];
+}
+
+export const getTopupOffers = (game: string) =>
+  apiTry<TopupOffers>(`/topup/offers?game=${encodeURIComponent(game)}`);
+
+/**
+ * Замер выдачи против тривиального правила. Печатается на витрине как есть,
+ * включая «замер невозможен»: обещать «надёжные лоты сверху» без замера нельзя.
+ */
+export interface RankingBenchmark {
+  measured: boolean;
+  reason: string;
+  total: number;
+  clean: number;
+  problem: number;
+  results: Record<string, { share: number; pairs: number }>;
+  caveats: string[];
+  verdict: string;
+  thresholds: { talk: number; claim: number };
+}
+
+export const getRankingBenchmark = () => apiTry<RankingBenchmark>('/ranking/benchmark');

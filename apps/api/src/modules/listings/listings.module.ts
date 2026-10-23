@@ -7,5 +7,7 @@ import { ListingsService } from './listings.service';
   imports: [AuthModule], // JwtAuthGuard + TokenService
   controllers: [ListingsController],
   providers: [ListingsService],
+  // Инструментам продавца — состояние автоподнятия.
+  exports: [ListingsService],
 })
 export class ListingsModule {}

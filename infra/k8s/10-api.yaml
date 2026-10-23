@@ -19,8 +19,9 @@ spec:
           envFrom:
             - configMapRef: { name: gamemarket-config }
             - secretRef: { name: gamemarket-secrets }
+          # Готовность — с проверкой базы: без неё трафик не пускаем.
           readinessProbe:
-            httpGet: { path: /api/health, port: 4000 }
+            httpGet: { path: /api/health/ready, port: 4000 }
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:

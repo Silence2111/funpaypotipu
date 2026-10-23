@@ -1,0 +1,17 @@
+# Ключ подписи — только у владельца, вне репозитория: потерять его — потерять
+# возможность обновлять приложение в магазине.
+*.keystore
+*.jks
+# Сборка Bubblewrap
+app/
+build/
+.gradle/
+*.apk
+*.aab
+*.idsig
+gradle*
+local.properties
+settings.gradle
+build.gradle
+manifest-checksum.txt
+store_icon.png

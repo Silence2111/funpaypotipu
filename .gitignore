@@ -21,6 +21,7 @@ postgres-data/
 minio-data/
 redis-data/
 meili-data/
+.data/
 
 # Logs
 *.log

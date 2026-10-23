@@ -1,25 +1,31 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
-import type { KycLevel } from '@gamemarket/db';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { KycService } from './kyc.service';
+import { RateLimit } from '../../common/rate-limit';
 
 const uploadSchema = z.object({ mime: z.string().min(3).max(100) });
+const key = z.string().min(3).max(200);
+// Документ — разворот и, если нужно, второе фото; селфи — с документом в руке.
 const submitSchema = z.object({
-  level: z.enum(['phone', 'document']),
-  documentKeys: z.array(z.string().min(3)).min(1).max(10),
+  documentKeys: z.array(key).min(1, 'Добавьте фото документа').max(2, 'Документ — до двух фото'),
+  selfieKey: key,
 });
-const reviewSchema = z.object({ decision: z.enum(['approve', 'reject']) });
+const reviewSchema = z.object({
+  decision: z.enum(['approve', 'reject']),
+  reason: z.string().trim().max(300).optional(),
+});
 
 @Controller('kyc')
 export class KycController {
   constructor(private readonly kyc: KycService) {}
 
   @Post('uploads')
+  @RateLimit('uploads', 30, 600)
   @UseGuards(JwtAuthGuard)
   upload(
     @CurrentUser() user: AuthUser,
@@ -32,9 +38,9 @@ export class KycController {
   @UseGuards(JwtAuthGuard)
   submit(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(submitSchema)) body: { level: KycLevel; documentKeys: string[] },
+    @Body(new ZodValidationPipe(submitSchema)) body: { documentKeys: string[]; selfieKey: string },
   ) {
-    return this.kyc.submit(user.userId, body.level, body.documentKeys);
+    return this.kyc.submit(user.userId, body.documentKeys, body.selfieKey);
   }
 
   @Get('me')
@@ -57,8 +63,9 @@ export class KycController {
   review(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(reviewSchema)) body: { decision: 'approve' | 'reject' },
+    @Body(new ZodValidationPipe(reviewSchema))
+    body: { decision: 'approve' | 'reject'; reason?: string },
   ) {
-    return this.kyc.review(id, user.userId, body.decision);
+    return this.kyc.review(id, user.userId, body.decision, body.reason);
   }
 }

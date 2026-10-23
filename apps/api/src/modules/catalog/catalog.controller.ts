@@ -10,6 +10,11 @@ export class CatalogController {
     return this.catalog.listGames();
   }
 
+  @Get('index')
+  index() {
+    return this.catalog.index();
+  }
+
   @Get('games/:slug')
   game(@Param('slug') slug: string) {
     return this.catalog.getGameBySlug(slug);

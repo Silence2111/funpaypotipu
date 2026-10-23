@@ -10,20 +10,37 @@ export class InventoryService {
     private readonly encryption: EncryptionService,
   ) {}
 
-  /** Загрузка ключей/кодов на склад авто-лота. Хранятся зашифрованными. */
+  /**
+   * Загрузка на склад авто-лота: ключи, коды, аккаунты «логин:пароль»,
+   * ссылки — по одной штуке в строке. Хранятся зашифрованными.
+   */
   async addKeys(sellerId: string, listingId: string, keys: string[]) {
     const listing = await this.ownedAutoListing(sellerId, listingId);
+    // Одна строка дважды — один аккаунт двум покупателям. Повторы в загрузке,
+    // уже лежащее на складе и уже выданное пропускаются.
+    const stored = await this.prisma.digitalGood.findMany({
+      where: { listingId: listing.id, status: { in: ['available', 'reserved', 'delivered'] } },
+      select: { payloadEnc: true },
+    });
+    const seen = new Set(stored.map((g) => this.encryption.decrypt(g.payloadEnc)));
+    const fresh = [...new Set(keys.map((k) => k.trim()).filter(Boolean))].filter((k) => !seen.has(k));
+    const skipped = keys.length - fresh.length;
+    if (!fresh.length) return { added: 0, skipped };
 
     await this.prisma.$transaction([
       this.prisma.digitalGood.createMany({
-        data: keys.map((k) => ({ listingId: listing.id, payloadEnc: this.encryption.encrypt(k) })),
+        data: fresh.map((k) => ({ listingId: listing.id, payloadEnc: this.encryption.encrypt(k) })),
       }),
       this.prisma.listing.update({
         where: { id: listing.id },
-        data: { stock: { increment: keys.length } },
+        // Склад пополнился — распроданный лот снова в продаже.
+        data: {
+          stock: { increment: fresh.length },
+          ...(listing.status === 'sold_out' ? { status: 'active' as const } : {}),
+        },
       }),
     ]);
-    return { added: keys.length };
+    return { added: fresh.length, skipped };
   }
 
   async stock(sellerId: string, listingId: string) {
@@ -43,13 +60,18 @@ export class InventoryService {
       where: { id: goodId },
       include: { listing: { select: { sellerId: true } } },
     });
-    if (!good) throw new NotFoundException('Ключ не найден');
+    if (!good) throw new NotFoundException('На складе такого нет');
     if (good.listing.sellerId !== sellerId) throw new ForbiddenException('Это не ваш склад');
-    if (good.status !== 'available') throw new BadRequestException('Ключ уже зарезервирован или выдан');
+    if (good.status !== 'available') throw new BadRequestException('Уже зарезервировано или выдано покупателю');
 
     await this.prisma.$transaction([
       this.prisma.digitalGood.delete({ where: { id: goodId } }),
       this.prisma.listing.update({ where: { id: good.listingId }, data: { stock: { decrement: 1 } } }),
+      // Со склада убрано последнее — лот уходит из каталога, как после продажи.
+      this.prisma.listing.updateMany({
+        where: { id: good.listingId, stock: { lte: 0 }, status: 'active' },
+        data: { status: 'sold_out' },
+      }),
     ]);
     return { ok: true };
   }
@@ -59,7 +81,7 @@ export class InventoryService {
     if (!listing) throw new NotFoundException('Лот не найден');
     if (listing.sellerId !== sellerId) throw new ForbiddenException('Это не ваш лот');
     if (listing.fulfillmentType !== 'auto_key') {
-      throw new BadRequestException('Склад ключей доступен только для авто-лотов');
+      throw new BadRequestException('Склад есть только у лотов с автовыдачей');
     }
     return listing;
   }
