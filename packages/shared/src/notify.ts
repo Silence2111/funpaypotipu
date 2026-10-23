@@ -37,8 +37,8 @@ export const NOTIFY_GROUPS = [
   {
     key: 'security',
     label: 'Безопасность',
-    hint: 'вход с нового устройства и смена пароля — письмом всегда',
-    types: ['new_login', 'password_changed'],
+    hint: 'вход с нового устройства, смена пароля и входа с кодом — письмом всегда',
+    types: ['new_login', 'password_changed', 'two_factor_enabled', 'two_factor_disabled'],
   },
   {
     key: 'moderation',
@@ -82,6 +82,8 @@ export const NOTIFY_LABELS: Record<string, string> = {
   buyer_review: 'Продавец оценил вас как покупателя',
   new_login: 'Вход в аккаунт с нового устройства',
   password_changed: 'Пароль изменён',
+  two_factor_enabled: 'Вход с кодом из приложения включён',
+  two_factor_disabled: 'Вход с кодом из приложения выключен',
   cashback: 'Кэшбэк за покупку зачислен на баланс',
   new_message: 'Новое сообщение',
   dispute_opened: 'Спор по сделке',
@@ -147,7 +149,7 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
     const session = id('session');
     return session ? `/cabinet/security?session=${encodeURIComponent(session)}` : '/cabinet/security';
   }
-  if (type === 'password_changed') return '/cabinet/security';
+  if (type === 'password_changed' || type.startsWith('two_factor_')) return '/cabinet/security';
   if (type === 'new_message' && id('conversationId')) return `/chat/${id('conversationId')}`;
   if (id('orderId')) return `/orders/${id('orderId')}`;
   if (id('listingId')) return type === 'listing_blocked' ? '/cabinet/lots' : `/lot/${id('listingId')}`;

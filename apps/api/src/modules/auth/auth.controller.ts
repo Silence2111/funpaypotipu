@@ -184,8 +184,9 @@ export class AuthController {
   enable2fa(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(codeSchema)) body: { code: string },
+    @Req() req: Request,
   ) {
-    return this.twoFactor.enable(user.userId, body.code);
+    return this.twoFactor.enable(user.userId, body.code, ctxOf(req));
   }
 
   @Post('2fa/disable')
@@ -194,8 +195,32 @@ export class AuthController {
   disable2fa(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(codeSchema)) body: { code: string },
+    @Req() req: Request,
   ) {
-    return this.twoFactor.disable(user.userId, body.code);
+    return this.twoFactor.disable(user.userId, body.code, ctxOf(req));
+  }
+
+  /**
+   * «Это не я» из письма о включении входа с кодом: ссылка и пароль, который
+   * был при включении, — вход с кодом выключен, пароль новый, все вышли.
+   */
+  @Post('2fa/revoke')
+  @RateLimit('auth-2fa-revoke', 10, 900)
+  @HttpCode(200)
+  revoke2fa(
+    @Body(
+      new ZodValidationPipe(
+        z.object({
+          token: z.string().min(10),
+          password: z.string().min(1).max(200),
+          next: z.string().min(8).max(200),
+        }),
+      ),
+    )
+    body: { token: string; password: string; next: string },
+    @Req() req: Request,
+  ) {
+    return this.twoFactor.revokeByLink(body.token, body.password, body.next, ctxOf(req));
   }
 
   /** Новые резервные коды взамен старых — по коду из приложения. */

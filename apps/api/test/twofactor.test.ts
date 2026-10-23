@@ -30,8 +30,17 @@ function setup() {
       upsert: vi.fn(async () => row),
       delete: vi.fn(async () => row),
     },
+    user: { findUnique: vi.fn(async () => ({ passwordHash: null, locale: 'ru' })) },
   };
-  const svc = new TwoFactorService(prisma as never, encryption as never);
+  // Уведомления о включении здесь не проверяются — см. twofactor-revoke.test.ts.
+  const notifications = { notify: vi.fn(async () => undefined) };
+  const tokens = { signPurpose: vi.fn(() => 'token') };
+  const svc = new TwoFactorService(
+    prisma as never,
+    encryption as never,
+    tokens as never,
+    { get: () => notifications } as never,
+  );
   return { svc, secret, row };
 }
 

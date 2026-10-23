@@ -65,6 +65,12 @@ export const EN_TEXTS: Record<string, string> = {
   'Пароль изменён: {device}, IP {ip}. Другие устройства вышли из аккаунта. Если это были не вы — восстановите доступ по ссылке «Это не я» из письма.':
     'Password changed: {device}, IP {ip}. Other devices have been signed out. If it wasn’t you, restore access with the “It wasn’t me” link in the email.',
   'Это не я — восстановить доступ': 'It wasn’t me — restore access',
+  // Вход с кодом из приложения включён или выключен
+  'Вход с кодом из приложения включён: {device}, IP {ip}. Если это были не вы — выключите его по ссылке «Это не я» из письма.':
+    'Sign-in code turned on: {device}, IP {ip}. If it wasn’t you, turn it off with the “It wasn’t me” link in the email.',
+  'Вход с кодом из приложения выключен: {device}, IP {ip}.':
+    'Sign-in code turned off: {device}, IP {ip}.',
+  'Это не я — выключить вход с кодом': 'It wasn’t me — turn off the sign-in code',
 
   // Сохранённые поиски: превью уведомления
   '«{title}» — {price}': '“{title}” — {price}',

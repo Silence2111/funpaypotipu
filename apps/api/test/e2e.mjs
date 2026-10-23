@@ -2121,6 +2121,56 @@ async function scenarioPasswordChanged(rnd) {
   }
 }
 
+// Вход с кодом включён и выключен: уведомления с устройством, ссылки «Это не я»
+// в данных нет; выключить по ссылке без верного отпечатка ключа нельзя.
+async function scenarioTwoFactorAlert(rnd) {
+  console.log('\n— Вход с кодом включён —');
+  const user = await register('tfn', rnd);
+  const CHROME = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
+  const ua = { 'User-Agent': CHROME };
+  const setup = await j('/auth/2fa/setup', { method: 'POST', token: user.token });
+  const on = await j('/auth/2fa/enable', { method: 'POST', token: user.token, headers: ua, body: JSON.stringify({ code: authenticator.generate(setup.body.secret) }) });
+  const alerts = async (type) => (await j('/notifications', { token: user.token })).body.filter((n) => n.type === type);
+  let enabled = [];
+  for (let i = 0; i < 10 && !enabled.length; i++) {
+    await wait(300);
+    enabled = await alerts('two_factor_enabled');
+  }
+  const off = await j('/auth/2fa/disable', { method: 'POST', token: user.token, headers: ua, body: JSON.stringify({ code: authenticator.generate(setup.body.secret) }) });
+  let disabled = [];
+  for (let i = 0; i < 10 && !disabled.length; i++) {
+    await wait(300);
+    disabled = await alerts('two_factor_disabled');
+  }
+  check(
+    'Вход с кодом: включение и выключение — уведомления «Chrome · Windows», ссылки «Это не я» в данных нет',
+    on.status === 201 && off.status === 201 && enabled.length === 1 && disabled.length === 1 &&
+      enabled[0].payload?.device === 'Chrome · Windows' && /^Вход с кодом из приложения включён: /.test(enabled[0].payload?.preview ?? '') &&
+      !/token|recover/.test(JSON.stringify(enabled[0].payload)),
+    JSON.stringify({ on: on.status, off: off.status, enabled: enabled.map((n) => n.payload), disabled: disabled.length }),
+  );
+  const secret = process.env.JWT_ACCESS_SECRET;
+  if (secret) {
+    const hs256 = (p) => {
+      const b = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+      const t = Math.floor(Date.now() / 1000);
+      const body = `${b({ alg: 'HS256', typ: 'JWT' })}.${b({ ...p, iat: t, exp: t + 600 })}`;
+      return `${body}.${createHmac('sha256', secret).update(body).digest('base64url')}`;
+    };
+    const again = await j('/auth/2fa/setup', { method: 'POST', token: user.token });
+    await j('/auth/2fa/enable', { method: 'POST', token: user.token, body: JSON.stringify({ code: authenticator.generate(again.body.secret) }) });
+    const revoke = (token) => j('/auth/2fa/revoke', { method: 'POST', body: JSON.stringify({ token, password: 'password123', next: 'password789' }) });
+    const bare = await revoke(hs256({ sub: user.id, purpose: 'tf_revoke' }));
+    const stale = await revoke(hs256({ sub: user.id, purpose: 'tf_revoke', bind: '0123456789abcdef' }));
+    const status = (await j('/auth/2fa', { token: user.token })).body;
+    check(
+      '«Это не я» для входа с кодом: ссылка без отпечатка ключа или с чужим — 400, защита на месте',
+      bare.status === 400 && stale.status === 400 && status.enabled === true,
+      `${bare.status}/${stale.status}/${status.enabled}`,
+    );
+  }
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2604,6 +2654,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioSellerToday(rnd);
   await scenarioLoginAlert(rnd);
   await scenarioPasswordChanged(rnd);
+  await scenarioTwoFactorAlert(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

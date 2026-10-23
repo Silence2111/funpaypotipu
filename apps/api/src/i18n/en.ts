@@ -59,6 +59,11 @@ export const EN_API: Phrasebook = {
   'Ссылка недействительна или истекла': 'The link is invalid or has expired',
   'Слишком много попыток входа. Попробуйте через {min} мин.':
     'Too many sign-in attempts. Try again in {min} min.',
+  'Слишком много попыток. Попробуйте через {min} мин.': 'Too many attempts. Try again in {min} min.',
+  'Так выключить нельзя: когда включали вход с кодом, у аккаунта не было пароля':
+    'This can’t be turned off this way: the account had no password when the sign-in code was turned on',
+  'Это не тот пароль, что был у аккаунта, когда включали вход с кодом':
+    'This isn’t the password the account had when the sign-in code was turned on',
   'Неверные данные': 'Incorrect email or password',
   'Невалидный refresh-токен': 'Invalid refresh token',
   'Сессия недействительна': 'Session is no longer valid',

@@ -264,9 +264,11 @@ export const EN_SHARED: Phrasebook = {
   'Продавец оценил вас как покупателя': 'A seller rated you as a buyer',
   'Вход в аккаунт с нового устройства': 'Sign-in from a new device',
   Безопасность: 'Security',
-  'вход с нового устройства и смена пароля — письмом всегда':
-    'sign-in from a new device and password changes — always by email',
+  'вход с нового устройства, смена пароля и входа с кодом — письмом всегда':
+    'sign-in from a new device, password and sign-in code changes — always by email',
   'Пароль изменён': 'Password changed',
+  'Вход с кодом из приложения включён': 'Sign-in code turned on',
+  'Вход с кодом из приложения выключен': 'Sign-in code turned off',
   'Новые лоты у продавца из подписок': 'New listings from a seller you follow',
   'Скидка у продавца из подписок': 'A discount from a seller you follow',
   // Промокод продавца

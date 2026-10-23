@@ -106,6 +106,16 @@ export const AUTH: Record<string, string> = {
     'Access restored: the password is new, and all devices have been signed out.',
   'Войти с новым паролем': 'Sign in with the new password',
   'Запросить новую ссылку': 'Request a new link',
+  // «Это не я» из письма «Вход с кодом из приложения включён»
+  'Выключить вход с кодом': 'Turn off the sign-in code',
+  'Вход с кодом из приложения включили не вы? Введите пароль, который был у аккаунта в тот момент, и задайте новый.':
+    'Didn’t turn on the sign-in code? Enter the password the account had at that moment and set a new one.',
+  'Пароль на момент включения': 'Password at that moment',
+  'От 8 символов. Все устройства выйдут из аккаунта.':
+    'At least 8 characters. All devices will be signed out.',
+  'Выключить и сменить пароль': 'Turn off and change password',
+  'Вход с кодом выключен, пароль новый, все устройства вышли из аккаунта.':
+    'The sign-in code is off, the password is new, and all devices have been signed out.',
   'Почта подтверждена': 'Email confirmed',
   'Не удалось подтвердить': 'Couldn’t confirm',
   'Проверяем…': 'Checking…',

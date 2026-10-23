@@ -353,6 +353,10 @@ model TwoFactor {
   secretEnc         String    @map("secret_enc")
   recoveryCodesEnc  String?   @map("recovery_codes_enc")
   enabledAt         DateTime? @map("enabled_at")
+  // Пароль аккаунта (хеш) в момент включения. «Это не я» из письма выключает
+  // вход с кодом, только если назвать этот пароль: его знает владелец, а не
+  // тот, кто читает почту и сбросил пароль через неё.
+  passwordHashAtEnable String? @map("password_hash_at_enable")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
