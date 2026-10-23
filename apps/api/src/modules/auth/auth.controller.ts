@@ -83,8 +83,9 @@ export class AuthController {
   async reset(
     @Body(new ZodValidationPipe(z.object({ token: z.string().min(10), password: z.string().min(8).max(200) })))
     body: { token: string; password: string },
+    @Req() req: Request,
   ) {
-    await this.auth.resetPassword(body.token, body.password);
+    await this.auth.resetPassword(body.token, body.password, ctxOf(req));
     return { ok: true };
   }
 
@@ -123,8 +124,9 @@ export class AuthController {
   changePassword(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(passwordSchema)) body: { current?: string; next: string },
+    @Req() req: Request,
   ) {
-    return this.auth.changePassword(user.userId, body.current, body.next, user.sessionFamily);
+    return this.auth.changePassword(user.userId, body.current, body.next, user.sessionFamily, ctxOf(req));
   }
 
   @Get('sessions')

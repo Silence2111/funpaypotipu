@@ -98,6 +98,14 @@ export const AUTH: Record<string, string> = {
   'Ссылка недействительна или истекла.': 'The link is invalid or has expired.',
   'Пароль обновлён. Перенаправляем ко входу…': 'Password updated. Taking you to sign in…',
   'Сохранить пароль': 'Save password',
+  // «Это не я» из письма «Пароль изменён»
+  'Восстановить доступ': 'Restore access',
+  'Пароль сменили не вы? Задайте новый: все устройства, где выполнен вход, выйдут из аккаунта.':
+    'Didn’t change your password? Set a new one: every device that’s signed in will be signed out.',
+  'Доступ восстановлен: пароль новый, все устройства вышли из аккаунта.':
+    'Access restored: the password is new, and all devices have been signed out.',
+  'Войти с новым паролем': 'Sign in with the new password',
+  'Запросить новую ссылку': 'Request a new link',
   'Почта подтверждена': 'Email confirmed',
   'Не удалось подтвердить': 'Couldn’t confirm',
   'Проверяем…': 'Checking…',

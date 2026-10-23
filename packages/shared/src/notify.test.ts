@@ -46,5 +46,8 @@ describe('уведомления', () => {
       '/cabinet/security?session=f1',
     );
     expect(notifyLink('new_login', {})).toBe('/cabinet/security');
+    expect(notifyLink('password_changed', { device: 'Chrome · Windows' })).toBe(
+      '/cabinet/security',
+    );
   });
 });

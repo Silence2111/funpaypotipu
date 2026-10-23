@@ -48,7 +48,9 @@ export const EN_TEXTS: Record<string, string> = {
   'Вы получили новый отзыв': 'You received a new review',
 
   // Письма, пуши и Telegram об уведомлениях
-  '{subject}.\n\nПодробности: {link}': '{subject}.\n\nDetails: {link}',
+  '{subject}.\n\n{action}: {link}': '{subject}.\n\n{action}: {link}',
+  '{subject}.\n\n{preview}\n\n{action}: {link}': '{subject}.\n\n{preview}\n\n{action}: {link}',
+  Подробности: 'Details',
   'Сообщение от {name}': 'Message from {name}',
   'Уведомление GameMarket': 'GameMarket notification',
 
@@ -59,9 +61,10 @@ export const EN_TEXTS: Record<string, string> = {
   'Восстановление пароля — GameMarket': 'Password reset — GameMarket',
   'Сброс пароля (ссылка действует 1 час): {link}\nЕсли вы не запрашивали — проигнорируйте письмо.':
     'Reset your password (the link works for 1 hour): {link}\nIf you didn’t request this, ignore this email.',
-  'Пароль изменён': 'Password changed',
-  'Пароль от GameMarket изменён, другие устройства вышли из аккаунта. Если это были не вы — восстановите доступ через «Забыли пароль».':
-    'Your GameMarket password has been changed, and other devices have been signed out. If this wasn’t you, restore access with “Forgot password”.',
+  // Пароль изменён: превью уведомления и ссылка «Это не я» в письме
+  'Пароль изменён: {device}, IP {ip}. Другие устройства вышли из аккаунта. Если это были не вы — восстановите доступ по ссылке «Это не я» из письма.':
+    'Password changed: {device}, IP {ip}. Other devices have been signed out. If it wasn’t you, restore access with the “It wasn’t me” link in the email.',
+  'Это не я — восстановить доступ': 'It wasn’t me — restore access',
 
   // Сохранённые поиски: превью уведомления
   '«{title}» — {price}': '“{title}” — {price}',

@@ -41,6 +41,14 @@ const URGENT: Array<NotifyGroup | null> = ['orders', 'messages', 'disputes'];
 /** Страницы, у которых одно уведомление на экране: новое заменяет прежнее. */
 const TAGGED = /^\/(chat|orders|disputes|cabinet\/support)\//;
 
+export interface NotifyOptions {
+  /**
+   * Своя ссылка в письме вместо «Подробности»: например, «Это не я» со
+   * ссылкой сброса пароля. В базу не пишется — её видит только почта.
+   */
+  mail?: { action: string; link: string };
+}
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
@@ -56,7 +64,12 @@ export class NotificationsService {
    * Уведомление на сайте и, по настройкам пользователя, письмом, в Telegram
    * и пушем. Каналы и группы — shared/notify.ts: те же, что в настройках.
    */
-  async notify(userId: string, type: string, payload: Prisma.InputJsonValue = {}) {
+  async notify(
+    userId: string,
+    type: string,
+    payload: Prisma.InputJsonValue = {},
+    opts: NotifyOptions = {},
+  ) {
     const notification = await this.prisma.notification.create({
       data: { userId, type, channel: 'in_app', payload },
     });
@@ -78,10 +91,22 @@ export class NotificationsService {
 
     if (viaMail && user.email && wantsNotify(prefs, 'email', type)) {
       const subject = this.subject(lang, type)!;
+      // Подробности события — те же, что в Telegram и пуше: устройство и IP
+      // входа, «было — стало» у цены.
+      const preview = typeof data.preview === 'string' && data.preview ? data.preview : null;
+      const action = say(lang, opts.mail?.action ?? 'Подробности');
+      const href = opts.mail?.link ?? link;
       await this.mail.send(
         user.email,
         subject,
-        say(lang, '{subject}.\n\nПодробности: {link}', { subject, link }),
+        preview
+          ? say(lang, '{subject}.\n\n{preview}\n\n{action}: {link}', {
+              subject,
+              preview,
+              action,
+              link: href,
+            })
+          : say(lang, '{subject}.\n\n{action}: {link}', { subject, action, link: href }),
       );
     }
     if (user.telegramId && this.telegram.enabled && wantsNotify(prefs, 'telegram', type)) {

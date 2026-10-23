@@ -2074,6 +2074,53 @@ async function scenarioLoginAlert(rnd) {
   );
 }
 
+// Пароль изменён: уведомление с устройством и IP, ссылки «Это не я» в данных
+// нет (она только в письме); ссылка сброса без отпечатка пароля не действует.
+async function scenarioPasswordChanged(rnd) {
+  console.log('\n— Пароль изменён —');
+  const user = await register('pwc', rnd);
+  const email = `pwc${rnd}@e2e.local`;
+  const CHROME = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
+  const changed = await j('/auth/password', {
+    method: 'POST', token: user.token, headers: { 'User-Agent': CHROME },
+    body: JSON.stringify({ current: 'password123', next: 'password456' }),
+  });
+  let got = [];
+  for (let i = 0; i < 10 && !got.length; i++) {
+    await wait(300);
+    got = (await j('/notifications', { token: user.token })).body.filter((n) => n.type === 'password_changed');
+  }
+  const login = (password) => j('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+  const oldPass = await login('password123');
+  const newPass = await login('password456');
+  const payload = got[0]?.payload ?? {};
+  check(
+    'Пароль изменён: уведомление «Chrome · Windows» с IP, ссылки сброса в данных нет; старый пароль не входит, новый — входит',
+    changed.status === 200 && got.length === 1 && payload.device === 'Chrome · Windows' &&
+      /^Пароль изменён: Chrome · Windows, IP /.test(payload.preview ?? '') && !/token|reset/.test(JSON.stringify(payload)) &&
+      oldPass.status === 401 && newPass.status === 200,
+    JSON.stringify({ changed: changed.status, got: got.map((n) => n.payload), old: oldPass.status, new: newPass.status }),
+  );
+  const secret = process.env.JWT_ACCESS_SECRET;
+  if (secret) {
+    const hs256 = (p) => {
+      const b = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+      const t = Math.floor(Date.now() / 1000);
+      const body = `${b({ alg: 'HS256', typ: 'JWT' })}.${b({ ...p, iat: t, exp: t + 600 })}`;
+      return `${body}.${createHmac('sha256', secret).update(body).digest('base64url')}`;
+    };
+    const reset = (token) => j('/auth/reset', { method: 'POST', body: JSON.stringify({ token, password: 'password789' }) });
+    const bare = await reset(hs256({ sub: user.id, purpose: 'pwd_reset' }));
+    const stale = await reset(hs256({ sub: user.id, purpose: 'pwd_reset', bind: '0123456789abcdef' }));
+    const still = await login('password456');
+    check(
+      'Ссылка сброса без отпечатка пароля или со старым — 400, пароль прежний',
+      bare.status === 400 && stale.status === 400 && still.status === 200,
+      `${bare.status}/${stale.status}/${still.status}`,
+    );
+  }
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2556,6 +2603,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioBuyerReview(rnd);
   await scenarioSellerToday(rnd);
   await scenarioLoginAlert(rnd);
+  await scenarioPasswordChanged(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

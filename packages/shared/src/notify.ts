@@ -34,7 +34,12 @@ export const NOTIFY_GROUPS = [
     hint: 'новые предложения по сохранённым поискам, снижение цены в избранном, поступление закончившихся лотов, новые лоты и скидки продавцов, на которых вы подписаны',
     types: ['saved_search', 'price_drop', 'back_in_stock', 'seller_new_lots', 'seller_sale'],
   },
-  { key: 'security', label: 'Безопасность', hint: 'вход с нового устройства — письмом всегда', types: ['new_login'] },
+  {
+    key: 'security',
+    label: 'Безопасность',
+    hint: 'вход с нового устройства и смена пароля — письмом всегда',
+    types: ['new_login', 'password_changed'],
+  },
   {
     key: 'moderation',
     label: 'Решения модерации',
@@ -57,8 +62,9 @@ export const DEFAULT_NOTIFY: Record<NotifyChannel, Record<NotifyGroup, boolean>>
 };
 
 /**
- * Решения модерации и вход с нового устройства доходят письмом всегда:
- * человек должен знать, почему его ограничили и что в аккаунт вошёл кто-то ещё.
+ * Решения модерации, вход с нового устройства и смена пароля доходят письмом
+ * всегда: человек должен знать, почему его ограничили и что в аккаунте
+ * хозяйничает кто-то ещё.
  */
 export const LOCKED_NOTIFY: Partial<Record<NotifyChannel, NotifyGroup[]>> = { email: ['moderation', 'security'] };
 
@@ -75,6 +81,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   review_reply: 'Продавец ответил на ваш отзыв',
   buyer_review: 'Продавец оценил вас как покупателя',
   new_login: 'Вход в аккаунт с нового устройства',
+  password_changed: 'Пароль изменён',
   cashback: 'Кэшбэк за покупку зачислен на баланс',
   new_message: 'Новое сообщение',
   dispute_opened: 'Спор по сделке',
@@ -140,6 +147,7 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
     const session = id('session');
     return session ? `/cabinet/security?session=${encodeURIComponent(session)}` : '/cabinet/security';
   }
+  if (type === 'password_changed') return '/cabinet/security';
   if (type === 'new_message' && id('conversationId')) return `/chat/${id('conversationId')}`;
   if (id('orderId')) return `/orders/${id('orderId')}`;
   if (id('listingId')) return type === 'listing_blocked' ? '/cabinet/lots' : `/lot/${id('listingId')}`;

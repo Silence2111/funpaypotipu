@@ -47,6 +47,15 @@ export const KNOWN_DEVICE_DAYS = 180;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Ссылка «Это не я» из письма о смене пароля живёт сутки: письмо читают не сразу. */
+export const NOT_ME_RESET_TTL = 86_400;
+
+/**
+ * Отпечаток пароля в ссылке сброса. Пароль сменился — отпечаток другой, и
+ * ссылка больше не действует: одна ссылка — один сброс.
+ */
+const passwordStamp = (hash: string | null): string => sha256(`pwd:${hash ?? ''}`).slice(0, 16);
+
 /** Неверный пароль десять раз за 15 минут — пауза для этой почты. */
 const passwordAttempts = new AttemptLimiter(10, 15 * 60_000);
 
@@ -118,7 +127,7 @@ export class AuthService {
   async requestPasswordReset(email: string, lang: Lang = 'ru'): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { email }, include: { profile: true } });
     if (user?.email) {
-      const token = this.tokens.signPurpose(user.id, 'pwd_reset', 3600);
+      const token = this.tokens.signPurpose(user.id, 'pwd_reset', 3600, passwordStamp(user.passwordHash));
       const link = `${this.webUrl()}/reset?token=${encodeURIComponent(token)}`;
       await this.mail.send(
         user.email,
@@ -130,16 +139,32 @@ export class AuthService {
     }
   }
 
-  async resetPassword(token: string, password: string): Promise<void> {
-    let userId: string;
+  /**
+   * Новый пароль по ссылке из письма — «Забыли пароль» или «Это не я» после
+   * смены пароля. Ссылка одноразовая: в ней отпечаток пароля, с которым её
+   * выдали. Все устройства выходят, о смене приходит уведомление.
+   */
+  async resetPassword(token: string, password: string, ctx: RequestCtx = {}): Promise<void> {
+    let claim: { sub: string; bind?: string };
     try {
-      userId = this.tokens.verifyPurpose(token, 'pwd_reset');
+      claim = this.tokens.verifyBound(token, 'pwd_reset');
     } catch {
       throw new BadRequestException('Ссылка недействительна или истекла');
     }
+    const userId = claim.sub;
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
+    if (!user || claim.bind !== passwordStamp(user.passwordHash)) {
+      throw new BadRequestException('Ссылка недействительна или истекла');
+    }
     const passwordHash = await bcrypt.hash(password, 12);
-    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    // Условно: два запроса с одной ссылкой разом — пароль сменит только один.
+    const done = await this.prisma.user.updateMany({
+      where: { id: userId, passwordHash: user.passwordHash },
+      data: { passwordHash },
+    });
+    if (!done.count) throw new BadRequestException('Ссылка недействительна или истекла');
     await this.prisma.authSession.deleteMany({ where: { userId } });
+    this.alertPasswordChanged(userId, passwordHash, ctx);
   }
 
   async login(input: LoginInput, ctx: RequestCtx): Promise<IssuedAuth> {
@@ -342,10 +367,16 @@ export class AuthService {
    * смену пароля делают, когда подозревают чужой вход. Аккаунт, заведённый
    * через Telegram, VK или Google, пароля не имеет — его задают без текущего.
    */
-  async changePassword(userId: string, current: string | undefined, next: string, keepFamily?: string) {
+  async changePassword(
+    userId: string,
+    current: string | undefined,
+    next: string,
+    keepFamily?: string,
+    ctx: RequestCtx = {},
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { passwordHash: true, email: true, locale: true },
+      select: { passwordHash: true },
     });
     if (!user) throw new UnauthorizedException('Пользователь не найден');
     if (user.passwordHash) {
@@ -354,20 +385,48 @@ export class AuthService {
       }
       if (current === next) throw new BadRequestException('Новый пароль совпадает с текущим');
     }
-    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash: await bcrypt.hash(next, 12) } });
+    const passwordHash = await bcrypt.hash(next, 12);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
     const closed = await this.closeSessions(userId, keepFamily);
-    if (user.email && this.mail.enabled) {
-      const lang = langOf(user.locale);
-      await this.mail.send(
-        user.email,
-        say(lang, 'Пароль изменён'),
-        say(
-          lang,
-          'Пароль от GameMarket изменён, другие устройства вышли из аккаунта. Если это были не вы — восстановите доступ через «Забыли пароль».',
-        ),
-      );
-    }
+    this.alertPasswordChanged(userId, passwordHash, ctx);
     return { ok: true, closedSessions: closed };
+  }
+
+  /**
+   * «Пароль изменён»: на сайте, в Telegram и пушем — по настройкам, письмом —
+   * всегда, с устройством и IP. В письме — «Это не я»: ссылка задать новый
+   * пароль, сутки и один раз. Она есть только в письме: уведомления на сайте
+   * видит тот, кто сейчас в аккаунте, — возможно, не владелец.
+   */
+  private alertPasswordChanged(userId: string, passwordHash: string, ctx: RequestCtx) {
+    const send = async () => {
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { locale: true } });
+      const lang = langOf(user?.locale);
+      const device = deviceOf(ctx.userAgent, lang);
+      const ip = ctx.ip ?? '—';
+      const token = this.tokens.signPurpose(userId, 'pwd_reset', NOT_ME_RESET_TTL, passwordStamp(passwordHash));
+      await this.moduleRef.get(NotificationsService, { strict: false }).notify(
+        userId,
+        'password_changed',
+        {
+          device,
+          ip,
+          preview: say(
+            lang,
+            'Пароль изменён: {device}, IP {ip}. Другие устройства вышли из аккаунта. Если это были не вы — восстановите доступ по ссылке «Это не я» из письма.',
+            { device, ip },
+          ),
+        },
+        {
+          mail: {
+            action: 'Это не я — восстановить доступ',
+            link: `${this.webUrl()}/reset?token=${encodeURIComponent(token)}&not_me=1`,
+          },
+        },
+      );
+    };
+    // Не задерживая ответ: сбой почты смену пароля не отменяет.
+    void send().catch((e: Error) => this.logger.warn(`Пароль изменён ${userId}: ${e.message}`));
   }
 
   /** Активные входы: устройство, адрес, когда вошли. Текущий помечен. */

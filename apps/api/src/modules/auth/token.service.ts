@@ -47,12 +47,25 @@ export class TokenService {
     return this.jwt.verify<RefreshPayload>(token, { secret: process.env.JWT_REFRESH_SECRET });
   }
 
-  /** Одноразовый токен под конкретное действие (сброс пароля, верификация email). */
-  signPurpose(sub: string, purpose: string, ttlSec = 3600): string {
-    return this.jwt.sign({ sub, purpose }, {
+  /**
+   * Токен под конкретное действие (сброс пароля, верификация email). `bind` —
+   * отпечаток состояния, при котором его выдали: состояние сменилось — токен
+   * не действует, поэтому ссылка сброса пароля работает один раз.
+   */
+  signPurpose(sub: string, purpose: string, ttlSec = 3600, bind?: string): string {
+    return this.jwt.sign({ sub, purpose, ...(bind ? { bind } : {}) }, {
       secret: process.env.JWT_ACCESS_SECRET,
       expiresIn: ttlSec,
     });
+  }
+
+  /** Токен с назначением и отпечатком состояния, с которым его выдали. */
+  verifyBound(token: string, purpose: string): { sub: string; bind?: string } {
+    const p = this.jwt.verify<{ sub: string; purpose: string; bind?: string }>(token, {
+      secret: process.env.JWT_ACCESS_SECRET,
+    });
+    if (p.purpose !== purpose) throw new Error('Неверное назначение токена');
+    return { sub: p.sub, bind: p.bind };
   }
 
   /**
