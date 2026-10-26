@@ -1134,7 +1134,9 @@ async function scenarioDisputes(rnd) {
   for (let i = 0; i < 20 && !missed; i++) {
     await wait(500);
     const d = await prisma.dispute.findUnique({ where: { id: a.dispute.id } });
-    if (d.missedBy) missed = d;
+    // Отметка и сообщение площадки пишутся друг за другом — ждём обоих.
+    const noted = await prisma.disputeMessage.count({ where: { disputeId: a.dispute.id, senderId: null, body: { startsWith: 'Покупатель не ответил' } } });
+    if (d.missedBy && noted) missed = d;
   }
   v = await view(a.dispute.id, agent.token);
   const queue = (await j('/disputes/queue', { token: agent.token })).body;
@@ -2982,12 +2984,15 @@ async function scenarioTelegramBot(rnd) {
     k('/telegram/webhook', { method: 'POST', headers: { 'X-Telegram-Bot-Api-Secret-Token': 'e2e-hook-secret' }, body: JSON.stringify(update) });
   const waitFor = async (fn) => {
     for (let i = 0; i < 20; i++) {
-      const v = fn();
+      const v = await fn();
       if (v) return v;
       await wait(200);
     }
     return null;
   };
+  // Тестовый Bot API видит сообщение раньше, чем API запомнит его диалог: отвечать — после этого.
+  const mapped = (chat, messageId) =>
+    waitFor(() => prisma.telegramReply.findUnique({ where: { chatId_messageId: { chatId: String(chat), messageId: messageId ?? 0 } } }));
   try {
     let up = false;
     for (let i = 0; i < 60 && !up; i++) {
@@ -3080,6 +3085,7 @@ async function scenarioTelegramBot(rnd) {
       tg.to(SELLER_CHAT).find((c) => c.body.reply_markup?.inline_keyboard?.[0]?.[0]?.callback_data === `rp:${conv.id}`),
     );
     const incomingId = incoming?.result?.message_id;
+    await mapped(SELLER_CHAT, incomingId);
     await hook({ message: { message_id: 99, text: 'Рад, что всё дошло', chat: { id: SELLER_CHAT, type: 'private' }, from: { id: SELLER_CHAT }, reply_to_message: { message_id: incomingId } } });
     const sentNote = await waitFor(() => tg.to(SELLER_CHAT).find((c) => /^Отправлено в чат с @tgb/.test(c.body.text ?? '')));
     // Ответ на сообщение, которого бот в этот чат не присылал, в диалог не уходит.
@@ -3104,6 +3110,7 @@ async function scenarioTelegramBot(rnd) {
     await press(SELLER_CHAT, `tl:${conv.id}`, withTpl?.result?.message_id);
     const list = await waitFor(() => tg.to(SELLER_CHAT).find((c) => /^Какую заготовку прислать @tgb/.test(c.body.text ?? '')));
     const pick = list?.body.reply_markup?.inline_keyboard?.[0]?.[0];
+    await mapped(SELLER_CHAT, list?.result?.message_id);
     // Та же кнопка на сообщении, которое бот не связывал с диалогом, ничего не отправляет.
     await press(SELLER_CHAT, pick?.callback_data, 9998);
     const stale = await waitFor(() => tg.to(SELLER_CHAT).find((c) => /устарела/.test(c.body.text ?? '')));
