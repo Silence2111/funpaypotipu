@@ -77,6 +77,10 @@ export const EN_API: Phrasebook = {
   'Документы уже отправлены': 'Documents have already been sent',
   'Документы по ссылке ещё не присланы': 'The documents from the link haven’t been sent yet',
   'Эта почта уже у другого аккаунта': 'This email already belongs to another account',
+  'Это и есть почта аккаунта': 'This is already the account email',
+  'Проверьте адрес почты': 'Check the email address',
+  'Прежняя почта уже у другого аккаунта — напишите в поддержку':
+    'The previous email already belongs to another account — contact support',
   'У аккаунта пройдена проверка личности — попросите документы, они надёжнее':
     'The account has an approved ID check — ask for documents, they are more reliable',
   'Описания уже отправлены': 'The descriptions have already been sent',

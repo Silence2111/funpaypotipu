@@ -14,6 +14,7 @@ import { suggestUsername, usernameSchema } from '@gamemarket/shared';
 import { PRISMA } from '../../../prisma/prisma.module';
 import { AuthService, type IssuedAuth, type RequestCtx } from '../auth.service';
 import { TokenService } from '../token.service';
+import { emailReserved } from '../email-change.service';
 import {
   OAuthError,
   PROVIDER_LABEL,
@@ -303,11 +304,14 @@ export class SocialService {
         select: { id: true },
       }));
     const name = p.name && p.name.trim().length >= 2 ? p.name.trim().slice(0, 40) : username;
+    // Почта сервиса, ушедшая из другого аккаунта меньше 7 дней назад, ждёт
+    // возврата по «Это не я» — новый аккаунт заводится без неё.
+    const email = p.email && !(await emailReserved(this.prisma, p.email)) ? p.email : null;
     try {
       const user = await this.prisma.user.create({
         data: {
-          email: p.email,
-          emailVerified: p.email && p.emailVerified ? new Date() : null,
+          email,
+          emailVerified: email && p.emailVerified ? new Date() : null,
           telegramId: telegram ? p.subject : null,
           profile: { create: { username, displayName: name } },
           socialAccounts: {

@@ -199,4 +199,20 @@ export const AUTH: Record<string, string> = {
   'Проверяем…': 'Checking…',
   'Спасибо, аккаунт подтверждён.': 'Thank you, your account is confirmed.',
   'В кабинет': 'Go to account',
+  // Смена почты: ссылка на новую почту и «Это не я» со старой
+  'Новая почта': 'New email',
+  'Готово: почта аккаунта — {email}. Входите с ней и тем же паролем.':
+    'Done: the account email is now {email}. Sign in with it and the same password.',
+  'В «Безопасность»': 'Go to Security',
+  'Ссылка действует сутки и только последняя из присланных. Попросите новую в «Безопасности».':
+    'The link works for a day, and only the latest one sent. Request a new one in Security.',
+  'Не удалось вернуть почту. Попробуйте ещё раз.': 'Couldn’t restore the email. Try again.',
+  'Вернуть прежнюю почту': 'Restore the previous email',
+  'Почта аккаунта снова {email}. Все устройства вышли, вход с кодом и входы через сервисы отключены.':
+    'The account email is {email} again. All devices were signed out, and the sign-in code and service sign-ins were turned off.',
+  'Вернуть почту можно 7 дней после смены и только до следующей смены. Если доступа к аккаунту нет — «Не могу войти».':
+    'The email can be restored for 7 days after the change, and only until the next change. If you can’t access the account, use “I can’t sign in”.',
+  'Почту аккаунта сменили на {email}. Если это сделали не вы — верните прежнюю до {until}: задайте новый пароль, все устройства выйдут, вход с кодом и входы через сервисы отключатся.':
+    'The account email was changed to {email}. If it wasn’t you, restore the previous one by {until}: set a new password, and all devices will be signed out, with the sign-in code and service sign-ins turned off.',
+  'Вернуть почту': 'Restore email',
 };

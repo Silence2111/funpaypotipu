@@ -233,6 +233,7 @@ model User {
   roles          UserRole[]
   riskSignals    RiskSignal[]
   recoveries     AccountRecovery[]
+  emailChanges   EmailChange[]
 
   @@map("users")
 }
@@ -939,6 +940,31 @@ model RecoveryDeal {
   @@index([recoveryId])
   @@index([counterpartyId, answer])
   @@map("recovery_deals")
+}
+
+/// Смена почты из «Безопасности»: подтверждение ссылкой на новую почту,
+/// «Это не я» со старой — 7 дней. Пока ссылка жива, старую почту не занять
+/// другому аккаунту: иначе вернуть её было бы некуда.
+model EmailChange {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  /// null — у аккаунта почты не было (заведён через сервис), её добавили.
+  oldEmail    String?   @map("old_email")
+  newEmail    String    @map("new_email")
+  /// pending — ждёт подтверждения, done — сменена, reverted — вернули по
+  /// «Это не я», canceled — заменена новой просьбой
+  status      String    @default("pending")
+  device      String?
+  ip          String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  confirmedAt DateTime? @map("confirmed_at")
+  revertedAt  DateTime? @map("reverted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([oldEmail, status])
+  @@map("email_changes")
 }
 
 model AuditLog {

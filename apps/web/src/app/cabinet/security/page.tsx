@@ -10,6 +10,7 @@ import { CabinetNav } from '@/components/cabinet-nav';
 import { TwoFactorCard } from '@/components/two-factor-card';
 import { KycCard } from '@/components/kyc-card';
 import { SocialAccounts, type LoginWays } from '@/components/social-accounts';
+import { EmailCard } from '@/components/email-card';
 import { useT } from '@/lib/i18n/client';
 import { msg, type T } from '@/lib/i18n/lang';
 
@@ -236,6 +237,8 @@ function Security() {
           )}
         </section>
       )}
+
+      {ways && <EmailCard email={ways.email} hasPassword={ways.hasPassword} />}
 
       <section className="card" style={{ padding: 24, maxWidth: 600 }}>
         <h2 className="h2 row" style={{ fontSize: 18, gap: 8 }}>

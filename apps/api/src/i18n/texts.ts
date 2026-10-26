@@ -94,6 +94,15 @@ export const EN_TEXTS: Record<string, string> = {
     'Account recovery: card check — GameMarket',
   'Сотрудник проверяет заявку на восстановление доступа. Заплатите 1 ₽ картой, которой вы платили на GameMarket или на которую выводили деньги: сумма только заблокируется и сразу вернётся (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.':
     'Our staff are reviewing your account recovery request. Pay 1 ₽ with a card you’ve paid with on GameMarket or withdrawn money to: the amount is only put on hold and released right away (the link works for a week): {link}\nIf you didn’t file this request, ignore this email.',
+  'Подтвердите новую почту — GameMarket': 'Confirm your new email — GameMarket',
+  'Чтобы сделать эту почту почтой аккаунта GameMarket, откройте ссылку (действует сутки): {link}\nЕсли вы ничего не меняли — проигнорируйте письмо.':
+    'To make this the email of your GameMarket account, open the link (it works for a day): {link}\nIf you didn’t change anything, ignore this email.',
+  'Почта аккаунта изменена на {email}: {device}, IP {ip}.':
+    'The account email was changed to {email}: {device}, IP {ip}.',
+  'Почту аккаунта GameMarket сменили на {email}: {device}, IP {ip}. Если это сделали не вы — верните прежнюю почту по ссылке (действует 7 дней): {link}\nВсе устройства выйдут из аккаунта, вход с кодом и входы через сервисы отключатся, пароль нужно будет задать новый.':
+    'Your GameMarket account email was changed to {email}: {device}, IP {ip}. If it wasn’t you, restore the previous email with this link (it works for 7 days): {link}\nAll devices will be signed out, the sign-in code and service sign-ins will be turned off, and you’ll set a new password.',
+  'Прежняя почта аккаунта возвращена по ссылке «Это не я»: пароль новый, все устройства вышли, вход с кодом и входы через сервисы отключены.':
+    'The previous account email was restored with the “It wasn’t me” link: the password is new, all devices were signed out, and the sign-in code and service sign-ins were turned off.',
   'Восстановление доступа: опишите сделки — GameMarket':
     'Account recovery: describe your deals — GameMarket',
   'Сотрудник проверяет заявку на восстановление доступа. Проверки личности у аккаунта нет, поэтому опишите две-три сделки с разными продавцами или покупателями — мы спросим их, совпадает ли описание (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.':

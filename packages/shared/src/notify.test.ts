@@ -50,6 +50,7 @@ describe('уведомления', () => {
       '/cabinet/security',
     );
     expect(notifyLink('two_factor_enabled', {})).toBe('/cabinet/security');
+    expect(notifyLink('email_changed', { preview: '…' })).toBe('/cabinet/security');
     expect(notifyLink('recovery_requested', { recoveryId: 'r1' })).toBe('/cabinet/security');
     expect(notifyLink('deal_check', { checkId: 'c1', orderNumber: 'GM-1' })).toBe(
       '/cabinet/deal-checks',

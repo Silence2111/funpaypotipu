@@ -21,6 +21,7 @@ import { EncryptionService } from '../crypto/encryption.service';
 import { CARD_CHECK_PURPOSE, YooKassaProvider } from '../payments/yookassa.provider';
 import type { CardPrint } from '../payments/payment.provider';
 import { langOf, say } from '../../i18n/texts';
+import { maskEmail } from '../../common/mask';
 
 /**
  * Решение по заявке — не раньше чем через 3 дня. Если заявку подал не
@@ -74,12 +75,6 @@ interface Refs {
   keys?: string[];
   selfie?: string;
 }
-
-/** «n***@mail.ru»: старой почте — куда сменили, но не весь адрес. */
-const maskEmail = (email: string) => {
-  const [name, domain] = email.split('@');
-  return `${name?.slice(0, 1) ?? ''}***@${domain ?? ''}`;
-};
 
 /** Завершённые до заявки сделки двух пользователей — в любую сторону. */
 const between = (a: string, b: string, before: Date) => ({
@@ -171,6 +166,7 @@ const byNumber = (numbers: string[]) =>
 const SECURITY_TYPES = [
   'new_login',
   'password_changed',
+  'email_changed',
   'two_factor_enabled',
   'two_factor_disabled',
   'recovery_requested',

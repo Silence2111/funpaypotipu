@@ -2383,6 +2383,68 @@ async function scenarioRecoveryDeals(rnd) {
   );
 }
 
+// Смена почты: с паролем, сменится по ссылке с новой почты; прежняя почта
+// 7 дней занята за аккаунтом; «Это не я» с неё — почта прежняя, пароль
+// новый, все устройства вышли.
+async function scenarioEmailChange(rnd) {
+  console.log('\n— Смена почты —');
+  const user = await register('emc', rnd);
+  await register('emx', rnd);
+  const FIREFOX = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0';
+  const ask = (body) => j('/auth/email', { method: 'POST', token: user.token, headers: { 'User-Agent': FIREFOX }, body: JSON.stringify(body) });
+  const wrong = await ask({ email: `emcnew${rnd}@e2e.local`, password: 'nope-nope' });
+  const taken = await ask({ email: `EMX${rnd}@e2e.local`, password: 'password123' });
+  const asked = await ask({ email: `EmcNew${rnd}@e2e.local`, password: 'password123' });
+  const change = await prisma.emailChange.findFirst({ where: { userId: user.id, status: 'pending' } });
+  const sign = (data, purpose) => {
+    const b = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const t = Math.floor(Date.now() / 1000);
+    const body = `${b({ alg: 'HS256', typ: 'JWT' })}.${b({ data, purpose, iat: t, exp: t + 600 })}`;
+    return `${body}.${createHmac('sha256', process.env.JWT_ACCESS_SECRET).update(body).digest('base64url')}`;
+  };
+  const before = (await prisma.user.findUnique({ where: { id: user.id }, select: { email: true } })).email;
+  const asRevert = await j('/auth/email/revert/status', { method: 'POST', body: JSON.stringify({ token: sign({ cid: change?.id }, 'email_change') }) });
+  const confirmed = await j('/auth/email/confirm', { method: 'POST', body: JSON.stringify({ token: sign({ cid: change?.id }, 'email_change') }) });
+  const twice = await j('/auth/email/confirm', { method: 'POST', body: JSON.stringify({ token: sign({ cid: change?.id }, 'email_change') }) });
+  const login = (email, password) => j('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+  const byNew = await login(`emcnew${rnd}@e2e.local`, 'password123');
+  const byOld = await login(`emc${rnd}@e2e.local`, 'password123');
+  const squat = await j('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ email: `emc${rnd}@e2e.local`, password: 'password123', username: `emq${rnd}` }),
+  });
+  let alerts = [];
+  for (let i = 0; i < 10 && !alerts.length; i++) {
+    await wait(300);
+    alerts = (await j('/notifications', { token: user.token })).body.filter((n) => n.type === 'email_changed');
+  }
+  check(
+    'Смена почты: неверный пароль — 400, занятая — 409; без ссылки почта прежняя; ссылкой — сменена, повтор — 400; вход по новой; прежнюю 7 дней не занять; уведомление «Firefox · Windows»',
+    wrong.status === 400 && taken.status === 409 && asked.status === 200 && before === `emc${rnd}@e2e.local` &&
+      change?.newEmail === `emcnew${rnd}@e2e.local` && asRevert.status === 400 && confirmed.status === 200 &&
+      confirmed.body.email === `emcnew${rnd}@e2e.local` && twice.status === 400 && byNew.status === 200 && byOld.status === 401 &&
+      squat.status === 409 && alerts.length === 1 && /Firefox · Windows/.test(alerts[0].payload?.preview ?? '') &&
+      !/token|revert/.test(JSON.stringify(alerts[0].payload)),
+    JSON.stringify({ wrong: wrong.status, taken: taken.status, asked: asked.status, before, confirmed: confirmed.body, twice: twice.status, byNew: byNew.status, byOld: byOld.status, squat: squat.status, alerts: alerts.map((n) => n.payload) }),
+  );
+  const revertToken = sign({ cid: change.id }, 'email_revert');
+  const status = await j('/auth/email/revert/status', { method: 'POST', body: JSON.stringify({ token: revertToken }) });
+  const short = await j('/auth/email/revert', { method: 'POST', body: JSON.stringify({ token: revertToken, password: 'short' }) });
+  const reverted = await j('/auth/email/revert', { method: 'POST', body: JSON.stringify({ token: revertToken, password: 'password789' }) });
+  const again = await j('/auth/email/revert', { method: 'POST', body: JSON.stringify({ token: revertToken, password: 'password789' }) });
+  const oldSession = (await j('/notifications', { token: byNew.body.accessToken })).status;
+  const back = await login(`emc${rnd}@e2e.local`, 'password789');
+  const stale = await login(`emc${rnd}@e2e.local`, 'password123');
+  const log = await prisma.auditLog.findFirst({ where: { action: 'email.revert', entityId: user.id } });
+  check(
+    '«Это не я» со старой почты: почта прежняя, пароль новый, все устройства вышли; второй раз — 400',
+    status.status === 200 && status.body.email === 'e***@e2e.local' && short.status === 400 && reverted.status === 200 &&
+      again.status === 400 && oldSession === 401 && back.status === 200 && stale.status === 401 &&
+      log?.after?.email === `emc${rnd}@e2e.local`,
+    JSON.stringify({ status: status.body, short: short.status, reverted: reverted.body, again: again.status, oldSession, back: back.status, stale: stale.status }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2934,6 +2996,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioRecovery(rnd);
   await scenarioRecoveryNewEmail(rnd);
   await scenarioRecoveryDeals(rnd);
+  await scenarioEmailChange(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

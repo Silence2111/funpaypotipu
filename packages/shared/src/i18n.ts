@@ -264,14 +264,15 @@ export const EN_SHARED: Phrasebook = {
   'Продавец оценил вас как покупателя': 'A seller rated you as a buyer',
   'Вход в аккаунт с нового устройства': 'Sign-in from a new device',
   Безопасность: 'Security',
-  'вход с нового устройства, смена пароля и входа с кодом, восстановление доступа — письмом всегда':
-    'sign-in from a new device, password and sign-in code changes, account recovery — always by email',
+  'вход с нового устройства, смена пароля, почты и входа с кодом, восстановление доступа — письмом всегда':
+    'sign-in from a new device, password, email and sign-in code changes, account recovery — always by email',
   'Заявка на восстановление доступа': 'Account recovery request',
   'Доступ к аккаунту восстановлен': 'Account access restored',
   'Заявка на восстановление отклонена': 'Account recovery request declined',
   'Подтвердите сделку: другая сторона восстанавливает доступ':
     'Confirm a deal: the other party is recovering their account',
   'Пароль изменён': 'Password changed',
+  'Почта аккаунта изменена': 'Account email changed',
   'Вход с кодом из приложения включён': 'Sign-in code turned on',
   'Вход с кодом из приложения выключен': 'Sign-in code turned off',
   'Новые лоты у продавца из подписок': 'New listings from a seller you follow',

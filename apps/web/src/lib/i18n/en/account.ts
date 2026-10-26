@@ -246,4 +246,15 @@ export const ACCOUNT: Record<string, string> = {
   'Спасибо: ответили, что описание не совпадает.': 'Thank you: you answered that the description doesn’t match.',
   'Спасибо: ответили, что не помните.': 'Thank you: you answered that you don’t remember.',
   'Не удалось отправить ответ. Попробуйте ещё раз.': 'Couldn’t send your answer. Try again.',
+  // «Почта» в «Безопасности»
+  'Письмо со ссылкой ушло на {email}. Откройте его, чтобы подтвердить, — ссылка действует сутки.':
+    'A link has been sent to {email}. Open it to confirm — the link works for a day.',
+  'Не удалось сменить почту.': 'Couldn’t change the email.',
+  'Почты у аккаунта нет — он заведён через сервис.': 'The account has no email — it was created through a service.',
+  'На новую почту придёт ссылка для подтверждения, на прежнюю — письмо со ссылкой «Это не я»: 7 дней её можно вернуть.':
+    'The new email will get a confirmation link, and the previous one a letter with an “It wasn’t me” link: it can be restored for 7 days.',
+  'На почту придёт ссылка для подтверждения. С почтой можно входить по паролю и восстановить доступ.':
+    'A confirmation link will be sent to the email. With an email you can sign in with a password and recover access.',
+  'Сменить почту': 'Change email',
+  'Добавить почту': 'Add email',
 };

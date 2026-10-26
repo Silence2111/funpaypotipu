@@ -221,6 +221,7 @@ describe('вход запоминает язык сайта', () => {
       },
       authSession: { create: vi.fn(async () => ({})), count: vi.fn(async () => 0) },
       userRole: { findMany: vi.fn(async () => []) },
+      emailChange: { count: vi.fn(async () => 0) },
     };
     const tokens = {
       signPurpose: vi.fn(() => 'tok'),

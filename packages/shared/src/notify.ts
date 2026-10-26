@@ -38,10 +38,11 @@ export const NOTIFY_GROUPS = [
   {
     key: 'security',
     label: 'Безопасность',
-    hint: 'вход с нового устройства, смена пароля и входа с кодом, восстановление доступа — письмом всегда',
+    hint: 'вход с нового устройства, смена пароля, почты и входа с кодом, восстановление доступа — письмом всегда',
     types: [
       'new_login',
       'password_changed',
+      'email_changed',
       'two_factor_enabled',
       'two_factor_disabled',
       'recovery_requested',
@@ -92,6 +93,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   buyer_review: 'Продавец оценил вас как покупателя',
   new_login: 'Вход в аккаунт с нового устройства',
   password_changed: 'Пароль изменён',
+  email_changed: 'Почта аккаунта изменена',
   two_factor_enabled: 'Вход с кодом из приложения включён',
   two_factor_disabled: 'Вход с кодом из приложения выключен',
   recovery_requested: 'Заявка на восстановление доступа',
@@ -162,7 +164,12 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
     const session = id('session');
     return session ? `/cabinet/security?session=${encodeURIComponent(session)}` : '/cabinet/security';
   }
-  if (type === 'password_changed' || type.startsWith('two_factor_') || type.startsWith('recovery_')) {
+  if (
+    type === 'password_changed' ||
+    type === 'email_changed' ||
+    type.startsWith('two_factor_') ||
+    type.startsWith('recovery_')
+  ) {
     return '/cabinet/security';
   }
   // Просьба подтвердить сделку — в кабинет, где на неё отвечают, а не в сам заказ.

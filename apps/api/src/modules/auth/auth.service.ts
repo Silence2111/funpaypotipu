@@ -20,6 +20,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { TokenService } from './token.service';
 import { TwoFactorService } from './twofactor.service';
 import { AttemptLimiter } from './attempts';
+import { emailReserved } from './email-change.service';
 import { langOf, say } from '../../i18n/texts';
 import type { Lang } from '../../i18n/lang';
 
@@ -76,7 +77,10 @@ export class AuthService {
     const exists = await this.prisma.user.findFirst({
       where: { OR: [{ email: input.email }, { profile: { username: input.username } }] },
     });
-    if (exists) throw new ConflictException('Пользователь с таким email или username уже есть');
+    // Почту, ушедшую из аккаунта меньше 7 дней назад, ещё могут вернуть по «Это не я».
+    if (exists || (await emailReserved(this.prisma, input.email))) {
+      throw new ConflictException('Пользователь с таким email или username уже есть');
+    }
 
     const passwordHash = await bcrypt.hash(input.password, 12);
     const user = await this.prisma.user.create({
