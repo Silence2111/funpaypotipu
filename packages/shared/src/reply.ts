@@ -28,6 +28,11 @@ export type ReplySample = [number, number];
 /** За сколько обычно отвечает: до 5 и 15 минут, часа, трёх часов, дольше. */
 export type ReplyTime = 'min5' | 'min15' | 'hour' | 'hours3' | 'day';
 
+/** Ник собеседника вместо {имя} или {name} в заготовке — на сайте, в автоответе и в Telegram. */
+export function fillTemplate(body: string, name: string | null | undefined): string {
+  return name ? body.replace(/\{(имя|name)\}/gi, name) : body;
+}
+
 export function normalizeCommand(text: string): string {
   return text.trim().replace(/\s+/g, ' ').toLowerCase().replace(/ё/g, 'е');
 }

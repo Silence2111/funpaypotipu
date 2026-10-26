@@ -11,6 +11,7 @@ import { Prisma, PrismaClient } from '@gamemarket/db';
 import {
   COMMAND_MAX,
   addReplySample,
+  fillTemplate,
   maskContacts,
   maskContactsExcept,
   normalizeCommand,
@@ -406,10 +407,15 @@ export class ChatService {
     const recipientId = conv.buyerId === senderId ? conv.sellerId : conv.buyerId;
     // Превью — замаскированный текст: в Telegram и пушах контакты не утекают тоже.
     const preview = masked.length > 140 ? `${masked.slice(0, 140)}…` : masked;
+    // Продавцу с заготовками в Telegram — ещё и «Заготовки».
+    const templates =
+      recipientId === conv.sellerId &&
+      (await this.prisma.replyTemplate.count({ where: { userId: recipientId } })) > 0;
     await this.notifications.notify(recipientId, 'new_message', {
       conversationId,
       preview,
       from: await this.nameOf(senderId),
+      ...(templates ? { templates: true } : {}),
     });
 
     const dto: ChatMessageDto = {
@@ -485,7 +491,7 @@ export class ChatService {
     });
     if (!template) return;
     const name = await this.nameOf(conv.buyerId);
-    const text = name ? template.body.replace(/\{(имя|name)\}/gi, name) : template.body;
+    const text = fillTemplate(template.body, name);
     const last = await this.prisma.message.findFirst({
       where: { conversationId: conv.id, senderId: conv.sellerId },
       orderBy: { createdAt: 'desc' },

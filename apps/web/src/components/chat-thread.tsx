@@ -16,6 +16,7 @@ import {
   type ChatMsg,
   type ConversationItem,
 } from '@/lib/chat';
+import { fillTemplate } from '@gamemarket/shared';
 import { Avatar } from './offers';
 import { useT } from '@/lib/i18n/client';
 
@@ -29,10 +30,6 @@ interface Template {
   /** По этой команде покупателя заготовка уходит сама. */
   command: string | null;
 }
-
-/** Ник собеседника вместо {имя} или {name} в заготовке. */
-const fillTemplate = (body: string, name: string | undefined) =>
-  name ? body.replace(/\{(имя|name)\}/gi, name) : body; // i18n-ignore
 
 /**
  * Диалог: шапка с собеседником и заказом, сообщения с днями и временем,

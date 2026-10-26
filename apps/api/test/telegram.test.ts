@@ -118,6 +118,32 @@ describe('уведомление в Telegram', () => {
     );
   });
 
+  it('продавцу с заготовками под сообщением — ещё «Заготовки»', async () => {
+    const { svc, telegram } = notifier(null);
+    await svc.notify('u1', 'new_message', { conversationId: 'c1', preview: 'Есть?', templates: true });
+    expect(telegram.notify).toHaveBeenCalledWith(
+      { id: 'u1', telegramId: '555' },
+      expect.objectContaining({
+        buttons: [[{ text: 'Ответить', data: 'rp:c1' }, { text: 'Заготовки', data: 'tl:c1' }]],
+        thread: 'c1',
+      }),
+    );
+  });
+
+  it('заказ оплачен: с ручной выдачей — «Отметить выдачу», с автовыдачей — без кнопок', async () => {
+    const { svc, telegram } = notifier(null);
+    await svc.notify('u1', 'order_paid', { orderId: 'o1', manual: true });
+    expect(telegram.notify).toHaveBeenLastCalledWith(
+      { id: 'u1', telegramId: '555' },
+      { text: expect.stringMatching(/\/orders\/o1$/), buttons: [[{ text: 'Отметить выдачу', data: 'dv:o1' }]] },
+    );
+    await svc.notify('u1', 'order_paid', { orderId: 'o2' });
+    expect(telegram.notify).toHaveBeenLastCalledWith(
+      { id: 'u1', telegramId: '555' },
+      { text: expect.stringMatching(/\/orders\/o2$/) },
+    );
+  });
+
   it('выключенная группа в Telegram не приходит', async () => {
     const { svc, telegram } = notifier({ telegram: { messages: false } });
     await svc.notify('u1', 'new_message', { conversationId: 'c1' });

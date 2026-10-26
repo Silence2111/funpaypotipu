@@ -3013,7 +3013,7 @@ async function scenarioTelegramBot(rnd) {
     };
     await link(buyer, BUYER_CHAT);
     await link(seller, SELLER_CHAT);
-    // Сделка: лот, заказ, оплата заглушкой, выдача продавцом.
+    // Сделка: лот, заказ, оплата заглушкой; выдачу продавец отмечает из бота.
     const game = await k('/catalog/games/cs2');
     const cat = game.body.categories.find((c) => c.slug === 'accounts');
     const lot = await k('/listings', {
@@ -3023,13 +3023,33 @@ async function scenarioTelegramBot(rnd) {
     const order = (await k('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot.body.id }) })).body;
     const dep = await k('/payments/deposit', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: order.id }) });
     await k('/payments/mock/callback?providerRef=' + dep.body.providerRef, { method: 'POST' });
-    await k(`/orders/${order.id}/deliver`, { method: 'POST', token: seller.token });
-    const delivered = await waitFor(() =>
-      tg.to(BUYER_CHAT).find((c) => c.body.reply_markup?.inline_keyboard?.[0]?.[0]?.callback_data === `cf:${order.id}`),
-    );
     const press = (chat, data, messageId) =>
       hook({ callback_query: { id: `q${Math.random()}`, from: { id: chat }, message: { message_id: messageId, chat: { id: chat, type: 'private' } }, data } });
     const status = async () => (await k(`/orders/${order.id}`, { token: buyer.token })).body.status;
+    const paidNote = await waitFor(() =>
+      tg.to(SELLER_CHAT).find((c) => c.body.reply_markup?.inline_keyboard?.[0]?.[0]?.callback_data === `dv:${order.id}`),
+    );
+    await press(SELLER_CHAT, `dv:${order.id}`, paidNote?.result?.message_id);
+    const dvAsk = await waitFor(() => tg.to(SELLER_CHAT).find((c) => /^Отметить выдачу по заказу/.test(c.body.text ?? '')));
+    const dvYes = dvAsk?.body.reply_markup?.inline_keyboard?.[0]?.[0];
+    const afterDvAsk = await status();
+    // Покупатель нажимает «Да» по выдаче — это кнопка не для него.
+    await press(BUYER_CHAT, `dy:${order.id}`, 6);
+    const dvForeign = await waitFor(() => tg.to(BUYER_CHAT).find((c) => c.method === 'editMessageText' && c.body.text === 'Это не ваш заказ'));
+    const afterDvForeign = await status();
+    await press(SELLER_CHAT, dvYes?.callback_data, dvAsk?.result?.message_id);
+    const dvDone = await waitFor(() =>
+      tg.to(SELLER_CHAT).find((c) => c.method === 'editMessageText' && /^Выдача отмечена: заказ/.test(c.body.text ?? '')),
+    );
+    check(
+      'Telegram: «Отметить выдачу» под «Заказ оплачен» — с переспросом; у покупателя кнопка не действует; «Да, товар передан» — заказ выдан',
+      !!paidNote && !!dvAsk && dvYes?.callback_data === `dy:${order.id}` && afterDvAsk === 'paid' && !!dvForeign &&
+        afterDvForeign === 'paid' && dvDone?.body.message_id === dvAsk?.result?.message_id && (await status()) === 'delivered',
+      JSON.stringify({ paidNote: paidNote?.body.text, dvAsk: dvAsk?.body.text, afterDvAsk, dvForeign: !!dvForeign, afterDvForeign, dvDone: dvDone?.body }),
+    );
+    const delivered = await waitFor(() =>
+      tg.to(BUYER_CHAT).find((c) => c.body.reply_markup?.inline_keyboard?.[0]?.[0]?.callback_data === `cf:${order.id}`),
+    );
     await press(BUYER_CHAT, `cf:${order.id}`, delivered?.result?.message_id);
     const question = await waitFor(() => tg.to(BUYER_CHAT).find((c) => /^Подтвердить получение по заказу/.test(c.body.text ?? '')));
     const yes = question?.body.reply_markup?.inline_keyboard?.[0]?.[0];
@@ -3071,6 +3091,34 @@ async function scenarioTelegramBot(rnd) {
       'Telegram: сообщение покупателя — продавцу с «Ответить»; ответ на него — в чат от продавца; ответ на чужое сообщение — нет',
       incomingId > 0 && !!sentNote && bodies.includes('S:Рад, что всё дошло') && !bodies.some((b) => b.endsWith('подделка')),
       JSON.stringify({ incoming: incoming?.body.text, sentNote: sentNote?.body.text, bodies: bodies.slice(-4) }),
+    );
+    // Заготовка с {имя}: под сообщением — «Заготовки», список кнопками, выбранная уходит в чат с ником покупателя.
+    const tpl = await k('/seller-tools/templates', {
+      method: 'POST', token: seller.token,
+      body: JSON.stringify({ title: 'Спасибо', body: '{имя}, спасибо за покупку. Буду рад отзыву.' }),
+    });
+    await k(`/conversations/${conv.id}/messages`, { method: 'POST', token: buyer.token, body: JSON.stringify({ body: 'Отзыв оставил' }) });
+    const withTpl = await waitFor(() =>
+      tg.to(SELLER_CHAT).find((c) => c.body.reply_markup?.inline_keyboard?.[0]?.[1]?.callback_data === `tl:${conv.id}`),
+    );
+    await press(SELLER_CHAT, `tl:${conv.id}`, withTpl?.result?.message_id);
+    const list = await waitFor(() => tg.to(SELLER_CHAT).find((c) => /^Какую заготовку прислать @tgb/.test(c.body.text ?? '')));
+    const pick = list?.body.reply_markup?.inline_keyboard?.[0]?.[0];
+    // Та же кнопка на сообщении, которое бот не связывал с диалогом, ничего не отправляет.
+    await press(SELLER_CHAT, pick?.callback_data, 9998);
+    const stale = await waitFor(() => tg.to(SELLER_CHAT).find((c) => /устарела/.test(c.body.text ?? '')));
+    await press(SELLER_CHAT, pick?.callback_data, list?.result?.message_id);
+    const tplSent = await waitFor(() =>
+      tg.to(SELLER_CHAT).find((c) => c.method === 'editMessageText' && /^Отправлено в чат с @tgb\d+: «Спасибо»/.test(c.body.text ?? '')),
+    );
+    const history2 = (await k(`/conversations/${conv.id}/messages`, { token: buyer.token })).body;
+    const fromSeller = (history2.items ?? history2).filter((m) => m.senderId === seller.id).map((m) => m.body);
+    check(
+      'Telegram: продавцу с заготовками — «Заготовки» под сообщением; выбранная уходит в чат с ником покупателя, кнопка не из списка — нет',
+      tpl.status === 201 && !!withTpl && pick?.callback_data === `tu:${tpl.body.id}` && !!stale && !!tplSent &&
+        tplSent.body.message_id === list?.result?.message_id &&
+        fromSeller.filter((b) => b === `tgb${rnd}, спасибо за покупку. Буду рад отзыву.`).length === 1,
+      JSON.stringify({ tpl: tpl.status, withTpl: withTpl?.body.reply_markup, list: list?.body, stale: !!stale, tplSent: tplSent?.body.text, fromSeller: fromSeller.slice(-3) }),
     );
   } finally {
     child.kill();

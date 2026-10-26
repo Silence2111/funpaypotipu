@@ -177,8 +177,9 @@ export class NotificationsService {
 
   /**
    * Сообщение в Telegram: заголовок, подробности и ссылка. Где действие
-   * короткое, — кнопка: «Подтвердить получение» у выданного заказа (бот
-   * переспросит), «Ответить» у сообщения из чата — ответ на само уведомление
+   * короткое, — кнопка: «Отметить выдачу» у оплаченного заказа с ручной
+   * выдачей и «Подтвердить получение» у выданного (бот переспросит),
+   * «Ответить» и «Заготовки» у сообщения из чата — ответ на само уведомление
    * тоже уйдёт в этот диалог.
    */
   private telegramMessage(
@@ -196,6 +197,9 @@ export class NotificationsService {
     const text = `${title}${preview}\n${link}`;
     const id = (k: string) => (typeof data[k] === 'string' ? (data[k] as string) : null);
     const orderId = id('orderId');
+    if (type === 'order_paid' && orderId && data.manual === true) {
+      return { text, buttons: [[{ text: say(lang, 'Отметить выдачу'), data: `dv:${orderId}` }]] };
+    }
     if (type === 'order_delivered' && orderId) {
       return {
         text,
@@ -204,9 +208,11 @@ export class NotificationsService {
     }
     const conversationId = id('conversationId');
     if (type === 'new_message' && conversationId) {
+      const reply = { text: say(lang, 'Ответить'), data: `rp:${conversationId}` };
+      const templates = { text: say(lang, 'Заготовки'), data: `tl:${conversationId}` };
       return {
         text,
-        buttons: [[{ text: say(lang, 'Ответить'), data: `rp:${conversationId}` }]],
+        buttons: [data.templates === true ? [reply, templates] : [reply]],
         thread: conversationId,
       };
     }

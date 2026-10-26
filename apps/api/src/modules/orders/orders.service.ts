@@ -370,7 +370,11 @@ export class OrdersService {
     const paid = await this.get(orderId);
     this.logEconomics(paid);
     if (!(await this.takeStock(paid))) return this.get(paid.id);
-    await this.notifications.notify(paid.sellerId, 'order_paid', { orderId: paid.id });
+    // manual — выдаёт сам продавец: в Telegram под уведомлением «Отметить выдачу».
+    await this.notifications.notify(paid.sellerId, 'order_paid', {
+      orderId: paid.id,
+      ...(paid.fulfillmentType === 'manual' ? { manual: true } : {}),
+    });
     // Сколько передать — первым сообщением в чате сделки, как на FunPay.
     const unit = (paid.listingSnapshot as { unitName?: string } | null)?.unitName;
     const howMany =

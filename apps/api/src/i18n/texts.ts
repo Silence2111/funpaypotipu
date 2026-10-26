@@ -119,6 +119,22 @@ export const EN_TEXTS: Record<string, string> = {
   'Не получилось — откройте сайт.': 'That didn’t work — open the website.',
   'Это не ваш заказ': 'This isn’t your order',
   'Диалог не найден': 'Conversation not found',
+  'Отметить выдачу': 'Mark as delivered',
+  Заготовки: 'Templates',
+  'Хорошо, не отмечаем. Заказ {number} ждёт выдачи на сайте: {link}':
+    'OK, not marking it. Order {number} is waiting for delivery on the website: {link}',
+  'Заказ {number} уже не ждёт выдачи: {link}':
+    'Order {number} is no longer waiting for delivery: {link}',
+  'Отметить выдачу по заказу {number}? Отмечайте, только когда товар уже передан покупателю: после отметки пойдёт срок, по истечении которого заказ подтвердится сам. Заказ на сайте: {link}':
+    'Mark order {number} as delivered? Do this only once the buyer has the item: after that, a countdown starts and the order confirms itself when it ends. The order on the website: {link}',
+  'Да, товар передан': 'Yes, it’s delivered',
+  'Выдача отмечена: заказ {number} ждёт подтверждения покупателя. {link}':
+    'Marked as delivered: order {number} is waiting for the buyer to confirm. {link}',
+  'Заготовок пока нет — их создают в «Инструментах продавца» на сайте: {link}':
+    'No templates yet — create them in Seller tools on the website: {link}',
+  'Какую заготовку прислать {name}?': 'Which template should go to {name}?',
+  'Заготовка не найдена — возможно, её удалили.': 'Template not found — it may have been deleted.',
+  'Отправлено в чат с {name}: «{title}».': 'Sent to the chat with {name}: “{title}”.',
   'Подтвердите новую почту — GameMarket': 'Confirm your new email — GameMarket',
   'Чтобы сделать эту почту почтой аккаунта GameMarket, откройте ссылку (действует сутки): {link}\nЕсли вы ничего не меняли — проигнорируйте письмо.':
     'To make this the email of your GameMarket account, open the link (it works for a day): {link}\nIf you didn’t change anything, ignore this email.',

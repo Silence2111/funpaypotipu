@@ -76,6 +76,7 @@ function chat(
         async ({ where }: { where: { command: string } }) =>
           opts.templates?.find((t) => t.command === where.command) ?? null,
       ),
+      count: vi.fn(async () => opts.templates?.length ?? 0),
     },
     profile: {
       findUnique: vi.fn(async ({ select }: { select: Row }) =>
@@ -130,6 +131,30 @@ describe('автоответ на команду', () => {
     });
     // Уведомление — только продавцу о сообщении покупателя.
     expect(notifications.notify).toHaveBeenCalledTimes(1);
+  });
+
+  it('продавцу с заготовками в уведомлении — отметка для «Заготовок» в Telegram; покупателю — нет', async () => {
+    const withTemplates = chat({ greeting: null, templates });
+    await withTemplates.svc.sendMessage('c1', 'buyer', 'Есть в наличии?');
+    expect(withTemplates.notifications.notify).toHaveBeenLastCalledWith(
+      'seller',
+      'new_message',
+      expect.objectContaining({ conversationId: 'c1', templates: true }),
+    );
+    await withTemplates.svc.sendMessage('c1', 'seller', 'Есть');
+    expect(withTemplates.notifications.notify).toHaveBeenLastCalledWith(
+      'buyer',
+      'new_message',
+      expect.not.objectContaining({ templates: true }),
+    );
+
+    const without = chat({ greeting: null });
+    await without.svc.sendMessage('c1', 'buyer', 'Есть в наличии?');
+    expect(without.notifications.notify).toHaveBeenLastCalledWith(
+      'seller',
+      'new_message',
+      expect.not.objectContaining({ templates: true }),
+    );
   });
 
   it('первое сообщение — команда: сначала приветствие, потом ответ', async () => {

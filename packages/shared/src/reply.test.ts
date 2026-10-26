@@ -3,6 +3,7 @@ import {
   REPLY_CAP_SEC,
   REPLY_SAMPLES,
   addReplySample,
+  fillTemplate,
   normalizeCommand,
   replyTime,
   type ReplySample,
@@ -48,5 +49,12 @@ describe('время ответа', () => {
     expect(list[0]).toEqual([sec(NOW) + 24, 24]);
     expect(addReplySample([], new Date(NOW), 3 * 86400)[0]![1]).toBe(REPLY_CAP_SEC);
     expect(addReplySample([[1, 'x'], 5], new Date(NOW), -3)).toEqual([[sec(NOW), 0]]);
+  });
+});
+
+describe('заготовка', () => {
+  it('{имя} и {name} — ник собеседника, без ника — как есть', () => {
+    expect(fillTemplate('Привет, {имя}! Hi {Name}', 'olga')).toBe('Привет, olga! Hi olga');
+    expect(fillTemplate('Привет, {имя}!', null)).toBe('Привет, {имя}!');
   });
 });

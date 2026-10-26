@@ -1,5 +1,6 @@
 import { HttpException, Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@gamemarket/db';
+import { fillTemplate } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import {
   TelegramService,
@@ -19,10 +20,12 @@ const MAX_TEXT = 4000;
 
 /**
  * Действия из Telegram — те же, что на сайте, и с теми же проверками:
- * подтвердить получение может только покупатель выданного заказа, ответить —
- * только участник диалога (с чёрным списком и скрытием контактов, как в
- * чате). Подтверждение — с переспросом: деньги уходят продавцу, а вернуть их
- * можно только через спор.
+ * подтвердить получение может только покупатель выданного заказа, отметить
+ * выдачу — только продавец оплаченного заказа с ручной выдачей, ответить и
+ * прислать заготовку — только участник диалога (с чёрным списком и скрытием
+ * контактов, как в чате). Подтверждение и выдача — с переспросом: деньги
+ * уходят продавцу, а вернуть их можно только через спор; отметка выдачи
+ * запускает срок, после которого заказ подтвердится сам.
  */
 @Injectable()
 export class TelegramActionsService implements TelegramActions, OnModuleInit {
@@ -39,12 +42,20 @@ export class TelegramActionsService implements TelegramActions, OnModuleInit {
     this.telegram.useActions(this);
   }
 
-  /** Нажатие кнопки: cf — спросить, cy — подтвердить, cn — передумал, rp — ответить. */
-  async press(user: TgUser, data: string, lang: Lang): Promise<TgAnswer> {
+  /**
+   * Нажатие кнопки. Получение: cf — спросить, cy — подтвердить, cn — передумал.
+   * Выдача: dv — спросить, dy — отметить, dn — передумал. Чат: rp — ответить,
+   * tl — список заготовок, tu — прислать заготовку в диалог сообщения со
+   * списком (thread).
+   */
+  async press(user: TgUser, data: string, lang: Lang, thread?: string): Promise<TgAnswer> {
     const [kind, id] = data.split(':', 2);
     if (!id || !UUID.test(id)) return { text: say(lang, 'Кнопка устарела — откройте сайт.') };
     if (kind === 'rp') return this.askReply(user, id, lang);
     if (kind === 'cf' || kind === 'cy' || kind === 'cn') return this.confirm(kind, user, id, lang);
+    if (kind === 'dv' || kind === 'dy' || kind === 'dn') return this.deliver(kind, user, id, lang);
+    if (kind === 'tl') return this.templates(user, id, lang);
+    if (kind === 'tu' && thread) return this.useTemplate(user, id, thread, lang);
     return { text: say(lang, 'Кнопка устарела — откройте сайт.') };
   }
 
@@ -112,12 +123,108 @@ export class TelegramActionsService implements TelegramActions, OnModuleInit {
     };
   }
 
-  private async askReply(user: TgUser, conversationId: string, lang: Lang): Promise<TgAnswer> {
-    const conv = await this.prisma.conversation.findUnique({
-      where: { id: conversationId },
-      select: { buyerId: true, sellerId: true },
+  private async deliver(kind: 'dv' | 'dy' | 'dn', user: TgUser, id: string, lang: Lang) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      select: { publicNumber: true, sellerId: true, status: true, fulfillmentType: true },
     });
-    if (!conv || (conv.buyerId !== user.id && conv.sellerId !== user.id)) {
+    const replace = kind !== 'dv';
+    if (!order || order.sellerId !== user.id) {
+      return { replace, text: say(lang, 'Это не ваш заказ') };
+    }
+    const vars = { number: order.publicNumber, link: `${this.web()}/orders/${id}` };
+    if (kind === 'dn') {
+      return {
+        replace,
+        text: say(lang, 'Хорошо, не отмечаем. Заказ {number} ждёт выдачи на сайте: {link}', vars),
+      };
+    }
+    // Автовыдача отмечается сама — кнопка только для ручной.
+    if (order.status !== 'paid' || order.fulfillmentType !== 'manual') {
+      return { replace, text: say(lang, 'Заказ {number} уже не ждёт выдачи: {link}', vars) };
+    }
+    if (kind === 'dv') {
+      return {
+        text: say(
+          lang,
+          'Отметить выдачу по заказу {number}? Отмечайте, только когда товар уже передан покупателю: после отметки пойдёт срок, по истечении которого заказ подтвердится сам. Заказ на сайте: {link}',
+          vars,
+        ),
+        buttons: [
+          [
+            { text: say(lang, 'Да, товар передан'), data: `dy:${id}` },
+            { text: say(lang, 'Нет'), data: `dn:${id}` },
+          ],
+        ],
+      };
+    }
+    try {
+      await this.orders.markDelivered(id, user.id);
+    } catch (e) {
+      return { replace, text: this.reason(e, lang) };
+    }
+    return {
+      replace,
+      text: say(
+        lang,
+        'Выдача отмечена: заказ {number} ждёт подтверждения покупателя. {link}',
+        vars,
+      ),
+    };
+  }
+
+  /** Заготовки продавца — кнопками; список привязан к диалогу, выбранная уходит туда. */
+  private async templates(user: TgUser, conversationId: string, lang: Lang): Promise<TgAnswer> {
+    if (!(await this.participant(user.id, conversationId))) {
+      return { text: say(lang, 'Диалог не найден') };
+    }
+    const list = await this.prisma.replyTemplate.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, title: true },
+    });
+    if (!list.length) {
+      return {
+        text: say(
+          lang,
+          'Заготовок пока нет — их создают в «Инструментах продавца» на сайте: {link}',
+          { link: `${this.web()}/cabinet/tools` },
+        ),
+      };
+    }
+    const name = await this.otherName(user.id, conversationId);
+    return {
+      text: say(lang, 'Какую заготовку прислать {name}?', { name }),
+      buttons: list.map((t) => [{ text: t.title, data: `tu:${t.id}` }]),
+      thread: conversationId,
+    };
+  }
+
+  private async useTemplate(user: TgUser, id: string, conversationId: string, lang: Lang) {
+    const template = await this.prisma.replyTemplate.findUnique({
+      where: { id },
+      select: { userId: true, title: true, body: true },
+    });
+    if (!template || template.userId !== user.id) {
+      return { replace: true, text: say(lang, 'Заготовка не найдена — возможно, её удалили.') };
+    }
+    const other = await this.otherUsername(user.id, conversationId);
+    try {
+      await this.chat.sendMessage(conversationId, user.id, fillTemplate(template.body, other));
+    } catch (e) {
+      return { replace: true, text: this.reason(e, lang) };
+    }
+    return {
+      replace: true,
+      text: say(lang, 'Отправлено в чат с {name}: «{title}».', {
+        name: other ? `@${other}` : '—',
+        title: template.title,
+      }),
+    };
+  }
+
+  private async askReply(user: TgUser, conversationId: string, lang: Lang): Promise<TgAnswer> {
+    if (!(await this.participant(user.id, conversationId))) {
       return { text: say(lang, 'Диалог не найден') };
     }
     const name = await this.otherName(user.id, conversationId);
@@ -128,8 +235,21 @@ export class TelegramActionsService implements TelegramActions, OnModuleInit {
     };
   }
 
-  /** Ник собеседника в диалоге. */
+  private async participant(userId: string, conversationId: string) {
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { buyerId: true, sellerId: true },
+    });
+    return !!conv && (conv.buyerId === userId || conv.sellerId === userId);
+  }
+
+  /** Ник собеседника в диалоге — «@ник» для текста бота. */
   private async otherName(userId: string, conversationId: string) {
+    const username = await this.otherUsername(userId, conversationId);
+    return username ? `@${username}` : '—';
+  }
+
+  private async otherUsername(userId: string, conversationId: string) {
     const conv = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       select: { buyerId: true, sellerId: true },
@@ -141,7 +261,7 @@ export class TelegramActionsService implements TelegramActions, OnModuleInit {
           select: { username: true },
         })
       : null;
-    return profile?.username ? `@${profile.username}` : '—';
+    return profile?.username ?? null;
   }
 
   /** Причина отказа — та же, что на сайте, на языке пользователя. */

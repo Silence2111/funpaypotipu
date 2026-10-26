@@ -57,7 +57,8 @@ export interface TgUser {
  * чат; бот о заказах не знает и только передаёт нажатия и ответы.
  */
 export interface TelegramActions {
-  press(user: TgUser, data: string, lang: Lang): Promise<TgAnswer>;
+  /** thread — диалог сообщения с кнопкой, если оно из чата (список заготовок). */
+  press(user: TgUser, data: string, lang: Lang, thread?: string): Promise<TgAnswer>;
   reply(user: TgUser, conversationId: string, text: string, lang: Lang): Promise<TgAnswer>;
 }
 
@@ -256,7 +257,8 @@ export class TelegramService {
       return;
     }
     if (!this.actions || !q.data) return;
-    const out = await this.actions.press(holder, q.data, lang);
+    const thread = (await this.threadOf(chatId, q.message.message_id, holder.id)) ?? undefined;
+    const out = await this.actions.press(holder, q.data, lang, thread);
     await this.answer(chatId, holder.id, out, q.message.message_id);
   }
 
@@ -268,19 +270,26 @@ export class TelegramService {
     text: string | undefined,
     lang: Lang,
   ): Promise<boolean> {
-    const ref = await this.prisma.telegramReply.findUnique({
-      where: { chatId_messageId: { chatId, messageId } },
-    });
-    if (!ref || ref.userId !== holder.id || ref.createdAt.getTime() < Date.now() - REPLY_TTL_MS) {
-      return false;
-    }
+    const conversationId = await this.threadOf(chatId, messageId, holder.id);
+    if (!conversationId) return false;
     if (!text?.trim()) {
       await this.send(chatId, say(lang, 'Отправить можно только текст: фото и файлы — в чате на сайте.'));
       return true;
     }
     if (!this.actions) return false;
-    await this.answer(chatId, holder.id, await this.actions.reply(holder, ref.conversationId, text.trim(), lang));
+    await this.answer(chatId, holder.id, await this.actions.reply(holder, conversationId, text.trim(), lang));
     return true;
+  }
+
+  /** Диалог, к которому относится сообщение бота в этом чате, — если оно этого пользователя и не старше недели. */
+  private async threadOf(chatId: string, messageId: number, userId: string) {
+    const ref = await this.prisma.telegramReply.findUnique({
+      where: { chatId_messageId: { chatId, messageId } },
+    });
+    if (!ref || ref.userId !== userId || ref.createdAt.getTime() < Date.now() - REPLY_TTL_MS) {
+      return null;
+    }
+    return ref.conversationId;
   }
 
   /** Ответ бота: заменить сообщение с кнопкой или прислать новое (с ответом в диалог). */
