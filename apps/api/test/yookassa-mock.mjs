@@ -4,6 +4,10 @@
  * рублях строкой, переход со страницы оплаты на return_url. Оплату
  * «совершает» сценарий: mock.settle(id, 'succeeded') меняет статус и шлёт
  * уведомление на вебхук магазина — без подписи, как настоящая ЮKassa.
+ * Картой платят на /checkout/<id>?card=<номер> (по умолчанию тестовая
+ * •••• 4477): у платежа появляется payment_method.card без номера. Платёж
+ * в две стадии (capture: false) после оплаты ждёт подтверждения, отмена —
+ * POST /v3/payments/<id>/cancel.
  * Выплаты — свои ключи агента, телефон и банк СБП, кошелёк ЮMoney, карта
  * токеном из виджета; итог — mock.settlePayout(id, 'succeeded' | 'canceled').
  * Виджет карты — /payouts-data/widget.js: тот же класс PayoutsData, что у
@@ -96,13 +100,35 @@ export function startYooKassaMock(
       });
     });
 
-  /** Статус платежа и уведомление магазину; amount — подменить сумму (проверка сверки). */
+  /** Карта платежа так, как её отдаёт ЮKassa: без номера. */
+  const cardOf = (number) => ({
+    first6: number.slice(0, 6),
+    last4: number.slice(-4),
+    expiry_month: '12',
+    expiry_year: '2030',
+    card_type: number.startsWith('4') ? 'Visa' : number.startsWith('2') ? 'Mir' : 'MasterCard',
+    issuer_country: 'RU',
+  });
+
+  /**
+   * Статус платежа и уведомление магазину; amount — подменить сумму (проверка
+   * сверки), card — номер карты, которой заплатили.
+   */
   async function settle(id, status, opts = {}) {
     const p = payments.get(id);
     if (!p) throw new Error(`нет платежа ${id}`);
     p.status = status;
-    p.paid = status === 'succeeded';
+    p.paid = status === 'succeeded' || status === 'waiting_for_capture';
     if (opts.amount) p.amount = { ...p.amount, value: opts.amount };
+    // Карта — при оплате; отмена после оплаты карту не меняет.
+    if (p.payment_method_data?.type === 'bank_card' && (opts.card || !p.payment_method)) {
+      p.payment_method = {
+        type: 'bank_card',
+        id: p.id,
+        saved: false,
+        card: cardOf(opts.card ?? '5555555555554477'),
+      };
+    }
     if (!webhook) return null;
     const res = await fetch(webhook, {
       method: 'POST',
@@ -233,7 +259,10 @@ export function startYooKassaMock(
     if (parts[0] === 'checkout' && req.method === 'GET') {
       const p = payments.get(parts[1]);
       if (!p) return send(res, 404, { type: 'error', code: 'not_found' });
-      await settle(p.id, url.searchParams.get('result') === 'canceled' ? 'canceled' : 'succeeded');
+      const paidStatus = p.capture === false ? 'waiting_for_capture' : 'succeeded';
+      await settle(p.id, url.searchParams.get('result') === 'canceled' ? 'canceled' : paidStatus, {
+        card: url.searchParams.get('card') ?? undefined,
+      });
       res.writeHead(302, { Location: p.confirmation.return_url });
       return res.end();
     }
@@ -259,16 +288,17 @@ export function startYooKassaMock(
         body &&
         /^\d+\.\d{2}$/.test(body.amount?.value ?? '') &&
         body.amount.currency === 'RUB' &&
-        body.capture === true &&
+        typeof body.capture === 'boolean' &&
         body.confirmation?.type === 'redirect' &&
         /^https?:\/\//.test(body.confirmation.return_url ?? '') &&
-        typeof body.metadata?.providerRef === 'string';
+        (typeof body.metadata?.providerRef === 'string' || body.capture === false);
       if (!ok) return send(res, 400, { type: 'error', code: 'invalid_request' });
       const id = `yk-${randomBytes(8).toString('hex')}`;
       const payment = {
         id,
         status: 'pending',
         paid: false,
+        capture: body.capture,
         amount: body.amount,
         description: body.description,
         metadata: body.metadata,
@@ -289,6 +319,24 @@ export function startYooKassaMock(
     if (req.method === 'GET' && parts.length === 3) {
       const p = payments.get(parts[2]);
       return p ? send(res, 200, p) : send(res, 404, { type: 'error', code: 'not_found' });
+    }
+
+    // Отмена платежа, ждущего подтверждения: блокировка на карте снимается.
+    if (req.method === 'POST' && parts.length === 4 && parts[3] === 'cancel') {
+      const p = payments.get(parts[2]);
+      if (!p) return send(res, 404, { type: 'error', code: 'not_found' });
+      if (!req.headers['idempotence-key'])
+        return send(res, 400, {
+          type: 'error',
+          code: 'invalid_request',
+          parameter: 'Idempotence-Key',
+        });
+      if (p.status === 'canceled') return send(res, 200, p);
+      if (p.status !== 'waiting_for_capture')
+        return send(res, 400, { type: 'error', code: 'invalid_request' });
+      p.cancelled_by_shop = true;
+      await settle(p.id, 'canceled');
+      return send(res, 200, p);
     }
     return send(res, 405, { type: 'error', code: 'method_not_allowed' });
   });

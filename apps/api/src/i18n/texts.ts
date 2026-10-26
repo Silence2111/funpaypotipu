@@ -88,6 +88,12 @@ export const EN_TEXTS: Record<string, string> = {
     'Your GameMarket account email was changed to {email} after an account recovery request: our staff checked the documents against your ID check. If it wasn’t you, reply to this email.',
   'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сделки из заявки подтвердили их участники. Если это не вы — ответьте на это письмо.':
     'Your GameMarket account email was changed to {email} after an account recovery request: the other parties confirmed the deals described in it. If it wasn’t you, reply to this email.',
+  'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: заявитель заплатил картой, которой платили в аккаунте. Если это не вы — ответьте на это письмо.':
+    'Your GameMarket account email was changed to {email} after an account recovery request: the requester paid with a card previously used in the account. If it wasn’t you, reply to this email.',
+  'Восстановление доступа: проверка картой — GameMarket':
+    'Account recovery: card check — GameMarket',
+  'Сотрудник проверяет заявку на восстановление доступа. Заплатите 1 ₽ картой, которой вы платили на GameMarket или на которую выводили деньги: сумма только заблокируется и сразу вернётся (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.':
+    'Our staff are reviewing your account recovery request. Pay 1 ₽ with a card you’ve paid with on GameMarket or withdrawn money to: the amount is only put on hold and released right away (the link works for a week): {link}\nIf you didn’t file this request, ignore this email.',
   'Восстановление доступа: опишите сделки — GameMarket':
     'Account recovery: describe your deals — GameMarket',
   'Сотрудник проверяет заявку на восстановление доступа. Проверки личности у аккаунта нет, поэтому опишите две-три сделки с разными продавцами или покупателями — мы спросим их, совпадает ли описание (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.':

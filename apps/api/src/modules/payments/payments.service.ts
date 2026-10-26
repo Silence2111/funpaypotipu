@@ -182,7 +182,7 @@ export class PaymentsService {
     const outcome = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.payment.updateMany({
         where: { providerRef: event.providerRef, status: { not: 'succeeded' } },
-        data: { status: 'succeeded' },
+        data: { status: 'succeeded', ...(event.card ? { card: { ...event.card } } : {}) },
       });
       if (claimed.count === 0) return 'duplicate' as const;
       if (payment.orderId) return this.orders.capturePayment(tx, payment);

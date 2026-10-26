@@ -136,11 +136,11 @@ export const AUTH: Record<string, string> = {
   'Не помните тот пароль? Заявка в поддержку': 'Don’t remember that password? Ask support',
   // Нет доступа и к почте аккаунта: новая почта и документы по ссылке
   'Укажите почту, на которую ответить': 'Enter the email to reply to',
-  'Если аккаунт с такой почтой есть, сотрудник напишет на новую почту: попросит селфи с документом, если проверка личности пройдена, или описать сделки. Решение — не раньше чем через 3 дня.':
-    'If an account with this email exists, staff will write to the new email: they’ll ask for a selfie with your ID if the account has passed the ID check, or for a description of your deals. The decision takes at least 3 days.',
+  'Если аккаунт с такой почтой есть, сотрудник напишет на новую почту: попросит заплатить 1 ₽ картой, которой вы платили, селфи с документом или описать сделки. Решение — не раньше чем через 3 дня.':
+    'If an account with this email exists, staff will write to the new email and ask you to pay 1 ₽ with a card you’ve paid with, send a selfie with your ID, or describe your deals. The decision takes at least 3 days.',
   'Нет доступа и к почте аккаунта': 'I can’t access the account email either',
-  'Сотрудник напишет на новую почту и попросит селфи с документом, если у аккаунта пройдена проверка личности, или описать сделки — их подтвердит другая сторона.':
-    'Staff will write to the new email and ask for a selfie with your ID if the account has passed the ID check, or for a description of your deals — the other parties will confirm it.',
+  'Сотрудник напишет на новую почту и попросит подтвердить, что аккаунт ваш: картой, которой вы платили, селфи с документом, если проверка личности пройдена, или описанием сделок.':
+    'Staff will write to the new email and ask you to prove the account is yours: with a card you’ve paid with, a selfie with your ID if the account has passed the ID check, or a description of your deals.',
   'Новая почта для связи': 'New email for contact',
   'Если сотрудник подтвердит, что аккаунт ваш, она станет почтой аккаунта.':
     'If staff confirm the account is yours, it becomes the account email.',
@@ -171,6 +171,19 @@ export const AUTH: Record<string, string> = {
   'Опишите хотя бы две сделки': 'Describe at least two deals',
   'Опишите сделку подробнее — от 20 символов': 'Describe the deal in more detail — at least 20 characters',
   'Не удалось отправить описание. Попробуйте ещё раз.': 'Couldn’t send the description. Try again.',
+  // «Проверка картой» — 1 ₽ блокируется и сразу снимается
+  'Проверка картой': 'Card check',
+  'Готово: блокировка 1 ₽ снята. Сотрудник сверит карту и ответит на эту почту — не раньше чем через 3 дня после заявки.':
+    'Done: the 1 ₽ hold has been released. Staff will check the card and reply to this email no sooner than 3 days after the request.',
+  'Ждём ответа банка…': 'Waiting for the bank…',
+  'Заплатите 1 ₽ картой, которой вы платили на GameMarket или на которую выводили деньги. Сумма только заблокируется на карте и сразу вернётся, а мы сверим первые 6 и последние 4 цифры с прошлыми оплатами.':
+    'Pay 1 ₽ with a card you’ve paid with on GameMarket or withdrawn money to. The amount is only put on hold and released right away, and we’ll compare the first 6 and last 4 digits with your past payments.',
+  'Оплата не прошла. Попробуйте ещё раз — той же картой или другой, которой платили на GameMarket.':
+    'The payment didn’t go through. Try again — with the same card or another one you’ve paid with on GameMarket.',
+  'Заплатить 1 ₽ картой': 'Pay 1 ₽ by card',
+  'Номер карты вводится на странице ЮKassa — площадка его не видит и не хранит.':
+    'You enter the card number on the YooKassa page — the marketplace neither sees nor stores it.',
+  'Не удалось перейти к оплате. Попробуйте ещё раз.': 'Couldn’t go to the payment page. Try again.',
   // «Это не я» из письма «Вход с кодом из приложения включён»
   'Выключить вход с кодом': 'Turn off the sign-in code',
   'Вход с кодом из приложения включили не вы? Введите пароль, который был у аккаунта в тот момент, и задайте новый.':

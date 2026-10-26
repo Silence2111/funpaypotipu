@@ -32,7 +32,20 @@ const fits = (r: Row, where: Row) =>
 /** Другая сторона сделок: ник → id и сколько завершённых сделок с аккаунтом. */
 type Parties = Record<string, { id: string; deals: number }>;
 
-function setup(opts: { kyc?: boolean; taken?: number; parties?: Parties } = {}) {
+/** Оплата картой в аккаунте: карта — у ЮKassa или уже запомнена. */
+type PaidRow = { id: string; externalId: string; card: Row | null; createdAt: Date };
+/** Платёж у тестовой ЮKassa: статус и карта. */
+type Hold = { id: string; status: string; url?: string; card?: Row; metadata: Row };
+
+function setup(
+  opts: {
+    kyc?: boolean;
+    taken?: number;
+    parties?: Parties;
+    payments?: PaidRow[];
+    yookassa?: boolean;
+  } = {},
+) {
   const recs: Row[] = [];
   const deals: Row[] = [];
   const cleared: string[] = [];
@@ -97,6 +110,17 @@ function setup(opts: { kyc?: boolean; taken?: number; parties?: Parties } = {}) 
       ),
       count: vi.fn(async () => 0),
     },
+    payment: {
+      count: vi.fn(async () => (opts.payments ?? []).length),
+      findMany: vi.fn(async () => opts.payments ?? []),
+      update: vi.fn(async ({ where, data }: { where: { id: string }; data: Row }) =>
+        Object.assign(
+          opts.payments!.find((p) => p.id === where.id)!,
+          data,
+        ),
+      ),
+    },
+    payout: { count: vi.fn(async () => 0), findMany: vi.fn(async () => []) },
     order: {
       count: vi.fn(
         async ({ where }: { where: { OR?: Array<{ sellerId?: string }> } }) =>
@@ -151,6 +175,21 @@ function setup(opts: { kyc?: boolean; taken?: number; parties?: Parties } = {}) 
   };
   const scanner = { scan: vi.fn(async () => ({ clean: true })) };
   const mail = { enabled: true, send: vi.fn(async () => undefined) };
+  const holds = new Map<string, Hold>();
+  let held = 0;
+  const yookassa = {
+    enabled: opts.yookassa ?? true,
+    createHold: vi.fn(async (input: { metadata: Row }) => {
+      const id = `h${++held}`;
+      holds.set(id, { id, status: 'pending', url: `https://yk/${id}`, metadata: input.metadata });
+      return { id, url: `https://yk/${id}` };
+    }),
+    payment: vi.fn(async (id: string) => holds.get(id) ?? null),
+    cancel: vi.fn(async (id: string) => {
+      holds.get(id)!.status = 'canceled';
+    }),
+  };
+  const encryption = { decrypt: (v: string) => v };
   const svc = new RecoveryService(
     prisma as never,
     notifications as never,
@@ -159,6 +198,8 @@ function setup(opts: { kyc?: boolean; taken?: number; parties?: Parties } = {}) 
     storage as never,
     scanner as never,
     mail as never,
+    yookassa as never,
+    encryption as never,
   );
   const ask = (email = 'Owner@e.x') =>
     svc.request(
@@ -198,6 +239,8 @@ function setup(opts: { kyc?: boolean; taken?: number; parties?: Parties } = {}) 
     tokens,
     mail,
     storage,
+    yookassa,
+    holds,
     ask,
     askNew,
     docsToken,
@@ -556,5 +599,122 @@ describe('нет проверки личности — по сделкам', () 
     ).rejects.toThrow(/Заявку подал не я/);
     // Заявка ждёт решения: сотрудник может восстановить на прежнюю почту или отклонить.
     expect(objected.recs[0]!.status).toBe('pending');
+  });
+});
+
+describe('проверка картой', () => {
+  const OLD = new Date(Date.now() - 40 * 86_400_000);
+  const MINE = { first6: '220220', last4: '4477' };
+  const paid = (at = OLD): PaidRow[] => [
+    { id: 'pay1', externalId: 'yk1', card: { ...MINE }, createdAt: at },
+  ];
+  /** Банк ответил ЮKassa: сумма заблокирована (или отклонена) с этой карты. */
+  const bank = (holds: Map<string, Hold>, id: string, status: string, card: Row) =>
+    Object.assign(holds.get(id)!, { status, card });
+  /** Заявка с новой почтой и ссылка «Проверка картой». */
+  async function asked(opts: Parameters<typeof setup>[0] = {}) {
+    const t = setup({ payments: paid(), ...opts });
+    await t.askNew();
+    await t.svc.requestCard('r1', 'staff');
+    const later = new Date((t.recs[0]!.createdAt as Date).getTime() + RECOVERY_WAIT_MS);
+    return { ...t, token: t.docsToken(), later };
+  }
+
+  it('просят только с ЮKassa и если в аккаунте была карта; ссылка — своя', async () => {
+    const off = setup({ payments: paid(), yookassa: false });
+    await off.askNew();
+    await expect(off.svc.requestCard('r1', 'staff')).rejects.toThrow(/ЮKassa/);
+    const none = setup();
+    await none.askNew();
+    await expect(none.svc.requestCard('r1', 'staff')).rejects.toThrow(/не с чем/);
+
+    const { svc, mail, token } = await asked();
+    expect(mail.send).toHaveBeenLastCalledWith(
+      'new@mail.x',
+      expect.any(String),
+      expect.stringMatching(/\/recover\/card\?token=/),
+    );
+    await expect(svc.cardStatus(token)).resolves.toEqual({ ok: true, state: 'open' });
+    await expect(svc.dealsStatus(token)).rejects.toThrow(/недействительна/);
+  });
+
+  it('1 ₽ блокируется без списания, одна блокировка на ссылку; карта сверена — блокировка снята', async () => {
+    const { svc, yookassa, holds, recs, token } = await asked();
+    const first = await svc.cardPay(token);
+    expect(yookassa.createHold).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 100n,
+        metadata: { purpose: 'recovery_card', recoveryId: 'r1' },
+      }),
+    );
+    // Вернулся, не заплатив, — та же страница ЮKassa, вторая блокировка не нужна.
+    await expect(svc.cardPay(token)).resolves.toEqual(first);
+    expect(yookassa.createHold).toHaveBeenCalledTimes(1);
+    await expect(svc.cardStatus(token)).resolves.toEqual({ ok: true, state: 'waiting' });
+    bank(holds, 'h1', 'waiting_for_capture', MINE);
+    await expect(svc.cardStatus(token)).resolves.toEqual({ ok: true, state: 'done' });
+    await flush();
+    expect(yookassa.cancel).toHaveBeenCalledWith('h1');
+    expect(recs[0]!.cardResult).toMatchObject({ matched: true, source: 'payment', last4: '4477' });
+    await expect(svc.cardPay(token)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('отклонённый банком платёж — не доказательство, попытку можно повторить', async () => {
+    const { svc, yookassa, holds, recs, token } = await asked();
+    await svc.cardPay(token);
+    bank(holds, 'h1', 'canceled', MINE);
+    await expect(svc.cardStatus(token)).resolves.toEqual({ ok: true, state: 'open', failed: true });
+    expect(recs[0]!.cardCheckedAt ?? null).toBeNull();
+    await svc.cardPay(token);
+    expect(yookassa.createHold).toHaveBeenCalledTimes(2);
+  });
+
+  it('у старой оплаты карту спрашивают у ЮKassa и запоминают', async () => {
+    const payments: PaidRow[] = [{ id: 'pay1', externalId: 'yk-old', card: null, createdAt: OLD }];
+    const { svc, holds, recs, token, prisma } = await asked({ payments });
+    holds.set('yk-old', { id: 'yk-old', status: 'succeeded', card: { ...MINE }, metadata: {} });
+    await svc.cardPay(token);
+    bank(holds, 'h1', 'waiting_for_capture', MINE);
+    await svc.cardStatus(token);
+    expect(recs[0]!.cardResult).toMatchObject({ matched: true });
+    expect(prisma.payment.update).toHaveBeenCalledWith({
+      where: { id: 'pay1' },
+      data: { card: MINE },
+    });
+  });
+
+  it('на новую почту по карте — и без проверки личности, и при возражении; чужая или свежая карта — нельзя', async () => {
+    const ok = await asked();
+    await ok.svc.cardPay(ok.token);
+    bank(ok.holds, 'h1', 'waiting_for_capture', MINE);
+    await ok.svc.cardStatus(ok.token);
+    await ok.svc.object('u1', 'r1', { userAgent: CHROME });
+    await ok.svc.restoreToNewEmail('r1', 'staff', undefined, ok.later);
+    expect(ok.recs[0]!.status).toBe('restored');
+    expect(ok.mail.send).toHaveBeenCalledWith(
+      'owner@e.x',
+      expect.any(String),
+      expect.stringMatching(/заплатил картой/),
+    );
+    expect(ok.audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ after: expect.objectContaining({ proof: 'card' }) }),
+    );
+
+    const other = await asked();
+    await other.svc.cardPay(other.token);
+    bank(other.holds, 'h1', 'waiting_for_capture', { first6: '427600', last4: '1234' });
+    await other.svc.cardStatus(other.token);
+    await expect(
+      other.svc.restoreToNewEmail('r1', 'staff', undefined, other.later),
+    ).rejects.toThrow(/не совпала/);
+
+    // Карту завели за 3 дня до заявки — мог и чужой, пока сидел в аккаунте.
+    const fresh = await asked({ payments: paid(new Date(Date.now() - 3 * 86_400_000)) });
+    await fresh.svc.cardPay(fresh.token);
+    bank(fresh.holds, 'h1', 'waiting_for_capture', MINE);
+    await fresh.svc.cardStatus(fresh.token);
+    await expect(
+      fresh.svc.restoreToNewEmail('r1', 'staff', undefined, fresh.later),
+    ).rejects.toThrow(/2 недели/);
   });
 });

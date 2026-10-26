@@ -17,6 +17,9 @@ import { NOT_ME_RESET_TTL, passwordStamp, type RequestCtx } from '../auth/auth.s
 import { SAFE_KEY, StorageService } from '../storage/storage.service';
 import { ScanService } from '../antivirus/scan.service';
 import { MailService } from '../mail/mail.service';
+import { EncryptionService } from '../crypto/encryption.service';
+import { CARD_CHECK_PURPOSE, YooKassaProvider } from '../payments/yookassa.provider';
+import type { CardPrint } from '../payments/payment.provider';
 import { langOf, say } from '../../i18n/texts';
 
 /**
@@ -38,7 +41,25 @@ export const RECOVERY_DOCS_TTL = 7 * 86_400;
 export const RECOVERY_DEALS_NEEDED = 2;
 export const DEAL_ANSWERS = ['match', 'mismatch', 'unsure'] as const;
 export type DealAnswer = (typeof DEAL_ANSWERS)[number];
-type LinkPurpose = 'recovery_docs' | 'recovery_deals';
+type LinkPurpose = 'recovery_docs' | 'recovery_deals' | 'recovery_card';
+
+/** Проверка картой: на карте блокируется 1 ₽, потом блокировка отменяется. */
+export const CARD_CHECK_AMOUNT = 100n;
+/**
+ * Карта засчитывается, если ею платили в аккаунте (или на неё выводили) не
+ * позже чем за 2 недели до заявки: свежую карту мог завести и чужой, пока
+ * сидел в аккаунте.
+ */
+export const CARD_MIN_AGE_MS = 14 * 86_400_000;
+const CARD_METHODS = ['card', 'applepay', 'googlepay'];
+
+/** Итог сверки карты проверочного платежа с картами аккаунта. */
+interface CardResult extends CardPrint {
+  matched: boolean;
+  /** Когда карта впервые появилась в аккаунте — оплатой или выплатой. */
+  firstUsedAt: string | null;
+  source: 'payment' | 'payout' | null;
+}
 
 /** Документ и селфи — фото или PDF скана, как у проверки личности. */
 const DOC_TYPES: Record<string, string> = {
@@ -91,16 +112,45 @@ export const confirmedDeals = (
       .map((d) => d.counterpartyId),
   ).size;
 
+/** Почему проверка картой не доказывает, что аккаунт заявителя, или null — доказывает. */
+function cardBlocker(rec: AccountRecovery) {
+  if (!rec.cardCheckedAt) return 'Проверочного платежа картой ещё не было';
+  const r = rec.cardResult as CardResult | null;
+  if (!r?.matched || !r.firstUsedAt) return 'Карта не совпала с оплатами и выплатами аккаунта';
+  if (new Date(r.firstUsedAt).getTime() > rec.createdAt.getTime() - CARD_MIN_AGE_MS) {
+    return 'Карта впервые появилась в аккаунте меньше чем за 2 недели до заявки';
+  }
+  return null;
+}
+
 /**
  * Почему нельзя восстановить на новую почту, или null — можно. Один источник
- * для консоли и для самого восстановления. С проверкой личности — только по
- * документам; без неё — по сделкам, и тогда возражение из аккаунта или
- * «не совпадает» от участника сделки останавливают: при сомнении аккаунт
- * лучше не отдать, чем отдать чужому.
+ * для консоли и для самого восстановления. Доказательства:
+ * - карта, которой платили в аккаунте, — проверочным платежом; её
+ *   подтверждает держатель карты, поэтому она годится и без проверки
+ *   личности, и при возражении из аккаунта;
+ * - с проверкой личности — документы;
+ * - без неё — сделки, и тогда возражение из аккаунта или «не совпадает» от
+ *   участника сделки останавливают: при сомнении аккаунт лучше не отдать,
+ *   чем отдать чужому.
  */
 export function newEmailBlocker(rec: AccountRecovery, hasKyc: boolean, deals: DealRow[]) {
   if (!rec.contactEmail) return 'В заявке нет новой почты';
-  if (hasKyc) return rec.evidenceAt ? null : 'Документы по ссылке ещё не присланы';
+  const card = rec.cardRequestedAt ? cardBlocker(rec) : undefined;
+  if (card === null) return null;
+  const main = hasKyc
+    ? rec.evidenceAt
+      ? null
+      : 'Документы по ссылке ещё не присланы'
+    : dealsBlocker(rec, deals);
+  if (main === null) return null;
+  // Причина — от того пути, которым идёт заявка: просили только карту — про карту.
+  const mainStarted = hasKyc ? !!rec.evidenceRequestedAt : !!rec.dealsRequestedAt;
+  return card !== undefined && !mainStarted ? card : main;
+}
+
+/** Почему сделки не доказывают, что аккаунт заявителя, или null — доказывают. */
+function dealsBlocker(rec: AccountRecovery, deals: DealRow[]) {
   if (rec.objectedAt) {
     return 'Из аккаунта отметили «Заявку подал не я» — по сделкам на новую почту не восстановить';
   }
@@ -150,6 +200,10 @@ const SECURITY_TYPES = [
  * сделок, а другая сторона каждой из них в своём кабинете отвечает,
  * совпадает ли описание. Нужны подтверждения двух разных участников, не с
  * IP заявителя, без «не совпадает» и без возражения из аккаунта.
+ *
+ * Если в аккаунте платили картой или выводили на неё — проверка картой:
+ * по ссылке заявитель блокирует 1 ₽ через ЮKassa, карта (первые 6 и
+ * последние 4 цифры) сверяется с прошлыми, блокировка отменяется.
  */
 @Injectable()
 export class RecoveryService {
@@ -163,6 +217,8 @@ export class RecoveryService {
     private readonly storage: StorageService,
     private readonly scanner: ScanService,
     private readonly mail: MailService,
+    private readonly yookassa: YooKassaProvider,
+    private readonly encryption: EncryptionService,
   ) {}
 
   /** Заявка без входа. Ответ всегда один — есть аккаунт или нет. */
@@ -305,7 +361,13 @@ export class RecoveryService {
       },
     });
     if (!rec) throw new NotFoundException('Заявка не найдена');
-    const [orders, history, kyc, taken, deals] = await Promise.all([
+    // Заявитель заплатил и закрыл страницу — сверим карту сейчас.
+    if (rec.cardPaymentId && !rec.cardCheckedAt) {
+      const settled = await this.settleCard(rec).catch(() => null);
+      if (settled === 'done')
+        Object.assign(rec, await this.prisma.accountRecovery.findUnique({ where: { id } }));
+    }
+    const [orders, history, kyc, taken, deals, cards] = await Promise.all([
       this.prisma.order.findMany({
         where: {
           AND: [
@@ -334,6 +396,7 @@ export class RecoveryService {
         where: { recoveryId: id },
         orderBy: [{ createdAt: 'asc' }, { counterparty: 'asc' }],
       }),
+      this.cardCounts(rec.userId),
     ]);
     const u = rec.user;
     return {
@@ -413,6 +476,15 @@ export class RecoveryService {
             ),
           }
         : null,
+      card: {
+        // Проверка картой — только через ЮKassa и если в аккаунте была карта.
+        available: this.yookassa.enabled && cards.payments + cards.payouts > 0,
+        payments: cards.payments,
+        payouts: cards.payouts,
+        requestedAt: rec.cardRequestedAt,
+        checkedAt: rec.cardCheckedAt,
+        result: rec.cardResult as CardResult | null,
+      },
     };
   }
 
@@ -668,6 +740,220 @@ export class RecoveryService {
     throw new NotFoundException('Просьба не найдена или заявку уже решили');
   }
 
+  /**
+   * Попросить проверку картой ссылкой на новую почту — если в аккаунте
+   * платили картой или выводили на неё и приём платежей идёт через ЮKassa.
+   * Новая просьба гасит прежнюю ссылку и итог прежней проверки.
+   */
+  async requestCard(id: string, staffId: string, ip?: string) {
+    const rec = await this.prisma.accountRecovery.findUnique({ where: { id } });
+    if (!rec) throw new NotFoundException('Заявка не найдена');
+    if (rec.status !== 'pending') throw new BadRequestException('По заявке уже решено');
+    if (!rec.contactEmail) throw new BadRequestException('В заявке нет новой почты');
+    if (!this.yookassa.enabled) {
+      throw new BadRequestException(
+        'Проверка картой работает только с приёмом оплаты через ЮKassa',
+      );
+    }
+    const cards = await this.cardCounts(rec.userId);
+    if (!cards.payments && !cards.payouts) {
+      throw new BadRequestException(
+        'В аккаунте не платили картой и не выводили на карту — сверять не с чем',
+      );
+    }
+    // Прежняя блокировка, если заявитель её не довёл, — снять.
+    if (rec.cardPaymentId && !rec.cardCheckedAt) this.release(rec.cardPaymentId);
+    const at = new Date();
+    await this.prisma.accountRecovery.update({
+      where: { id },
+      data: {
+        cardRequestedAt: at,
+        cardPaymentId: null,
+        cardCheckedAt: null,
+        cardResult: Prisma.DbNull,
+      },
+    });
+    await this.audit.log({
+      actorId: staffId,
+      action: 'recovery.request_card',
+      entityType: 'user',
+      entityId: rec.userId,
+      after: { recoveryId: id, to: rec.contactEmail },
+      ip,
+    });
+    await this.mailLink(
+      { id, userId: rec.userId, contactEmail: rec.contactEmail },
+      'recovery_card',
+      at,
+      (lang, link) => [
+        say(lang, 'Восстановление доступа: проверка картой — GameMarket'),
+        say(
+          lang,
+          'Сотрудник проверяет заявку на восстановление доступа. Заплатите 1 ₽ картой, которой вы платили на GameMarket или на которую выводили деньги: сумма только заблокируется и сразу вернётся (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.',
+          { link },
+        ),
+      ],
+    );
+    return { ok: true, mailed: this.mail.enabled };
+  }
+
+  /**
+   * Страница проверки картой: open — можно платить, waiting — ЮKassa ещё не
+   * ответила, done — карта сверена. failed — прошлая попытка не прошла.
+   * Совпала ли карта, заявителю не говорим: это решает сотрудник.
+   */
+  async cardStatus(token: string) {
+    const rec = await this.byLinkToken(token, 'recovery_card');
+    if (rec.cardCheckedAt) return { ok: true, state: 'done' as const };
+    if (!rec.cardPaymentId) return { ok: true, state: 'open' as const };
+    const state = await this.settleCard(rec);
+    return state === 'failed'
+      ? { ok: true, state: 'open' as const, failed: true }
+      : { ok: true, state };
+  }
+
+  /** Перейти к оплате 1 ₽: одна блокировка на ссылку; начатая — та же страница ЮKassa. */
+  async cardPay(token: string) {
+    const rec = await this.byLinkToken(token, 'recovery_card');
+    if (rec.cardCheckedAt) throw new ConflictException('Карта уже проверена');
+    if (rec.cardPaymentId) {
+      const state = await this.settleCard(rec);
+      if (state === 'done') throw new ConflictException('Карта уже проверена');
+      if (state === 'waiting') {
+        const p = await this.yookassa.payment(rec.cardPaymentId);
+        if (p?.url) return { url: p.url };
+      }
+    }
+    const web = process.env.WEB_URL ?? 'http://localhost:3000';
+    const hold = await this.yookassa.createHold({
+      amount: CARD_CHECK_AMOUNT,
+      description: 'GameMarket: проверка карты для восстановления доступа, деньги не спишутся',
+      returnUrl: `${web}/recover/card?token=${encodeURIComponent(token)}`,
+      idempotenceKey: `rc-${randomUUID()}`,
+      metadata: { purpose: CARD_CHECK_PURPOSE, recoveryId: rec.id },
+    });
+    const took = await this.prisma.accountRecovery.updateMany({
+      where: {
+        id: rec.id,
+        status: 'pending',
+        cardPaymentId: null,
+        cardCheckedAt: null,
+        cardRequestedAt: rec.cardRequestedAt,
+      },
+      data: { cardPaymentId: hold.id },
+    });
+    if (!took.count) {
+      this.release(hold.id);
+      throw new ConflictException('Оплата уже начата — обновите страницу');
+    }
+    return { url: hold.url };
+  }
+
+  /**
+   * Сверить карту проверочного платежа: ЮKassa заблокировала сумму — карта
+   * известна, сверяем с картами аккаунта и снимаем блокировку. Платёж
+   * отменён до оплаты — попытку можно повторить.
+   */
+  private async settleCard(rec: AccountRecovery): Promise<'waiting' | 'done' | 'failed'> {
+    const paymentId = rec.cardPaymentId!;
+    const p = await this.yookassa.payment(paymentId);
+    if (p && p.metadata.recoveryId !== rec.id)
+      throw new BadRequestException('Ссылка недействительна или истекла');
+    if (p?.status === 'pending') return 'waiting';
+    // Карта доказывает что-то, только если банк пропустил платёж (код из
+    // банка и деньги на карте): отклонённый или отменённый — не доказательство.
+    if (!p?.card || (p.status !== 'waiting_for_capture' && p.status !== 'succeeded')) {
+      await this.prisma.accountRecovery.updateMany({
+        where: { id: rec.id, cardPaymentId: paymentId, cardCheckedAt: null },
+        data: { cardPaymentId: null },
+      });
+      return 'failed';
+    }
+    const history = await this.cardHistory(rec.userId);
+    const hits = history
+      .filter((h) => h.first6 === p.card!.first6 && h.last4 === p.card!.last4)
+      .sort((a, b) => a.at.getTime() - b.at.getTime());
+    const result: CardResult = {
+      ...p.card,
+      matched: hits.length > 0,
+      firstUsedAt: hits[0]?.at.toISOString() ?? null,
+      source: hits[0]?.source ?? null,
+    };
+    await this.prisma.accountRecovery.updateMany({
+      where: { id: rec.id, cardPaymentId: paymentId, cardCheckedAt: null },
+      data: { cardCheckedAt: new Date(), cardResult: { ...result } as Prisma.InputJsonValue },
+    });
+    if (p.status === 'waiting_for_capture') this.release(paymentId);
+    else if (p.status === 'succeeded') {
+      // Так быть не должно: платёж создаётся без списания.
+      this.logger.error(`Проверка карты ${paymentId}: платёж списан — верните 1 ₽ вручную`);
+    }
+    return 'done';
+  }
+
+  /** Снять блокировку проверочного платежа; не вышло — ЮKassa снимет сама через неделю. */
+  private release(paymentId: string) {
+    void this.yookassa
+      .cancel(paymentId)
+      .catch((e: Error) => this.logger.warn(`Проверка карты ${paymentId}: ${e.message}`));
+  }
+
+  /** Сколько раз в аккаунте платили картой через ЮKassa и выводили на карту. */
+  private async cardCounts(userId: string) {
+    const [payments, payouts] = await Promise.all([
+      this.prisma.payment.count({
+        where: { userId, provider: 'yookassa', status: 'succeeded', method: { in: CARD_METHODS } },
+      }),
+      this.prisma.payout.count({ where: { userId, method: 'card', status: 'paid' } }),
+    ]);
+    return { payments, payouts };
+  }
+
+  /**
+   * Карты аккаунта: оплаты картой через ЮKassa (у старых оплат карту
+   * спрашиваем у ЮKassa и запоминаем) и выплаты на карту — с датой.
+   */
+  private async cardHistory(userId: string) {
+    const [payments, payouts] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: { userId, provider: 'yookassa', status: 'succeeded', method: { in: CARD_METHODS } },
+        orderBy: { createdAt: 'asc' },
+        take: 100,
+        select: { id: true, externalId: true, card: true, createdAt: true },
+      }),
+      this.prisma.payout.findMany({
+        where: { userId, method: 'card', status: 'paid' },
+        orderBy: { createdAt: 'asc' },
+        take: 100,
+        select: { destinationEnc: true, createdAt: true },
+      }),
+    ]);
+    const out: Array<{ first6: string; last4: string; at: Date; source: 'payment' | 'payout' }> =
+      [];
+    for (const p of payments) {
+      let card = p.card as CardPrint | null;
+      if (!card && p.externalId) {
+        card = (await this.yookassa.payment(p.externalId).catch(() => null))?.card ?? null;
+        if (card) {
+          await this.prisma.payment.update({ where: { id: p.id }, data: { card: { ...card } } });
+        }
+      }
+      if (card)
+        out.push({ first6: card.first6, last4: card.last4, at: p.createdAt, source: 'payment' });
+    }
+    for (const p of payouts) {
+      try {
+        const d = JSON.parse(this.encryption.decrypt(p.destinationEnc)) as Partial<CardPrint>;
+        if (d.first6 && d.last4) {
+          out.push({ first6: d.first6, last4: d.last4, at: p.createdAt, source: 'payout' });
+        }
+      } catch {
+        // Реквизиты не карты из виджета — сверять нечего.
+      }
+    }
+    return out;
+  }
+
   /** Страница документов по ссылке из письма: действует ли ссылка и прислали ли уже. */
   async docsStatus(token: string) {
     const rec = await this.byLinkToken(token, 'recovery_docs');
@@ -746,7 +1032,7 @@ export class RecoveryService {
   /**
    * Восстановить на новую почту — когда нет доступа и к почте аккаунта. Те же
    * сбросы плюс смена почты; можно, только если новая почта не занята и
-   * доказательство собрано: документы при проверке личности, без неё —
+   * доказательство собрано: карта, документы при проверке личности, без неё —
    * подтверждения сделок (см. newEmailBlocker). Старой почте — письмо, что
    * её сменили; ссылка задать пароль — на новую.
    */
@@ -755,6 +1041,8 @@ export class RecoveryService {
     const kyc = (await this.approvedKyc(rec.userId)) !== null;
     const deals = kyc ? [] : await this.prisma.recoveryDeal.findMany({ where: { recoveryId: id } });
     const blocker = newEmailBlocker(rec, kyc, deals);
+    const proof =
+      rec.cardRequestedAt && cardBlocker(rec) === null ? 'card' : kyc ? 'documents' : 'deals';
     if (blocker || !rec.contactEmail) {
       throw new BadRequestException(blocker ?? 'В заявке нет новой почты');
     }
@@ -773,7 +1061,7 @@ export class RecoveryService {
       entityType: 'user',
       entityId: rec.userId,
       before: { email: before?.email ?? null },
-      after: { recoveryId: id, email: rec.contactEmail, proof: kyc ? 'documents' : 'deals' },
+      after: { recoveryId: id, email: rec.contactEmail, proof },
       ip,
     });
     if (before?.email) {
@@ -782,17 +1070,23 @@ export class RecoveryService {
       await this.mail.send(
         before.email,
         say(lang, 'Почта аккаунта изменена — GameMarket'),
-        kyc
+        proof === 'card'
           ? say(
               lang,
-              'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сотрудник сверил документы с проверкой личности. Если это не вы — ответьте на это письмо.',
+              'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: заявитель заплатил картой, которой платили в аккаунте. Если это не вы — ответьте на это письмо.',
               { email },
             )
-          : say(
-              lang,
-              'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сделки из заявки подтвердили их участники. Если это не вы — ответьте на это письмо.',
-              { email },
-            ),
+          : proof === 'documents'
+            ? say(
+                lang,
+                'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сотрудник сверил документы с проверкой личности. Если это не вы — ответьте на это письмо.',
+                { email },
+              )
+            : say(
+                lang,
+                'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сделки из заявки подтвердили их участники. Если это не вы — ответьте на это письмо.',
+                { email },
+              ),
       );
     }
     this.sendReset(rec.userId, id);
@@ -941,7 +1235,11 @@ export class RecoveryService {
       throw new BadRequestException('Ссылка недействительна или истекла');
     }
     const rec = await this.prisma.accountRecovery.findUnique({ where: { id: data.rid } });
-    const asked = purpose === 'recovery_docs' ? rec?.evidenceRequestedAt : rec?.dealsRequestedAt;
+    const asked = {
+      recovery_docs: rec?.evidenceRequestedAt,
+      recovery_deals: rec?.dealsRequestedAt,
+      recovery_card: rec?.cardRequestedAt,
+    }[purpose];
     if (!rec || rec.status !== 'pending' || asked?.getTime() !== data.at) {
       throw new BadRequestException('Ссылка недействительна или истекла');
     }
@@ -964,7 +1262,11 @@ export class RecoveryService {
       where: { id: rec.userId },
       select: { locale: true },
     });
-    const path = purpose === 'recovery_docs' ? '/recover/docs' : '/recover/deals';
+    const path = {
+      recovery_docs: '/recover/docs',
+      recovery_deals: '/recover/deals',
+      recovery_card: '/recover/card',
+    }[purpose];
     const web = process.env.WEB_URL ?? 'http://localhost:3000';
     const [subject, body] = letter(
       langOf(user?.locale),

@@ -94,6 +94,19 @@ export const EN_API: Phrasebook = {
   'Нужны подтверждения хотя бы двух разных участников сделок':
     'Confirmations from at least two different deal participants are needed',
   'Вы уже ответили': 'You have already answered',
+  'Проверочного платежа картой ещё не было': 'There has been no card check payment yet',
+  'Карта не совпала с оплатами и выплатами аккаунта':
+    'The card doesn’t match any of the account’s payments or payouts',
+  'Карта впервые появилась в аккаунте меньше чем за 2 недели до заявки':
+    'The card was first used in the account less than 2 weeks before the request',
+  'Проверка картой работает только с приёмом оплаты через ЮKassa':
+    'The card check only works with payments through YooKassa',
+  'В аккаунте не платили картой и не выводили на карту — сверять не с чем':
+    'The account has no card payments or card payouts, so there is nothing to compare with',
+  'Карта уже проверена': 'The card has already been checked',
+  'Оплата уже начата — обновите страницу': 'The payment has already started — refresh the page',
+  'Платёжный шлюз не принял платёж. Попробуйте ещё раз.':
+    'The payment gateway didn’t accept the payment. Try again.',
   'Просьба не найдена или заявку уже решили': 'The request wasn’t found or has already been decided',
   'Неверные данные': 'Incorrect email or password',
   'Невалидный refresh-токен': 'Invalid refresh token',

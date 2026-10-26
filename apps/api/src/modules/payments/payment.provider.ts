@@ -27,6 +27,15 @@ export interface DepositSession {
   externalId?: string;
 }
 
+/** Карта оплаты от шлюза: первые 6 и последние 4 цифры, тип и срок — без номера. */
+export interface CardPrint {
+  first6: string;
+  last4: string;
+  type?: string;
+  /** «12/2030». */
+  expiry?: string;
+}
+
 /**
  * Событие вебхука, проверенное провайдером. Сумму и валюту провайдер берёт
  * у шлюза, а не из тела запроса, — сервис сверяет их с платежом в базе.
@@ -36,6 +45,8 @@ export interface WebhookEvent {
   status: 'succeeded' | 'failed';
   amount?: bigint;
   currency?: string;
+  /** Чем заплатили, если картой: по ней «Не могу войти» сверяет проверочный платёж. */
+  card?: CardPrint;
 }
 
 export interface PaymentProvider {

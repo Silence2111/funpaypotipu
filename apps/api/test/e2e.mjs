@@ -2817,6 +2817,70 @@ async function scenarioYooKassa(rnd) {
     const usdt = await ask({ amount: '50000', method: 'usdt', destination: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE' });
     const manual = await approve(usdt.body.id);
     check('USDT — вручную: одобрение сразу «выплачено», в ЮKassa не уходит', manual.body.status === 'paid' && yk.payouts.size === 3);
+
+    // ── «Не могу войти» по карте: 1 ₽ блокируется и снимается ──
+    const cardRow = await prisma.payment.findUnique({ where: { providerRef: dep.body.providerRef } });
+    check(
+      'Карта оплаты сохранена без номера: первые 6 и последние 4 цифры',
+      cardRow?.card?.first6 === '555555' && cardRow.card.last4 === '4477' && !JSON.stringify(cardRow.card).includes('5555555555554477'),
+      JSON.stringify(cardRow?.card),
+    );
+    // Картой платили месяц назад: свежая карта не засчитывается.
+    await prisma.payment.update({ where: { id: cardRow.id }, data: { createdAt: new Date(Date.now() - 30 * 86_400_000) } });
+    const ag = await reg('yka');
+    await grant(ag.id, 'agent');
+    const claim = (who, ip) =>
+      k('/recovery', {
+        method: 'POST', headers: { 'X-Forwarded-For': ip },
+        body: JSON.stringify({ email: `${who}${rnd}@e2e.local`, reason: 'password', orderNumbers: [], details: 'Нет доступа ни к аккаунту, ни к почте', newEmail: `${who}new${rnd}@e2e.local` }),
+      });
+    await claim('ykb', '203.0.113.81');
+    await claim('ykf', '203.0.113.82');
+    const queue = (await k('/recovery/queue', { token: ag.token })).body;
+    const rid = queue.find((r) => r.email === `ykb${rnd}@e2e.local`)?.id;
+    const noCards = await k(`/recovery/${queue.find((r) => r.email === `ykf${rnd}@e2e.local`)?.id}/request-card`, { method: 'POST', token: ag.token });
+    const askedCard = await k(`/recovery/${rid}/request-card`, { method: 'POST', token: ag.token });
+    const recCard = await prisma.accountRecovery.findUnique({ where: { id: rid } });
+    const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const now = Math.floor(Date.now() / 1000);
+    const jwtBody = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ data: { rid, at: recCard.cardRequestedAt.getTime() }, purpose: 'recovery_card', iat: now, exp: now + 600 })}`;
+    const cardToken = `${jwtBody}.${createHmac('sha256', process.env.JWT_ACCESS_SECRET).update(jwtBody).digest('base64url')}`;
+    const cardCall = (path) => k(`/recovery/card/${path}`, { method: 'POST', body: JSON.stringify({ token: cardToken }) });
+    const open = await cardCall('status');
+    const pay1 = await cardCall('pay');
+    const pay1again = await cardCall('pay');
+    const hold1 = [...yk.payments.values()].find((p) => p.confirmation.confirmation_url === pay1.body.url);
+    // Банк отклонил: попытка не засчитывается, можно ещё раз.
+    await fetch(`${pay1.body.url}?result=canceled`, { redirect: 'manual' });
+    const declined = await cardCall('status');
+    const pay2 = await cardCall('pay');
+    const hold2 = [...yk.payments.values()].find((p) => p.confirmation.confirmation_url === pay2.body.url);
+    const returned = await fetch(`${pay2.body.url}?card=5555555555554477`, { redirect: 'manual' });
+    const done = await cardCall('status');
+    for (let i = 0; i < 10 && hold2?.status !== 'canceled'; i++) await wait(200);
+    const asOrder = await prisma.payment.count({ where: { externalId: { in: [hold1?.id, hold2?.id] } } });
+    check(
+      'По карте: без карт в аккаунте — 400; 1 ₽ блокируется без списания, одна блокировка на попытку; отклонённая — не в счёт; оплатил — карта сверена, блокировка снята, заказом не стала',
+      noCards.status === 400 && askedCard.status === 200 && open.body.state === 'open' &&
+        hold1?.capture === false && hold1.amount.value === '1.00' && hold1.metadata.purpose === 'recovery_card' &&
+        pay1again.body.url === pay1.body.url && declined.body.state === 'open' && declined.body.failed === true &&
+        hold2 && hold2.id !== hold1.id && returned.status === 302 && returned.headers.get('location').includes('/recover/card?token=') &&
+        done.body.state === 'done' && hold2.status === 'canceled' && hold2.cancelled_by_shop === true && asOrder === 0,
+      JSON.stringify({ noCards: noCards.body?.message, asked: askedCard.status, open: open.body, hold1: hold1 && { capture: hold1.capture, amount: hold1.amount, status: hold1.status }, declined: declined.body, done: done.body, hold2: hold2?.status, asOrder }),
+    );
+    const cardDetail = (await k(`/recovery/${rid}`, { token: ag.token })).body;
+    const earlyCard = await k(`/recovery/${rid}/restore-new-email`, { method: 'POST', token: ag.token });
+    await prisma.accountRecovery.update({ where: { id: rid }, data: { createdAt: new Date(Date.now() - 73 * 3_600_000) } });
+    const byCard = await k(`/recovery/${rid}/restore-new-email`, { method: 'POST', token: ag.token });
+    const moved = await prisma.user.findUnique({ where: { id: buyer.id }, select: { email: true } });
+    const cardLog = await prisma.auditLog.findFirst({ where: { action: 'recovery.restore_new_email', entityId: buyer.id } });
+    check(
+      'Сотруднику — карта совпала с оплатой; через 3 дня по карте — доступ на новую почту, в журнале «по карте»',
+      cardDetail.card?.result?.matched === true && cardDetail.card.result.source === 'payment' && cardDetail.card.result.last4 === '4477' &&
+        cardDetail.contact?.blocker === null && earlyCard.status === 400 && byCard.status === 200 &&
+        moved?.email === `ykbnew${rnd}@e2e.local` && cardLog?.after?.proof === 'card',
+      JSON.stringify({ card: cardDetail.card, blocker: cardDetail.contact?.blocker, early: earlyCard.status, byCard: byCard.status, email: moved?.email, proof: cardLog?.after?.proof }),
+    );
   } finally {
     child.kill();
     yk.close();

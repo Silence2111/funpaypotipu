@@ -7,6 +7,7 @@ import {
 import { z } from 'zod';
 import type { GatewayMethodKey } from '@gamemarket/shared';
 import type {
+  CardPrint,
   DepositInput,
   DepositSession,
   PaymentProvider,
@@ -58,7 +59,37 @@ const paymentSchema = z.object({
   amount: z.object({ value: z.string(), currency: z.string() }),
   metadata: z.record(z.string()).optional(),
   confirmation: z.object({ confirmation_url: z.string().url().optional() }).optional(),
+  payment_method: z
+    .object({
+      type: z.string(),
+      card: z
+        .object({
+          first6: z.string().regex(/^\d{6}$/),
+          last4: z.string().regex(/^\d{4}$/),
+          card_type: z.string().optional(),
+          expiry_month: z.string().optional(),
+          expiry_year: z.string().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
 });
+type YooPayment = z.infer<typeof paymentSchema>;
+
+/** Проверочный платёж «Не могу войти»: его вебхуки — не оплата заказа. */
+export const CARD_CHECK_PURPOSE = 'recovery_card';
+
+/** Карта платежа без номера: первые 6 и последние 4 цифры, тип и срок. */
+const printOf = (p: YooPayment): CardPrint | undefined => {
+  const c = p.payment_method?.card;
+  if (!c) return undefined;
+  return {
+    first6: c.first6,
+    last4: c.last4,
+    ...(c.card_type ? { type: c.card_type } : {}),
+    ...(c.expiry_month && c.expiry_year ? { expiry: `${c.expiry_month}/${c.expiry_year}` } : {}),
+  };
+};
 
 /**
  * ЮKassa — приём оплаты картой и через СБП. Платёж создаётся с переходом на
@@ -184,14 +215,105 @@ export class YooKassaProvider implements PaymentProvider {
       throw new ServiceUnavailableException('Платёжный шлюз не ответил. Попробуйте ещё раз.');
     }
     const p = payment.data;
+    // Проверка карты «Не могу войти»: блокировку отменяем сами, заказа за ней нет.
+    if (p.metadata?.purpose === CARD_CHECK_PURPOSE) return 'ignore';
     const providerRef = p.metadata?.providerRef;
     const amount = fromValue(p.amount.value);
     if (!providerRef || amount === null) return null;
     if (p.status === 'succeeded' && p.paid !== false) {
-      return { providerRef, status: 'succeeded', amount, currency: p.amount.currency };
+      const card = printOf(p);
+      return {
+        providerRef,
+        status: 'succeeded',
+        amount,
+        currency: p.amount.currency,
+        ...(card ? { card } : {}),
+      };
     }
     if (p.status === 'canceled')
       return { providerRef, status: 'failed', amount, currency: p.amount.currency };
     return 'ignore';
+  }
+
+  /** Платёж по id: статус, карта и страница оплаты; null — у ЮKassa такого нет. */
+  async payment(id: string) {
+    let res: Response;
+    try {
+      res = await fetch(`${this.api}/payments/${encodeURIComponent(id)}`, {
+        headers: this.headers(),
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch (e) {
+      this.logger.error(`ЮKassa недоступна: ${(e as Error).message}`);
+      throw new ServiceUnavailableException('Платёжный шлюз не ответил. Попробуйте ещё раз.');
+    }
+    if (res.status === 404) return null;
+    const payment = paymentSchema.safeParse(await res.json().catch(() => null));
+    if (!res.ok || !payment.success) {
+      throw new ServiceUnavailableException('Платёжный шлюз не ответил. Попробуйте ещё раз.');
+    }
+    const p = payment.data;
+    return {
+      id: p.id,
+      status: p.status,
+      card: printOf(p),
+      url: p.confirmation?.confirmation_url,
+      metadata: p.metadata ?? {},
+    };
+  }
+
+  /**
+   * Проверка карты: платёж в два этапа (capture: false) — сумма только
+   * блокируется на карте, по ней видно, какой картой платили, а потом
+   * блокировка отменяется. Деньги не списываются. Нужен двухстадийный приём
+   * платежей в настройках магазина ЮKassa.
+   */
+  async createHold(input: {
+    amount: bigint;
+    description: string;
+    returnUrl: string;
+    idempotenceKey: string;
+    metadata: Record<string, string>;
+  }) {
+    let res: Response;
+    try {
+      res = await fetch(`${this.api}/payments`, {
+        method: 'POST',
+        headers: this.headers({ 'Idempotence-Key': input.idempotenceKey }),
+        body: JSON.stringify({
+          amount: { value: toValue(input.amount), currency: 'RUB' },
+          capture: false,
+          confirmation: { type: 'redirect', return_url: input.returnUrl },
+          description: input.description.slice(0, 128),
+          metadata: input.metadata,
+          payment_method_data: { type: 'bank_card' },
+        }),
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch (e) {
+      this.logger.error(`ЮKassa недоступна: ${(e as Error).message}`);
+      throw new ServiceUnavailableException('Платёжный шлюз не ответил. Попробуйте ещё раз.');
+    }
+    const json = (await res.json().catch(() => null)) as unknown;
+    const payment = paymentSchema.safeParse(json);
+    const url = payment.success ? payment.data.confirmation?.confirmation_url : undefined;
+    if (!res.ok || !payment.success || !url) {
+      this.logger.error(
+        `ЮKassa отказала в проверке карты (${res.status}): ${JSON.stringify(json).slice(0, 500)}`,
+      );
+      throw new ServiceUnavailableException('Платёжный шлюз не принял платёж. Попробуйте ещё раз.');
+    }
+    return { id: payment.data.id, url };
+  }
+
+  /** Отменить платёж в ожидании подтверждения — блокировка на карте снимается. */
+  async cancel(id: string) {
+    const res = await fetch(`${this.api}/payments/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+      headers: this.headers({ 'Idempotence-Key': `cancel-${id}` }),
+      body: '{}',
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) throw new Error(`ЮKassa не отменила платёж ${id}: ${res.status}`);
   }
 }

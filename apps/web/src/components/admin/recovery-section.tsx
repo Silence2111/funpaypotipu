@@ -61,7 +61,26 @@ interface Detail {
     needed: number;
     items: DealItem[];
   } | null;
+  card: {
+    /** Можно ли просить: приём оплаты через ЮKassa и карта в аккаунте была. */
+    available: boolean;
+    payments: number;
+    payouts: number;
+    requestedAt: string | null;
+    checkedAt: string | null;
+    result: {
+      first6: string;
+      last4: string;
+      type?: string;
+      expiry?: string;
+      matched: boolean;
+      firstUsedAt: string | null;
+      source: 'payment' | 'payout' | null;
+    } | null;
+  };
 }
+
+type Proof = 'docs' | 'deals' | 'card';
 
 interface DealItem {
   counterparty: string;
@@ -128,14 +147,14 @@ export function RecoverySection() {
   }
 
   /** Попросить документы или описать сделки ссылкой на новую почту — заявка остаётся открытой. */
-  async function requestProof(id: string, what: 'docs' | 'deals') {
+  async function requestProof(id: string, what: Proof) {
     setErr(null);
     try {
       const r = await apiFetch<{ mailed: boolean }>(`/recovery/${id}/request-${what}`, { method: 'POST' });
       if (!r.mailed) setErr('Почта площадки не настроена: письмо со ссылкой не ушло.');
       setOpen(await apiFetch<Detail>(`/recovery/${id}`));
     } catch (e) {
-      setErr(apiErrorMessage(e, what === 'docs' ? 'Не удалось попросить документы.' : 'Не удалось попросить описать сделки.'));
+      setErr(apiErrorMessage(e, 'Не удалось отправить просьбу.'));
     }
   }
 
@@ -223,7 +242,7 @@ function DocFiles({ files }: { files: DocFile[] }) {
  * Проверки личности нет: заявитель описал сделки, другая сторона ответила.
  * Ответ с IP заявки или описаний не считается — похоже, отвечает сам заявитель.
  */
-function DealsProof({ d, requestProof }: { d: Detail; requestProof: (id: string, what: 'docs' | 'deals') => Promise<void> }) {
+function DealsProof({ d, requestProof }: { d: Detail; requestProof: (id: string, what: Proof) => Promise<void> }) {
   const deals = d.deals;
   return (
     <>
@@ -285,6 +304,63 @@ function DealsProof({ d, requestProof }: { d: Detail; requestProof: (id: string,
   );
 }
 
+/** «5555 55•• •••• 4477» — как номер выглядит у ЮKassa без середины. */
+const cardMask = (first6: string, last4: string) => `${first6.slice(0, 4)} ${first6.slice(4)}•• •••• ${last4}`;
+
+/**
+ * Проверка картой: заявитель блокирует 1 ₽ картой через ЮKassa, карта
+ * сверяется с оплатами и выплатами аккаунта. Карта, впервые появившаяся
+ * меньше чем за 2 недели до заявки, не засчитывается.
+ */
+function CardProof({ d, requestProof }: { d: Detail; requestProof: (id: string, what: Proof) => Promise<void> }) {
+  const c = d.card;
+  const r = c.result;
+  if (!c.available && !c.requestedAt) {
+    return (
+      <p className="faint" style={{ margin: '12px 0 0', fontSize: 13 }}>
+        {c.payments + c.payouts === 0
+          ? 'Проверка картой не поможет: в аккаунте не платили картой и не выводили на карту.'
+          : 'Проверка картой работает только с приёмом оплаты через ЮKassa.'}
+      </p>
+    );
+  }
+  return (
+    <div style={{ marginTop: 16 }}>
+      <p className="recovery-sub">
+        Проверка картой · оплат картой: <span className="recovery-mono">{c.payments}</span>, выплат на карту:{' '}
+        <span className="recovery-mono">{c.payouts}</span>
+      </p>
+      {r ? (
+        <p style={{ margin: 0, fontSize: 14 }}>
+          <span className="recovery-mono">{cardMask(r.first6, r.last4)}</span>
+          <span className="faint">
+            {r.type ? ` · ${r.type}` : ''}
+            {r.expiry ? ` · до ${r.expiry}` : ''}
+            {c.checkedAt ? ` · ${when(c.checkedAt)}` : ''}
+          </span>{' '}
+          {r.matched ? (
+            <span className="badge success">
+              ✓ совпала: впервые — {r.source === 'payout' ? 'выплата' : 'оплата'}
+              {r.firstUsedAt ? ` ${when(r.firstUsedAt)}` : ''}
+            </span>
+          ) : (
+            <span className="badge danger">✕ не совпала с оплатами и выплатами аккаунта</span>
+          )}
+        </p>
+      ) : (
+        <Empty>{c.requestedAt ? `Ссылка ушла ${when(c.requestedAt)}, проверки пока нет.` : 'Ещё не просили.'}</Empty>
+      )}
+      {d.status === 'pending' && d.contact && c.available && (
+        <div style={{ marginTop: 8 }}>
+          <button type="button" className="chip" onClick={() => void requestProof(d.id, 'card')}>
+            {c.requestedAt ? 'Отправить ссылку ещё раз' : `Попросить проверку картой на ${d.contact.email}`}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RecoveryDetail({
   d,
   note,
@@ -296,7 +372,7 @@ function RecoveryDetail({
   note: string;
   setNote: (v: string) => void;
   decide: (id: string, action: Action) => Promise<void>;
-  requestProof: (id: string, what: 'docs' | 'deals') => Promise<void>;
+  requestProof: (id: string, what: Proof) => Promise<void>;
 }) {
   const ready = Date.now() >= new Date(d.decideAfter).getTime();
   const a = d.account;
@@ -380,6 +456,7 @@ function RecoveryDetail({
           ) : (
             <DealsProof d={d} requestProof={requestProof} />
           )}
+          <CardProof d={d} requestProof={requestProof} />
           {d.status === 'pending' && d.contact.blocker && (
             <p className="faint" style={{ margin: '8px 0 0', fontSize: 13 }}>
               Восстановить на новую почту пока нельзя. {d.contact.blocker}.

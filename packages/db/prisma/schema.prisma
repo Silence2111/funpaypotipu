@@ -658,6 +658,9 @@ model Payment {
   method      String        @default("sbp")
   surcharge   BigInt        @default(0)
   status      PaymentStatus @default(pending)
+  // Карта оплаты от шлюза: { first6, last4, type, expiry } — без номера.
+  // По ней «Не могу войти» сверяет карту проверочного платежа.
+  card        Json?
   rawPayload  Json?         @map("raw_payload")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
@@ -894,6 +897,13 @@ model AccountRecovery {
   dealsAt      DateTime? @map("deals_at")
   /// С какого IP прислали описания: подтверждение с того же IP не считается.
   dealsIp      String?   @map("deals_ip")
+  /// Проверка картой: сотрудник попросил — ссылка ушла на contactEmail;
+  /// проверочный платёж 1 ₽ без списания (id у ЮKassa) и итог сверки —
+  /// { first6, last4, type, expiry, matched, firstUsedAt, source }.
+  cardRequestedAt DateTime? @map("card_requested_at")
+  cardPaymentId   String?   @map("card_payment_id")
+  cardCheckedAt   DateTime? @map("card_checked_at")
+  cardResult      Json?     @map("card_result")
   decidedById  String?   @map("decided_by_id") @db.Uuid
   decidedAt    DateTime? @map("decided_at")
   note         String?

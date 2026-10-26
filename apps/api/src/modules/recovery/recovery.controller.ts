@@ -133,6 +133,22 @@ export class RecoveryController {
     return this.recovery.dealsSubmit(body.token, body.deals, ctxOf(req).ip);
   }
 
+  // ── Проверка картой по ссылке из письма — без входа, по токену ──
+
+  @Post('card/status')
+  @HttpCode(200)
+  @RateLimit('recovery-card', 120, 3600)
+  cardStatus(@Body(new ZodValidationPipe(tokenSchema)) body: { token: string }) {
+    return this.recovery.cardStatus(body.token);
+  }
+
+  @Post('card/pay')
+  @HttpCode(200)
+  @RateLimit('recovery-card-pay', 10, 3600)
+  cardPay(@Body(new ZodValidationPipe(tokenSchema)) body: { token: string }) {
+    return this.recovery.cardPay(body.token);
+  }
+
   // ── Другая сторона сделки: просьбы подтвердить и ответ ──
 
   @Get('checks')
@@ -221,6 +237,19 @@ export class RecoveryController {
     @Req() req: Request,
   ) {
     return this.recovery.requestDeals(id, user.userId, ctxOf(req).ip);
+  }
+
+  /** Попросить проверку картой ссылкой на новую почту. */
+  @Post(':id/request-card')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('agent', 'moderator')
+  requestCard(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ) {
+    return this.recovery.requestCard(id, user.userId, ctxOf(req).ip);
   }
 
   @Post(':id/restore-new-email')
