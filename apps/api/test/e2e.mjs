@@ -2232,6 +2232,71 @@ async function scenarioRecovery(rnd) {
   );
 }
 
+// Нет доступа и к почте: новая почта в заявке; документы просят только при
+// пройденной проверке личности; по ссылке — свои файлы и один раз; через 3
+// дня — доступ на новую почту, в журнале — прежняя и новая почта.
+async function scenarioRecoveryNewEmail(rnd) {
+  console.log('\n— Не могу войти: нет доступа к почте —');
+  const owner = await register('qno', rnd);
+  const other = await register('qnx', rnd);
+  const agent = await register('qna', rnd);
+  await grant(agent.id, 'agent');
+  await prisma.kycVerification.create({
+    data: { userId: owner.id, level: 'document', status: 'approved', reviewedAt: new Date(), documentRefs: { keys: [`kyc/${owner.id}/doc.png`], selfie: `kyc/${owner.id}/me.png` } },
+  });
+  const fresh = `qnnew${rnd}@e2e.local`;
+  const ask = (email) =>
+    j('/recovery', { method: 'POST', body: JSON.stringify({ email, reason: 'password', orderNumbers: [], details: 'Нет доступа ни к аккаунту, ни к почте', newEmail: fresh.toUpperCase() }) });
+  const sent = await ask(`qno${rnd}@e2e.local`);
+  await ask(`qnx${rnd}@e2e.local`);
+  const queue = (await j('/recovery/queue', { token: agent.token })).body;
+  const mine = queue.find((r) => r.email === `qno${rnd}@e2e.local`);
+  const theirs = queue.find((r) => r.email === `qnx${rnd}@e2e.local`);
+  const noKyc = await j(`/recovery/${theirs?.id}/request-docs`, { method: 'POST', token: agent.token });
+  const asked = await j(`/recovery/${mine?.id}/request-docs`, { method: 'POST', token: agent.token });
+  const rec = await prisma.accountRecovery.findUnique({ where: { id: mine.id } });
+  const secret = process.env.JWT_ACCESS_SECRET;
+  const b = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const t = Math.floor(Date.now() / 1000);
+  const body = `${b({ alg: 'HS256', typ: 'JWT' })}.${b({ data: { rid: mine.id, at: rec.evidenceRequestedAt.getTime() }, purpose: 'recovery_docs', iat: t, exp: t + 600 })}`;
+  const token = `${body}.${createHmac('sha256', secret).update(body).digest('base64url')}`;
+  const status = await j('/recovery/docs/status', { method: 'POST', body: JSON.stringify({ token }) });
+  const forged = await j('/recovery/docs/status', { method: 'POST', body: JSON.stringify({ token: token.slice(0, -4) + 'AAAA' }) });
+  const abs = (u) => new URL(u, API).toString();
+  const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001', 'hex');
+  const upload = async () => {
+    const up = await j('/recovery/docs/uploads', { method: 'POST', body: JSON.stringify({ token, mime: 'image/png' }) });
+    const put = await fetch(abs(up.body.uploadUrl), { method: 'PUT', body: png, headers: { 'Content-Type': 'image/png' } });
+    return put.ok ? up.body.key : null;
+  };
+  const [doc, selfie] = [await upload(), await upload()];
+  const foreign = await j('/recovery/docs', { method: 'POST', body: JSON.stringify({ token, documentKeys: [`kyc/${owner.id}/doc.png`], selfieKey: selfie }) });
+  const submitted = await j('/recovery/docs', { method: 'POST', body: JSON.stringify({ token, documentKeys: [doc], selfieKey: selfie }) });
+  const again = await j('/recovery/docs', { method: 'POST', body: JSON.stringify({ token, documentKeys: [doc], selfieKey: selfie }) });
+  const detail = (await j(`/recovery/${mine.id}`, { token: agent.token })).body;
+  const early = await j(`/recovery/${mine.id}/restore-new-email`, { method: 'POST', token: agent.token });
+  check(
+    'Нет доступа к почте: новая почта в заявке; без проверки личности документы не просят; по ссылке — свои файлы и один раз; сотруднику — одобренные и присланные документы; раньше 3 дней — 400',
+    sent.status === 201 && mine?.newEmail === fresh && noKyc.status === 400 && asked.status === 200 &&
+      status.status === 200 && status.body.submitted === false && forged.status === 400 &&
+      !!doc && !!selfie && foreign.status === 400 && submitted.status === 201 && again.status === 409 &&
+      detail.contact?.email === fresh && detail.contact.taken === false && detail.kyc?.files?.length === 2 &&
+      detail.evidence?.files?.length === 2 && early.status === 400,
+    JSON.stringify({ sent: sent.status, newEmail: mine?.newEmail, noKyc: noKyc.status, asked: asked.status, status: status.body, forged: forged.status, foreign: foreign.status, submitted: submitted.status, again: again.status, contact: detail.contact, kyc: detail.kyc?.files?.length, evidence: detail.evidence?.files?.length, early: early.status }),
+  );
+  await prisma.accountRecovery.update({ where: { id: mine.id }, data: { createdAt: new Date(Date.now() - 73 * 3_600_000) } });
+  const restored = await j(`/recovery/${mine.id}/restore-new-email`, { method: 'POST', token: agent.token });
+  const user = await prisma.user.findUnique({ where: { id: owner.id }, select: { email: true, emailVerified: true, passwordHash: true } });
+  const log = await prisma.auditLog.findFirst({ where: { action: 'recovery.restore_new_email', entityId: owner.id } });
+  const oldSession = (await j('/notifications', { token: owner.token })).status;
+  check(
+    'Через 3 дня — доступ на новую почту: почта сменена и подтверждена, пароль сброшен, сеанс закрыт, в журнале — прежняя и новая почта',
+    restored.status === 200 && user?.email === fresh && !!user.emailVerified && user.passwordHash === null && oldSession === 401 &&
+      log?.before?.email === `qno${rnd}@e2e.local` && log?.after?.email === fresh,
+    JSON.stringify({ restored: restored.status, email: user?.email, verified: !!user?.emailVerified, oldSession, log: { before: log?.before, after: log?.after } }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2717,6 +2782,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioPasswordChanged(rnd);
   await scenarioTwoFactorAlert(rnd);
   await scenarioRecovery(rnd);
+  await scenarioRecoveryNewEmail(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

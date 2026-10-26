@@ -71,6 +71,12 @@ export const EN_API: Phrasebook = {
   'По заявке уже решено': 'This request has already been decided',
   'Решить можно через 3 дня после заявки: владелец должен успеть её увидеть':
     'You can decide 3 days after the request: the owner must have time to see it',
+  'В заявке нет новой почты': 'The request has no new email',
+  'У аккаунта нет пройденной проверки личности — сверять документы не с чем':
+    'The account has no approved ID check, so there is nothing to compare the documents with',
+  'Документы уже отправлены': 'Documents have already been sent',
+  'Документы по ссылке ещё не присланы': 'The documents from the link haven’t been sent yet',
+  'Эта почта уже у другого аккаунта': 'This email already belongs to another account',
   'Неверные данные': 'Incorrect email or password',
   'Невалидный refresh-токен': 'Invalid refresh token',
   'Сессия недействительна': 'Session is no longer valid',

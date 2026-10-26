@@ -879,6 +879,15 @@ model AccountRecovery {
   /// Из аккаунта отметили «Заявку подал не я»: когда и с какого устройства.
   objectedAt   DateTime? @map("objected_at")
   objectedFrom String?   @map("objected_from")
+  /// «Нет доступа и к почте аккаунта»: куда ответить и, если сотрудник решит,
+  /// какую почту привязать. Только при пройденной проверке личности.
+  contactEmail String?   @map("contact_email")
+  /// Сотрудник попросил документы — ссылка ушла на contactEmail; новая
+  /// просьба делает прежнюю ссылку недействительной.
+  evidenceRequestedAt DateTime? @map("evidence_requested_at")
+  /// { keys: [фото документа], selfie } — ключи хранилища, как у проверки личности.
+  evidenceRefs Json?     @map("evidence_refs")
+  evidenceAt   DateTime? @map("evidence_at")
   decidedById  String?   @map("decided_by_id") @db.Uuid
   decidedAt    DateTime? @map("decided_at")
   note         String?

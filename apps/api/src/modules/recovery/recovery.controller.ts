@@ -34,6 +34,14 @@ const requestSchema = z.object({
     .max(3, 'Не больше трёх номеров заказов')
     .default([]),
   details: z.string().trim().min(10, 'Опишите, что случилось, — от 10 символов').max(2000),
+  // Нет доступа и к почте аккаунта — куда ответить.
+  newEmail: z.string().trim().email().max(200).optional(),
+});
+const tokenSchema = z.object({ token: z.string().min(10).max(2000) });
+const uploadSchema = tokenSchema.extend({ mime: z.string().max(100) });
+const docsSchema = tokenSchema.extend({
+  documentKeys: z.array(z.string().max(300)).min(1).max(2),
+  selfieKey: z.string().max(300),
 });
 const rejectSchema = z.object({
   note: z.string().trim().min(5, 'Причина — от 5 символов').max(1000),
@@ -48,10 +56,44 @@ export class RecoveryController {
   @RateLimit('recovery', 5, 3600)
   request(
     @Body(new ZodValidationPipe(requestSchema))
-    body: { email: string; reason: RecoveryReason; orderNumbers: string[]; details: string },
+    body: {
+      email: string;
+      reason: RecoveryReason;
+      orderNumbers: string[];
+      details: string;
+      newEmail?: string;
+    },
     @Req() req: Request,
   ) {
     return this.recovery.request(body, ctxOf(req));
+  }
+
+  // ── Документы по ссылке «Загрузите документы» — без входа, по токену из письма ──
+
+  @Post('docs/status')
+  @HttpCode(200)
+  @RateLimit('recovery-docs', 60, 3600)
+  docsStatus(@Body(new ZodValidationPipe(tokenSchema)) body: { token: string }) {
+    return this.recovery.docsStatus(body.token);
+  }
+
+  @Post('docs/uploads')
+  @RateLimit('recovery-docs', 60, 3600)
+  docsUpload(@Body(new ZodValidationPipe(uploadSchema)) body: { token: string; mime: string }) {
+    return this.recovery.docsUpload(body.token, body.mime);
+  }
+
+  @Post('docs')
+  @RateLimit('recovery-docs', 60, 3600)
+  docsSubmit(
+    @Body(new ZodValidationPipe(docsSchema))
+    body: {
+      token: string;
+      documentKeys: string[];
+      selfieKey: string;
+    },
+  ) {
+    return this.recovery.docsSubmit(body.token, body.documentKeys, body.selfieKey);
   }
 
   @Get('mine')
@@ -96,6 +138,31 @@ export class RecoveryController {
     @Req() req: Request,
   ) {
     return this.recovery.restore(id, user.userId, ctxOf(req).ip);
+  }
+
+  /** Попросить документы ссылкой на новую почту из заявки. */
+  @Post(':id/request-docs')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('agent', 'moderator')
+  requestDocs(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ) {
+    return this.recovery.requestEvidence(id, user.userId, ctxOf(req).ip);
+  }
+
+  @Post(':id/restore-new-email')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('agent', 'moderator')
+  restoreNewEmail(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ) {
+    return this.recovery.restoreToNewEmail(id, user.userId, ctxOf(req).ip);
   }
 
   @Post(':id/reject')

@@ -134,6 +134,25 @@ export const AUTH: Record<string, string> = {
     'When you stopped being able to sign in, what arrived by email, what you usually sign in from',
   'Отправить заявку': 'Send request',
   'Не помните тот пароль? Заявка в поддержку': 'Don’t remember that password? Ask support',
+  // Нет доступа и к почте аккаунта: новая почта и документы по ссылке
+  'Укажите почту, на которую ответить': 'Enter the email to reply to',
+  'Если аккаунт с такой почтой есть и проверка личности у него пройдена, сотрудник напишет на новую почту и попросит фото документа и селфи с ним. Решение — не раньше чем через 3 дня.':
+    'If an account with this email exists and has passed the ID check, our staff will write to the new email and ask for a photo of the document and a selfie with it. The decision takes at least 3 days.',
+  'Нет доступа и к почте аккаунта': 'I can’t access the account email either',
+  'Только если у аккаунта пройдена проверка личности: сотрудник попросит селфи с тем же документом.':
+    'Only if the account has passed the ID check: staff will ask for a selfie with the same document.',
+  'Новая почта для связи': 'New email for contact',
+  'Если сотрудник подтвердит, что аккаунт ваш, она станет почтой аккаунта.':
+    'If staff confirm the account is yours, it becomes the account email.',
+  'Документы для восстановления доступа': 'Documents for account recovery',
+  'Ссылка действует неделю и только последняя из присланных. Если заявку уже решили, ответ пришёл на почту.':
+    'The link works for a week, and only the latest one sent. If the request has been decided, the answer came by email.',
+  'Подать заявку заново': 'File a new request',
+  'Документы отправлены. Сотрудник сверит их с проверкой личности и ответит на эту почту.':
+    'Documents sent. Staff will compare them with the ID check and reply to this email.',
+  'Сфотографируйте тот же документ, что при проверке личности, и сделайте селфи с ним. Сотрудник сверит их и решит, вернуть ли вам аккаунт.':
+    'Take a photo of the same document as in your ID check and a selfie with it. Staff will compare them and decide whether to return the account to you.',
+  'Отправить документы': 'Send documents',
   // «Это не я» из письма «Вход с кодом из приложения включён»
   'Выключить вход с кодом': 'Turn off the sign-in code',
   'Вход с кодом из приложения включили не вы? Введите пароль, который был у аккаунта в тот момент, и задайте новый.':

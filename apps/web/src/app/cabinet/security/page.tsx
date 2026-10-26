@@ -19,6 +19,8 @@ interface Recovery {
   createdAt: string;
   userAgent: string | null;
   objected: boolean;
+  /** Просят привязать новую почту — так уводят аккаунты, владельцу это важно знать. */
+  newEmail: boolean;
   decideAfter: string;
 }
 
@@ -176,9 +178,13 @@ function Security() {
             </span>
           </p>
           <p className="muted" style={{ fontSize: 14, margin: '12px 0 0' }}>
-            {t('Кто-то сообщил поддержке, что не может войти в этот аккаунт. Сотрудник решит не раньше {date}. Если это вы — ждите ответа на почту. Если не вы — отметьте это, сотрудник увидит до решения.', {
-              date: when(recovery.decideAfter, t),
-            })}
+            {recovery.newEmail
+              ? t('Кто-то сообщил поддержке, что не может войти в этот аккаунт, и просит сменить его почту. Сотрудник решит не раньше {date}. Если это не вы — обязательно отметьте это.', {
+                  date: when(recovery.decideAfter, t),
+                })
+              : t('Кто-то сообщил поддержке, что не может войти в этот аккаунт. Сотрудник решит не раньше {date}. Если это вы — ждите ответа на почту. Если не вы — отметьте это, сотрудник увидит до решения.', {
+                  date: when(recovery.decideAfter, t),
+                })}
           </p>
           <div style={{ marginTop: 12 }}>
             {recovery.objected ? (

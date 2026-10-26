@@ -4623,3 +4623,14 @@ a.my-lot-title:hover {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 13px;
 }
+.recovery-compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+.recovery-sub {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--fg-muted);
+}

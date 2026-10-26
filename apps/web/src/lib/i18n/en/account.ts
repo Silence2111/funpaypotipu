@@ -7,6 +7,8 @@ export const ACCOUNT: Record<string, string> = {
   'Кто-то сообщил поддержке, что не может войти в этот аккаунт. Сотрудник решит не раньше {date}. Если это вы — ждите ответа на почту. Если не вы — отметьте это, сотрудник увидит до решения.':
     'Someone told support they can’t sign in to this account. Staff won’t decide before {date}. If it was you, wait for a reply by email. If not, mark it — staff will see this before deciding.',
   'Отмечено: заявку подали не вы': 'Marked: you didn’t file this request',
+  'Кто-то сообщил поддержке, что не может войти в этот аккаунт, и просит сменить его почту. Сотрудник решит не раньше {date}. Если это не вы — обязательно отметьте это.':
+    'Someone told support they can’t sign in to this account and asked to change its email. Staff won’t decide before {date}. If it wasn’t you, be sure to mark it.',
   'Заявку подал не я': 'I didn’t file this',
   'Отмечено: сотрудник увидит, что заявку подали не вы.':
     'Marked: staff will see that you didn’t file this request.',

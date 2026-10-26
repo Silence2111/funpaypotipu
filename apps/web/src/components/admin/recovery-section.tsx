@@ -5,6 +5,7 @@ import { NOTIFY_LABELS } from '@gamemarket/shared';
 import { apiFetch } from '@/lib/session';
 import { ORDER_STATUS_LABELS } from '@/lib/chat';
 import { apiErrorMessage } from '@/lib/errors';
+import { FileText } from 'lucide-react';
 import { Empty, when } from './shared';
 
 interface Row {
@@ -16,7 +17,14 @@ interface Row {
   username: string | null;
   orders: { given: number; found: number };
   objected: boolean;
+  newEmail: string | null;
   decideAfter: string;
+}
+
+interface DocFile {
+  kind: 'document' | 'selfie';
+  pdf: boolean;
+  url: string;
 }
 
 interface Detail {
@@ -42,7 +50,12 @@ interface Detail {
   };
   orders: Array<{ number: string; found: boolean; role?: string; status?: string; amount?: string; createdAt?: string }>;
   history: Array<{ type: string; at: string; device: string | null; ip: string | null }>;
+  contact: { email: string; taken: boolean } | null;
+  kyc: { approvedAt: string | null; files: DocFile[] } | null;
+  evidence: { requestedAt: string; submittedAt: string | null; files: DocFile[] } | null;
 }
+
+type Action = 'restore' | 'restore-new-email' | 'reject';
 
 const REASON: Record<string, string> = {
   two_factor: 'вход с кодом включил не владелец',
@@ -90,7 +103,19 @@ export function RecoverySection() {
     }
   }
 
-  async function decide(id: string, action: 'restore' | 'reject') {
+  /** Попросить документы ссылкой на новую почту — заявка остаётся открытой. */
+  async function requestDocs(id: string) {
+    setErr(null);
+    try {
+      const r = await apiFetch<{ mailed: boolean }>(`/recovery/${id}/request-docs`, { method: 'POST' });
+      if (!r.mailed) setErr('Почта площадки не настроена: письмо со ссылкой не ушло.');
+      setOpen(await apiFetch<Detail>(`/recovery/${id}`));
+    } catch (e) {
+      setErr(apiErrorMessage(e, 'Не удалось попросить документы.'));
+    }
+  }
+
+  async function decide(id: string, action: Action) {
     setErr(null);
     if (action === 'reject' && note.trim().length < 5) {
       setErr('Напишите причину отказа — она уйдёт на почту аккаунта.');
@@ -135,8 +160,11 @@ export function RecoverySection() {
                   {r.status === 'pending' ? ` · решение после ${when(r.decideAfter)}` : ''}
                 </span>
                 {r.objected && <span className="badge warning">владелец из аккаунта возражает</span>}
+                {r.newEmail && <span className="badge">нет доступа к почте · просит {r.newEmail}</span>}
               </button>
-              {open?.id === r.id && <RecoveryDetail d={open} note={note} setNote={setNote} decide={decide} />}
+              {open?.id === r.id && (
+                <RecoveryDetail d={open} note={note} setNote={setNote} decide={decide} requestDocs={requestDocs} />
+              )}
             </div>
           ))}
         </div>
@@ -145,19 +173,45 @@ export function RecoverySection() {
   );
 }
 
+/** Фото и PDF документов — по ссылкам на час, как в проверке личности. */
+function DocFiles({ files }: { files: DocFile[] }) {
+  if (!files.length) return <Empty>Файлов нет.</Empty>;
+  return (
+    <div className="kyc-review-files">
+      {files.map((f, i) => (
+        <a key={i} href={f.url} target="_blank" rel="noreferrer" className="kyc-review-file">
+          {f.pdf ? (
+            <span className="kyc-file-doc">
+              <FileText size={22} strokeWidth={1.75} aria-hidden /> PDF
+            </span>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={f.url} alt={f.kind === 'selfie' ? 'Селфи с документом' : 'Документ'} />
+          )}
+          <span>{f.kind === 'selfie' ? 'Селфи' : 'Документ'}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
 function RecoveryDetail({
   d,
   note,
   setNote,
   decide,
+  requestDocs,
 }: {
   d: Detail;
   note: string;
   setNote: (v: string) => void;
-  decide: (id: string, action: 'restore' | 'reject') => Promise<void>;
+  decide: (id: string, action: Action) => Promise<void>;
+  requestDocs: (id: string) => Promise<void>;
 }) {
   const ready = Date.now() >= new Date(d.decideAfter).getTime();
   const a = d.account;
+  // На новую почту — только с проверкой личности, присланными документами и свободной почтой.
+  const toNewEmail = !!d.contact && !!d.kyc && !!d.evidence?.submittedAt && !d.contact.taken;
   return (
     <div className="recovery-detail">
       <div>
@@ -189,6 +243,57 @@ function RecoveryDetail({
             ` · вход через ${a.social.map((s) => `${s.provider} (с ${when(s.createdAt)})`).join(', ')}`}
         </p>
       </div>
+
+      {d.contact && (
+        <div>
+          <h3 className="recovery-h">Нет доступа к почте</h3>
+          <p className="faint" style={{ margin: 0, fontSize: 13 }}>
+            Просит привязать <span className="recovery-mono">{d.contact.email}</span>
+            {d.contact.taken && (
+              <span className="badge danger" style={{ marginLeft: 8 }}>
+                почта у другого аккаунта
+              </span>
+            )}
+          </p>
+          {d.kyc ? (
+            <>
+              <p className="faint" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                Проверка личности пройдена{d.kyc.approvedAt ? ` ${when(d.kyc.approvedAt)}` : ''}. Сверьте лицо и
+                документ.
+              </p>
+              <div className="recovery-compare">
+                <div>
+                  <p className="recovery-sub">Одобренные при проверке</p>
+                  <DocFiles files={d.kyc.files} />
+                </div>
+                <div>
+                  <p className="recovery-sub">Присланные по ссылке</p>
+                  {d.evidence?.submittedAt ? (
+                    <DocFiles files={d.evidence.files} />
+                  ) : (
+                    <Empty>
+                      {d.evidence
+                        ? `Ссылка ушла ${when(d.evidence.requestedAt)}, документов пока нет.`
+                        : 'Ещё не просили.'}
+                    </Empty>
+                  )}
+                </div>
+              </div>
+              {d.status === 'pending' && (
+                <div style={{ marginTop: 8 }}>
+                  <button type="button" className="chip" onClick={() => void requestDocs(d.id)}>
+                    {d.evidence ? 'Отправить ссылку ещё раз' : `Попросить документы на ${d.contact.email}`}
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="faint" style={{ margin: '4px 0 0', fontSize: 13 }}>
+              Проверка личности не пройдена — сверять документы не с чем, новую почту привязать нельзя.
+            </p>
+          )}
+        </div>
+      )}
 
       <div>
         <h3 className="recovery-h">Заказы из заявки</h3>
@@ -241,11 +346,27 @@ function RecoveryDetail({
         <div className="stack-form" style={{ gap: 8 }}>
           <p className="faint" style={{ margin: 0, fontSize: 13 }}>
             Восстановление выключит вход с кодом, отвяжет вход через сервисы, Telegram и пуши, выведет все устройства и
-            сбросит пароль. Ссылка задать новый пароль уйдёт только на почту аккаунта.
+            сбросит пароль. Ссылка задать новый пароль уйдёт только на почту аккаунта
+            {d.contact ? ' — прежнюю или, если привязать новую, на новую; прежней придёт письмо о смене' : ''}.
           </p>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-            <button type="button" className="btn" disabled={!ready} onClick={() => void decide(d.id, 'restore')}>
-              Восстановить доступ
+            {d.contact && (
+              <button
+                type="button"
+                className="btn"
+                disabled={!ready || !toNewEmail}
+                onClick={() => void decide(d.id, 'restore-new-email')}
+              >
+                Восстановить на {d.contact.email}
+              </button>
+            )}
+            <button
+              type="button"
+              className={d.contact ? 'chip' : 'btn'}
+              disabled={!ready}
+              onClick={() => void decide(d.id, 'restore')}
+            >
+              {d.contact ? 'Восстановить на прежнюю почту' : 'Восстановить доступ'}
             </button>
             {!ready && <span className="faint" style={{ fontSize: 13 }}>можно после {when(d.decideAfter)}</span>}
           </div>

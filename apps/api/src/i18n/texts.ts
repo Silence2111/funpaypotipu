@@ -77,6 +77,15 @@ export const EN_TEXTS: Record<string, string> = {
   'Доступ к аккаунту восстановлен: вход с кодом выключен, вход через сервисы отвязан, все устройства вышли. Задайте новый пароль по ссылке из письма.':
     'Account access restored: the sign-in code is off, sign-in services are unlinked, and all devices are signed out. Set a new password with the link in the email.',
   'Задать новый пароль': 'Set a new password',
+  'Подана заявка на восстановление доступа к аккаунту с просьбой сменить почту: {device}. Если это не вы — отметьте «Заявку подал не я» в «Безопасности».':
+    'An account recovery request asking to change the email was filed: {device}. If it wasn’t you, mark “I didn’t file this” in “Security”.',
+  'Восстановление доступа: загрузите документы — GameMarket':
+    'Account recovery: upload your documents — GameMarket',
+  'Сотрудник проверяет заявку на восстановление доступа. Загрузите фото документа и селфи с ним — тем же, что при проверке личности (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.':
+    'Our staff are reviewing your account recovery request. Upload a photo of your ID and a selfie with it — the same document as in your ID check (the link works for a week): {link}\nIf you didn’t file this request, ignore this email.',
+  'Почта аккаунта изменена — GameMarket': 'Account email changed — GameMarket',
+  'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сотрудник сверил документы с проверкой личности. Если это не вы — ответьте на это письмо.':
+    'Your GameMarket account email was changed to {email} after an account recovery request: our staff checked the documents against your ID check. If it wasn’t you, reply to this email.',
   'Заявка на восстановление доступа отклонена: {note}':
     'The account recovery request was declined: {note}',
 
