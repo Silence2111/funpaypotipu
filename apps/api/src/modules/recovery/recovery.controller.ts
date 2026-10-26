@@ -20,8 +20,10 @@ import { ctxOf } from '../auth/auth-http';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import {
+  DEAL_ANSWERS,
   RECOVERY_REASONS,
   RecoveryService,
+  type DealAnswer,
   type RecoveryReason,
   type RecoveryStatus,
 } from './recovery.service';
@@ -43,6 +45,22 @@ const docsSchema = tokenSchema.extend({
   documentKeys: z.array(z.string().max(300)).min(1).max(2),
   selfieKey: z.string().max(300),
 });
+const dealsSchema = tokenSchema.extend({
+  deals: z
+    .array(
+      z.object({
+        counterparty: z.string().trim().min(2, 'Укажите ник продавца или покупателя').max(40),
+        text: z
+          .string()
+          .trim()
+          .min(20, 'Опишите сделку подробнее — от 20 символов')
+          .max(600, 'Описание сделки — до 600 символов'),
+      }),
+    )
+    .min(2, 'Опишите хотя бы две сделки')
+    .max(3, 'Не больше трёх сделок'),
+});
+const answerSchema = z.object({ answer: z.enum(DEAL_ANSWERS) });
 const rejectSchema = z.object({
   note: z.string().trim().min(5, 'Причина — от 5 символов').max(1000),
 });
@@ -94,6 +112,45 @@ export class RecoveryController {
     },
   ) {
     return this.recovery.docsSubmit(body.token, body.documentKeys, body.selfieKey);
+  }
+
+  // ── Сделки по ссылке «Опишите сделки» — без входа, по токену из письма ──
+
+  @Post('deals/status')
+  @HttpCode(200)
+  @RateLimit('recovery-deals', 60, 3600)
+  dealsStatus(@Body(new ZodValidationPipe(tokenSchema)) body: { token: string }) {
+    return this.recovery.dealsStatus(body.token);
+  }
+
+  @Post('deals')
+  @RateLimit('recovery-deals', 60, 3600)
+  dealsSubmit(
+    @Body(new ZodValidationPipe(dealsSchema))
+    body: { token: string; deals: Array<{ counterparty: string; text: string }> },
+    @Req() req: Request,
+  ) {
+    return this.recovery.dealsSubmit(body.token, body.deals, ctxOf(req).ip);
+  }
+
+  // ── Другая сторона сделки: просьбы подтвердить и ответ ──
+
+  @Get('checks')
+  @UseGuards(JwtAuthGuard)
+  checks(@CurrentUser() user: AuthUser) {
+    return this.recovery.checks(user.userId);
+  }
+
+  @Post('checks/:id')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  answerCheck(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(answerSchema)) body: { answer: DealAnswer },
+    @Req() req: Request,
+  ) {
+    return this.recovery.answerCheck(user.userId, id, body.answer, ctxOf(req).ip);
   }
 
   @Get('mine')
@@ -151,6 +208,19 @@ export class RecoveryController {
     @Req() req: Request,
   ) {
     return this.recovery.requestEvidence(id, user.userId, ctxOf(req).ip);
+  }
+
+  /** Проверки личности нет — попросить описать сделки ссылкой на новую почту. */
+  @Post(':id/request-deals')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('agent', 'moderator')
+  requestDeals(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ) {
+    return this.recovery.requestDeals(id, user.userId, ctxOf(req).ip);
   }
 
   @Post(':id/restore-new-email')

@@ -50,10 +50,34 @@ interface Detail {
   };
   orders: Array<{ number: string; found: boolean; role?: string; status?: string; amount?: string; createdAt?: string }>;
   history: Array<{ type: string; at: string; device: string | null; ip: string | null }>;
-  contact: { email: string; taken: boolean } | null;
+  /** blocker — почему не восстановить на новую почту; null — можно. */
+  contact: { email: string; taken: boolean; blocker: string | null } | null;
   kyc: { approvedAt: string | null; files: DocFile[] } | null;
   evidence: { requestedAt: string; submittedAt: string | null; files: DocFile[] } | null;
+  deals: {
+    requestedAt: string;
+    submittedAt: string | null;
+    confirmed: number;
+    needed: number;
+    items: DealItem[];
+  } | null;
 }
+
+interface DealItem {
+  counterparty: string;
+  text: string;
+  /** null — сделок аккаунта с этим ником нет, спрашивать некого. */
+  party: { since: string | null; completed: number; together: number } | null;
+  answer: 'match' | 'mismatch' | 'unsure' | null;
+  answeredAt: string | null;
+  sameIp: boolean;
+}
+
+const ANSWER: Record<string, { text: string; badge: string }> = {
+  match: { text: '✓ совпадает', badge: 'badge success' },
+  mismatch: { text: '✕ не совпадает', badge: 'badge danger' },
+  unsure: { text: 'не помнит', badge: 'badge' },
+};
 
 type Action = 'restore' | 'restore-new-email' | 'reject';
 
@@ -103,15 +127,15 @@ export function RecoverySection() {
     }
   }
 
-  /** Попросить документы ссылкой на новую почту — заявка остаётся открытой. */
-  async function requestDocs(id: string) {
+  /** Попросить документы или описать сделки ссылкой на новую почту — заявка остаётся открытой. */
+  async function requestProof(id: string, what: 'docs' | 'deals') {
     setErr(null);
     try {
-      const r = await apiFetch<{ mailed: boolean }>(`/recovery/${id}/request-docs`, { method: 'POST' });
+      const r = await apiFetch<{ mailed: boolean }>(`/recovery/${id}/request-${what}`, { method: 'POST' });
       if (!r.mailed) setErr('Почта площадки не настроена: письмо со ссылкой не ушло.');
       setOpen(await apiFetch<Detail>(`/recovery/${id}`));
     } catch (e) {
-      setErr(apiErrorMessage(e, 'Не удалось попросить документы.'));
+      setErr(apiErrorMessage(e, what === 'docs' ? 'Не удалось попросить документы.' : 'Не удалось попросить описать сделки.'));
     }
   }
 
@@ -163,7 +187,7 @@ export function RecoverySection() {
                 {r.newEmail && <span className="badge">нет доступа к почте · просит {r.newEmail}</span>}
               </button>
               {open?.id === r.id && (
-                <RecoveryDetail d={open} note={note} setNote={setNote} decide={decide} requestDocs={requestDocs} />
+                <RecoveryDetail d={open} note={note} setNote={setNote} decide={decide} requestProof={requestProof} />
               )}
             </div>
           ))}
@@ -195,23 +219,89 @@ function DocFiles({ files }: { files: DocFile[] }) {
   );
 }
 
+/**
+ * Проверки личности нет: заявитель описал сделки, другая сторона ответила.
+ * Ответ с IP заявки или описаний не считается — похоже, отвечает сам заявитель.
+ */
+function DealsProof({ d, requestProof }: { d: Detail; requestProof: (id: string, what: 'docs' | 'deals') => Promise<void> }) {
+  const deals = d.deals;
+  return (
+    <>
+      <p className="faint" style={{ margin: '4px 0 0', fontSize: 13 }}>
+        Проверки личности нет. Заявитель описывает сделки по ссылке, другая сторона каждой сделки отвечает в кабинете,
+        совпадает ли описание. Нужны подтверждения {deals?.needed ?? 2} разных участников, без «не совпадает» и без
+        возражения из аккаунта.
+      </p>
+      {deals?.submittedAt ? (
+        <>
+          <p className="recovery-sub" style={{ marginTop: 12 }}>
+            Подтвердили: <span className="recovery-mono">{deals.confirmed}</span> из{' '}
+            <span className="recovery-mono">{deals.needed}</span> нужных · описания {when(deals.submittedAt)}
+          </p>
+          <ul className="recovery-list" style={{ gap: 12 }}>
+            {deals.items.map((it) => (
+              <li key={it.counterparty}>
+                <span style={{ fontWeight: 600 }}>@{it.counterparty}</span>{' '}
+                {it.party ? (
+                  <span className="faint" style={{ fontSize: 13 }}>
+                    · сделок с аккаунтом: <span className="recovery-mono">{it.party.together}</span> · всего:{' '}
+                    <span className="recovery-mono">{it.party.completed}</span>
+                    {it.party.since ? ` · на площадке с ${when(it.party.since)}` : ''}
+                  </span>
+                ) : (
+                  <span className="faint" style={{ fontSize: 13 }}>· сделок аккаунта с таким ником нет — не спрашивали</span>
+                )}
+                <p className="deal-quote" style={{ marginTop: 6, fontSize: 14 }}>{it.text}</p>
+                {it.party && (
+                  <p style={{ margin: '6px 0 0', fontSize: 13 }}>
+                    {it.answer ? (
+                      <span className={ANSWER[it.answer]?.badge}>{ANSWER[it.answer]?.text}</span>
+                    ) : (
+                      <span className="faint">ждём ответа</span>
+                    )}
+                    {it.answeredAt && <span className="faint"> · {when(it.answeredAt)}</span>}
+                    {it.sameIp && (
+                      <span className="badge warning" style={{ marginLeft: 8 }}>
+                        с IP заявителя — не считается
+                      </span>
+                    )}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <Empty>{deals ? `Ссылка ушла ${when(deals.requestedAt)}, описаний пока нет.` : 'Ещё не просили.'}</Empty>
+      )}
+      {d.status === 'pending' && d.contact && (
+        <div style={{ marginTop: 8 }}>
+          <button type="button" className="chip" onClick={() => void requestProof(d.id, 'deals')}>
+            {deals ? 'Отправить ссылку ещё раз — прежние описания и ответы сотрутся' : `Попросить описать сделки на ${d.contact.email}`}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 function RecoveryDetail({
   d,
   note,
   setNote,
   decide,
-  requestDocs,
+  requestProof,
 }: {
   d: Detail;
   note: string;
   setNote: (v: string) => void;
   decide: (id: string, action: Action) => Promise<void>;
-  requestDocs: (id: string) => Promise<void>;
+  requestProof: (id: string, what: 'docs' | 'deals') => Promise<void>;
 }) {
   const ready = Date.now() >= new Date(d.decideAfter).getTime();
   const a = d.account;
-  // На новую почту — только с проверкой личности, присланными документами и свободной почтой.
-  const toNewEmail = !!d.contact && !!d.kyc && !!d.evidence?.submittedAt && !d.contact.taken;
+  // На новую почту — когда доказательство собрано (документы или сделки) и почта свободна.
+  const toNewEmail = !!d.contact && !d.contact.blocker && !d.contact.taken;
   return (
     <div className="recovery-detail">
       <div>
@@ -281,15 +371,18 @@ function RecoveryDetail({
               </div>
               {d.status === 'pending' && (
                 <div style={{ marginTop: 8 }}>
-                  <button type="button" className="chip" onClick={() => void requestDocs(d.id)}>
+                  <button type="button" className="chip" onClick={() => void requestProof(d.id, 'docs')}>
                     {d.evidence ? 'Отправить ссылку ещё раз' : `Попросить документы на ${d.contact.email}`}
                   </button>
                 </div>
               )}
             </>
           ) : (
-            <p className="faint" style={{ margin: '4px 0 0', fontSize: 13 }}>
-              Проверка личности не пройдена — сверять документы не с чем, новую почту привязать нельзя.
+            <DealsProof d={d} requestProof={requestProof} />
+          )}
+          {d.status === 'pending' && d.contact.blocker && (
+            <p className="faint" style={{ margin: '8px 0 0', fontSize: 13 }}>
+              Восстановить на новую почту пока нельзя. {d.contact.blocker}.
             </p>
           )}
         </div>

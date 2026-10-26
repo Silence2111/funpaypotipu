@@ -21,6 +21,7 @@ export const NOTIFY_GROUPS = [
       'order_refunded',
       'listing_out_of_stock',
       'payment_to_balance',
+      'deal_check',
     ],
   },
   { key: 'messages', label: 'Сообщения', hint: 'новые сообщения в чатах', types: ['new_message'] },
@@ -84,6 +85,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   order_cancelled: 'Заказ отменён',
   order_refunded: 'Возврат по заказу',
   payment_to_balance: 'Повторная оплата заказа зачислена на баланс',
+  deal_check: 'Подтвердите сделку: другая сторона восстанавливает доступ',
   listing_out_of_stock: 'Склад лота опустел — заказ возвращён',
   review_received: 'Новый отзыв',
   review_reply: 'Продавец ответил на ваш отзыв',
@@ -163,6 +165,8 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
   if (type === 'password_changed' || type.startsWith('two_factor_') || type.startsWith('recovery_')) {
     return '/cabinet/security';
   }
+  // Просьба подтвердить сделку — в кабинет, где на неё отвечают, а не в сам заказ.
+  if (type === 'deal_check') return '/cabinet/deal-checks';
   if (type === 'new_message' && id('conversationId')) return `/chat/${id('conversationId')}`;
   if (id('orderId')) return `/orders/${id('orderId')}`;
   if (id('listingId')) return type === 'listing_blocked' ? '/cabinet/lots' : `/lot/${id('listingId')}`;

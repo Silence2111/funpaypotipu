@@ -136,11 +136,11 @@ export const AUTH: Record<string, string> = {
   'Не помните тот пароль? Заявка в поддержку': 'Don’t remember that password? Ask support',
   // Нет доступа и к почте аккаунта: новая почта и документы по ссылке
   'Укажите почту, на которую ответить': 'Enter the email to reply to',
-  'Если аккаунт с такой почтой есть и проверка личности у него пройдена, сотрудник напишет на новую почту и попросит фото документа и селфи с ним. Решение — не раньше чем через 3 дня.':
-    'If an account with this email exists and has passed the ID check, our staff will write to the new email and ask for a photo of the document and a selfie with it. The decision takes at least 3 days.',
+  'Если аккаунт с такой почтой есть, сотрудник напишет на новую почту: попросит селфи с документом, если проверка личности пройдена, или описать сделки. Решение — не раньше чем через 3 дня.':
+    'If an account with this email exists, staff will write to the new email: they’ll ask for a selfie with your ID if the account has passed the ID check, or for a description of your deals. The decision takes at least 3 days.',
   'Нет доступа и к почте аккаунта': 'I can’t access the account email either',
-  'Только если у аккаунта пройдена проверка личности: сотрудник попросит селфи с тем же документом.':
-    'Only if the account has passed the ID check: staff will ask for a selfie with the same document.',
+  'Сотрудник напишет на новую почту и попросит селфи с документом, если у аккаунта пройдена проверка личности, или описать сделки — их подтвердит другая сторона.':
+    'Staff will write to the new email and ask for a selfie with your ID if the account has passed the ID check, or for a description of your deals — the other parties will confirm it.',
   'Новая почта для связи': 'New email for contact',
   'Если сотрудник подтвердит, что аккаунт ваш, она станет почтой аккаунта.':
     'If staff confirm the account is yours, it becomes the account email.',
@@ -153,6 +153,24 @@ export const AUTH: Record<string, string> = {
   'Сфотографируйте тот же документ, что при проверке личности, и сделайте селфи с ним. Сотрудник сверит их и решит, вернуть ли вам аккаунт.':
     'Take a photo of the same document as in your ID check and a selfie with it. Staff will compare them and decide whether to return the account to you.',
   'Отправить документы': 'Send documents',
+  // «Опишите сделки» — без проверки личности, по ссылке на новую почту
+  'Сделки для восстановления доступа': 'Deals for account recovery',
+  'Описание отправлено. Участники сделок сверят его, а сотрудник ответит на эту почту — не раньше чем через 3 дня после заявки.':
+    'Description sent. The other parties will check it, and staff will reply to this email no sooner than 3 days after the request.',
+  'Проверки личности у аккаунта нет, поэтому вспомните две-три сделки с разными продавцами или покупателями. Мы спросим их, совпадает ли описание, — ответ увидит только сотрудник. Нужны подтверждения хотя бы двух.':
+    'The account has no ID check, so recall two or three deals with different sellers or buyers. We’ll ask them whether your description matches — only staff will see their answers. At least two confirmations are needed.',
+  'Сделка {n}': 'Deal {n}',
+  'Сделка {n} — необязательно': 'Deal {n} — optional',
+  'Ник продавца или покупателя': 'Seller’s or buyer’s username',
+  'Что было в сделке': 'What the deal was',
+  'Что покупали или продавали, когда, о чём договаривались в чате':
+    'What you bought or sold, when, and what you agreed on in the chat',
+  'Пишите то, что помнят только участники сделки: детали из переписки, как и когда выдали товар. Номера заказов не нужны.':
+    'Write what only the people in the deal would remember: details from the chat, how and when the item was delivered. Order numbers aren’t needed.',
+  'Отправить описание': 'Send description',
+  'Опишите хотя бы две сделки': 'Describe at least two deals',
+  'Опишите сделку подробнее — от 20 символов': 'Describe the deal in more detail — at least 20 characters',
+  'Не удалось отправить описание. Попробуйте ещё раз.': 'Couldn’t send the description. Try again.',
   // «Это не я» из письма «Вход с кодом из приложения включён»
   'Выключить вход с кодом': 'Turn off the sign-in code',
   'Вход с кодом из приложения включили не вы? Введите пароль, который был у аккаунта в тот момент, и задайте новый.':

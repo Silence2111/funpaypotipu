@@ -29,15 +29,36 @@ const fits = (r: Row, where: Row) =>
         : true,
   );
 
-function setup(opts: { kyc?: boolean; taken?: number } = {}) {
+/** Другая сторона сделок: ник → id и сколько завершённых сделок с аккаунтом. */
+type Parties = Record<string, { id: string; deals: number }>;
+
+function setup(opts: { kyc?: boolean; taken?: number; parties?: Parties } = {}) {
   const recs: Row[] = [];
+  const deals: Row[] = [];
   const cleared: string[] = [];
+  const parties = opts.parties ?? {};
   const prisma = {
     user: {
-      findFirst: vi.fn(async ({ where }: { where: { email: { equals: string } } }) =>
-        where.email.equals.toLowerCase() === 'owner@e.x' ? { id: 'u1', email: 'owner@e.x' } : null,
+      findFirst: vi.fn(
+        async ({
+          where,
+        }: {
+          where: { email?: { equals: string }; profile?: { username: { equals: string } } };
+        }) => {
+          if (where.profile) {
+            const p = parties[where.profile.username.equals.toLowerCase()];
+            return p ? { id: p.id } : null;
+          }
+          return where.email?.equals.toLowerCase() === 'owner@e.x'
+            ? { id: 'u1', email: 'owner@e.x' }
+            : null;
+        },
       ),
-      findUnique: vi.fn(async () => ({ locale: 'ru', email: 'owner@e.x' })),
+      findUnique: vi.fn(async () => ({
+        locale: 'ru',
+        email: 'owner@e.x',
+        profile: { username: 'owner' },
+      })),
       count: vi.fn(async () => opts.taken ?? 0),
       update: vi.fn(async ({ data }: { data: Row }) => {
         cleared.push(`user:${Object.keys(data).join(',')}`);
@@ -75,6 +96,32 @@ function setup(opts: { kyc?: boolean; taken?: number } = {}) {
         ),
       ),
       count: vi.fn(async () => 0),
+    },
+    order: {
+      count: vi.fn(
+        async ({ where }: { where: { OR?: Array<{ sellerId?: string }> } }) =>
+          Object.values(parties).find((p) => p.id === where.OR?.[0]?.sellerId)?.deals ?? 0,
+      ),
+    },
+    recoveryDeal: {
+      deleteMany: vi.fn(async ({ where }: { where: { recoveryId: string } }) => {
+        const keep = deals.filter((d) => d.recoveryId !== where.recoveryId);
+        deals.splice(0, deals.length, ...keep);
+        return { count: 0 };
+      }),
+      createMany: vi.fn(async ({ data }: { data: Row[] }) => {
+        deals.push(...data.map((d) => ({ answer: null, answeredAt: null, answerIp: null, ...d })));
+        return { count: data.length };
+      }),
+      findMany: vi.fn(async ({ where }: { where: Row }) => deals.filter((d) => fits(d, where))),
+      findFirst: vi.fn(
+        async ({ where }: { where: Row }) => deals.find((d) => fits(d, where)) ?? null,
+      ),
+      updateMany: vi.fn(async ({ where, data }: { where: Row; data: Row }) => {
+        const hit = deals.filter((d) => fits(d, where));
+        hit.forEach((d) => Object.assign(d, data));
+        return { count: hit.length };
+      }),
     },
     kycVerification: {
       findFirst: vi.fn(async () =>
@@ -135,7 +182,7 @@ function setup(opts: { kyc?: boolean; taken?: number } = {}) {
       },
       { userAgent: CHROME },
     );
-  /** Токен из письма «Загрузите документы». */
+  /** Токен из последнего письма — «Загрузите документы» или «Опишите сделки». */
   const docsToken = () => {
     const body = (mail.send.mock.calls.at(-1) as unknown as [string, string, string])[2];
     return decodeURIComponent(/token=([^\s]+)/.exec(body)![1]!);
@@ -144,6 +191,7 @@ function setup(opts: { kyc?: boolean; taken?: number } = {}) {
     svc,
     prisma,
     recs,
+    deals,
     cleared,
     notifications,
     audit,
@@ -370,5 +418,143 @@ describe('нет доступа и к почте', () => {
         new Date((busy.recs[0]!.createdAt as Date).getTime() + RECOVERY_WAIT_MS),
       ),
     ).rejects.toMatchObject({ status: 409 });
+  });
+});
+
+describe('нет проверки личности — по сделкам', () => {
+  const text = (n: number) => `Сделка ${n}: купил золото, договорились в чате о времени`;
+  const PARTIES: Parties = {
+    seller1: { id: 'p1', deals: 2 },
+    seller2: { id: 'p2', deals: 1 },
+    seller3: { id: 'p3', deals: 1 },
+    ghost: { id: 'p9', deals: 0 },
+  };
+  /** Заявка с новой почтой, ссылка «Опишите сделки» и описания с IP заявителя. */
+  async function described(names: string[], parties = PARTIES) {
+    const t = setup({ parties });
+    await t.askNew();
+    await t.svc.requestDeals('r1', 'staff');
+    await t.svc.dealsSubmit(
+      t.docsToken(),
+      names.map((counterparty, i) => ({ counterparty, text: text(i + 1) })),
+      '203.0.113.5',
+    );
+    await flush();
+    const later = new Date((t.recs[0]!.createdAt as Date).getTime() + RECOVERY_WAIT_MS);
+    const id = (who: string) => t.deals.find((d) => d.counterpartyId === who)!.id as string;
+    return { ...t, later, id };
+  }
+
+  it('сделки просят только без проверки личности; ссылка — своя, документы по ней не загрузить', async () => {
+    const withKyc = setup({ kyc: true });
+    await withKyc.askNew();
+    await expect(withKyc.svc.requestDeals('r1', 'staff')).rejects.toThrow(/попросите документы/);
+
+    const { svc, mail, askNew, docsToken } = setup();
+    await askNew();
+    await svc.requestDeals('r1', 'staff');
+    expect(mail.send).toHaveBeenLastCalledWith(
+      'new@mail.x',
+      expect.any(String),
+      expect.stringMatching(/\/recover\/deals\?token=/),
+    );
+    const token = docsToken();
+    await expect(svc.dealsStatus(token)).resolves.toEqual({ ok: true, submitted: false });
+    await expect(svc.docsStatus(token)).rejects.toThrow(/недействительна/);
+  });
+
+  it('описания — один раз; спрашивают только тех, с кем у аккаунта были завершённые сделки', async () => {
+    const dup = setup({ parties: PARTIES });
+    await dup.askNew();
+    await dup.svc.requestDeals('r1', 'staff');
+    await expect(
+      dup.svc.dealsSubmit(dup.docsToken(), [
+        { counterparty: 'seller1', text: text(1) },
+        { counterparty: '@SELLER1', text: text(2) },
+      ]),
+    ).rejects.toThrow(/другим продавцом/);
+
+    const { svc, deals, notifications, docsToken } = await described([
+      '@Seller1',
+      'ghost',
+      'nobody',
+    ]);
+    expect(deals.map((d) => d.counterpartyId)).toEqual(['p1', null, null]);
+    const asked = notifications.notify.mock.calls.filter(
+      (c) => (c as unknown as [string, string])[1] === 'deal_check',
+    ) as unknown as Array<[string, string, Row]>;
+    expect(asked).toHaveLength(1);
+    expect(asked[0]![0]).toBe('p1');
+    expect(asked[0]![2]).toMatchObject({ checkId: deals[0]!.id, username: 'owner' });
+    await expect(
+      svc.dealsSubmit(docsToken(), [
+        { counterparty: 'seller2', text: text(1) },
+        { counterparty: 'seller3', text: text(2) },
+      ]),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('ответ другой стороны — только на свою просьбу и один раз', async () => {
+    const { svc, id } = await described(['seller1', 'seller2']);
+    await expect(svc.answerCheck('p2', id('p1'), 'match')).rejects.toMatchObject({ status: 404 });
+    await expect(svc.answerCheck('p1', id('p1'), 'match', '198.51.100.1')).resolves.toEqual({
+      ok: true,
+    });
+    await expect(svc.answerCheck('p1', id('p1'), 'mismatch')).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it('на новую почту — два разных подтверждения не с IP заявителя; старой почте — письмо', async () => {
+    const { svc, recs, mail, audit, id, later, prisma } = await described([
+      'seller1',
+      'seller2',
+      'seller3',
+    ]);
+    await expect(svc.restoreToNewEmail('r1', 'staff', undefined, later)).rejects.toThrow(
+      /двух разных/,
+    );
+    // С того же IP, что описания, — похоже, отвечает сам заявитель: не считается.
+    await svc.answerCheck('p1', id('p1'), 'match', '203.0.113.5');
+    await svc.answerCheck('p2', id('p2'), 'match', '198.51.100.2');
+    await expect(svc.restoreToNewEmail('r1', 'staff', undefined, later)).rejects.toThrow(
+      /двух разных/,
+    );
+    await svc.answerCheck('p3', id('p3'), 'match', '198.51.100.3');
+    await svc.restoreToNewEmail('r1', 'staff', '10.0.0.1', later);
+    expect(recs[0]!.status).toBe('restored');
+    const userUpdate = prisma.user.update.mock.calls.at(-1)![0] as unknown as { data: Row };
+    expect(userUpdate.data).toMatchObject({ email: 'new@mail.x', passwordHash: null });
+    expect(mail.send).toHaveBeenCalledWith(
+      'owner@e.x',
+      expect.any(String),
+      expect.stringMatching(/подтвердили их участники/),
+    );
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'recovery.restore_new_email',
+        after: expect.objectContaining({ proof: 'deals' }),
+      }),
+    );
+  });
+
+  it('«не совпадает» от участника или возражение из аккаунта — на новую почту нельзя', async () => {
+    const denied = await described(['seller1', 'seller2', 'seller3']);
+    await denied.svc.answerCheck('p1', denied.id('p1'), 'match', '198.51.100.1');
+    await denied.svc.answerCheck('p2', denied.id('p2'), 'match', '198.51.100.2');
+    await denied.svc.answerCheck('p3', denied.id('p3'), 'mismatch', '198.51.100.3');
+    await expect(
+      denied.svc.restoreToNewEmail('r1', 'staff', undefined, denied.later),
+    ).rejects.toThrow(/не совпадает/);
+
+    const objected = await described(['seller1', 'seller2']);
+    await objected.svc.answerCheck('p1', objected.id('p1'), 'match', '198.51.100.1');
+    await objected.svc.answerCheck('p2', objected.id('p2'), 'match', '198.51.100.2');
+    await objected.svc.object('u1', 'r1', { userAgent: CHROME });
+    await expect(
+      objected.svc.restoreToNewEmail('r1', 'staff', undefined, objected.later),
+    ).rejects.toThrow(/Заявку подал не я/);
+    // Заявка ждёт решения: сотрудник может восстановить на прежнюю почту или отклонить.
+    expect(objected.recs[0]!.status).toBe('pending');
   });
 });

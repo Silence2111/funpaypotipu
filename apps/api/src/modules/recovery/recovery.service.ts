@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { Prisma, PrismaClient } from '@gamemarket/db';
+import { AccountRecovery, Prisma, PrismaClient } from '@gamemarket/db';
 import { deviceOf } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -31,6 +31,15 @@ export type RecoveryStatus = 'pending' | 'restored' | 'rejected';
 /** Ссылка «Загрузите документы» на новую почту живёт неделю. */
 export const RECOVERY_DOCS_TTL = 7 * 86_400;
 
+/**
+ * Без проверки личности — подтверждения хотя бы двух разных участников
+ * сделок: одного мошенник может уговорить или завести сам.
+ */
+export const RECOVERY_DEALS_NEEDED = 2;
+export const DEAL_ANSWERS = ['match', 'mismatch', 'unsure'] as const;
+export type DealAnswer = (typeof DEAL_ANSWERS)[number];
+type LinkPurpose = 'recovery_docs' | 'recovery_deals';
+
 /** Документ и селфи — фото или PDF скана, как у проверки личности. */
 const DOC_TYPES: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -50,6 +59,60 @@ const maskEmail = (email: string) => {
   const [name, domain] = email.split('@');
   return `${name?.slice(0, 1) ?? ''}***@${domain ?? ''}`;
 };
+
+/** Завершённые до заявки сделки двух пользователей — в любую сторону. */
+const between = (a: string, b: string, before: Date) => ({
+  status: 'completed' as const,
+  completedAt: { lt: before },
+  OR: [
+    { buyerId: a, sellerId: b },
+    { buyerId: b, sellerId: a },
+  ],
+});
+
+interface DealRow {
+  counterpartyId: string | null;
+  answer: string | null;
+  answerIp: string | null;
+}
+
+/** Ответ с IP заявки или описаний — похоже, отвечает сам заявитель: не считается. */
+const sameIp = (rec: { ip: string | null; dealsIp: string | null }, d: DealRow) =>
+  !!d.answerIp && (d.answerIp === rec.ip || d.answerIp === rec.dealsIp);
+
+/** Сколько разных участников сделок подтвердили описание. */
+export const confirmedDeals = (
+  rec: { ip: string | null; dealsIp: string | null },
+  deals: DealRow[],
+) =>
+  new Set(
+    deals
+      .filter((d) => d.counterpartyId && d.answer === 'match' && !sameIp(rec, d))
+      .map((d) => d.counterpartyId),
+  ).size;
+
+/**
+ * Почему нельзя восстановить на новую почту, или null — можно. Один источник
+ * для консоли и для самого восстановления. С проверкой личности — только по
+ * документам; без неё — по сделкам, и тогда возражение из аккаунта или
+ * «не совпадает» от участника сделки останавливают: при сомнении аккаунт
+ * лучше не отдать, чем отдать чужому.
+ */
+export function newEmailBlocker(rec: AccountRecovery, hasKyc: boolean, deals: DealRow[]) {
+  if (!rec.contactEmail) return 'В заявке нет новой почты';
+  if (hasKyc) return rec.evidenceAt ? null : 'Документы по ссылке ещё не присланы';
+  if (rec.objectedAt) {
+    return 'Из аккаунта отметили «Заявку подал не я» — по сделкам на новую почту не восстановить';
+  }
+  if (!rec.dealsAt) return 'Описания сделок по ссылке ещё не присланы';
+  if (deals.some((d) => d.answer === 'mismatch')) {
+    return 'Участник сделки ответил, что описание не совпадает';
+  }
+  if (confirmedDeals(rec, deals) < RECOVERY_DEALS_NEEDED) {
+    return 'Нужны подтверждения хотя бы двух разных участников сделок';
+  }
+  return null;
+}
 
 /** Номер заказа — без учёта регистра: в номере есть строчные буквы, а вводят как угодно. */
 const byNumber = (numbers: string[]) =>
@@ -82,6 +145,11 @@ const SECURITY_TYPES = [
  * ссылкой на новую почту (так видно, что почта — заявителя), сверяет селфи
  * с документом с одобренными раньше и только тогда восстанавливает доступ
  * на новую почту. Старой почте — письмо, что её сменили.
+ *
+ * Проверки личности нет — заявитель по такой же ссылке описывает до трёх
+ * сделок, а другая сторона каждой из них в своём кабинете отвечает,
+ * совпадает ли описание. Нужны подтверждения двух разных участников, не с
+ * IP заявителя, без «не совпадает» и без возражения из аккаунта.
  */
 @Injectable()
 export class RecoveryService {
@@ -237,7 +305,7 @@ export class RecoveryService {
       },
     });
     if (!rec) throw new NotFoundException('Заявка не найдена');
-    const [orders, history, kyc, taken] = await Promise.all([
+    const [orders, history, kyc, taken, deals] = await Promise.all([
       this.prisma.order.findMany({
         where: {
           AND: [
@@ -262,6 +330,10 @@ export class RecoveryService {
             },
           })
         : 0,
+      this.prisma.recoveryDeal.findMany({
+        where: { recoveryId: id },
+        orderBy: [{ createdAt: 'asc' }, { counterparty: 'asc' }],
+      }),
     ]);
     const u = rec.user;
     return {
@@ -308,7 +380,13 @@ export class RecoveryService {
         };
       }),
       // Нет доступа к почте: новая почта и сверка документов с проверкой личности.
-      contact: rec.contactEmail ? { email: rec.contactEmail, taken: taken > 0 } : null,
+      contact: rec.contactEmail
+        ? {
+            email: rec.contactEmail,
+            taken: taken > 0,
+            blocker: newEmailBlocker(rec, kyc !== null, deals),
+          }
+        : null,
       kyc: kyc ? { approvedAt: kyc.reviewedAt, files: await this.files(kyc.documentRefs) } : null,
       evidence: rec.evidenceRequestedAt
         ? {
@@ -317,7 +395,37 @@ export class RecoveryService {
             files: rec.evidenceAt ? await this.files(rec.evidenceRefs) : [],
           }
         : null,
+      deals: rec.dealsRequestedAt
+        ? {
+            requestedAt: rec.dealsRequestedAt,
+            submittedAt: rec.dealsAt,
+            confirmed: confirmedDeals(rec, deals),
+            needed: RECOVERY_DEALS_NEEDED,
+            items: await Promise.all(
+              deals.map(async (d) => ({
+                counterparty: d.counterparty,
+                text: d.text,
+                party: d.counterpartyId ? await this.party(rec, d.counterpartyId) : null,
+                answer: d.answer,
+                answeredAt: d.answeredAt,
+                sameIp: sameIp(rec, d),
+              })),
+            ),
+          }
+        : null,
     };
+  }
+
+  /** Кто подтверждает: давно ли на площадке, сколько сделок вообще и с этим аккаунтом. */
+  private async party(rec: { userId: string; createdAt: Date }, id: string) {
+    const [user, completed, together] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id }, select: { createdAt: true } }),
+      this.prisma.order.count({
+        where: { status: 'completed', OR: [{ buyerId: id }, { sellerId: id }] },
+      }),
+      this.prisma.order.count({ where: between(rec.userId, id, rec.createdAt) }),
+    ]);
+    return { since: user?.createdAt ?? null, completed, together };
   }
 
   /**
@@ -349,38 +457,226 @@ export class RecoveryService {
       after: { recoveryId: id, to: rec.contactEmail },
       ip,
     });
-    const token = this.tokens.signData(
-      { rid: id, at: at.getTime() },
+    await this.mailLink(
+      { id, userId: rec.userId, contactEmail: rec.contactEmail },
       'recovery_docs',
-      RECOVERY_DOCS_TTL,
-    );
-    const user = await this.prisma.user.findUnique({
-      where: { id: rec.userId },
-      select: { locale: true },
-    });
-    const lang = langOf(user?.locale);
-    const web = process.env.WEB_URL ?? 'http://localhost:3000';
-    await this.mail.send(
-      rec.contactEmail,
-      say(lang, 'Восстановление доступа: загрузите документы — GameMarket'),
-      say(
-        lang,
-        'Сотрудник проверяет заявку на восстановление доступа. Загрузите фото документа и селфи с ним — тем же, что при проверке личности (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.',
-        { link: `${web}/recover/docs?token=${encodeURIComponent(token)}` },
-      ),
+      at,
+      (lang, link) => [
+        say(lang, 'Восстановление доступа: загрузите документы — GameMarket'),
+        say(
+          lang,
+          'Сотрудник проверяет заявку на восстановление доступа. Загрузите фото документа и селфи с ним — тем же, что при проверке личности (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.',
+          { link },
+        ),
+      ],
     );
     return { ok: true, mailed: this.mail.enabled };
   }
 
+  /**
+   * Проверки личности нет — попросить описать сделки ссылкой на новую почту,
+   * как документы. Новая просьба гасит прежнюю ссылку и прежние описания
+   * вместе с ответами на них.
+   */
+  async requestDeals(id: string, staffId: string, ip?: string) {
+    const rec = await this.prisma.accountRecovery.findUnique({ where: { id } });
+    if (!rec) throw new NotFoundException('Заявка не найдена');
+    if (rec.status !== 'pending') throw new BadRequestException('По заявке уже решено');
+    if (!rec.contactEmail) throw new BadRequestException('В заявке нет новой почты');
+    if (await this.approvedKyc(rec.userId)) {
+      throw new BadRequestException(
+        'У аккаунта пройдена проверка личности — попросите документы, они надёжнее',
+      );
+    }
+    const at = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      await tx.recoveryDeal.deleteMany({ where: { recoveryId: id } });
+      await tx.accountRecovery.update({
+        where: { id },
+        data: { dealsRequestedAt: at, dealsAt: null, dealsIp: null },
+      });
+    });
+    await this.audit.log({
+      actorId: staffId,
+      action: 'recovery.request_deals',
+      entityType: 'user',
+      entityId: rec.userId,
+      after: { recoveryId: id, to: rec.contactEmail },
+      ip,
+    });
+    await this.mailLink(
+      { id, userId: rec.userId, contactEmail: rec.contactEmail },
+      'recovery_deals',
+      at,
+      (lang, link) => [
+        say(lang, 'Восстановление доступа: опишите сделки — GameMarket'),
+        say(
+          lang,
+          'Сотрудник проверяет заявку на восстановление доступа. Проверки личности у аккаунта нет, поэтому опишите две-три сделки с разными продавцами или покупателями — мы спросим их, совпадает ли описание (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.',
+          { link },
+        ),
+      ],
+    );
+    return { ok: true, mailed: this.mail.enabled };
+  }
+
+  /** Страница сделок по ссылке из письма: действует ли ссылка и прислали ли уже. */
+  async dealsStatus(token: string) {
+    const rec = await this.byLinkToken(token, 'recovery_deals');
+    return { ok: true, submitted: rec.dealsAt !== null };
+  }
+
+  /**
+   * Описания сделок по ссылке — один раз. Спрашиваем другую сторону, только
+   * если у аккаунта есть с ней сделки, завершённые до заявки; ответ заявителю
+   * один и тот же — по нему не узнать, с кем аккаунт торговал.
+   */
+  async dealsSubmit(
+    token: string,
+    deals: Array<{ counterparty: string; text: string }>,
+    ip?: string,
+  ) {
+    const rec = await this.byLinkToken(token, 'recovery_deals');
+    if (rec.dealsAt) throw new ConflictException('Описания уже отправлены');
+    const names = deals.map((d) => d.counterparty.trim().replace(/^@/, ''));
+    if (new Set(names.map((n) => n.toLowerCase())).size !== names.length) {
+      throw new BadRequestException('Каждая сделка — с другим продавцом или покупателем');
+    }
+    const rows = await Promise.all(
+      deals.map(async (d, i) => ({
+        id: randomUUID(),
+        recoveryId: rec.id,
+        counterparty: names[i]!,
+        text: d.text.trim(),
+        counterpartyId: await this.counterpartyOf(rec, names[i]!),
+      })),
+    );
+    const done = await this.prisma.$transaction(async (tx) => {
+      const res = await tx.accountRecovery.updateMany({
+        where: {
+          id: rec.id,
+          status: 'pending',
+          dealsAt: null,
+          dealsRequestedAt: rec.dealsRequestedAt,
+        },
+        data: { dealsAt: new Date(), dealsIp: ip ?? null },
+      });
+      if (!res.count) return false;
+      await tx.recoveryDeal.createMany({ data: rows });
+      return true;
+    });
+    if (!done) throw new ConflictException('Описания уже отправлены');
+    const owner = await this.prisma.user.findUnique({
+      where: { id: rec.userId },
+      select: { profile: { select: { username: true } } },
+    });
+    const username = owner?.profile?.username ?? '';
+    for (const r of rows) {
+      if (!r.counterpartyId) continue;
+      this.alert(r.counterpartyId, 'deal_check', { checkId: r.id, username }, (lang) =>
+        say(
+          lang,
+          '@{username}, с кем вы заключали сделки, восстанавливает доступ к аккаунту. Сверьте описание сделки — ответ увидит только сотрудник.',
+          { username },
+        ),
+      );
+    }
+    return { ok: true };
+  }
+
+  /** Другая сторона: живой аккаунт с этим ником и сделки с ним, завершённые до заявки. */
+  private async counterpartyOf(rec: { userId: string; createdAt: Date }, username: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: { not: rec.userId },
+        status: 'active',
+        deletedAt: null,
+        profile: { username: { equals: username, mode: 'insensitive' } },
+      },
+      select: { id: true },
+    });
+    if (!user) return null;
+    const deals = await this.prisma.order.count({
+      where: between(rec.userId, user.id, rec.createdAt),
+    });
+    return deals ? user.id : null;
+  }
+
+  /** Просьбы подтвердить сделку — другой стороне, в кабинете; с её сделками с этим аккаунтом. */
+  async checks(userId: string) {
+    const rows = await this.prisma.recoveryDeal.findMany({
+      where: { counterpartyId: userId, answer: null, recovery: { status: 'pending' } },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      include: {
+        recovery: {
+          select: {
+            userId: true,
+            createdAt: true,
+            user: { select: { profile: { select: { username: true } } } },
+          },
+        },
+      },
+    });
+    return Promise.all(
+      rows.map(async (r) => {
+        const orders = await this.prisma.order.findMany({
+          where: between(r.recovery.userId, userId, r.recovery.createdAt),
+          orderBy: { completedAt: 'desc' },
+          take: 5,
+          select: {
+            id: true,
+            publicNumber: true,
+            listingSnapshot: true,
+            amount: true,
+            currency: true,
+            completedAt: true,
+            sellerId: true,
+          },
+        });
+        return {
+          id: r.id,
+          createdAt: r.createdAt,
+          username: r.recovery.user.profile?.username ?? null,
+          text: r.text,
+          deals: orders.map((o) => ({
+            id: o.id,
+            number: o.publicNumber,
+            title: (o.listingSnapshot as { title?: string } | null)?.title ?? null,
+            amount: o.amount.toString(),
+            currency: o.currency,
+            completedAt: o.completedAt,
+            youSold: o.sellerId === userId,
+          })),
+        };
+      }),
+    );
+  }
+
+  /** Ответ другой стороны — один раз и только на свою просьбу, пока заявка ждёт решения. */
+  async answerCheck(userId: string, id: string, answer: DealAnswer, ip?: string) {
+    const res = await this.prisma.recoveryDeal.updateMany({
+      where: { id, counterpartyId: userId, answer: null, recovery: { status: 'pending' } },
+      data: { answer, answeredAt: new Date(), answerIp: ip ?? null },
+    });
+    if (res.count) return { ok: true };
+    const mine = await this.prisma.recoveryDeal.findFirst({
+      where: { id, counterpartyId: userId },
+      select: { answer: true },
+    });
+    if (mine?.answer) throw new ConflictException('Вы уже ответили');
+    throw new NotFoundException('Просьба не найдена или заявку уже решили');
+  }
+
   /** Страница документов по ссылке из письма: действует ли ссылка и прислали ли уже. */
   async docsStatus(token: string) {
-    const rec = await this.byDocsToken(token);
+    const rec = await this.byLinkToken(token, 'recovery_docs');
     return { ok: true, submitted: rec.evidenceAt !== null };
   }
 
   /** Подписанная ссылка на загрузку файла — по ссылке из письма. */
   async docsUpload(token: string, mime: string) {
-    const rec = await this.byDocsToken(token);
+    const rec = await this.byLinkToken(token, 'recovery_docs');
     if (rec.evidenceAt) throw new ConflictException('Документы уже отправлены');
     if (!this.storage.enabled) throw new NotFoundException('Хранилище недоступно');
     const ext = DOC_TYPES[mime];
@@ -391,7 +687,7 @@ export class RecoveryService {
 
   /** Документы по ссылке: только загруженные к этой заявке и прошедшие антивирус. */
   async docsSubmit(token: string, documentKeys: string[], selfieKey: string) {
-    const rec = await this.byDocsToken(token);
+    const rec = await this.byLinkToken(token, 'recovery_docs');
     if (rec.evidenceAt) throw new ConflictException('Документы уже отправлены');
     const own = (k: string) =>
       k.startsWith(`recovery/${rec.id}/`) && SAFE_KEY.test(k) && !k.includes('..');
@@ -449,18 +745,18 @@ export class RecoveryService {
 
   /**
    * Восстановить на новую почту — когда нет доступа и к почте аккаунта. Те же
-   * сбросы плюс смена почты; можно, только если новая почта не занята, у
-   * аккаунта пройдена проверка личности и документы по ссылке присланы.
-   * Старой почте — письмо, что её сменили; ссылка задать пароль — на новую.
+   * сбросы плюс смена почты; можно, только если новая почта не занята и
+   * доказательство собрано: документы при проверке личности, без неё —
+   * подтверждения сделок (см. newEmailBlocker). Старой почте — письмо, что
+   * её сменили; ссылка задать пароль — на новую.
    */
   async restoreToNewEmail(id: string, staffId: string, ip?: string, now = new Date()) {
     const rec = await this.pendingOrThrow(id, now);
-    if (!rec.contactEmail) throw new BadRequestException('В заявке нет новой почты');
-    if (!rec.evidenceAt) throw new BadRequestException('Документы по ссылке ещё не присланы');
-    if (!(await this.approvedKyc(rec.userId))) {
-      throw new BadRequestException(
-        'У аккаунта нет пройденной проверки личности — сверять документы не с чем',
-      );
+    const kyc = (await this.approvedKyc(rec.userId)) !== null;
+    const deals = kyc ? [] : await this.prisma.recoveryDeal.findMany({ where: { recoveryId: id } });
+    const blocker = newEmailBlocker(rec, kyc, deals);
+    if (blocker || !rec.contactEmail) {
+      throw new BadRequestException(blocker ?? 'В заявке нет новой почты');
     }
     const taken = await this.prisma.user.count({
       where: { email: { equals: rec.contactEmail, mode: 'insensitive' }, id: { not: rec.userId } },
@@ -477,19 +773,26 @@ export class RecoveryService {
       entityType: 'user',
       entityId: rec.userId,
       before: { email: before?.email ?? null },
-      after: { recoveryId: id, email: rec.contactEmail },
+      after: { recoveryId: id, email: rec.contactEmail, proof: kyc ? 'documents' : 'deals' },
       ip,
     });
     if (before?.email) {
       const lang = langOf(before.locale);
+      const email = maskEmail(rec.contactEmail);
       await this.mail.send(
         before.email,
         say(lang, 'Почта аккаунта изменена — GameMarket'),
-        say(
-          lang,
-          'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сотрудник сверил документы с проверкой личности. Если это не вы — ответьте на это письмо.',
-          { email: maskEmail(rec.contactEmail) },
-        ),
+        kyc
+          ? say(
+              lang,
+              'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сотрудник сверил документы с проверкой личности. Если это не вы — ответьте на это письмо.',
+              { email },
+            )
+          : say(
+              lang,
+              'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сделки из заявки подтвердили их участники. Если это не вы — ответьте на это письмо.',
+              { email },
+            ),
       );
     }
     this.sendReset(rec.userId, id);
@@ -626,25 +929,57 @@ export class RecoveryService {
     );
   }
 
-  /** Заявка по ссылке «Загрузите документы»: ссылка из последней просьбы, заявка ждёт решения. */
-  private async byDocsToken(token: string) {
+  /**
+   * Заявка по ссылке из письма — «Загрузите документы» или «Опишите сделки»:
+   * ссылка из последней просьбы, заявка ждёт решения.
+   */
+  private async byLinkToken(token: string, purpose: LinkPurpose) {
     let data: { rid: string; at: number };
     try {
-      data = this.tokens.verifyData<{ rid: string; at: number }>(token, 'recovery_docs');
+      data = this.tokens.verifyData<{ rid: string; at: number }>(token, purpose);
     } catch {
       throw new BadRequestException('Ссылка недействительна или истекла');
     }
     const rec = await this.prisma.accountRecovery.findUnique({ where: { id: data.rid } });
-    if (!rec || rec.status !== 'pending' || rec.evidenceRequestedAt?.getTime() !== data.at) {
+    const asked = purpose === 'recovery_docs' ? rec?.evidenceRequestedAt : rec?.dealsRequestedAt;
+    if (!rec || rec.status !== 'pending' || asked?.getTime() !== data.at) {
       throw new BadRequestException('Ссылка недействительна или истекла');
     }
     return rec;
   }
 
-  /** Уведомление владельцу аккаунта: письмом — всегда (группа «Безопасность»). */
+  /** Письмо со ссылкой на новую почту из заявки — на языке аккаунта, неделю. */
+  private async mailLink(
+    rec: { id: string; userId: string; contactEmail: string },
+    purpose: LinkPurpose,
+    at: Date,
+    letter: (lang: 'ru' | 'en', link: string) => [string, string],
+  ) {
+    const token = this.tokens.signData(
+      { rid: rec.id, at: at.getTime() },
+      purpose,
+      RECOVERY_DOCS_TTL,
+    );
+    const user = await this.prisma.user.findUnique({
+      where: { id: rec.userId },
+      select: { locale: true },
+    });
+    const path = purpose === 'recovery_docs' ? '/recover/docs' : '/recover/deals';
+    const web = process.env.WEB_URL ?? 'http://localhost:3000';
+    const [subject, body] = letter(
+      langOf(user?.locale),
+      `${web}${path}?token=${encodeURIComponent(token)}`,
+    );
+    await this.mail.send(rec.contactEmail, subject, body);
+  }
+
+  /**
+   * Уведомление на языке получателя: владельцу аккаунта — письмом всегда
+   * (группа «Безопасность»), другой стороне сделки — как заказы.
+   */
   private alert(
     userId: string,
-    type: 'recovery_requested' | 'recovery_restored' | 'recovery_rejected',
+    type: 'recovery_requested' | 'recovery_restored' | 'recovery_rejected' | 'deal_check',
     data: Record<string, string>,
     preview: (lang: 'ru' | 'en') => string,
     mail?: { action: string; link: string },

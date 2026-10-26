@@ -77,6 +77,24 @@ export const EN_API: Phrasebook = {
   'Документы уже отправлены': 'Documents have already been sent',
   'Документы по ссылке ещё не присланы': 'The documents from the link haven’t been sent yet',
   'Эта почта уже у другого аккаунта': 'This email already belongs to another account',
+  'У аккаунта пройдена проверка личности — попросите документы, они надёжнее':
+    'The account has an approved ID check — ask for documents, they are more reliable',
+  'Описания уже отправлены': 'The descriptions have already been sent',
+  'Описания сделок по ссылке ещё не присланы': 'The deal descriptions from the link haven’t been sent yet',
+  'Каждая сделка — с другим продавцом или покупателем': 'Each deal must be with a different seller or buyer',
+  'Укажите ник продавца или покупателя': 'Enter the seller’s or buyer’s username',
+  'Опишите сделку подробнее — от 20 символов': 'Describe the deal in more detail — at least 20 characters',
+  'Описание сделки — до 600 символов': 'The deal description must be at most 600 characters',
+  'Опишите хотя бы две сделки': 'Describe at least two deals',
+  'Не больше трёх сделок': 'No more than three deals',
+  'Из аккаунта отметили «Заявку подал не я» — по сделкам на новую почту не восстановить':
+    'Someone in the account marked “I didn’t file this request” — the account can’t be moved to a new email based on deals',
+  'Участник сделки ответил, что описание не совпадает':
+    'A deal participant answered that the description doesn’t match',
+  'Нужны подтверждения хотя бы двух разных участников сделок':
+    'Confirmations from at least two different deal participants are needed',
+  'Вы уже ответили': 'You have already answered',
+  'Просьба не найдена или заявку уже решили': 'The request wasn’t found or has already been decided',
   'Неверные данные': 'Incorrect email or password',
   'Невалидный refresh-токен': 'Invalid refresh token',
   'Сессия недействительна': 'Session is no longer valid',

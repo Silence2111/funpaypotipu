@@ -2297,6 +2297,92 @@ async function scenarioRecoveryNewEmail(rnd) {
   );
 }
 
+// Нет проверки личности: сделки описывают по ссылке на новую почту, другая
+// сторона отвечает у себя в кабинете; ответ с IP заявителя не считается;
+// через 3 дня при двух подтверждениях — доступ на новую почту.
+async function scenarioRecoveryDeals(rnd) {
+  console.log('\n— Не могу войти: по сделкам —');
+  const owner = await register('qwo', rnd);
+  const sellers = [await register('qw1', rnd), await register('qw2', rnd), await register('qw3', rnd)];
+  const agent = await register('qwa', rnd);
+  await grant(agent.id, 'agent');
+  // Завершённые до заявки покупки владельца у каждого из продавцов.
+  for (const [i, s] of sellers.entries()) {
+    const lot = await createListing(s.token, 'accounts', '20000', { title: `По сделкам ${rnd} · ${i + 1}` });
+    const order = await j('/orders', { method: 'POST', token: owner.token, body: JSON.stringify({ listingId: lot }) });
+    await prisma.order.update({ where: { id: order.body.id }, data: { status: 'completed', completedAt: new Date(Date.now() - 86_400_000) } });
+  }
+  const CLAIM_IP = '203.0.113.71';
+  const fresh = `qwnew${rnd}@e2e.local`;
+  const sent = await j('/recovery', {
+    method: 'POST', headers: { 'X-Forwarded-For': CLAIM_IP },
+    body: JSON.stringify({ email: `qwo${rnd}@e2e.local`, reason: 'password', orderNumbers: [], details: 'Нет доступа ни к аккаунту, ни к почте', newEmail: fresh }),
+  });
+  const mine = (await j('/recovery/queue', { token: agent.token })).body.find((r) => r.email === `qwo${rnd}@e2e.local`);
+  const docs = await j(`/recovery/${mine?.id}/request-docs`, { method: 'POST', token: agent.token });
+  const asked = await j(`/recovery/${mine?.id}/request-deals`, { method: 'POST', token: agent.token });
+  const rec = await prisma.accountRecovery.findUnique({ where: { id: mine.id } });
+  const b = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const t = Math.floor(Date.now() / 1000);
+  const body = `${b({ alg: 'HS256', typ: 'JWT' })}.${b({ data: { rid: mine.id, at: rec.dealsRequestedAt.getTime() }, purpose: 'recovery_deals', iat: t, exp: t + 600 })}`;
+  const token = `${body}.${createHmac('sha256', process.env.JWT_ACCESS_SECRET).update(body).digest('base64url')}`;
+  const status = await j('/recovery/deals/status', { method: 'POST', body: JSON.stringify({ token }) });
+  const asDocs = await j('/recovery/docs/status', { method: 'POST', body: JSON.stringify({ token }) });
+  const text = (n) => `Сделка ${n}: аккаунт CS2, договорились в чате о передаче вечером`;
+  const submit = (deals) =>
+    j('/recovery/deals', { method: 'POST', headers: { 'X-Forwarded-For': CLAIM_IP }, body: JSON.stringify({ token, deals }) });
+  const short = await submit([{ counterparty: `qw1${rnd}`, text: 'коротко' }, { counterparty: `qw2${rnd}`, text: text(2) }]);
+  const all = [{ counterparty: `@QW1${rnd}`, text: text(1) }, { counterparty: `qw2${rnd}`, text: text(2) }, { counterparty: `qw3${rnd}`, text: text(3) }];
+  const submitted = await submit(all);
+  const again = await submit(all);
+  let alerts = [];
+  for (let i = 0; i < 10 && !alerts.length; i++) {
+    await wait(300);
+    alerts = (await j('/notifications', { token: sellers[0].token })).body.filter((n) => n.type === 'deal_check');
+  }
+  const checks = async (u) => (await j('/recovery/checks', { token: u.token })).body;
+  const [c1] = await checks(sellers[0]);
+  const ownerChecks = await checks(owner);
+  const answer = (u, id, value, ip) =>
+    j(`/recovery/checks/${id}`, { method: 'POST', token: u.token, headers: { 'X-Forwarded-For': ip }, body: JSON.stringify({ answer: value }) });
+  const foreign = await answer(sellers[1], c1?.id, 'match', '198.51.100.72');
+  // С того же IP, что заявка, — похоже, отвечает сам заявитель.
+  const first = await answer(sellers[0], c1?.id, 'match', CLAIM_IP);
+  const twice = await answer(sellers[0], c1?.id, 'mismatch', '198.51.100.71');
+  check(
+    'По сделкам: документы без проверки личности не просят; ссылка «Опишите сделки» — своя; описания — один раз; другой стороне — уведомление и просьба с её сделкой; ответ — только свой и один раз',
+    sent.status === 201 && docs.status === 400 && asked.status === 200 && status.status === 200 && status.body.submitted === false &&
+      asDocs.status === 400 && short.status === 400 && submitted.status === 201 && again.status === 409 &&
+      alerts.length === 1 && alerts[0].payload?.username === `qwo${rnd}` && c1?.text === text(1) && c1.deals?.length === 1 &&
+      c1.deals[0].youSold === true && ownerChecks.length === 0 && foreign.status === 404 && first.status === 200 && twice.status === 409,
+    JSON.stringify({ sent: sent.status, docs: docs.status, asked: asked.status, status: status.body, asDocs: asDocs.status, short: short.status, submitted: submitted.status, again: again.status, alerts: alerts.map((n) => n.payload), c1, owner: ownerChecks.length, foreign: foreign.status, first: first.status, twice: twice.status }),
+  );
+  const [c2] = await checks(sellers[1]);
+  const [c3] = await checks(sellers[2]);
+  await answer(sellers[1], c2?.id, 'match', '198.51.100.72');
+  const one = (await j(`/recovery/${mine.id}`, { token: agent.token })).body;
+  const early = await j(`/recovery/${mine.id}/restore-new-email`, { method: 'POST', token: agent.token });
+  await answer(sellers[2], c3?.id, 'match', '198.51.100.73');
+  const two = (await j(`/recovery/${mine.id}`, { token: agent.token })).body;
+  check(
+    'Сотруднику — описания и ответы: с IP заявителя не считается; одно подтверждение — нельзя, два — можно, но не раньше 3 дней',
+    one.deals?.confirmed === 1 && /двух разных/.test(one.contact?.blocker ?? '') && early.status === 400 &&
+      two.deals?.confirmed === 2 && two.contact?.blocker === null && two.deals.items.length === 3 &&
+      two.deals.items.filter((it) => it.sameIp).length === 1 && two.deals.items.every((it) => it.party?.together === 1 && it.answer === 'match'),
+    JSON.stringify({ one: { deals: one.deals?.confirmed, blocker: one.contact?.blocker }, early: early.status, two: { confirmed: two.deals?.confirmed, blocker: two.contact?.blocker, items: two.deals?.items } }),
+  );
+  await prisma.accountRecovery.update({ where: { id: mine.id }, data: { createdAt: new Date(Date.now() - 73 * 3_600_000) } });
+  const restored = await j(`/recovery/${mine.id}/restore-new-email`, { method: 'POST', token: agent.token });
+  const user = await prisma.user.findUnique({ where: { id: owner.id }, select: { email: true, emailVerified: true, passwordHash: true } });
+  const log = await prisma.auditLog.findFirst({ where: { action: 'recovery.restore_new_email', entityId: owner.id } });
+  check(
+    'Через 3 дня по двум подтверждениям — доступ на новую почту, в журнале — «по сделкам»',
+    restored.status === 200 && user?.email === fresh && !!user.emailVerified && user.passwordHash === null &&
+      log?.after?.proof === 'deals' && log.before?.email === `qwo${rnd}@e2e.local`,
+    JSON.stringify({ restored: restored.status, email: user?.email, log: { before: log?.before, after: log?.after } }),
+  );
+}
+
 async function scenarioQtyDiscount(rnd) {
   console.log('\n— Скидка за количество —');
   const seller = await register('qds', rnd);
@@ -2783,6 +2869,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioTwoFactorAlert(rnd);
   await scenarioRecovery(rnd);
   await scenarioRecoveryNewEmail(rnd);
+  await scenarioRecoveryDeals(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioReviewPhotos(rnd);

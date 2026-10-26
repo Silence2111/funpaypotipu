@@ -888,16 +888,47 @@ model AccountRecovery {
   /// { keys: [фото документа], selfie } — ключи хранилища, как у проверки личности.
   evidenceRefs Json?     @map("evidence_refs")
   evidenceAt   DateTime? @map("evidence_at")
+  /// Проверки личности нет — сотрудник попросил описать сделки: ссылка ушла на
+  /// contactEmail, новая просьба делает прежнюю недействительной.
+  dealsRequestedAt DateTime? @map("deals_requested_at")
+  dealsAt      DateTime? @map("deals_at")
+  /// С какого IP прислали описания: подтверждение с того же IP не считается.
+  dealsIp      String?   @map("deals_ip")
   decidedById  String?   @map("decided_by_id") @db.Uuid
   decidedAt    DateTime? @map("decided_at")
   note         String?
   createdAt    DateTime  @default(now()) @map("created_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deals RecoveryDeal[]
 
   @@index([userId, status])
   @@index([status, createdAt])
   @@map("account_recoveries")
+}
+
+/// Сделка из заявки без проверки личности: как её описал заявитель и что
+/// ответила другая сторона — она в сделке была и помнит, как всё шло.
+model RecoveryDeal {
+  id             String    @id @default(uuid()) @db.Uuid
+  recoveryId     String    @map("recovery_id") @db.Uuid
+  /// Ник другой стороны — как ввёл заявитель.
+  counterparty   String
+  text           String
+  /// Кого спросили: завершённые до заявки сделки аккаунта с этим ником есть.
+  /// null — таких нет, спрашивать некого (заявителю об этом не говорим).
+  counterpartyId String?   @map("counterparty_id") @db.Uuid
+  /// match — совпадает, mismatch — не совпадает, unsure — не помнит
+  answer         String?
+  answeredAt     DateTime? @map("answered_at")
+  answerIp       String?   @map("answer_ip")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  recovery AccountRecovery @relation(fields: [recoveryId], references: [id], onDelete: Cascade)
+
+  @@index([recoveryId])
+  @@index([counterpartyId, answer])
+  @@map("recovery_deals")
 }
 
 model AuditLog {

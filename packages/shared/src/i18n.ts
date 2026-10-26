@@ -269,6 +269,8 @@ export const EN_SHARED: Phrasebook = {
   'Заявка на восстановление доступа': 'Account recovery request',
   'Доступ к аккаунту восстановлен': 'Account access restored',
   'Заявка на восстановление отклонена': 'Account recovery request declined',
+  'Подтвердите сделку: другая сторона восстанавливает доступ':
+    'Confirm a deal: the other party is recovering their account',
   'Пароль изменён': 'Password changed',
   'Вход с кодом из приложения включён': 'Sign-in code turned on',
   'Вход с кодом из приложения выключен': 'Sign-in code turned off',

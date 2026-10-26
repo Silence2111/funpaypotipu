@@ -225,4 +225,25 @@ export const ACCOUNT: Record<string, string> = {
   '2. Введите шесть цифр, которые покажет приложение.': '2. Enter the six digits the app shows.',
   Включить: 'Turn on',
   Настроить: 'Set up',
+  // «Подтверждение сделок»: другая сторона сделки отвечает на заявку на восстановление
+  'Подтверждение сделок': 'Deal confirmations',
+  'Тот, с кем вы заключали сделки, восстанавливает доступ к аккаунту. Сверьте описание сделки из заявки с тем, что было, — ответ увидит только сотрудник.':
+    'Someone you’ve had deals with is recovering their account. Compare the deal description from their request with what actually happened — only staff will see your answer.',
+  'Просьб подтвердить сделку нет.': 'No requests to confirm a deal.',
+  '@{username} восстанавливает доступ': '@{username} is recovering their account',
+  'просьба от {date}': 'requested on {date}',
+  'Ваши завершённые сделки': 'Your completed deals',
+  'вы продавали': 'you sold',
+  'вы покупали': 'you bought',
+  'Описание из заявки': 'Description from the request',
+  'Описание совпадает с тем, что было в сделке?': 'Does the description match what happened in the deal?',
+  Совпадает: 'It matches',
+  'Не совпадает': 'It doesn’t match',
+  'Не помню': 'I don’t remember',
+  'Ответ изменить нельзя. Если вас просят подтвердить в переписке или за вознаграждение, это повод ответить «Не совпадает».':
+    'You can’t change your answer. If someone asks you to confirm in a chat or for a reward, that’s a reason to answer “It doesn’t match”.',
+  'Спасибо: ответили, что описание совпадает.': 'Thank you: you answered that the description matches.',
+  'Спасибо: ответили, что описание не совпадает.': 'Thank you: you answered that the description doesn’t match.',
+  'Спасибо: ответили, что не помните.': 'Thank you: you answered that you don’t remember.',
+  'Не удалось отправить ответ. Попробуйте ещё раз.': 'Couldn’t send your answer. Try again.',
 };

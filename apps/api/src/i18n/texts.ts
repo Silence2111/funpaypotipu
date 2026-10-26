@@ -86,6 +86,14 @@ export const EN_TEXTS: Record<string, string> = {
   'Почта аккаунта изменена — GameMarket': 'Account email changed — GameMarket',
   'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сотрудник сверил документы с проверкой личности. Если это не вы — ответьте на это письмо.':
     'Your GameMarket account email was changed to {email} after an account recovery request: our staff checked the documents against your ID check. If it wasn’t you, reply to this email.',
+  'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сделки из заявки подтвердили их участники. Если это не вы — ответьте на это письмо.':
+    'Your GameMarket account email was changed to {email} after an account recovery request: the other parties confirmed the deals described in it. If it wasn’t you, reply to this email.',
+  'Восстановление доступа: опишите сделки — GameMarket':
+    'Account recovery: describe your deals — GameMarket',
+  'Сотрудник проверяет заявку на восстановление доступа. Проверки личности у аккаунта нет, поэтому опишите две-три сделки с разными продавцами или покупателями — мы спросим их, совпадает ли описание (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.':
+    'Our staff are reviewing your account recovery request. The account has no ID check, so describe two or three deals with different sellers or buyers — we’ll ask them whether your description matches (the link works for a week): {link}\nIf you didn’t file this request, ignore this email.',
+  '@{username}, с кем вы заключали сделки, восстанавливает доступ к аккаунту. Сверьте описание сделки — ответ увидит только сотрудник.':
+    '@{username}, whom you’ve had deals with, is recovering their account. Check their description of the deal — only our staff will see your answer.',
   'Заявка на восстановление доступа отклонена: {note}':
     'The account recovery request was declined: {note}',
 
