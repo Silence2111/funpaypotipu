@@ -86,7 +86,7 @@ describe('уведомления на языке профиля', () => {
       },
     };
     const mail = { enabled: true, send: vi.fn(async () => undefined) };
-    const telegram = { enabled: true, send: vi.fn(async () => true) };
+    const telegram = { enabled: true, notify: vi.fn(async () => true) };
     const push = {
       enabled: true,
       devices: vi.fn(async () => 1),
@@ -109,9 +109,9 @@ describe('уведомления на языке профиля', () => {
       'New paid order',
       expect.stringMatching(/^New paid order\.\n\nDetails: http.*\/orders\/o1$/),
     );
-    expect(telegram.send).toHaveBeenCalledWith(
-      '555',
-      expect.stringMatching(/^Order paid — deliver the goods\n/),
+    expect(telegram.notify).toHaveBeenCalledWith(
+      { id: 'u1', telegramId: '555' },
+      { text: expect.stringMatching(/^Order paid — deliver the goods\n/) },
     );
     await vi.waitFor(() => expect(push.send).toHaveBeenCalled());
     expect(push.send).toHaveBeenCalledWith(
@@ -124,9 +124,13 @@ describe('уведомления на языке профиля', () => {
   it('сообщение — «Message from …», превью в английских кавычках', async () => {
     const { svc, telegram, push } = notifier('en');
     await svc.notify('u1', 'new_message', { conversationId: 'c1', preview: 'hi', from: 'olga' });
-    expect(telegram.send).toHaveBeenCalledWith(
-      '555',
-      expect.stringMatching(/^New message\n“hi”\n/),
+    expect(telegram.notify).toHaveBeenCalledWith(
+      { id: 'u1', telegramId: '555' },
+      {
+        text: expect.stringMatching(/^New message\n“hi”\n/),
+        buttons: [[{ text: 'Reply', data: 'rp:c1' }]],
+        thread: 'c1',
+      },
     );
     await vi.waitFor(() => expect(push.send).toHaveBeenCalled());
     expect(push.send).toHaveBeenCalledWith(
@@ -144,9 +148,9 @@ describe('уведомления на языке профиля', () => {
       'Новый оплаченный заказ',
       expect.stringMatching(/^Новый оплаченный заказ\.\n\nПодробности: /),
     );
-    expect(telegram.send).toHaveBeenCalledWith(
-      '555',
-      expect.stringMatching(/^Заказ оплачен — выдайте товар\n/),
+    expect(telegram.notify).toHaveBeenCalledWith(
+      { id: 'u1', telegramId: '555' },
+      { text: expect.stringMatching(/^Заказ оплачен — выдайте товар\n/) },
     );
   });
 });
@@ -173,7 +177,7 @@ describe('бот Telegram', () => {
       'fetch',
       vi.fn(async (_url: string, init: { body: string }) => {
         sent.push((JSON.parse(init.body) as { text: string }).text);
-        return { ok: true, status: 200 };
+        return { ok: true, status: 200, json: async () => ({ ok: true, result: { message_id: 1 } }) };
       }),
     );
     return { tg: new TelegramService(prisma as never), sent };

@@ -94,6 +94,31 @@ export const EN_TEXTS: Record<string, string> = {
     'Account recovery: card check — GameMarket',
   'Сотрудник проверяет заявку на восстановление доступа. Заплатите 1 ₽ картой, которой вы платили на GameMarket или на которую выводили деньги: сумма только заблокируется и сразу вернётся (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.':
     'Our staff are reviewing your account recovery request. Pay 1 ₽ with a card you’ve paid with on GameMarket or withdrawn money to: the amount is only put on hold and released right away (the link works for a week): {link}\nIf you didn’t file this request, ignore this email.',
+  // Кнопки и ответы в Telegram
+  'Подтвердить получение': 'Confirm receipt',
+  Ответить: 'Reply',
+  'Этот Telegram не подключён к аккаунту GameMarket. Подключить — в настройках на сайте.':
+    'This Telegram isn’t connected to a GameMarket account. Connect it in the settings on the website.',
+  'Отправить можно только текст: фото и файлы — в чате на сайте.':
+    'Only text can be sent here: photos and files go in the chat on the website.',
+  'Кнопка устарела — откройте сайт.': 'This button is out of date — open the website.',
+  'Сообщение длинное — до 4000 символов.': 'The message is too long — up to 4,000 characters.',
+  'Отправлено в чат с {name}.': 'Sent to the chat with {name}.',
+  'Хорошо, не подтверждаем. Заказ {number} ждёт вас на сайте: {link}':
+    'OK, not confirming. Order {number} is waiting for you on the website: {link}',
+  'Заказ {number} уже не ждёт подтверждения: {link}':
+    'Order {number} is no longer waiting for confirmation: {link}',
+  'Подтвердить получение по заказу {number}? Деньги уйдут продавцу, отменить это будет нельзя. Если с товаром что-то не так — откройте спор на сайте: {link}':
+    'Confirm receipt for order {number}? The money will go to the seller, and this can’t be undone. If something is wrong with the item, open a dispute on the website: {link}',
+  'Да, подтвердить': 'Yes, confirm',
+  Нет: 'No',
+  'Получение подтверждено: заказ {number} завершён, деньги ушли продавцу. Оцените сделку на сайте: {link}':
+    'Receipt confirmed: order {number} is complete and the money went to the seller. Rate the deal on the website: {link}',
+  'Напишите ответ для {name} — он уйдёт в чат на сайте.':
+    'Write your reply to {name} — it will go to the chat on the website.',
+  'Не получилось — откройте сайт.': 'That didn’t work — open the website.',
+  'Это не ваш заказ': 'This isn’t your order',
+  'Диалог не найден': 'Conversation not found',
   'Подтвердите новую почту — GameMarket': 'Confirm your new email — GameMarket',
   'Чтобы сделать эту почту почтой аккаунта GameMarket, откройте ссылку (действует сутки): {link}\nЕсли вы ничего не меняли — проигнорируйте письмо.':
     'To make this the email of your GameMarket account, open the link (it works for a day): {link}\nIf you didn’t change anything, ignore this email.',

@@ -17,6 +17,7 @@ import { authenticator } from 'otplib';
 import db from '../../../packages/db/dist/index.js';
 import { startOAuthMock } from './oauth-mock.mjs';
 import { startYooKassaMock } from './yookassa-mock.mjs';
+import { startTelegramMock } from './telegram-mock.mjs';
 
 const { prisma } = db;
 const API = process.env.API_URL ?? 'http://localhost:4090';
@@ -2949,6 +2950,134 @@ async function scenarioYooKassa(rnd) {
   }
 }
 
+/**
+ * Кнопки и ответы в Telegram. Бот включается ключами при запуске, а основной
+ * API работает без него, — поэтому здесь поднимается второй API (порт 4101) с
+ * ботом против тестового сервера Bot API (telegram-mock.mjs).
+ */
+async function scenarioTelegramBot(rnd) {
+  console.log('\n— Кнопки в Telegram —');
+  const base = 'http://localhost:4101';
+  const TOKEN = '123456:e2e-bot-token';
+  const tg = await startTelegramMock(4996, TOKEN);
+  const child = spawn(process.execPath, [fileURLToPath(new URL('../dist/main.js', import.meta.url))], {
+    env: {
+      ...process.env,
+      API_PORT: '4101',
+      API_URL: base,
+      TELEGRAM_BOT_TOKEN: TOKEN,
+      TELEGRAM_BOT_USERNAME: 'gm_e2e_bot',
+      TELEGRAM_WEBHOOK_SECRET: 'e2e-hook-secret',
+      TELEGRAM_API_URL: 'http://localhost:4996',
+      WEB_URL: 'http://localhost:3000',
+      ORDER_SWEEP_INTERVAL_MS: '3600000',
+      SKIP_DOTENV: '1',
+    },
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  let stderr = '';
+  child.stderr.on('data', (d) => (stderr += d));
+  const k = (path, opts = {}) => j(path, { ...opts, base });
+  const hook = (update) =>
+    k('/telegram/webhook', { method: 'POST', headers: { 'X-Telegram-Bot-Api-Secret-Token': 'e2e-hook-secret' }, body: JSON.stringify(update) });
+  const waitFor = async (fn) => {
+    for (let i = 0; i < 20; i++) {
+      const v = fn();
+      if (v) return v;
+      await wait(200);
+    }
+    return null;
+  };
+  try {
+    let up = false;
+    for (let i = 0; i < 60 && !up; i++) {
+      up = (await k('/health').catch(() => ({ status: 0 }))).status === 200;
+      if (!up) await wait(500);
+    }
+    check('Второй API с ботом запущен', up, up ? '' : stderr.slice(-400));
+    if (!up) return;
+    const reg = async (p) => {
+      const r = await k('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ email: `${p}${rnd}@e2e.local`, password: 'password123', username: `${p}${rnd}` }),
+      });
+      return { token: r.body.accessToken, id: r.body.user?.id };
+    };
+    const buyer = await reg('tgb');
+    const seller = await reg('tgs');
+    const BUYER_CHAT = 700000 + (rnd % 100000);
+    const SELLER_CHAT = BUYER_CHAT + 1;
+    const link = async (u, chat) => {
+      const url = (await k('/account/telegram/link', { method: 'POST', token: u.token })).body.url;
+      return hook({ message: { text: `/start ${new URL(url).searchParams.get('start')}`, chat: { id: chat, type: 'private' }, from: { id: chat } } });
+    };
+    await link(buyer, BUYER_CHAT);
+    await link(seller, SELLER_CHAT);
+    // Сделка: лот, заказ, оплата заглушкой, выдача продавцом.
+    const game = await k('/catalog/games/cs2');
+    const cat = game.body.categories.find((c) => c.slug === 'accounts');
+    const lot = await k('/listings', {
+      method: 'POST', token: seller.token,
+      body: JSON.stringify({ gameId: game.body.id, categoryId: cat.id, title: `Кнопки в Telegram ${rnd}`, description: 'test', price: '50000', currency: 'RUB', attributes: REQUIRED_ATTRS.accounts ?? {} }),
+    });
+    const order = (await k('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot.body.id }) })).body;
+    const dep = await k('/payments/deposit', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: order.id }) });
+    await k('/payments/mock/callback?providerRef=' + dep.body.providerRef, { method: 'POST' });
+    await k(`/orders/${order.id}/deliver`, { method: 'POST', token: seller.token });
+    const delivered = await waitFor(() =>
+      tg.to(BUYER_CHAT).find((c) => c.body.reply_markup?.inline_keyboard?.[0]?.[0]?.callback_data === `cf:${order.id}`),
+    );
+    const press = (chat, data, messageId) =>
+      hook({ callback_query: { id: `q${Math.random()}`, from: { id: chat }, message: { message_id: messageId, chat: { id: chat, type: 'private' } }, data } });
+    const status = async () => (await k(`/orders/${order.id}`, { token: buyer.token })).body.status;
+    await press(BUYER_CHAT, `cf:${order.id}`, delivered?.result?.message_id);
+    const question = await waitFor(() => tg.to(BUYER_CHAT).find((c) => /^Подтвердить получение по заказу/.test(c.body.text ?? '')));
+    const yes = question?.body.reply_markup?.inline_keyboard?.[0]?.[0];
+    const afterAsk = await status();
+    // Чужой Telegram нажимает «Да» по заказу покупателя.
+    await press(SELLER_CHAT, `cy:${order.id}`, 5);
+    const foreign = await waitFor(() => tg.to(SELLER_CHAT).find((c) => c.method === 'editMessageText' && c.body.text === 'Это не ваш заказ'));
+    const afterForeign = await status();
+    const questionId = question?.result?.message_id;
+    await press(BUYER_CHAT, yes?.callback_data, questionId);
+    const confirmed = await waitFor(() =>
+      tg.to(BUYER_CHAT).find((c) => c.method === 'editMessageText' && /^Получение подтверждено/.test(c.body.text ?? '')),
+    );
+    await press(BUYER_CHAT, `cy:${order.id}`, questionId);
+    const again = await waitFor(() => tg.to(BUYER_CHAT).find((c) => /уже не ждёт подтверждения/.test(c.body.text ?? '')));
+    const releases = (await prisma.ledgerEntry.groupBy({ by: ['txnId'], where: { orderId: order.id, refType: 'order_release' } })).length;
+    check(
+      'Telegram: «Подтвердить получение» под «Товар выдан» — с переспросом; чужой Telegram — «Это не ваш заказ»; «Да» — заказ завершён; повтор — «уже не ждёт», деньги — один раз',
+      !!delivered && !!question && yes?.callback_data === `cy:${order.id}` && afterAsk === 'delivered' && !!foreign &&
+        afterForeign === 'delivered' && questionId > 0 && confirmed?.body.message_id === questionId && (await status()) === 'completed' &&
+        !!again && releases === 1,
+      JSON.stringify({ delivered: !!delivered, question: question?.body.text, afterAsk, foreign: !!foreign, afterForeign, confirmed: confirmed?.body, again: again?.body.text, releases }),
+    );
+    // Сообщение в чат заказа — продавцу в Telegram с «Ответить»; ответ уходит в чат.
+    const conv = (await k('/conversations', { token: buyer.token })).body.find((c) => c.orderId === order.id);
+    await k(`/conversations/${conv.id}/messages`, { method: 'POST', token: buyer.token, body: JSON.stringify({ body: 'Всё пришло, спасибо' }) });
+    const incoming = await waitFor(() =>
+      tg.to(SELLER_CHAT).find((c) => c.body.reply_markup?.inline_keyboard?.[0]?.[0]?.callback_data === `rp:${conv.id}`),
+    );
+    const incomingId = incoming?.result?.message_id;
+    await hook({ message: { message_id: 99, text: 'Рад, что всё дошло', chat: { id: SELLER_CHAT, type: 'private' }, from: { id: SELLER_CHAT }, reply_to_message: { message_id: incomingId } } });
+    const sentNote = await waitFor(() => tg.to(SELLER_CHAT).find((c) => /^Отправлено в чат с @tgb/.test(c.body.text ?? '')));
+    // Ответ на сообщение, которого бот в этот чат не присылал, в диалог не уходит.
+    await hook({ message: { message_id: 98, text: 'подделка', chat: { id: BUYER_CHAT, type: 'private' }, from: { id: BUYER_CHAT }, reply_to_message: { message_id: 9999 } } });
+    await wait(500);
+    const history = (await k(`/conversations/${conv.id}/messages`, { token: buyer.token })).body;
+    const bodies = (history.items ?? history).map((m) => `${m.senderId === seller.id ? 'S' : m.senderId === buyer.id ? 'B' : '-'}:${m.body}`);
+    check(
+      'Telegram: сообщение покупателя — продавцу с «Ответить»; ответ на него — в чат от продавца; ответ на чужое сообщение — нет',
+      incomingId > 0 && !!sentNote && bodies.includes('S:Рад, что всё дошло') && !bodies.some((b) => b.endsWith('подделка')),
+      JSON.stringify({ incoming: incoming?.body.text, sentNote: sentNote?.body.text, bodies: bodies.slice(-4) }),
+    );
+  } finally {
+    child.kill();
+    tg.close();
+  }
+}
+
 (async () => {
   const rnd = Math.floor(Math.random() * 1e9);
   // ждём готовности API
@@ -3017,6 +3146,7 @@ async function scenarioYooKassa(rnd) {
   await scenarioPayout(rnd);
   await scenarioSecurity(rnd);
   await scenarioYooKassa(rnd);
+  await scenarioTelegramBot(rnd);
 
   const passed = results.filter(Boolean).length;
   console.log(`\n=== E2E: ${passed}/${results.length} проверок пройдено ===`);

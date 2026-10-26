@@ -171,8 +171,8 @@ export const ACCOUNT: Record<string, string> = {
   Подключён: 'Connected',
   'Откройте бота и нажмите «Старт» — страница обновится сама':
     'Open the bot and tap “Start” — this page will update by itself',
-  'Мгновенные уведомления о заказах и сообщениях':
-    'Instant notifications about orders and messages',
+  'Мгновенные уведомления, а подтвердить получение и ответить в чат можно прямо из бота':
+    'Instant notifications — and you can confirm receipt and reply in chats right from the bot',
   Отключить: 'Disconnect',
   'Подключить Telegram': 'Connect Telegram',
   'Пуш-уведомления': 'Push notifications',

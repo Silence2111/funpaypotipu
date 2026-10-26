@@ -38,7 +38,7 @@ function setup(holder: { id: string } | null = null) {
     'fetch',
     vi.fn(async (_url: string, init: { body: string }) => {
       sent.push(JSON.parse(init.body));
-      return { ok: true, status: 200 };
+      return { ok: true, status: 200, json: async () => ({ ok: true, result: { message_id: sent.length } }) };
     }),
   );
   return { tg: new TelegramService(prisma as never), prisma, sent };
@@ -91,20 +91,36 @@ describe('уведомление в Telegram', () => {
       notification: { create: vi.fn(async () => ({ id: 'n1' })) },
       user: { findUnique: vi.fn(async () => ({ email: null, telegramId: '555', notifyPrefs: prefs })) },
     };
-    const telegram = { enabled: true, send: vi.fn(async () => true) };
+    const telegram = { enabled: true, notify: vi.fn(async () => true) };
     const svc = new NotificationsService(prisma as never, { enabled: false } as never, telegram as never, { enabled: false } as never);
     return { svc, telegram };
   }
 
-  it('сообщение покупателя приходит с превью и ссылкой на чат', async () => {
+  it('сообщение покупателя — с превью, ссылкой на чат и кнопкой «Ответить»; ответ уйдёт в этот диалог', async () => {
     const { svc, telegram } = notifier(null);
     await svc.notify('u1', 'new_message', { conversationId: 'c1', preview: 'Когда передадите?' });
-    expect(telegram.send).toHaveBeenCalledWith('555', expect.stringMatching(/Новое сообщение\n«Когда передадите\?»\n.*\/chat\/c1$/));
+    expect(telegram.notify).toHaveBeenCalledWith(
+      { id: 'u1', telegramId: '555' },
+      {
+        text: expect.stringMatching(/Новое сообщение\n«Когда передадите\?»\n.*\/chat\/c1$/),
+        buttons: [[{ text: 'Ответить', data: 'rp:c1' }]],
+        thread: 'c1',
+      },
+    );
+  });
+
+  it('товар выдан — кнопка «Подтвердить получение»', async () => {
+    const { svc, telegram } = notifier(null);
+    await svc.notify('u1', 'order_delivered', { orderId: 'o1' });
+    expect(telegram.notify).toHaveBeenCalledWith(
+      { id: 'u1', telegramId: '555' },
+      { text: expect.stringMatching(/\/orders\/o1$/), buttons: [[{ text: 'Подтвердить получение', data: 'cf:o1' }]] },
+    );
   });
 
   it('выключенная группа в Telegram не приходит', async () => {
     const { svc, telegram } = notifier({ telegram: { messages: false } });
     await svc.notify('u1', 'new_message', { conversationId: 'c1' });
-    expect(telegram.send).not.toHaveBeenCalled();
+    expect(telegram.notify).not.toHaveBeenCalled();
   });
 });

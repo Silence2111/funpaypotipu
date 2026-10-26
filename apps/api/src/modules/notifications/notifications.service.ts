@@ -9,7 +9,7 @@ import {
   type NotifyPrefs,
 } from '@gamemarket/shared';
 import { MailService } from '../mail/mail.service';
-import { TelegramService } from './telegram.service';
+import { TelegramService, type TgButton } from './telegram.service';
 import { PushService, type PushMessage } from './push.service';
 import { langOf, notifyLabel, say } from '../../i18n/texts';
 import type { Lang } from '../../i18n/lang';
@@ -111,7 +111,10 @@ export class NotificationsService {
     }
     if (user.telegramId && this.telegram.enabled && wantsNotify(prefs, 'telegram', type)) {
       // Не ждём: медленный Telegram не должен задерживать оплату или чат.
-      void this.telegram.send(user.telegramId, this.telegramText(lang, type, data, link));
+      void this.telegram.notify(
+        { id: userId, telegramId: user.telegramId },
+        this.telegramMessage(lang, type, data, link),
+      );
     }
     if (this.push.enabled && wantsNotify(prefs, 'push', type))
       void this.pushTo(userId, lang, type, data);
@@ -172,19 +175,42 @@ export class NotificationsService {
     };
   }
 
-  private telegramText(
+  /**
+   * Сообщение в Telegram: заголовок, подробности и ссылка. Где действие
+   * короткое, — кнопка: «Подтвердить получение» у выданного заказа (бот
+   * переспросит), «Ответить» у сообщения из чата — ответ на само уведомление
+   * тоже уйдёт в этот диалог.
+   */
+  private telegramMessage(
     lang: Lang,
     type: string,
     data: Record<string, unknown>,
     link: string,
-  ): string {
+  ): { text: string; buttons?: TgButton[][]; thread?: string } {
     const title = notifyLabel(lang, type) ?? say(lang, 'Уведомление GameMarket');
     const quote = lang === 'en' ? ['“', '”'] : ['«', '»'];
     const preview =
       typeof data.preview === 'string' && data.preview
         ? `\n${quote[0]}${data.preview}${quote[1]}`
         : '';
-    return `${title}${preview}\n${link}`;
+    const text = `${title}${preview}\n${link}`;
+    const id = (k: string) => (typeof data[k] === 'string' ? (data[k] as string) : null);
+    const orderId = id('orderId');
+    if (type === 'order_delivered' && orderId) {
+      return {
+        text,
+        buttons: [[{ text: say(lang, 'Подтвердить получение'), data: `cf:${orderId}` }]],
+      };
+    }
+    const conversationId = id('conversationId');
+    if (type === 'new_message' && conversationId) {
+      return {
+        text,
+        buttons: [[{ text: say(lang, 'Ответить'), data: `rp:${conversationId}` }]],
+        thread: conversationId,
+      };
+    }
+    return { text };
   }
 
   /**

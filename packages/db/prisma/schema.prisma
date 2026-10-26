@@ -967,6 +967,20 @@ model EmailChange {
   @@map("email_changes")
 }
 
+/// Сообщение бота, на которое можно ответить: ответ уходит в чат на сайте
+/// от имени того, чей это Telegram. Номер сообщения — свой у каждого чата.
+model TelegramReply {
+  chatId         String   @map("chat_id")
+  messageId      Int      @map("message_id")
+  userId         String   @map("user_id") @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@id([chatId, messageId])
+  @@index([createdAt])
+  @@map("telegram_replies")
+}
+
 model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
   actorId    String?  @map("actor_id") @db.Uuid
