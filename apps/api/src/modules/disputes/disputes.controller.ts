@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -44,6 +44,12 @@ export class DisputesController {
   @Roles('agent')
   queue() {
     return this.disputes.queue();
+  }
+
+  /** Свои споры: ?state=open (по умолчанию) или closed. */
+  @Get('mine')
+  mine(@CurrentUser() user: AuthUser, @Query('state') state?: string) {
+    return this.disputes.mine(user.userId, state === 'closed' ? 'closed' : 'open');
   }
 
   @Get('by-order/:orderId')

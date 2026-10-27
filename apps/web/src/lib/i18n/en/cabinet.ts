@@ -444,4 +444,21 @@ export const CABINET: Record<string, string> = {
     'No notifications yet. Payments, deliveries, disputes, reviews and everything about your account will appear here.',
   'не прочитано': 'unread',
   'Все уведомления': 'All notifications',
+  // «Споры» в кабинете
+  'Ваш ход — осталось {left}': 'Your turn — {left} left',
+  'Ваш ход': 'Your turn',
+  'Ждём ответа продавца': 'Waiting for the seller',
+  'Ждём ответа покупателя': 'Waiting for the buyer',
+  'Не удалось загрузить споры.': 'Couldn’t load disputes.',
+  'Споры по вашим покупкам и продажам. У стороны, от которой ждут ответа, 24 часа — пропущенный срок арбитр учтёт при решении.':
+    'Disputes over your purchases and sales. The side whose reply is needed has 24 hours — the arbiter takes a missed deadline into account.',
+  'Открытые': 'Open',
+  'Закрытые': 'Closed',
+  'Ждут вашего ответа: {n}': 'Waiting for your reply: {n}',
+  'Открытых споров нет. Если с товаром что-то не так, спор открывают на странице заказа — деньги остаются у площадки, пока его не решат.':
+    'No open disputes. If something is wrong with an item, open a dispute on the order page — the marketplace holds the money until it’s resolved.',
+  'Закрытых споров пока нет.': 'No closed disputes yet.',
+  'вы покупатель, продавец {name}': 'you’re the buyer, seller {name}',
+  'вы продавец, покупатель {name}': 'you’re the seller, buyer {name}',
+  'открыт {date}': 'opened {date}',
 };

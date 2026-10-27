@@ -96,6 +96,9 @@ export function ProfileLinks({ user, sum, extra }: { user: SessionUser; sum: Sum
         {t('Покупки')}
         {toConfirm > 0 && <span className="menu-count">{t('{n} ждут подтверждения', { n: toConfirm })}</span>}
       </Link>
+      <Link role="menuitem" href="/cabinet/disputes">
+        {t('Споры')}
+      </Link>
       <Link role="menuitem" href="/cabinet/lots">
         {t('Мои лоты')}
       </Link>

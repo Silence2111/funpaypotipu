@@ -393,6 +393,78 @@ export class DisputesService {
     return new Map(rows.map((r) => [r.userId, r.username]));
   }
 
+  /**
+   * Споры человека — и как покупателя, и как продавца. Открытые: сначала те,
+   * где ход за ним, с ближайшим сроком; закрытые — свежие сверху. Рядом —
+   * сколько открытых, закрытых и ждущих его ответа, для вкладок.
+   */
+  async mine(userId: string, state: 'open' | 'closed' = 'open') {
+    const mine: Prisma.DisputeWhereInput = {
+      order: { OR: [{ buyerId: userId }, { sellerId: userId }] },
+    };
+    const [rows, open, closed, myTurn] = await Promise.all([
+      this.prisma.dispute.findMany({
+        where: { ...mine, status: state === 'open' ? { in: OPEN } : { notIn: OPEN } },
+        orderBy: state === 'open' ? { createdAt: 'desc' } : [{ resolvedAt: 'desc' }, { createdAt: 'desc' }],
+        take: 100,
+        include: {
+          order: {
+            select: {
+              id: true,
+              publicNumber: true,
+              amount: true,
+              currency: true,
+              buyerId: true,
+              sellerId: true,
+              listingSnapshot: true,
+            },
+          },
+        },
+      }),
+      this.prisma.dispute.count({ where: { ...mine, status: { in: OPEN } } }),
+      this.prisma.dispute.count({ where: { ...mine, status: { notIn: OPEN } } }),
+      this.prisma.dispute.count({
+        where: {
+          status: { in: OPEN },
+          OR: [
+            { awaitingFrom: 'buyer', order: { buyerId: userId } },
+            { awaitingFrom: 'seller', order: { sellerId: userId } },
+          ],
+        },
+      }),
+    ]);
+    const names = await this.usernames(rows.flatMap((d) => [d.order.buyerId, d.order.sellerId]));
+    const items = rows.map(({ order, ...d }) => {
+      const side: Side = order.buyerId === userId ? 'buyer' : 'seller';
+      return {
+        id: d.id,
+        status: d.status,
+        reason: d.reason,
+        createdAt: d.createdAt,
+        resolvedAt: d.resolvedAt,
+        awaitingFrom: d.awaitingFrom,
+        respondBy: d.respondBy,
+        missedBy: d.missedBy,
+        side,
+        myTurn: OPEN.includes(d.status) && d.awaitingFrom === side,
+        order: {
+          id: order.id,
+          publicNumber: order.publicNumber,
+          amount: order.amount,
+          currency: order.currency,
+          title: (order.listingSnapshot as { title?: string } | null)?.title ?? null,
+        },
+        counterpart: names.get(side === 'buyer' ? order.sellerId : order.buyerId) ?? null,
+      };
+    });
+    // Где ждут ответа от этого человека — наверх, ближайший срок первым.
+    if (state === 'open') {
+      const due = (d: (typeof items)[number]) => d.respondBy?.getTime() ?? Infinity;
+      items.sort((a, b) => Number(b.myTurn) - Number(a.myTurn) || due(a) - due(b));
+    }
+    return { items, counts: { open, closed, myTurn } };
+  }
+
   /** Найти спор пользователя по заказу (для перехода со страницы заказа). */
   async findByOrder(orderId: string, userId: string) {
     const dispute = await this.prisma.dispute.findUnique({ where: { orderId } });

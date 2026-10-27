@@ -3174,6 +3174,68 @@ a.my-lot-title:hover {
   }
 }
 
+/* «Споры» в кабинете: строка — лот и стороны слева, состояние и сумма справа */
+.dispute-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding: 16px 20px;
+  color: var(--fg-muted);
+  text-decoration: none;
+  transition: background 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dispute-row + .dispute-row {
+  border-top: 1px solid var(--border);
+}
+.dispute-row:hover {
+  background: var(--bg-subtle);
+}
+.dispute-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.dispute-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dispute-sub {
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+.dispute-reason {
+  font-size: 13px;
+  color: var(--fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dispute-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .dispute-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 14px 16px;
+  }
+  .dispute-side {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
 /* Фильтры раздела на телефоне — шторкой за кнопкой со счётчиком. */
 .filters-open {
   display: none;

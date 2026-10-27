@@ -7,9 +7,9 @@ import { Clock, Paperclip, ShieldAlert } from 'lucide-react';
 import { apiFetch, getToken, useSession } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice, timeLeft } from '@/lib/format';
+import { DISPUTE_STATUS } from '@/lib/disputes';
 import { uploadViaPresignedUrl } from '@/lib/upload';
 import { useT } from '@/lib/i18n/client';
-import { msg } from '@/lib/i18n/lang';
 
 interface Attach { url: string; mime: string }
 interface DMsg {
@@ -44,13 +44,7 @@ interface DisputeView {
   parties?: { buyer: Party | null; seller: Party | null; arbiter: Party | null };
 }
 
-const STATUS: Record<string, string> = {
-  open: msg('ждёт арбитра'),
-  in_review: msg('на рассмотрении у арбитра'),
-  resolved_seller: msg('решён в пользу продавца'),
-  resolved_buyer: msg('решён в пользу покупателя'),
-  cancelled: msg('закрыт'),
-};
+const STATUS = DISPUTE_STATUS;
 
 export default function DisputePage() {
   const params = useParams<{ id: string }>();

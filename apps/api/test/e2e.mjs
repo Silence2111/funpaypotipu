@@ -493,7 +493,9 @@ async function scenarioCatalog(rnd) {
   const list = await j('/listings?gameSlug=cs2&categorySlug=accounts&online=1&limit=60');
   const ids = list.body.items.map((l) => l.id);
   check('«Продавец онлайн»: свежий — в выдаче, час назад — нет', ids.includes(lotOn) && !ids.includes(lotOff));
-  const all = await j('/listings?gameSlug=cs2&categorySlug=accounts&online=false&limit=60');
+  // Только лоты этого продавца: в общей выдаче его лот может уйти за первые 60
+  // за поднятыми, а проверяем лишь, что online=false не включает фильтр.
+  const all = await j(`/listings?gameSlug=cs2&categorySlug=accounts&online=false&sellerId=${off.id}&limit=60`);
   check('online=false фильтр не включает', all.body.items.some((l) => l.id === lotOff));
   const game = await j('/catalog/games/cs2');
   const acc = game.body.categories?.find((c) => c.slug === 'accounts');
@@ -1178,6 +1180,20 @@ async function scenarioDisputes(rnd) {
     JSON.stringify({ ask: ask.body.awaitingFrom, denied: denied.status, types: list.map((n) => n.type) }),
   );
 
+  // «Споры» в кабинете: у каждого — со своей стороны, ход за покупателем; постороннему — пусто.
+  const mine = async (token, state = 'open') => (await j(`/disputes/mine?state=${state}`, { token })).body;
+  const buyerMine = await mine(buyer.token);
+  const sellerMine = await mine(seller.token);
+  const strangerMine = await mine(agent.token);
+  const bm = buyerMine.items?.find((d) => d.id === a.dispute.id);
+  const sm = sellerMine.items?.find((d) => d.id === a.dispute.id);
+  check(
+    '«Споры» в кабинете: покупатель и продавец видят спор со своей стороны, ход — за покупателем; постороннему — пусто',
+    bm?.side === 'buyer' && bm.myTurn === true && bm.counterpart === `dss${rnd}` && bm.order.publicNumber === a.order.publicNumber &&
+      sm?.side === 'seller' && sm.myTurn === false && sm.counterpart === `dsb${rnd}` &&
+      buyerMine.counts.myTurn === 1 && sellerMine.counts.myTurn === 0 && strangerMine.items.length === 0,
+    JSON.stringify({ bm, sm: sm && { side: sm.side, myTurn: sm.myTurn }, counts: [buyerMine.counts, sellerMine.counts], stranger: strangerMine.items?.length }),
+  );
   // Спор, где ждут ответа покупателя, — в его сводке (плашка на сайте), у продавца — нет.
   const summary = async (token) => (await j('/account/summary', { token })).body.dispute;
   const inSummary = await summary(buyer.token);
@@ -1237,6 +1253,14 @@ async function scenarioDisputes(rnd) {
     sellerTry.status === 403 && closed.status === 201 && again.status === 409 && v.dispute.status === 'cancelled' &&
       v.order.status === 'completed' && balanceAfter - balanceBefore === BigInt(a.order.sellerPayoutAmount),
     JSON.stringify({ sellerTry: sellerTry.status, closed: closed.status, again: again.status, status: v.dispute.status, delta: String(balanceAfter - balanceBefore) }),
+  );
+  const openNow = await mine(buyer.token);
+  const closedNow = await mine(buyer.token, 'closed');
+  check(
+    '«Споры» в кабинете: закрытый спор ушёл из открытых во «Закрытые»',
+    !openNow.items.some((d) => d.id === a.dispute.id) && closedNow.items[0]?.id === a.dispute.id &&
+      closedNow.items[0].status === 'cancelled' && closedNow.counts.closed === 1,
+    JSON.stringify({ open: openNow.counts, closed: closedNow.items?.map((d) => d.status) }),
   );
 
   const b = await deal('60000');
