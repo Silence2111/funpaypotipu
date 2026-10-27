@@ -33,7 +33,13 @@ export function NotificationsBell() {
   useEffect(() => {
     if (getToken()) load();
     const timer = setInterval(() => getToken() && load(), 30_000);
-    return () => clearInterval(timer);
+    // Прочитали на странице «Уведомления» — счётчик здесь тоже свежий.
+    const onRead = () => void load();
+    window.addEventListener('gm-notifications', onRead);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('gm-notifications', onRead);
+    };
   }, [load]);
 
   const unread = items.filter((i) => !i.readAt).length;
@@ -65,7 +71,7 @@ export function NotificationsBell() {
           {items.length === 0 && (
             <p className="muted" style={{ fontSize: 13, padding: 12, margin: 0 }}>{t('Уведомлений нет')}</p>
           )}
-          {items.slice(0, 12).map((n) => (
+          {items.slice(0, 8).map((n) => (
             // Уведомление ведёт туда, где действовать: заказ, чат, спор.
             <Link
               key={n.id}
@@ -85,10 +91,14 @@ export function NotificationsBell() {
               )}
             </Link>
           ))}
-          <Link href="/cabinet/settings#notifications" className="faint" style={{ display: 'block', fontSize: 12, padding: '8px 12px' }}
-            onClick={() => setOpen(false)}>
-            {t('Настроить уведомления')}
-          </Link>
+          <div className="row notif-footer">
+            <Link href="/cabinet/notifications" style={{ fontSize: 13, fontWeight: 600 }} onClick={() => setOpen(false)}>
+              {t('Все уведомления')}
+            </Link>
+            <Link href="/cabinet/settings#notifications" className="faint" style={{ fontSize: 12 }} onClick={() => setOpen(false)}>
+              {t('Настроить')}
+            </Link>
+          </div>
         </div>
       )}
     </div>

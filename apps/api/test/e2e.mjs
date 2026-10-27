@@ -1090,6 +1090,54 @@ async function scenarioReports(rnd) {
 }
 
 /**
+ * Страница «Уведомления»: вся история новыми сверху, дальше — по последнему
+ * показанному, группы со счётчиками непрочитанных, «Прочитать все» в группе.
+ */
+async function scenarioNotificationsPage(rnd) {
+  console.log('\n— Страница «Уведомления» —');
+  const u = await register('ntf', rnd);
+  const other = await register('ntg', rnd);
+  const base = Date.now() - 3600_000;
+  const types = ['order_paid', 'dispute_opened', 'new_message', 'review_received', 'order_delivered', 'new_login'];
+  await prisma.notification.createMany({
+    data: types.map((type, i) => ({ userId: u.id, type, payload: { preview: `#${i}` }, createdAt: new Date(base + i * 1000) })),
+  });
+  const foreign = await prisma.notification.create({ data: { userId: other.id, type: 'order_paid', payload: {} } });
+  const h = (q) => j(`/notifications/history?${q}`, { token: u.token });
+  const p1 = await h('limit=2');
+  const p2 = await h(`limit=2&before=${p1.body.next}`);
+  const p3 = await h(`limit=2&before=${p2.body.next}`);
+  const kinds = (p) => (p.body.items ?? []).map((n) => n.type).join(',');
+  check(
+    'Уведомления: вся история новыми сверху по страницам, без сообщений; непрочитанные по группам',
+    kinds(p1) === 'new_login,order_delivered' && kinds(p2) === 'review_received,dispute_opened' && kinds(p3) === 'order_paid' &&
+      p3.body.next === null && p1.body.unread.total === 5 &&
+      Object.entries({ orders: 2, disputes: 1, reviews: 1, security: 1 }).every(([g, n]) => p1.body.unread.groups[g] === n) &&
+      Object.keys(p1.body.unread.groups).length === 4,
+    JSON.stringify({ p1: kinds(p1), p2: kinds(p2), p3: kinds(p3), unread: p1.body.unread }),
+  );
+  const orders = await h('group=orders');
+  const stranger = await h(`before=${foreign.id}`);
+  const messages = await h('group=messages');
+  const guest = await j('/notifications/history');
+  check(
+    'Уведомления: группа «Заказы»; чужой курсор и группа сообщений — 400; без входа — 401',
+    kinds(orders) === 'order_delivered,order_paid' && stranger.status === 400 && messages.status === 400 && guest.status === 401,
+    JSON.stringify({ orders: kinds(orders), stranger: stranger.status, messages: messages.status, guest: guest.status }),
+  );
+  const readOrders = await j('/notifications/read-all?group=orders', { method: 'POST', token: u.token });
+  const unreadOrders = await h('group=orders&unread=1');
+  const unreadAll = await h('unread=1');
+  const foreignAfter = await prisma.notification.findUnique({ where: { id: foreign.id } });
+  check(
+    'Уведомления: «Прочитать все» в группе — только в ней и только свои',
+    readOrders.body.unread?.total === 3 && kinds(unreadOrders) === '' && kinds(unreadAll) === 'new_login,review_received,dispute_opened' &&
+      foreignAfter.readAt === null,
+    JSON.stringify({ unread: readOrders.body.unread, unreadAll: kinds(unreadAll) }),
+  );
+}
+
+/**
  * Споры: срок ответа второй стороны, запрос арбитра, напоминание за 3 часа
  * до конца срока и спор в сводке для плашки на сайте, пропущенный срок
  * (фоновая задача API, в CI раз в 2 с), закрытие спора покупателем без
@@ -3211,6 +3259,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioEmailChange(rnd);
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
+  await scenarioNotificationsPage(rnd);
   await scenarioReviewPhotos(rnd);
   await scenarioTwoFactor(rnd);
   await scenarioPush(rnd);

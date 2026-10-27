@@ -373,6 +373,8 @@ export const EN_API: Phrasebook = {
   'Сообщение не отправлено': 'Message not sent',
   'Хранилище недоступно': 'Storage is unavailable',
   'Диалог не найден': 'Conversation not found',
+  'Список уведомлений устарел — обновите страницу': 'The notification list is out of date — refresh the page',
+  'Нет такой группы уведомлений': 'There’s no such notification group',
   'Нет доступа к диалогу': 'No access to this conversation',
   'Пустое сообщение': 'The message is empty',
   'Файл не прошёл антивирус-проверку: {reason}': 'The file failed the antivirus check: {reason}',

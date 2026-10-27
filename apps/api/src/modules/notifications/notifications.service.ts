@@ -1,7 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import {
+  NOTIFY_GROUPS,
   notifyGroupOf,
   notifyLink,
   wantsNotify,
@@ -37,6 +38,18 @@ const WEB_URL = process.env.WEB_URL ?? 'http://localhost:3000';
 
 /** Пуши этих групп будят телефон сразу: ждут покупатель, продавец или арбитр. */
 const URGENT: Array<NotifyGroup | null> = ['orders', 'messages', 'disputes'];
+
+/** Группы страницы «Уведомления»: сообщения живут в мессенджере, там свой счётчик. */
+const HISTORY_GROUPS = NOTIFY_GROUPS.filter((g) => g.key !== 'messages');
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export interface HistoryQuery {
+  group?: string;
+  unread?: boolean;
+  /** id последнего показанного: дальше — те, что старше него. */
+  before?: string;
+  limit?: number;
+}
 
 /** Страницы, у которых одно уведомление на экране: новое заменяет прежнее. */
 const TAGGED = /^\/(chat|orders|disputes|cabinet\/support)\//;
@@ -240,11 +253,76 @@ export class NotificationsService {
     return { ok: true };
   }
 
-  async markAllRead(userId: string) {
-    await this.prisma.notification.updateMany({
+  /**
+   * Страница «Уведомления»: вся история, новые сверху, с фильтром по группе
+   * и «только непрочитанные». Дальше — по id последнего показанного: новые
+   * уведомления, пришедшие между запросами, не сдвигают список. Рядом —
+   * сколько непрочитанных в каждой группе, для фильтров.
+   */
+  async history(userId: string, q: HistoryQuery) {
+    const types = this.typesOf(q.group);
+    const limit = Math.min(Math.max(Math.trunc(q.limit ?? 30) || 30, 1), 100);
+    let after: Prisma.NotificationWhereInput = {};
+    if (q.before) {
+      const last = UUID.test(q.before)
+        ? await this.prisma.notification.findFirst({
+            where: { id: q.before, userId },
+            select: { id: true, createdAt: true },
+          })
+        : null;
+      if (!last) throw new BadRequestException('Список уведомлений устарел — обновите страницу');
+      after = {
+        OR: [
+          { createdAt: { lt: last.createdAt } },
+          { createdAt: last.createdAt, id: { lt: last.id } },
+        ],
+      };
+    }
+    const rows = await this.prisma.notification.findMany({
+      where: { userId, type: types, ...(q.unread ? { readAt: null } : {}), ...after },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      select: { id: true, type: true, payload: true, readAt: true, createdAt: true },
+    });
+    const items = rows.slice(0, limit);
+    return {
+      items,
+      next: rows.length > limit ? items.at(-1)!.id : null,
+      unread: await this.unreadByGroup(userId),
+    };
+  }
+
+  /** Непрочитанные по группам и всего — без сообщений. */
+  private async unreadByGroup(userId: string) {
+    const byType = await this.prisma.notification.groupBy({
+      by: ['type'],
       where: { userId, readAt: null, type: { not: 'new_message' } },
+      _count: { _all: true },
+    });
+    const groups: Partial<Record<NotifyGroup, number>> = {};
+    let total = 0;
+    for (const r of byType) {
+      const group = notifyGroupOf(r.type);
+      total += r._count._all;
+      if (group) groups[group] = (groups[group] ?? 0) + r._count._all;
+    }
+    return { total, groups };
+  }
+
+  /** Условие на тип: группа страницы или всё, кроме сообщений. */
+  private typesOf(group: string | undefined): Prisma.StringFilter {
+    if (!group) return { not: 'new_message' };
+    const found = HISTORY_GROUPS.find((g) => g.key === group);
+    if (!found) throw new BadRequestException('Нет такой группы уведомлений');
+    return { in: [...found.types] };
+  }
+
+  /** «Прочитать все» — всё, кроме сообщений, или только выбранную группу. */
+  async markAllRead(userId: string, group?: string) {
+    await this.prisma.notification.updateMany({
+      where: { userId, readAt: null, type: this.typesOf(group) },
       data: { readAt: new Date() },
     });
-    return { ok: true };
+    return { ok: true, unread: await this.unreadByGroup(userId) };
   }
 }

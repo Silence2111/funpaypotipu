@@ -108,6 +108,9 @@ export function ProfileLinks({ user, sum, extra }: { user: SessionUser; sum: Sum
       <Link role="menuitem" href={`/prodavec/${user.id}`}>
         {t('Мой профиль на витрине')}
       </Link>
+      <Link role="menuitem" href="/cabinet/notifications">
+        {t('Уведомления')}
+      </Link>
       <Link role="menuitem" href="/cabinet/favorites">
         {t('Избранное')}
       </Link>

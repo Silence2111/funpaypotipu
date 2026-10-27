@@ -14,6 +14,7 @@ const LINKS = [
   { href: '/cabinet/lots', label: msg('Мои лоты') },
   { href: '/cabinet/tools', label: msg('Инструменты') },
   { href: '/chat', label: msg('Сообщения') },
+  { href: '/cabinet/notifications', label: msg('Уведомления') },
   { href: '/cabinet/favorites', label: msg('Избранное') },
   { href: '/cabinet/searches', label: msg('Поиски') },
   { href: '/cabinet/following', label: msg('Подписки') },

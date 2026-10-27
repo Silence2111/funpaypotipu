@@ -1054,6 +1054,8 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
+  // Страница «Уведомления»: история человека новыми сверху, по страницам.
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 

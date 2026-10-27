@@ -613,12 +613,25 @@ summary:focus-visible {
   right: 0;
   top: 40px;
   width: 280px;
+  /* Шапка липкая: выпадающий список не прокручивается со страницей —
+     прокручивается сам, низ с «Все уведомления» всегда виден. */
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-  overflow: hidden;
   z-index: 20;
+}
+.notif-footer {
+  position: sticky;
+  bottom: 0;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
 }
 .notif-item {
   display: block;
@@ -632,6 +645,10 @@ summary:focus-visible {
   font-size: 14px;
   font-family: inherit;
   cursor: pointer;
+}
+/* Над закреплённым низом — одна линия, а не две. */
+.notif-dropdown .notif-item:nth-last-child(2) {
+  border-bottom: 0;
 }
 .notif-item:hover {
   background: var(--bg-subtle);
@@ -3048,6 +3065,112 @@ a.my-lot-title:hover {
   }
   .cabinet-nav .chip {
     flex-shrink: 0;
+  }
+}
+
+/* Страница «Уведомления»: группы с числом непрочитанных, история по дням */
+.notif-groups {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.notif-group-count {
+  margin-left: 6px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-faint);
+}
+.chip[aria-pressed='true'] .notif-group-count {
+  color: inherit;
+}
+.notif-day-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-faint);
+}
+.notif-list {
+  padding: 0;
+  overflow: hidden;
+}
+.notif-row {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 20px;
+  color: var(--fg-muted);
+  text-decoration: none;
+  transition: background 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.notif-row + .notif-row {
+  border-top: 1px solid var(--border);
+}
+.notif-row:hover {
+  background: var(--bg-subtle);
+}
+.notif-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  border-radius: 999px;
+}
+.notif-row.unread .notif-dot {
+  background: var(--accent);
+}
+.notif-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.notif-title {
+  font-size: 15px;
+  line-height: 1.4;
+}
+.notif-row.unread .notif-title {
+  font-weight: 600;
+  color: var(--fg);
+}
+.notif-preview {
+  font-size: 13px;
+  color: var(--fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notif-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--fg-faint);
+  white-space: nowrap;
+}
+.notif-time {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 720px) {
+  .notif-groups {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 -16px;
+    padding: 2px 16px;
+    scrollbar-width: none;
+  }
+  .notif-groups::-webkit-scrollbar {
+    display: none;
+  }
+  .notif-groups .chip {
+    flex-shrink: 0;
+  }
+  .notif-row {
+    padding: 12px 16px;
+  }
+  .notif-group {
+    display: none;
   }
 }
 

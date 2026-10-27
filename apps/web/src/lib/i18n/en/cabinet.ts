@@ -430,4 +430,18 @@ export const CABINET: Record<string, string> = {
     'In the {n} days before the discount the price was lower — {ref}. Buyers will see the discount from it: raising the price the day before and striking it through won’t work.',
   'От {ref} это скидка {off}% — нужно от {min}%. Дайте скидку больше.':
     'From {ref} that’s a {off}% discount — at least {min}% is needed. Give a bigger discount.',
+  // Страница «Уведомления»
+  'Не удалось загрузить уведомления.': 'Couldn’t load notifications.',
+  'Не удалось отметить уведомления.': 'Couldn’t mark notifications as read.',
+  'Всё, что происходило со сделками, спорами и аккаунтом. Сообщения — в «Сообщениях».':
+    'Everything that happened with your deals, disputes and account. Messages are in Messages.',
+  'Группы уведомлений': 'Notification groups',
+  'Только непрочитанные': 'Unread only',
+  'Прочитать все в группе': 'Mark the group as read',
+  'Непрочитанных уведомлений нет.': 'No unread notifications.',
+  'В этой группе уведомлений пока нет.': 'No notifications in this group yet.',
+  'Уведомлений пока нет. Здесь появятся оплаты, выдачи, споры, отзывы и всё, что касается аккаунта.':
+    'No notifications yet. Payments, deliveries, disputes, reviews and everything about your account will appear here.',
+  'не прочитано': 'unread',
+  'Все уведомления': 'All notifications',
 };
