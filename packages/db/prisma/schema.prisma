@@ -1014,6 +1014,8 @@ model Dispute {
   // Кто пропустил срок ответа — арбитр учитывает это при решении.
   missedBy       String?       @map("missed_by") @db.VarChar(10)
   missedAt       DateTime?     @map("missed_at")
+  // О каком сроке уже напомнили: новый срок от арбитра — новое напоминание.
+  remindedFor    DateTime?     @map("reminded_for")
   createdAt      DateTime      @default(now()) @map("created_at")
 
   order    Order            @relation(fields: [orderId], references: [id])

@@ -1090,7 +1090,8 @@ async function scenarioReports(rnd) {
 }
 
 /**
- * Споры: срок ответа второй стороны, запрос арбитра, пропущенный срок
+ * Споры: срок ответа второй стороны, запрос арбитра, напоминание за 3 часа
+ * до конца срока и спор в сводке для плашки на сайте, пропущенный срок
  * (фоновая задача API, в CI раз в 2 с), закрытие спора покупателем без
  * претензий и возврат денег продавцом из спора.
  */
@@ -1129,6 +1130,32 @@ async function scenarioDisputes(rnd) {
     JSON.stringify({ ask: ask.body.awaitingFrom, denied: denied.status, types: list.map((n) => n.type) }),
   );
 
+  // Спор, где ждут ответа покупателя, — в его сводке (плашка на сайте), у продавца — нет.
+  const summary = async (token) => (await j('/account/summary', { token })).body.dispute;
+  const inSummary = await summary(buyer.token);
+  const sellerSummary = await summary(seller.token);
+  // За 2 часа до конца срока — одно напоминание покупателю, повторы фоновой задачи его не дублируют.
+  await prisma.dispute.update({ where: { id: a.dispute.id }, data: { respondBy: new Date(Date.now() + 2 * 3600_000) } });
+  const reminders = async () => {
+    const r = (await j('/notifications', { token: buyer.token })).body;
+    return (Array.isArray(r) ? r : (r.items ?? [])).filter((n) => n.type === 'dispute_reply_soon' && n.payload?.disputeId === a.dispute.id);
+  };
+  let soon = [];
+  for (let i = 0; i < 20 && !soon.length; i++) {
+    await wait(500);
+    soon = await reminders();
+  }
+  await wait(4500);
+  const soonAfter = await reminders();
+  const sellerSoon = (await j('/notifications', { token: seller.token })).body;
+  check(
+    'Срок подходит к концу — одно напоминание тому, чей ход, со ссылкой на спор; спор в сводке для плашки',
+    inSummary?.id === a.dispute.id && inSummary.orderNumber === a.order.publicNumber && sellerSummary === null &&
+      soon.length === 1 && soonAfter.length === 1 && soon[0].payload.preview.startsWith(a.order.publicNumber) &&
+      !(Array.isArray(sellerSoon) ? sellerSoon : (sellerSoon.items ?? [])).some((n) => n.type === 'dispute_reply_soon'),
+    JSON.stringify({ inSummary, sellerSummary, soon: soon.map((n) => n.payload), again: soonAfter.length }),
+  );
+
   await prisma.dispute.update({ where: { id: a.dispute.id }, data: { respondBy: new Date(Date.now() - 1000) } });
   let missed = null;
   for (let i = 0; i < 20 && !missed; i++) {
@@ -1149,6 +1176,7 @@ async function scenarioDisputes(rnd) {
       raised && v.order.status === 'disputed',
     JSON.stringify({ missed: missed?.missedBy, at, raised, status: v.order?.status }),
   );
+  check('Срок прошёл — спор ушёл из сводки, плашки больше нет', (await summary(buyer.token)) === null);
 
   const balanceBefore = BigInt((await j('/wallet', { token: seller.token })).body.balance);
   const sellerTry = await j(`/disputes/${a.dispute.id}/withdraw`, { method: 'POST', token: seller.token });

@@ -4,16 +4,24 @@ import { DisputesService } from '../src/modules/disputes/disputes.service';
 
 /**
  * Споры: у второй стороны срок на ответ, ответ снимает его, арбитр может
- * попросить пояснений с новым сроком, пропущенный срок отмечается
- * сообщением площадки (деньги сами не двигаются), покупатель может закрыть
- * спор без претензий — сбой подтверждения возвращает спор как был.
+ * попросить пояснений с новым сроком, за 3 часа до конца срока — одно
+ * напоминание, пропущенный срок отмечается сообщением площадки (деньги сами
+ * не двигаются), покупатель может закрыть спор без претензий — сбой
+ * подтверждения возвращает спор как был.
  */
 
 type Row = Record<string, unknown>;
 const HOUR = 3600_000;
 
 function setup() {
-  const order = { id: 'o1', buyerId: 'buyer', sellerId: 'seller', status: 'disputed' };
+  const order = {
+    id: 'o1',
+    buyerId: 'buyer',
+    sellerId: 'seller',
+    status: 'disputed',
+    publicNumber: 'GM-1',
+    listingSnapshot: { title: 'Аккаунт CS2' },
+  };
   const disputes = new Map<string, Row>();
   const notes: Row[] = [];
   const matches = (row: Row, where: Row) =>
@@ -23,7 +31,11 @@ function setup() {
       if (v && typeof v === 'object' && 'not' in v) return row[k] !== (v as { not: unknown }).not;
       if (v && typeof v === 'object' && 'lt' in v)
         return !!row[k] && (row[k] as Date) < (v as { lt: Date }).lt;
-      return row[k] === v;
+      if (v && typeof v === 'object' && 'gt' in v) {
+        const { gt, lte } = v as { gt: Date; lte: Date };
+        return !!row[k] && (row[k] as Date) > gt && (row[k] as Date) <= lte;
+      }
+      return (row[k] ?? null) === v;
     });
   const prisma = {
     dispute: {
@@ -40,6 +52,7 @@ function setup() {
           id: `d${disputes.size + 1}`,
           arbiterId: null,
           missedBy: null,
+          remindedFor: null,
           createdAt: new Date(),
           ...data,
         };
@@ -96,6 +109,51 @@ describe('сроки ответа в споре', () => {
     expect(row.awaitingFrom).toBe('seller');
     await svc.addMessage(d.id, 'seller', 'Данные верные, вот скриншот');
     expect(row).toMatchObject({ awaitingFrom: null, respondBy: null });
+  });
+
+  it('за 3 часа до конца срока — одно напоминание тому, чей ход; раньше и после ответа — нет', async () => {
+    const { svc, disputes, notifications } = setup();
+    const d = await svc.open('o1', 'buyer', 'Товар не выдан');
+    const row = disputes.get(d.id)!;
+    notifications.notify.mockClear();
+    row.respondBy = new Date(Date.now() + 4 * HOUR);
+    await svc.sweep();
+    expect(notifications.notify).not.toHaveBeenCalled();
+
+    row.respondBy = new Date(Date.now() + 2 * HOUR);
+    await svc.sweep();
+    await svc.sweep();
+    expect(notifications.notify).toHaveBeenCalledTimes(1);
+    expect(notifications.notify).toHaveBeenCalledWith('seller', 'dispute_reply_soon', {
+      orderId: 'o1',
+      disputeId: d.id,
+      respondBy: (row.respondBy as Date).toISOString(),
+      preview: 'GM-1 · Аккаунт CS2',
+    });
+
+    // Ответил — срок снят, напоминать не о чем.
+    const answered = setup();
+    const a = await answered.svc.open('o1', 'buyer', 'Товар не выдан');
+    answered.disputes.get(a.id)!.respondBy = new Date(Date.now() + HOUR);
+    await answered.svc.addMessage(a.id, 'seller', 'Выдал, вот скриншот');
+    answered.notifications.notify.mockClear();
+    await answered.svc.sweep();
+    expect(answered.notifications.notify).not.toHaveBeenCalled();
+  });
+
+  it('новый срок от арбитра — новое напоминание, уже другой стороне', async () => {
+    const { svc, disputes, notifications } = setup();
+    const d = await svc.open('o1', 'buyer', 'Не тот ранг');
+    const row = disputes.get(d.id)!;
+    row.respondBy = new Date(Date.now() + HOUR);
+    await svc.sweep();
+    await svc.request(d.id, 'arb', 'buyer');
+    row.respondBy = new Date(Date.now() + 2 * HOUR);
+    await svc.sweep();
+    const reminders = (notifications.notify.mock.calls as unknown as Array<[string, string]>)
+      .filter((c) => c[1] === 'dispute_reply_soon')
+      .map((c) => c[0]);
+    expect(reminders).toEqual(['seller', 'buyer']);
   });
 
   it('срок прошёл — отметка «не ответил» и сообщение площадки, один раз; деньги не двигаются', async () => {

@@ -25,7 +25,7 @@ export const NOTIFY_GROUPS = [
     ],
   },
   { key: 'messages', label: 'Сообщения', hint: 'новые сообщения в чатах', types: ['new_message'] },
-  { key: 'disputes', label: 'Споры', hint: 'открыт спор, ждём вашего ответа, решение арбитра', types: ['dispute_opened', 'dispute_reply_needed', 'dispute_resolved'] },
+  { key: 'disputes', label: 'Споры', hint: 'открыт спор, ждём вашего ответа, срок ответа подходит к концу, решение арбитра', types: ['dispute_opened', 'dispute_reply_needed', 'dispute_reply_soon', 'dispute_resolved'] },
   { key: 'reviews', label: 'Отзывы', hint: 'новый отзыв, ответ продавца, оценка вас как покупателя', types: ['review_received', 'review_reply', 'buyer_review'] },
   { key: 'finance', label: 'Деньги', hint: 'кэшбэк и выплаты', types: ['cashback', 'payout_paid', 'payout_rejected'] },
   { key: 'support', label: 'Поддержка', hint: 'ответы на ваши обращения', types: ['support_reply'] },
@@ -103,6 +103,8 @@ export const NOTIFY_LABELS: Record<string, string> = {
   new_message: 'Новое сообщение',
   dispute_opened: 'Спор по сделке',
   dispute_reply_needed: 'Ждём вашего ответа в споре',
+  // Часы — DISPUTE_REMIND_HOURS в dispute.ts.
+  dispute_reply_soon: 'Меньше 3 часов на ответ в споре',
   dispute_resolved: 'Спор разрешён',
   report_handled: 'Ваша жалоба рассмотрена',
   listing_blocked: 'Лот заблокирован модератором',

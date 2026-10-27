@@ -10,6 +10,8 @@ export interface Summary {
   balance: { currency: string; available: string };
   sales: { toDeliver: number };
   purchases: { toConfirm: number };
+  /** Спор, где ждут вашего ответа, — с самым близким сроком. */
+  dispute: { id: string; orderNumber: string; respondBy: string } | null;
 }
 
 /**

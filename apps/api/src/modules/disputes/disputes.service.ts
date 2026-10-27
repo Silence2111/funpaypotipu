@@ -10,7 +10,7 @@ import {
 import { Interval } from '@nestjs/schedule';
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type DisputeStatus } from '@gamemarket/db';
-import { DISPUTE_NOTES, DISPUTE_RESPONSE_HOURS } from '@gamemarket/shared';
+import { DISPUTE_NOTES, DISPUTE_REMIND_HOURS, DISPUTE_RESPONSE_HOURS } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { OrdersService } from '../orders/orders.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -216,11 +216,13 @@ export class DisputesService {
   }
 
   /**
-   * Срок ответа прошёл — отмечаем, кто промолчал, и пишем об этом в спор.
-   * Деньги сами не двигаются: решает арбитр, молчание — довод для него.
+   * Срок ответа подходит к концу — напоминаем стороне один раз; прошёл —
+   * отмечаем, кто промолчал, и пишем об этом в спор. Деньги сами не
+   * двигаются: решает арбитр, молчание — довод для него.
    */
   @Interval('disputes-deadlines', SWEEP_MS)
   async sweep(now = new Date()) {
+    await this.remind(now);
     const due = await this.prisma.dispute.findMany({
       where: { status: { in: OPEN }, awaitingFrom: { not: null }, respondBy: { lt: now } },
       take: 100,
@@ -241,6 +243,51 @@ export class DisputesService {
   }
 
   /** Арбитр берёт спор в работу (роут под RolesGuard('agent')). */
+  /**
+   * Напоминание за DISPUTE_REMIND_HOURS до конца срока — тому, чей ход.
+   * Запоминаем, о каком сроке напомнили: второй экземпляр API не продублирует,
+   * а новый срок от арбитра напомнит снова.
+   */
+  private async remind(now: Date) {
+    const soon = await this.prisma.dispute.findMany({
+      where: {
+        status: { in: OPEN },
+        awaitingFrom: { not: null },
+        respondBy: { gt: now, lte: new Date(now.getTime() + DISPUTE_REMIND_HOURS * 3600_000) },
+      },
+      orderBy: { respondBy: 'asc' },
+      take: 100,
+    });
+    for (const d of soon) {
+      if (d.remindedFor?.getTime() === d.respondBy?.getTime()) continue;
+      try {
+        const r = await this.prisma.dispute.updateMany({
+          where: { id: d.id, respondBy: d.respondBy, remindedFor: d.remindedFor },
+          data: { remindedFor: d.respondBy },
+        });
+        if (!r.count) continue;
+        const order = await this.prisma.order.findUnique({
+          where: { id: d.orderId },
+          select: { id: true, buyerId: true, sellerId: true, publicNumber: true, listingSnapshot: true },
+        });
+        if (!order) continue;
+        const title = (order.listingSnapshot as { title?: string } | null)?.title;
+        await this.notifications.notify(
+          d.awaitingFrom === 'seller' ? order.sellerId : order.buyerId,
+          'dispute_reply_soon',
+          {
+            orderId: order.id,
+            disputeId: d.id,
+            respondBy: d.respondBy!.toISOString(),
+            preview: title ? `${order.publicNumber} · ${title}` : order.publicNumber,
+          },
+        );
+      } catch (e) {
+        this.logger.warn(`Напоминание о сроке в споре ${d.id}: ${(e as Error).message}`);
+      }
+    }
+  }
+
   async take(disputeId: string, arbiterId: string) {
     const dispute = await this.get(disputeId);
     if (dispute.status !== 'open') throw new ConflictException('Спор уже в работе или закрыт');

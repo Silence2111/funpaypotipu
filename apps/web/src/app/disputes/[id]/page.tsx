@@ -6,10 +6,10 @@ import Link from 'next/link';
 import { Clock, Paperclip, ShieldAlert } from 'lucide-react';
 import { apiFetch, getToken, useSession } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
-import { formatPrice } from '@/lib/format';
+import { formatPrice, timeLeft } from '@/lib/format';
 import { uploadViaPresignedUrl } from '@/lib/upload';
 import { useT } from '@/lib/i18n/client';
-import { msg, type T } from '@/lib/i18n/lang';
+import { msg } from '@/lib/i18n/lang';
 
 interface Attach { url: string; mime: string }
 interface DMsg {
@@ -51,16 +51,6 @@ const STATUS: Record<string, string> = {
   resolved_buyer: msg('решён в пользу покупателя'),
   cancelled: msg('закрыт'),
 };
-
-/** «18 ч 20 мин» до срока; прошёл — пусто. */
-function timeLeft(iso: string, t: T) {
-  const min = Math.ceil((Date.parse(iso) - Date.now()) / 60000);
-  if (min <= 0) return null;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  if (!h) return t('{m} мин', { m });
-  return m ? t('{h} ч {m} мин', { h, m }) : t('{h} ч', { h });
-}
 
 export default function DisputePage() {
   const params = useParams<{ id: string }>();

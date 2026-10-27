@@ -305,6 +305,8 @@ export const ORDERS: Record<string, string> = {
     'Your turn: reply by {date}. Without a reply the arbiter will decide on what’s already here.',
   'Ждём ответа {side} до {date}.': 'Waiting for a reply from the {side} until {date}.',
   'Осталось {left}.': '{left} left.',
+  'Спор по заказу {number} ждёт вашего ответа — осталось {left}. Без ответа арбитр учтёт молчание при решении.':
+    'The dispute on order {number} is waiting for your reply — {left} left. Without a reply, the arbiter will take your silence into account.',
   'Продавец не ответил в срок — арбитр учтёт это при решении.':
     'The seller didn’t reply in time — the arbiter will take this into account.',
   'Покупатель не ответил в срок — арбитр учтёт это при решении.':

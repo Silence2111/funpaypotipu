@@ -6,6 +6,7 @@ import { InstallApp } from '@/components/install-app';
 import { PwaRegister } from '@/components/pwa-register';
 import { SiteHeader } from '@/components/site-header';
 import { TabBar } from '@/components/tab-bar';
+import { DisputeBanner } from '@/components/dispute-banner';
 import { LangSwitch } from '@/components/lang-switch';
 import { LangProvider } from '@/lib/i18n/client';
 import { dictOf, getLang, getT } from '@/lib/i18n/server';
@@ -69,6 +70,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <LangProvider lang={lang} dict={dictOf(lang)}>
         <PwaRegister />
         <SiteHeader />
+        <DisputeBanner />
         <main>{children}</main>
         <footer className="container" style={{ padding: '48px 24px 40px', marginTop: 64 }}>
           <hr className="divider" style={{ marginBottom: 20 }} />

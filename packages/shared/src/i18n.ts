@@ -217,8 +217,8 @@ export const EN_SHARED: Phrasebook = {
   Сообщения: 'Messages',
   'новые сообщения в чатах': 'new chat messages',
   Споры: 'Disputes',
-  'открыт спор, ждём вашего ответа, решение арбитра':
-    'dispute opened, your reply needed, arbiter’s decision',
+  'открыт спор, ждём вашего ответа, срок ответа подходит к концу, решение арбитра':
+    'dispute opened, your reply needed, reply deadline running out, arbiter’s decision',
   Отзывы: 'Reviews',
   'новый отзыв, ответ продавца, оценка вас как покупателя': 'new review, seller’s reply, a rating of you as a buyer',
   Деньги: 'Money',
@@ -248,6 +248,7 @@ export const EN_SHARED: Phrasebook = {
   'Новое сообщение': 'New message',
   'Спор по сделке': 'Dispute on a deal',
   'Ждём вашего ответа в споре': 'Your reply is needed in a dispute',
+  'Меньше 3 часов на ответ в споре': 'Less than 3 hours left to reply in a dispute',
   'Спор разрешён': 'Dispute resolved',
   'Ваша жалоба рассмотрена': 'Your report has been reviewed',
   'Лот заблокирован модератором': 'Listing blocked by a moderator',

@@ -72,3 +72,13 @@ export const offersCount = (n: number, t: T = RU) => t.n(n, 'предложен�
 
 /** «1 продавец», «3 продавца», «25 продавцов». */
 export const sellersCount = (n: number, t: T = RU) => t.n(n, 'продавец', 'продавца', 'продавцов');
+
+/** «18 ч 20 мин» до срока; прошёл — пусто. Срок ответа в споре — на его странице и в плашке. */
+export function timeLeft(iso: string, t: T = RU): string | null {
+  const min = Math.ceil((Date.parse(iso) - Date.now()) / 60000);
+  if (min <= 0) return null;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (!h) return t('{m} мин', { m });
+  return m ? t('{h} ч {m} мин', { h, m }) : t('{h} ч', { h });
+}

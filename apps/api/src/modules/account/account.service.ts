@@ -30,7 +30,7 @@ export class AccountService {
    * странице.
    */
   async summary(userId: string) {
-    const [unreadMessages, unreadNotifications, wallet, toDeliver, toConfirm] = await Promise.all([
+    const [unreadMessages, unreadNotifications, wallet, toDeliver, toConfirm, dispute] = await Promise.all([
       this.prisma.message.count({
         where: { readAt: null, senderId: { not: userId }, conversation: { OR: [{ buyerId: userId }, { sellerId: userId }] } },
       }),
@@ -42,6 +42,19 @@ export class AccountService {
       }),
       this.prisma.order.count({ where: { sellerId: userId, status: 'paid' } }),
       this.prisma.order.count({ where: { buyerId: userId, status: 'delivered' } }),
+      // Спор, где ждут ответа от этого человека, — с самым близким сроком: плашка на сайте.
+      this.prisma.dispute.findFirst({
+        where: {
+          status: { in: ['open', 'in_review'] },
+          respondBy: { not: null },
+          OR: [
+            { awaitingFrom: 'buyer', order: { buyerId: userId } },
+            { awaitingFrom: 'seller', order: { sellerId: userId } },
+          ],
+        },
+        orderBy: { respondBy: 'asc' },
+        select: { id: true, respondBy: true, order: { select: { publicNumber: true } } },
+      }),
     ]);
     return {
       unreadMessages,
@@ -49,6 +62,9 @@ export class AccountService {
       balance: { currency: 'RUB', available: (wallet?.balance ?? 0n).toString() },
       sales: { toDeliver },
       purchases: { toConfirm },
+      dispute: dispute?.respondBy
+        ? { id: dispute.id, orderNumber: dispute.order.publicNumber, respondBy: dispute.respondBy.toISOString() }
+        : null,
     };
   }
 

@@ -518,6 +518,38 @@ summary:focus-visible {
   margin-top: 2px;
 }
 
+/* Срок ответа в споре — под шапкой на всех страницах */
+.dispute-banner {
+  padding-top: 12px;
+  animation: banner-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dispute-banner .alert {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.dispute-banner-link {
+  flex: none;
+  font-weight: 600;
+  color: var(--accent);
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+.dispute-banner-link:hover {
+  color: var(--accent-hover);
+}
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dispute-banner {
+    animation: none;
+  }
+}
+
 /* Загрузка: скелет вместо пустоты */
 .skeleton {
   background: linear-gradient(90deg, var(--bg-subtle) 0%, var(--border) 50%, var(--bg-subtle) 100%);
