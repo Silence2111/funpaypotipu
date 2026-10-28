@@ -902,6 +902,22 @@ async function scenarioPayout(rnd) {
   );
   const appr = await j(`/payouts/${req.body.id}/approve`, { method: 'POST', token: fin.token });
   check('Finance одобрил → paid', appr.body.status === 'paid');
+
+  // Отказ — только с причиной: продавец видит её в кошельке и в уведомлении.
+  const second = await j('/payouts', { method: 'POST', token: seller.token, body: JSON.stringify({ amount: '30000', method: 'card', destination: '4111111111111111' }) });
+  const bare = await j(`/payouts/${second.body.id}/reject`, { method: 'POST', token: fin.token, body: '{}' });
+  const why = 'Карта не на ваше имя — укажите свою';
+  const rej = await j(`/payouts/${second.body.id}/reject`, { method: 'POST', token: fin.token, body: JSON.stringify({ reason: why }) });
+  const mine = (await j('/payouts/mine', { token: seller.token })).body.find((p) => p.id === second.body.id);
+  const note = await prisma.notification.findFirst({ where: { userId: seller.id, type: 'payout_rejected' } });
+  const wBack = await j('/wallet', { token: seller.token });
+  check(
+    'Отказ в выводе: без причины — 400; с причиной — деньги на баланс, причина продавцу в заявке и уведомлении',
+    bare.status === 400 && bare.body.reason?.[0] === 'Напишите причину отказа — продавец увидит её' &&
+      rej.body.status === 'rejected' && mine?.rejectReason === why && note?.payload?.preview === why &&
+      wBack.body.balance === '35000' && wBack.body.withdrawing.count === 0,
+    JSON.stringify({ bare: bare.body, mine: mine?.rejectReason, note: note?.payload, balance: wBack.body.balance }),
+  );
 }
 
 /**

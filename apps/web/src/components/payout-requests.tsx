@@ -18,6 +18,8 @@ export interface MyPayout {
   destinationHint?: string | null;
   /** Шлюз не выплатил — деньги вернулись на баланс. */
   failureReason?: string | null;
+  /** Почему отклонил сотрудник. */
+  rejectReason?: string | null;
 }
 
 /** Статус заявки для продавца: «отправляется» — шлюз ещё не подтвердил. */
@@ -72,7 +74,12 @@ export function PayoutRequests({ items }: { items: MyPayout[] }) {
                     })}
                   </span>
                 )}
-                {p.status === 'rejected' && p.failureReason && (
+                {p.status === 'rejected' && p.rejectReason && (
+                  <span className="payout-reason">
+                    {t('Причина: {reason}', { reason: p.rejectReason })}
+                  </span>
+                )}
+                {p.status === 'rejected' && !p.rejectReason && p.failureReason && (
                   <span className="payout-note">
                     {t(
                       'Платёжная система не провела выплату — проверьте реквизиты или выберите другой способ.',

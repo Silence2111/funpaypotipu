@@ -319,6 +319,33 @@ describe('заявка и одобрение', () => {
   });
 });
 
+describe('отказ сотрудника', () => {
+  it('без причины — отказ; с причиной — деньги на баланс, причина в заявке и уведомлении', async () => {
+    const { svc, rows, posted, notifications, audit } = setup();
+    await svc.request('u1', AMOUNT, 'usdt', USDT);
+    await expect(svc.reject('p1', 'fin', '  ')).rejects.toThrow('Напишите причину отказа');
+    expect(rows.get('p1')!.status).toBe('requested');
+
+    const reason = 'Кошелёк USDT не на ваше имя — укажите свой';
+    expect(await svc.reject('p1', 'fin', `  ${reason} `)).toMatchObject({
+      status: 'rejected',
+      rejectReason: reason,
+    });
+    expect(posted.has('payout_reverse:p1')).toBe(true);
+    expect(notifications.notify).toHaveBeenCalledWith('u1', 'payout_rejected', {
+      payoutId: 'p1',
+      amount: AMOUNT.toString(),
+      reason,
+      preview: reason,
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'payout.reject', after: { reason } }),
+    );
+    expect((await svc.listMine('u1'))[0]).toMatchObject({ rejectReason: reason });
+    await expect(svc.reject('p1', 'fin', reason)).rejects.toThrow(/уже обработана/);
+  });
+});
+
 describe('итог от шлюза', () => {
   const note = (event: string) => ({ type: 'notification', event, object: { id: 'po-p1' } });
   const result = (status: GatewayPayout['status'], amount = 97_500n): GatewayPayout => ({

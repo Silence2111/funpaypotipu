@@ -7,7 +7,7 @@ import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { WITHDRAWAL_METHOD_KEYS } from '@gamemarket/shared';
 import { AccountStatusService } from '../access/account-status.service';
-import { PayoutsService, type CardToken } from './payouts.service';
+import { PayoutsService, REJECT_REASON_NEEDED, type CardToken } from './payouts.service';
 import { RateLimit } from '../../common/rate-limit';
 
 const requestSchema = z.object({
@@ -28,7 +28,14 @@ const requestSchema = z.object({
     })
     .optional(),
 });
-const rejectSchema = z.object({ reason: z.string().max(500).optional() });
+// Причина отказа — продавцу в кошелёк и уведомление.
+const rejectSchema = z.object({
+  reason: z
+    .string({ required_error: REJECT_REASON_NEEDED })
+    .trim()
+    .min(3, REJECT_REASON_NEEDED)
+    .max(300),
+});
 
 @Controller('payouts')
 export class PayoutsController {
@@ -99,7 +106,7 @@ export class PayoutsController {
   reject(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(rejectSchema)) body: { reason?: string },
+    @Body(new ZodValidationPipe(rejectSchema)) body: { reason: string },
   ) {
     return this.payouts.reject(id, user.userId, body.reason);
   }

@@ -26,6 +26,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { YooKassaPayouts, type GatewayPayout, type PayoutDestination } from './yookassa-payouts';
 
 /** Первый вывод без продаж ждёт столько дней — защита от отмыва через пополнение. */
+/** Без причины отказ не сохраняется: продавцу нечего было бы исправлять. */
+export const REJECT_REASON_NEEDED = 'Напишите причину отказа — продавец увидит её';
 export const NEWBIE_HOLD_DAYS = Number(process.env.PAYOUT_NEWBIE_HOLD_DAYS ?? 3);
 // Вывод свыше порога — только после верификации личности (минорные единицы).
 export const KYC_REQUIRED_ABOVE = BigInt(process.env.PAYOUT_KYC_REQUIRED_ABOVE ?? 1_500_000);
@@ -425,8 +427,14 @@ export class PayoutsService {
     };
   }
 
-  /** Отклонение (finance): возврат зарезервированного на баланс. */
-  async reject(payoutId: string, actorId: string, reason?: string) {
+  /**
+   * Отклонение (finance): возврат зарезервированного на баланс. Причина
+   * обязательна — продавец видит её в кошельке и в уведомлении и знает, что
+   * исправить, не спрашивая поддержку.
+   */
+  async reject(payoutId: string, actorId: string, reason: string) {
+    const note = reason.trim();
+    if (note.length < 3) throw new BadRequestException(REJECT_REASON_NEEDED);
     const payout = await this.get(payoutId);
     if (payout.status !== 'requested') throw new ConflictException('Заявка уже обработана');
 
@@ -439,16 +447,21 @@ export class PayoutsService {
     });
     const updated = await this.prisma.payout.update({
       where: { id: payoutId },
-      data: { status: 'rejected', approvedBy: actorId },
+      data: { status: 'rejected', approvedBy: actorId, rejectReason: note },
     });
     await this.audit.log({
       actorId,
       action: 'payout.reject',
       entityType: 'payout',
       entityId: payoutId,
-      after: { reason },
+      after: { reason: note },
     });
-    await this.notifications.notify(payout.userId, 'payout_rejected', { payoutId });
+    await this.notifications.notify(payout.userId, 'payout_rejected', {
+      payoutId,
+      amount: payout.amount.toString(),
+      reason: note,
+      preview: note,
+    });
     return this.public(updated);
   }
 
@@ -462,7 +475,7 @@ export class PayoutsService {
   private public(p: {
     id: string; amount: bigint; currency: string; method: string; status: string;
     holdUntil: Date | null; createdAt: Date; externalId?: string | null; failureReason?: string | null;
-    destinationEnc?: string;
+    rejectReason?: string | null; destinationEnc?: string;
   }) {
     return {
       id: p.id,
@@ -475,6 +488,8 @@ export class PayoutsService {
       // Выплата через шлюз: номер у шлюза и причина отказа — для сверки.
       externalId: p.externalId ?? null,
       failureReason: p.failureReason ?? null,
+      // Причина сотрудника — продавцу в кошельке.
+      rejectReason: p.rejectReason ?? null,
       destinationHint: this.hint(p.method, p.destinationEnc),
     };
   }

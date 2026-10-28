@@ -377,6 +377,7 @@ export const EN_API: Phrasebook = {
   'Нет такой группы уведомлений': 'There’s no such notification group',
   'Нет такого типа операций': 'There’s no such transaction type',
   'Список заказов устарел — обновите страницу': 'The order list is out of date — refresh the page',
+  'Напишите причину отказа — продавец увидит её': 'Write the reason for rejecting — the seller will see it',
   'Нет доступа к диалогу': 'No access to this conversation',
   'Пустое сообщение': 'The message is empty',
   'Файл не прошёл антивирус-проверку: {reason}': 'The file failed the antivirus check: {reason}',

@@ -691,6 +691,8 @@ model Payout {
   externalId     String?      @map("external_id")
   // Почему шлюз не выплатил — показать продавцу и сотруднику.
   failureReason  String?      @map("failure_reason")
+  // Почему отклонил сотрудник: продавец видит её в кошельке и уведомлении.
+  rejectReason   String?      @map("reject_reason")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 

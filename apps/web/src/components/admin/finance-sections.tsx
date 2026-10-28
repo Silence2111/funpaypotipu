@@ -29,18 +29,28 @@ interface Kyc {
 
 const METHOD: Record<string, string> = { card: 'на карту', sbp: 'по СБП', yoomoney: 'на ЮMoney', usdt: 'в USDT' };
 
+/** Частые причины отказа — подсказкой в поле; текст можно поправить. */
+const REJECT_HINTS = [
+  'Реквизиты не на ваше имя — укажите свои',
+  'Реквизиты с ошибкой — проверьте номер и создайте заявку заново',
+  'Нужна проверка личности: «Безопасность» → «Проверка личности»',
+  'Деньги за сделку в споре — вывод после его решения',
+];
+
 /**
  * Заявки на вывод: одобрить или отклонить — деньги двигает API с ролью
  * «финансы». Способы, которые выплачивает ЮKassa, уходят сами после
  * одобрения и висят в «Отправляются», пока шлюз не подтвердит; остальные
  * переводятся вручную — одобрение значит «перевёл». Реквизиты для ручного
- * перевода открываются по кнопке, каждое открытие пишется в журнал.
+ * перевода открываются по кнопке, каждое открытие пишется в журнал. Отказ —
+ * только с причиной: продавец увидит её в кошельке и уведомлении.
  */
 export function PayoutsSection() {
   const [rows, setRows] = useState<Payout[] | null>(null);
   const [sending, setSending] = useState<Payout[]>([]);
   const [auto, setAuto] = useState<Record<string, boolean>>({});
   const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [reasons, setReasons] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
   const load = useCallback(async () => {
     setRows(await apiFetch<Payout[]>('/payouts?status=requested').catch(() => []));
@@ -57,8 +67,16 @@ export function PayoutsSection() {
 
   async function act(id: string, action: 'approve' | 'reject') {
     setErr(null);
+    const reason = reasons[id]?.trim();
+    if (action === 'reject' && !reason) {
+      setErr('Напишите причину отказа: продавец увидит её и поймёт, что исправить.');
+      return;
+    }
     try {
-      await apiFetch(`/payouts/${id}/${action}`, { method: 'POST', body: JSON.stringify({}) });
+      await apiFetch(`/payouts/${id}/${action}`, {
+        method: 'POST',
+        body: JSON.stringify(action === 'reject' ? { reason } : {}),
+      });
       await load();
     } catch (e) {
       setErr(apiErrorMessage(e, 'Не удалось обработать заявку.'));
@@ -79,6 +97,11 @@ export function PayoutsSection() {
   return (
     <section className="grid" style={{ gap: 8 }}>
       {err && <div className="alert error" role="alert">{err}</div>}
+      <datalist id="payout-reject-hints">
+        {REJECT_HINTS.map((h) => (
+          <option key={h} value={h} />
+        ))}
+      </datalist>
       {rows.length === 0 ? (
         <Empty>Заявок на вывод нет.</Empty>
       ) : (
@@ -103,6 +126,18 @@ export function PayoutsSection() {
               <button className="btn" onClick={() => void act(p.id, 'approve')} type="button">
                 {auto[p.method] ? 'Отправить' : 'Одобрить'}
               </button>
+            </span>
+            <span className="row" style={{ gap: 8, flexBasis: '100%', flexWrap: 'wrap' }}>
+              <input
+                className="input"
+                style={{ flex: 1, minWidth: 200 }}
+                aria-label="Причина отказа"
+                placeholder="Причина отказа — её увидит продавец"
+                list="payout-reject-hints"
+                maxLength={300}
+                value={reasons[p.id] ?? ''}
+                onChange={(e) => setReasons((r) => ({ ...r, [p.id]: e.target.value }))}
+              />
               <button className="chip" onClick={() => void act(p.id, 'reject')} type="button">Отклонить</button>
             </span>
           </div>
