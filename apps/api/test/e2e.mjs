@@ -1115,6 +1115,38 @@ async function scenarioReports(rnd) {
     JSON.stringify({ disp: kindCsv.disp, bad: badKind.body }),
   );
 
+  // «Заказы» в кабинете: новые сверху по страницам, поиск по номеру, лоту и нику, период.
+  const hist = (qs, token = seller.token) => j(`/orders/history?${qs}`, { token });
+  const sales2 = (await hist('role=seller')).body;
+  const p1 = (await hist('role=seller&limit=1')).body;
+  const p2 = (await hist(`role=seller&limit=1&before=${p1.next}`)).body;
+  check(
+    'Заказы: продажи новыми сверху с ником покупателя; по страницам от последнего показанного',
+    sales2.items?.length === 2 && sales2.next === null && sales2.items[0].id === open.body.id &&
+      sales2.items[0].counterparty === `rpb${rnd}` && sales2.items[0].title === 'E2E accounts' &&
+      p1.items?.length === 1 && p1.next === open.body.id && p2.items?.[0]?.id === order.body.id && p2.next === null,
+    JSON.stringify({ all: sales2.items?.map((o) => [o.publicNumber, o.status]), p1: p1.next, p2: p2.items?.map((o) => o.publicNumber) }),
+  );
+  const byNick = (await hist(`role=seller&q=${encodeURIComponent(`@RPB${rnd}`)}`)).body;
+  const byNumber = (await hist(`role=seller&q=${encodeURIComponent(`#${order.body.publicNumber.toLowerCase()}`)}`)).body;
+  const byTitle = (await hist('role=seller&q=e2e%20acc&status=completed&days=1')).body;
+  const none = (await hist('role=seller&q=nothing-like-this')).body;
+  check(
+    'Заказы: поиск по нику с «@», номеру с «#» без учёта регистра и по лоту со статусом и периодом',
+    byNick.items?.length === 2 && byNumber.items?.length === 1 && byNumber.items[0].id === order.body.id &&
+      byTitle.items?.length === 1 && byTitle.items[0].status === 'completed' && none.items?.length === 0,
+    JSON.stringify({ nick: byNick.items?.length, number: byNumber.items?.length, title: byTitle.items?.length, none: none.items?.length }),
+  );
+  const bought = (await hist('role=buyer', buyer.token)).body;
+  const wrongSide = await hist(`role=seller&before=${order.body.id}`, buyer.token);
+  const anon = await j('/orders/history?role=buyer');
+  check(
+    'Заказы: покупателю — его покупки с ником продавца; своя покупка курсором в продажи — 400; без входа — 401',
+    bought.items?.length === 2 && bought.items.every((o) => o.role === 'buyer' && o.counterparty === `rps${rnd}`) &&
+      wrongSide.status === 400 && /Список заказов устарел/.test(wrongSide.body.message) && anon.status === 401,
+    JSON.stringify({ bought: bought.items?.map((o) => o.counterparty), wrong: wrongSide.body, anon: anon.status }),
+  );
+
   const denied = await j('/reports/platform', { token: seller.token });
   const sum = (await j('/reports/platform?days=7', { token: fin.token })).body;
   const dailyGmv = (sum.daily ?? []).reduce((a, d) => a + BigInt(d.gmv), 0n);

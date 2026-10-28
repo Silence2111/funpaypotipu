@@ -48,6 +48,13 @@ import { FulfillmentService } from './fulfillment.service';
 
 const AUTO_CONFIRM_TTL_MS = Number(process.env.ORDER_AUTO_CONFIRM_TTL_MS ?? 72 * 3600 * 1000); // docs/03
 
+/** Ники сторон заказа — для списка. */
+const WITH_PARTIES = {
+  buyer: { select: { profile: { select: { username: true } } } },
+  seller: { select: { profile: { select: { username: true } } } },
+} as const;
+type PartyName = { profile: { username: string } | null };
+
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -776,21 +783,78 @@ export class OrdersService {
       where,
       orderBy: { createdAt: 'desc' },
       take: 200,
-      include: {
-        buyer: { select: { profile: { select: { username: true } } } },
-        seller: { select: { profile: { select: { username: true } } } },
-      },
+      include: WITH_PARTIES,
     });
-    return rows.map(({ buyer, seller, ...o }) => {
-      const asBuyer = o.buyerId === userId;
-      return {
-        ...o,
-        role: asBuyer ? ('buyer' as const) : ('seller' as const),
-        counterparty: (asBuyer ? seller : buyer).profile?.username ?? null,
-        title: (o.listingSnapshot as { title?: string } | null)?.title ?? null,
-        unitName: (o.listingSnapshot as { unitName?: string } | null)?.unitName ?? null,
-      };
+    return rows.map((o) => this.row(o, userId));
+  }
+
+  /**
+   * «Заказы» в кабинете: покупки или продажи новыми сверху, по страницам.
+   * Поиск — по номеру заказа, названию лота и нику другой стороны; период —
+   * последние `days` дней. Дальше — по последнему показанному (`before`):
+   * новый заказ, пришедший, пока листаешь, список не сдвигает.
+   */
+  async history(
+    userId: string,
+    q: {
+      role: 'buyer' | 'seller';
+      status?: OrderStatus[];
+      q?: string;
+      days?: number;
+      before?: string;
+      limit?: number;
+    },
+  ) {
+    const limit = q.limit ?? 30;
+    const mine: Prisma.OrderWhereInput =
+      q.role === 'buyer' ? { buyerId: userId } : { sellerId: userId };
+    const where: Prisma.OrderWhereInput = { ...mine };
+    if (q.status?.length) where.status = { in: q.status };
+    if (q.days) where.createdAt = { gte: new Date(Date.now() - q.days * 86_400_000) };
+    // «#GM-…» и «@ник» ищутся как есть, без значка впереди.
+    const text = q.q?.trim().replace(/^[#@]+/, '');
+    if (text) {
+      const like = { contains: text, mode: 'insensitive' as const };
+      const nick = { profile: { username: like } };
+      where.OR = [
+        { publicNumber: like },
+        { listing: { title: like } },
+        q.role === 'buyer' ? { seller: nick } : { buyer: nick },
+      ];
+    }
+    if (q.before) {
+      const at = await this.prisma.order.findFirst({
+        where: { id: q.before, ...mine },
+        select: { id: true, createdAt: true },
+      });
+      if (!at) throw new BadRequestException('Список заказов устарел — обновите страницу');
+      where.AND = [
+        { OR: [{ createdAt: { lt: at.createdAt } }, { createdAt: at.createdAt, id: { lt: at.id } }] },
+      ];
+    }
+    const rows = await this.prisma.order.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      include: WITH_PARTIES,
     });
+    const items = rows.slice(0, limit).map((o) => this.row(o, userId));
+    return { items, next: rows.length > limit ? items[items.length - 1]!.id : null };
+  }
+
+  /** Строка списка заказов: своя роль, ник другой стороны, лот из снимка. */
+  private row(
+    { buyer, seller, ...o }: Order & { buyer: PartyName; seller: PartyName },
+    userId: string,
+  ) {
+    const asBuyer = o.buyerId === userId;
+    return {
+      ...o,
+      role: asBuyer ? ('buyer' as const) : ('seller' as const),
+      counterparty: (asBuyer ? seller : buyer).profile?.username ?? null,
+      title: (o.listingSnapshot as { title?: string } | null)?.title ?? null,
+      unitName: (o.listingSnapshot as { unitName?: string } | null)?.unitName ?? null,
+    };
   }
 
   async getForUser(orderId: string, userId: string) {

@@ -31,6 +31,16 @@ const mineQuery = z.object({
     .pipe(z.array(z.enum(ORDER_STATUS))),
 });
 
+// «Заказы» в кабинете: поиск, период в днях и страницы по последнему показанному.
+const historyQuery = mineQuery.extend({
+  role: z.enum(['buyer', 'seller']).default('buyer'),
+  q: z.string().trim().max(100).optional(),
+  days: z.coerce.number().int().min(1).max(366).optional(),
+  before: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+});
+type HistoryQuery = z.infer<typeof historyQuery>;
+
 const refundSchema = z.object({ reason: z.string().max(300).optional() });
 
 @Controller('orders')
@@ -59,6 +69,11 @@ export class OrdersController {
     @Query(new ZodValidationPipe(mineQuery)) q: { role?: 'buyer' | 'seller'; status: OrderStatus[] },
   ) {
     return this.orders.listMine(user.userId, q);
+  }
+
+  @Get('history')
+  history(@CurrentUser() user: AuthUser, @Query(new ZodValidationPipe(historyQuery)) q: HistoryQuery) {
+    return this.orders.history(user.userId, q);
   }
 
   @Get(':id')

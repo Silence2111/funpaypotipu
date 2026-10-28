@@ -9,6 +9,17 @@ export const CABINET: Record<string, string> = {
   Консоль: 'Console',
   'Мои заказы': 'My orders',
   'Все покупки и продажи →': 'All purchases and sales →',
+  'Номер заказа, лот или ник': 'Order number, listing or username',
+  'Поиск по заказам': 'Search orders',
+  Период: 'Period',
+  'За всё время': 'All time',
+  '7 дней': '7 days',
+  '3 месяца': '3 months',
+  Год: 'Year',
+  'Ничего не нашлось. Проверьте номер заказа, название лота или ник.':
+    'Nothing found. Check the order number, listing title or username.',
+  'Сбросить поиск': 'Clear search',
+  'Не удалось загрузить заказы.': 'Couldn’t load your orders.',
   'Заказов пока нет. Оплата хранится у площадки, пока вы не подтвердите получение.':
     'No orders yet. The marketplace holds your payment until you confirm receipt.',
   'Все лоты ({n}) →': 'All listings ({n}) →',

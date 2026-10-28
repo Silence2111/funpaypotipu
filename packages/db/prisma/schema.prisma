@@ -584,6 +584,9 @@ model Order {
   @@index([buyerId])
   @@index([sellerId])
   @@index([status])
+  // «Заказы» в кабинете: свои покупки или продажи новыми сверху.
+  @@index([buyerId, createdAt])
+  @@index([sellerId, createdAt])
   @@map("orders")
 }
 

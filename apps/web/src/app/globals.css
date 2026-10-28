@@ -4167,6 +4167,34 @@ a.my-lot-title:hover {
   width: auto;
 }
 
+/* «Заказы»: поиск по номеру, лоту и нику и период — одной строкой. */
+.orders-search-row {
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.orders-search {
+  position: relative;
+  flex: 1 1 280px;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+}
+.orders-search svg {
+  position: absolute;
+  left: 14px;
+  color: var(--fg-faint);
+  pointer-events: none;
+}
+.orders-search .input {
+  width: 100%;
+  padding-left: 40px;
+}
+.orders-period {
+  width: auto;
+  min-width: 150px;
+}
+
 /* «Кошелёк»: крупное «доступно», тихо — деньги в пути. */
 .wallet-hero {
   display: flex;
