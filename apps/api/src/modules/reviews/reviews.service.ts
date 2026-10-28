@@ -177,6 +177,74 @@ export class ReviewsService {
     return { ok: true };
   }
 
+  /**
+   * «Отзывы» в кабинете. Полученные — отзывы покупателей о человеке как о
+   * продавце (без ответа — отдельным фильтром), оставленные — его отзывы о
+   * продавцах. Рядом — сколько всего, сколько без ответа и сколько
+   * оставлено, для вкладок.
+   */
+  async mine(
+    userId: string,
+    q: { tab: 'received' | 'written'; unanswered?: boolean; page?: number; limit?: number },
+  ) {
+    const limit = Math.min(Math.max(q.limit ?? 20, 1), 50);
+    const page = Math.max(q.page ?? 1, 1);
+    const where: Prisma.ReviewWhereInput =
+      q.tab === 'written'
+        ? { authorId: userId }
+        : { targetId: userId, ...(q.unanswered ? { sellerReply: null } : {}) };
+    const [rows, received, unanswered, written] = await Promise.all([
+      this.prisma.review.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit + 1,
+        include: {
+          order: { select: { id: true, publicNumber: true, amount: true, currency: true, listingSnapshot: true } },
+        },
+      }),
+      this.prisma.review.count({ where: { targetId: userId } }),
+      this.prisma.review.count({ where: { targetId: userId, sellerReply: null } }),
+      this.prisma.review.count({ where: { authorId: userId } }),
+    ]);
+    const shown = rows.slice(0, limit);
+    // Другая сторона сделки: в полученных — покупатель, в оставленных — продавец.
+    const otherIds = [...new Set(shown.map((r) => (q.tab === 'written' ? r.targetId : r.authorId)))];
+    const names = new Map(
+      (
+        await this.prisma.profile.findMany({
+          where: { userId: { in: otherIds } },
+          select: { userId: true, username: true },
+        })
+      ).map((p) => [p.userId, p.username]),
+    );
+    const editUntil = (r: { createdAt: Date }) => new Date(r.createdAt.getTime() + REVIEW_EDIT_DAYS * 86_400_000);
+    return {
+      items: shown.map(({ order, images, ...r }) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        sellerReply: r.sellerReply,
+        repliedAt: r.repliedAt,
+        createdAt: r.createdAt,
+        editedAt: r.editedAt,
+        images: keysOf(images).map((k) => assetUrl(k)!),
+        order: {
+          id: order.id,
+          publicNumber: order.publicNumber,
+          amount: order.amount,
+          currency: order.currency,
+          title: (order.listingSnapshot as { title?: string } | null)?.title ?? null,
+        },
+        counterpart: names.get(q.tab === 'written' ? r.targetId : r.authorId) ?? null,
+        // Своё можно поправить в первые 14 дней — на странице заказа.
+        ...(q.tab === 'written' ? { editableUntil: editUntil(r), editable: editUntil(r) > new Date() } : {}),
+      })),
+      more: rows.length > limit,
+      counts: { received, unanswered, written },
+    };
+  }
+
   /** Отзыв по заказу — для страницы заказа: показать, изменить, ответить. */
   async forOrder(orderId: string, userId: string) {
     const order = await this.prisma.order.findUnique({

@@ -461,4 +461,20 @@ export const CABINET: Record<string, string> = {
   'вы покупатель, продавец {name}': 'you’re the buyer, seller {name}',
   'вы продавец, покупатель {name}': 'you’re the seller, buyer {name}',
   'открыт {date}': 'opened {date}',
+  // «Отзывы» в кабинете
+  'Не удалось загрузить отзывы.': 'Couldn’t load reviews.',
+  'Отзывы покупателей о вас и ваши отзывы о продавцах. Ответ на отзыв видят все покупатели в вашем профиле.':
+    'Buyers’ reviews of you and your reviews of sellers. Every buyer sees your reply to a review on your profile.',
+  'Полученные': 'Received',
+  'Оставленные': 'Written',
+  'Без ответа': 'Unanswered',
+  'Вы ещё не оставляли отзывов. Оценить продавца можно на странице заказа после подтверждения получения.':
+    'You haven’t written any reviews yet. You can rate a seller on the order page after confirming receipt.',
+  'На все отзывы вы уже ответили.': 'You’ve replied to every review.',
+  'Отзывов о вас пока нет. Они появятся после завершённых продаж.':
+    'No reviews of you yet. They appear after completed sales.',
+  'продавцу {name}': 'to seller {name}',
+  'Ваш ответ:': 'Your reply:',
+  'Ответ на отзыв': 'Reply to the review',
+  'можно до {date}': 'until {date}',
 };

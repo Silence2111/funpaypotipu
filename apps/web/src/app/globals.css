@@ -3236,6 +3236,49 @@ a.my-lot-title:hover {
   }
 }
 
+/* «Отзывы» в кабинете: оценка, кто и когда, заказ; текст, фото и ответ */
+.review-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+}
+.review-row + .review-row {
+  border-top: 1px solid var(--border);
+}
+.review-who {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.review-order {
+  font-size: 13px;
+  color: var(--fg-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-text {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--fg);
+  line-height: 1.6;
+}
+.review-reply {
+  margin: 0;
+  padding: 10px 14px;
+  max-width: 60ch;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  font-size: 14px;
+  line-height: 1.5;
+}
+@media (max-width: 720px) {
+  .review-row {
+    padding: 14px 16px;
+  }
+}
+
 /* Фильтры раздела на телефоне — шторкой за кнопкой со счётчиком. */
 .filters-open {
   display: none;

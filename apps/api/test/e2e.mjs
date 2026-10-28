@@ -1092,6 +1092,49 @@ async function scenarioReports(rnd) {
 }
 
 /**
+ * «Отзывы» в кабинете: полученные с фильтром «без ответа» и ответом прямо
+ * из списка, оставленные — со сроком правки.
+ */
+async function scenarioMyReviews(rnd) {
+  console.log('\n— «Отзывы» в кабинете —');
+  const seller = await register('mrs', rnd);
+  const buyer = await register('mrb', rnd);
+  const deal = async (price, rating, comment) => {
+    const listingId = await createListing(seller.token, 'accounts', price);
+    const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
+    await pay(buyer.token, order.body.id);
+    await j(`/orders/${order.body.id}/deliver`, { method: 'POST', token: seller.token });
+    await j(`/orders/${order.body.id}/confirm`, { method: 'POST', token: buyer.token });
+    const r = await j('/reviews', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: order.body.id, rating, comment }) });
+    return r.body;
+  };
+  const first = await deal('30000', 5, 'Быстро и честно');
+  const second = await deal('40000', 3, 'Долго ждал выдачи');
+  const mine = (token, q = '') => j(`/reviews/mine?${q}`, { token });
+  const received = await mine(seller.token, 'tab=received');
+  const open = await mine(seller.token, 'tab=received&unanswered=1');
+  const written = await mine(buyer.token, 'tab=written');
+  const strangerView = await mine(buyer.token, 'tab=received');
+  check(
+    '«Отзывы»: продавцу — полученные с ником покупателя, оба без ответа; покупателю — оставленные с правкой; чужих нет',
+    received.body.items?.map((r) => r.id).join() === `${second.id},${first.id}` && received.body.items[0].counterpart === `mrb${rnd}` &&
+      open.body.items.length === 2 && received.body.counts.unanswered === 2 &&
+      written.body.items?.[0]?.counterpart === `mrs${rnd}` && written.body.items[0].editable === true &&
+      strangerView.body.items.length === 0 && (await j('/reviews/mine')).status === 401,
+    JSON.stringify({ received: received.body.counts, written: written.body.items?.map((r) => [r.counterpart, r.editable]) }),
+  );
+  await j(`/reviews/${second.id}/reply`, { method: 'POST', token: seller.token, body: JSON.stringify({ text: 'Извините, выдал быстрее в следующий раз' }) });
+  const after = await mine(seller.token, 'tab=received&unanswered=1');
+  const buyerSees = await mine(buyer.token, 'tab=written');
+  check(
+    '«Отзывы»: ответ уводит отзыв из «без ответа», покупатель видит ответ в оставленных',
+    after.body.items.map((r) => r.id).join() === first.id && after.body.counts.unanswered === 1 &&
+      buyerSees.body.items.find((r) => r.id === second.id)?.sellerReply === 'Извините, выдал быстрее в следующий раз',
+    JSON.stringify({ after: after.body.counts, reply: buyerSees.body.items?.map((r) => r.sellerReply) }),
+  );
+}
+
+/**
  * Страница «Уведомления»: вся история новыми сверху, дальше — по последнему
  * показанному, группы со счётчиками непрочитанных, «Прочитать все» в группе.
  */
@@ -3284,6 +3327,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioReports(rnd);
   await scenarioDisputes(rnd);
   await scenarioNotificationsPage(rnd);
+  await scenarioMyReviews(rnd);
   await scenarioReviewPhotos(rnd);
   await scenarioTwoFactor(rnd);
   await scenarioPush(rnd);

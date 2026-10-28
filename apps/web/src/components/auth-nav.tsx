@@ -99,6 +99,9 @@ export function ProfileLinks({ user, sum, extra }: { user: SessionUser; sum: Sum
       <Link role="menuitem" href="/cabinet/disputes">
         {t('Споры')}
       </Link>
+      <Link role="menuitem" href="/cabinet/reviews">
+        {t('Отзывы')}
+      </Link>
       <Link role="menuitem" href="/cabinet/lots">
         {t('Мои лоты')}
       </Link>

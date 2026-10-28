@@ -37,6 +37,16 @@ const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).max(500).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
+const mineQuerySchema = z.object({
+  tab: z.enum(['received', 'written']).default('received'),
+  // Только полученные без ответа продавца.
+  unanswered: z
+    .enum(['1', 'true'])
+    .optional()
+    .transform((v) => !!v),
+  page: z.coerce.number().int().min(1).max(500).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
 const updateReviewSchema = z
   .object({
     rating: z.number().int().min(1).max(5).optional(),
@@ -59,6 +69,17 @@ export class ReviewsController {
     q: { rating?: number; photos: boolean; page: number; limit: number },
   ) {
     return this.reviews.listForUser(userId, q);
+  }
+
+  /** «Отзывы» в кабинете: ?tab=received|written&unanswered=1&page=. */
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  mine(
+    @CurrentUser() user: AuthUser,
+    @Query(new ZodValidationPipe(mineQuerySchema))
+    q: { tab: 'received' | 'written'; unanswered: boolean; page: number; limit: number },
+  ) {
+    return this.reviews.mine(user.userId, q);
   }
 
   @Post()
