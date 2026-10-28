@@ -22,17 +22,6 @@ interface Method {
   widget?: { accountId: string; scriptUrl: string } | null;
 }
 
-interface MyPayout {
-  id: string;
-  amount: string;
-  currency: string;
-  method: string;
-  status: string;
-  createdAt: string;
-  /** Куда: «•••• 4477» — без полного номера. */
-  destinationHint?: string | null;
-}
-
 /** Куда выводить — подсказка поля по способу. */
 const PLACEHOLDER: Record<string, string> = {
   sbp: msg('Телефон, +7 900 000-00-00'),
@@ -41,16 +30,10 @@ const PLACEHOLDER: Record<string, string> = {
   usdt: msg('Адрес кошелька USDT (TRC20)'),
 };
 
-/** Статус заявки для продавца: «отправляется» — шлюз ещё не подтвердил. */
-const STATUS: Record<string, string> = {
-  requested: msg('на проверке'),
-  approved: msg('отправляется'),
-  processing: msg('отправляется'),
-  paid: msg('выплачено'),
-  rejected: msg('отклонена, деньги на балансе'),
-};
-
-/** Заявка на вывод средств: выбор способа + живое превью «на руки». */
+/**
+ * Заявка на вывод средств: выбор способа + живое превью «на руки». Список
+ * заявок — рядом, в «Кошельке»: `onDone` обновляет и баланс, и его.
+ */
 export function PayoutForm({ onDone }: { onDone: () => void }) {
   const t = useT();
   const [methods, setMethods] = useState<Method[]>([]);
@@ -62,7 +45,6 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
   const [bankId, setBankId] = useState('');
   // Карта из виджета ЮKassa: токен и маска, номер у нас не бывает.
   const [card, setCard] = useState<CardToken | null>(null);
-  const [mine, setMine] = useState<MyPayout[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   // Крупный вывод — после проверки личности: порог площадки и свой статус.
@@ -78,9 +60,6 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
       .catch(() => {});
     apiFetch<{ status: string }>('/kyc/me')
       .then((k) => setVerified(k.status === 'approved'))
-      .catch(() => {});
-    apiFetch<MyPayout[]>('/payouts/mine')
-      .then((rows) => setMine(rows ?? []))
       .catch(() => {});
   }, []);
 
@@ -125,7 +104,6 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
         }),
       });
       setMsg(t('Заявка на вывод создана')); setAmount(''); setDest(''); setCard(null); onDone();
-      apiFetch<MyPayout[]>('/payouts/mine').then((rows) => setMine(rows ?? [])).catch(() => {});
     } catch (e) {
       setMsg(apiErrorMessage(e, t('Не удалось создать заявку')));
     } finally { setBusy(false); }
@@ -188,28 +166,6 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
         </p>
       )}
       {msg && <p className="faint" style={{ fontSize: 13, marginTop: 8 }}>{msg}</p>}
-      {mine.length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div className="faint" style={{ fontSize: 13, marginBottom: 4 }}>{t('Заявки на вывод')}</div>
-          {mine.slice(0, 5).map((p) => (
-            <div key={p.id} className="row" style={{ justifyContent: 'space-between', gap: 12, fontSize: 14, padding: '4px 0', maxWidth: 420 }}>
-              <span>
-                {formatPrice(p.amount, p.currency, t)}{' '}
-                <span className="faint">
-                  · {new Date(p.createdAt).toLocaleDateString(t.locale)}
-                  {p.destinationHint ? ` · ${p.destinationHint}` : ''}
-                </span>
-              </span>
-              <span
-                className={p.status === 'rejected' ? 'faint' : undefined}
-                style={p.status === 'paid' ? { color: 'var(--success)' } : undefined}
-              >
-                {STATUS[p.status] ? t(STATUS[p.status]!) : p.status}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

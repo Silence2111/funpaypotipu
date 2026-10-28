@@ -7,10 +7,6 @@ import { Wallet, Package, Tag } from 'lucide-react';
 import { apiFetch, getToken, getUser } from '@/lib/session';
 import { logout } from '@/lib/logout';
 import { formatListingPrice, formatPrice } from '@/lib/format';
-import { TopUpForm } from '@/components/topup-form';
-import { PayoutForm } from '@/components/payout-form';
-import { StatementView } from '@/components/statement';
-import { loadPublicPricing } from '@/lib/pricing';
 import { BumpButton } from '@/components/bump-button';
 import { SellerDashboard } from '@/components/seller-dashboard';
 import { SellerToday } from '@/components/seller-today';
@@ -37,14 +33,15 @@ export default function CabinetPage() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [listings, setListings] = useState<ListingRow[]>([]);
   const [loading, setLoading] = useState(true);
-  // Оплата демонстрационная — подсказка у пополнения; с ЮKassa её нет.
-  const [demo, setDemo] = useState(false);
-  // Вернулись со страницы ЮKassa: баланс пополнится, когда придёт её подтверждение.
-  const [topupBack, setTopupBack] = useState(false);
 
   useEffect(() => {
     if (!getToken()) {
       router.replace('/login?next=/cabinet');
+      return;
+    }
+    // Пополнение теперь в «Кошельке»: старая ссылка возврата из ЮKassa ведёт туда.
+    if (new URLSearchParams(window.location.search).get('topup') === '1') {
+      router.replace('/cabinet/wallet?topup=1');
       return;
     }
     Promise.all([
@@ -58,18 +55,6 @@ export default function CabinetPage() {
       setLoading(false);
     });
   }, [router]);
-
-  useEffect(() => {
-    void loadPublicPricing().then((p) => setDemo(!!p?.paymentsDemo));
-    if (new URLSearchParams(window.location.search).get('topup') !== '1') return;
-    setTopupBack(true);
-    const timer = setInterval(() => void apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {}), 3000);
-    const stop = setTimeout(() => clearInterval(timer), 60_000);
-    return () => {
-      clearInterval(timer);
-      clearTimeout(stop);
-    };
-  }, []);
 
   const user = getUser();
   if (loading)
@@ -156,32 +141,16 @@ export default function CabinetPage() {
 
       <SellerDashboard />
 
-      <section className="card" style={{ padding: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <Wallet size={22} strokeWidth={1.75} color="var(--accent)" />
-          <div>
-            <div className="faint" style={{ fontSize: 13 }}>{t('Баланс')}</div>
-            <div className="price" style={{ fontSize: 26 }}>
-              {wallet ? formatPrice(wallet.balance, wallet.currency, t) : '—'}
-            </div>
-          </div>
-        </div>
-        {topupBack && (
-          <div className="alert" role="status" style={{ marginTop: 14 }}>
-            {t('Пополнение зачислится, как только банк подтвердит оплату, — обычно за несколько секунд.')}
-          </div>
-        )}
-        <TopUpForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
-        {demo && (
-          <p className="hint" style={{ marginTop: 6 }}>{t('На демо-стенде пополнение проходит без списания денег.')}</p>
-        )}
-        <hr className="divider" style={{ margin: '20px 0' }} />
-        <div className="label">{t('Вывод средств')}</div>
-        <PayoutForm onDone={() => apiFetch<WalletDto>('/wallet').then(setWallet).catch(() => {})} />
-        <hr className="divider" style={{ margin: '20px 0' }} />
-        <div className="label">{t('Выписка по балансу')}</div>
-        <StatementView />
-      </section>
+      <Link href="/cabinet/wallet" className="card link wallet-teaser">
+        <Wallet size={22} strokeWidth={1.75} color="var(--accent)" aria-hidden />
+        <span className="wallet-teaser-main">
+          <span className="faint" style={{ fontSize: 13 }}>{t('Баланс')}</span>
+          <span className="price" style={{ fontSize: 26 }}>
+            {wallet ? formatPrice(wallet.balance, wallet.currency, t) : '—'}
+          </span>
+        </span>
+        <span className="wallet-teaser-go">{t('Пополнить, вывести, выписка →')}</span>
+      </Link>
 
       <button className="btn ghost" type="button" onClick={() => void logout().then(() => router.push('/'))}>
         {t('Выйти из аккаунта')}

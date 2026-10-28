@@ -4,12 +4,14 @@ import {
   csvDate,
   csvMoney,
   mskDay,
+  operationKindRefTypes,
   operationLabel,
   parsePeriod,
   toCsv,
   translateText,
   EN_SHARED,
   type CsvCell,
+  type OperationKind,
   type Period,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
@@ -17,8 +19,8 @@ import { say } from '../../i18n/texts';
 import type { Lang } from '../../i18n/lang';
 
 const CURRENCY = 'RUB';
-/** Сколько строк выписки показывать на странице; в файле — все. */
-const PAGE_ROWS = 300;
+/** Сколько строк выписки отдавать за раз; дальше — «Показать ещё», в файле — все. */
+const PAGE_ROWS = 50;
 /** Предел строк в одном файле: больше — разбить период. */
 const MAX_ROWS = 20_000;
 const DAY_MS = 86400_000;
@@ -107,8 +109,17 @@ export class ReportsService {
     return { sellerId, status: 'completed', completedAt: { gte: p.from, lt: p.to } };
   }
 
-  /** Выписка для страницы: итоги, продажи за период и последние операции. */
-  async statement(userId: string, p: Period) {
+  /**
+   * Выписка для страницы: итоги, продажи за период и операции — новые
+   * сверху, по страницам. С `kind` — только операции этой группы и их суммы;
+   * остаток после операции и итоги периода — по всему балансу.
+   */
+  async statement(
+    userId: string,
+    p: Period,
+    opts: { kind?: OperationKind; offset?: number; limit?: number } = {},
+  ) {
+    const { kind, offset = 0, limit = PAGE_ROWS } = opts;
     const [l, sales] = await Promise.all([
       this.ledger(userId, p, MAX_ROWS),
       this.prisma.order.aggregate({
@@ -130,14 +141,39 @@ export class ReportsService {
         gross: sales._sum.amount ?? 0n,
         payout: sales._sum.sellerPayoutAmount ?? 0n,
       },
-      // Новые сверху; всего — для «показаны последние N».
-      total: l.rows.length,
-      rows: l.rows.slice(-PAGE_ROWS).reverse(),
+      ...this.page(this.only(l.rows, kind), offset, limit),
     };
   }
 
-  /** Выписка файлом: операции по порядку, внизу — остатки и обороты. */
-  async statementCsv(userId: string, p: Period, lang: Lang) {
+  /** Операции группы; без группы — все. */
+  private only<R extends { refType: string | null }>(rows: R[], kind?: OperationKind): R[] {
+    if (!kind) return rows;
+    const refTypes = operationKindRefTypes(kind);
+    return rows.filter((r) => r.refType !== null && refTypes.includes(r.refType));
+  }
+
+  /** Страница выписки: новые сверху; суммы — по всем подходящим операциям. */
+  private page<R extends { amount: bigint }>(rows: R[], offset: number, limit: number) {
+    let credits = 0n;
+    let debits = 0n;
+    for (const r of rows) {
+      if (r.amount > 0n) credits += r.amount;
+      else debits -= r.amount;
+    }
+    const newest = rows.slice().reverse();
+    return {
+      shown: { credits, debits },
+      total: rows.length,
+      rows: newest.slice(offset, offset + limit),
+      more: offset + limit < rows.length,
+    };
+  }
+
+  /**
+   * Выписка файлом: операции по порядку, внизу — остатки и обороты. С `kind`
+   * — только операции группы, остатки и обороты — по всему балансу.
+   */
+  async statementCsv(userId: string, p: Period, lang: Lang, kind?: OperationKind) {
     const l = await this.ledger(userId, p, MAX_ROWS);
     const m = (v: bigint) => csvMoney(v, lang);
     const rows: CsvCell[][] = [
@@ -149,7 +185,7 @@ export class ReportsService {
         say(lang, 'Расход'),
         say(lang, 'Остаток'),
       ],
-      ...l.rows.map((r) => [
+      ...this.only(l.rows, kind).map((r) => [
         csvDate(r.createdAt, lang),
         opLabel(r.refType, lang),
         r.orderNumber,
@@ -163,7 +199,8 @@ export class ReportsService {
       [say(lang, 'Списано'), null, null, null, m(l.debits)],
       [say(lang, 'Остаток на конец'), null, null, null, null, m(l.closing)],
     ];
-    return { csv: toCsv(rows, lang), name: `gamemarket-statement-${p.fromDay}-${p.toDay}.csv` };
+    const name = `gamemarket-statement-${kind ? `${kind}-` : ''}${p.fromDay}-${p.toDay}.csv`;
+    return { csv: toCsv(rows, lang), name };
   }
 
   /** Продажи за период файлом — доход продавца по завершённым сделкам. */

@@ -22,6 +22,22 @@ export const CABINET: Record<string, string> = {
 
   // Кошелёк
   Баланс: 'Balance',
+  'Баланс, пополнение и вывод, все операции по деньгам. С баланса можно оплатить покупку или продвижение лота.':
+    'Balance, top-ups and withdrawals, every money transaction. You can pay for purchases or listing promotion from your balance.',
+  Доступно: 'Available',
+  'В сделках': 'In deals',
+  '{n} — зачислим, когда покупатели подтвердят получение':
+    '{n} — credited once buyers confirm receipt',
+  'На выводе': 'Being withdrawn',
+  '{n} — уже не на балансе': '{n} — already off your balance',
+  Пополнение: 'Top-up',
+  'Пополнить, вывести, выписка →': 'Top up, withdraw, statement →',
+  'Первый вывод до первой продажи отправим не раньше {date}.':
+    'A first withdrawal before your first sale is sent no earlier than {date}.',
+  'Платёжная система не провела выплату — проверьте реквизиты или выберите другой способ.':
+    'The payment system didn’t complete the payout — check the details or choose another method.',
+  'Показать все ({n})': 'Show all ({n})',
+  Свернуть: 'Show less',
   'На демо-стенде пополнение проходит без списания денег.':
     'On the demo site, top-ups don’t charge any real money.',
   'Вывод средств': 'Withdrawal',
@@ -195,8 +211,19 @@ export const CABINET: Record<string, string> = {
   'Выписка для Excel': 'Statement for Excel',
   'Продажи для Excel': 'Sales for Excel',
   'За этот период операций нет.': 'No transactions in this period.',
-  'Показаны последние {n} операций из {total} — все в файле.':
-    'Showing the latest {n} of {total} transactions — the file has them all.',
+  'Таких операций за период нет.': 'No transactions of this type in this period.',
+  'Свой период': 'Custom period',
+  'Тип операций': 'Transaction type',
+  'Все операции': 'All transactions',
+  с: 'from',
+  по: 'to',
+  'Начало периода': 'Start date',
+  'Конец периода': 'End date',
+  'Укажите обе даты — начало не позже конца.': 'Enter both dates — the start can’t be after the end.',
+  '{kind} за период: поступило {credits}, списано {debits}.':
+    '{kind} for the period: {credits} in, {debits} out.',
+  '{kind} за период: поступило {sum}.': '{kind} for the period: {sum} in.',
+  '{kind} за период: списано {sum}.': '{kind} for the period: {sum} out.',
 
   // Мои поиски
   'Не удалось загрузить поиски.': 'Couldn’t load your searches.',

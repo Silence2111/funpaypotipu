@@ -66,7 +66,7 @@ function UserBar({ user }: { user: SessionUser }) {
       </Link>
       <NotificationsBell />
       {sum && (
-        <Link href="/cabinet" className="chip hide-mobile balance-chip" title={t('Баланс — пополнить и вывести в кабинете')}>
+        <Link href="/cabinet/wallet" className="chip hide-mobile balance-chip" title={t('Баланс — пополнить и вывести в кошельке')}>
           {formatPrice(sum.balance.available, sum.balance.currency, t)}
         </Link>
       )}
@@ -108,7 +108,7 @@ export function ProfileLinks({ user, sum, extra }: { user: SessionUser; sum: Sum
       <Link role="menuitem" href="/cabinet/tools">
         {t('Инструменты продавца')}
       </Link>
-      <Link role="menuitem" href="/cabinet">
+      <Link role="menuitem" href="/cabinet/wallet">
         {t('Кошелёк')}
       </Link>
       <Link role="menuitem" href={`/prodavec/${user.id}`}>

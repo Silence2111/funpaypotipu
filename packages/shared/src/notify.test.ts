@@ -38,7 +38,7 @@ describe('уведомления', () => {
     expect(notifyLink('order_paid', { orderId: 'o1' })).toBe('/orders/o1');
     expect(notifyLink('new_message', { conversationId: 'c1' })).toBe('/chat/c1');
     expect(notifyLink('dispute_opened', { orderId: 'o1', disputeId: 'd1' })).toBe('/disputes/d1');
-    expect(notifyLink('payout_paid', {})).toBe('/cabinet');
+    expect(notifyLink('payout_paid', {})).toBe('/cabinet/wallet');
     expect(notifyLink('kyc_rejected', { reason: 'Размыто' })).toBe('/cabinet/verification');
     expect(notifyLink('seller_new_lots', { sellerId: 's1', listingId: 'l1' })).toBe('/lot/l1');
     expect(notifyLink('seller_sale', { sellerId: 's1', count: 3 })).toBe('/prodavec/s1');

@@ -5,6 +5,8 @@ import {
   OTHER_OPERATION,
   csvDate,
   csvMoney,
+  OPERATION_KINDS,
+  operationKindRefTypes,
   operationLabel,
   parsePeriod,
   toCsv,
@@ -63,5 +65,19 @@ describe('операции', () => {
     expect(operationLabel('something_new')).toBe(OTHER_OPERATION);
     for (const label of [...Object.values(LEDGER_OPERATIONS), OTHER_OPERATION])
       expect(translateText(EN_SHARED, label), label).toBeDefined();
+  });
+
+  it('каждая операция — ровно в одной группе фильтра; у групп есть английский', () => {
+    for (const refType of Object.keys(LEDGER_OPERATIONS)) {
+      const groups = OPERATION_KINDS.filter((k) =>
+        (k.refTypes as readonly string[]).includes(refType),
+      );
+      expect(groups.length, refType).toBe(1);
+    }
+    for (const k of OPERATION_KINDS) {
+      expect(translateText(EN_SHARED, k.label), k.label).toBeDefined();
+      for (const refType of k.refTypes) expect(LEDGER_OPERATIONS[refType], refType).toBeDefined();
+    }
+    expect(operationKindRefTypes('payouts')).toContain('payout_hold');
   });
 });

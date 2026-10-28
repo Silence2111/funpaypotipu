@@ -11,6 +11,7 @@ import { msg } from '@/lib/i18n/lang';
 const LINKS = [
   { href: '/cabinet', label: msg('Обзор') },
   { href: '/cabinet/orders', label: msg('Заказы') },
+  { href: '/cabinet/wallet', label: msg('Кошелёк') },
   { href: '/cabinet/disputes', label: msg('Споры') },
   { href: '/cabinet/reviews', label: msg('Отзывы') },
   { href: '/cabinet/lots', label: msg('Мои лоты') },

@@ -55,7 +55,7 @@ export const COMMON: Record<string, string> = {
   'Профиль: {n} ждут действия': 'Profile: {n} need action',
   'Меню профиля {name}': 'Profile menu for {name}',
   'Баланс {sum}': 'Balance {sum}',
-  'Баланс — пополнить и вывести в кабинете': 'Balance — top up and withdraw in your account',
+  'Баланс — пополнить и вывести в кошельке': 'Balance — top up and withdraw in your wallet',
   Продажи: 'Sales',
   '{n} ждут выдачи': '{n} to deliver',
   Покупки: 'Purchases',

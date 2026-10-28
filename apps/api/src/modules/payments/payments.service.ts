@@ -45,7 +45,7 @@ export class PaymentsService {
       method,
       currency,
       description: 'Пополнение баланса GameMarket',
-      returnUrl: `${webUrl()}/cabinet?topup=1`,
+      returnUrl: `${webUrl()}/cabinet/wallet?topup=1`,
       customerEmail: user?.email ?? null,
     });
     return { ...session, method };

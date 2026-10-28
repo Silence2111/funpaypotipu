@@ -230,7 +230,7 @@ describe('пуш по группам уведомлений', () => {
     await flush();
     expect(pusher.send).toHaveBeenCalledWith(
       'u1',
-      { title: 'Кэшбэк за покупку зачислен на баланс', body: '', url: '/cabinet' },
+      { title: 'Кэшбэк за покупку зачислен на баланс', body: '', url: '/cabinet/wallet' },
       false,
     );
   });

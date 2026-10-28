@@ -36,7 +36,7 @@ export function TopUpForm({ onDone }: { onDone: () => void }) {
         method: 'POST',
         body: JSON.stringify({ amount: minor.toString(), method }),
       });
-      // ЮKassa — переход на её страницу; вернёт в кабинет с ?topup=1.
+      // ЮKassa — переход на её страницу; вернёт в «Кошелёк» с ?topup=1.
       if ((await completeDeposit(dep)) === 'redirect') return;
       setAmount('');
       setMsg({ ok: true, text: t('Баланс пополнен на {sum}', { sum: formatPrice(minor.toString(), 'RUB', t) }) });

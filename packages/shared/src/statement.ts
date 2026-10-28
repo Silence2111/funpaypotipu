@@ -29,6 +29,43 @@ export const OTHER_OPERATION = 'Операция';
 export const operationLabel = (refType: string | null | undefined): string =>
   LEDGER_OPERATIONS[refType ?? ''] ?? OTHER_OPERATION;
 
+/**
+ * Фильтр выписки: операции по смыслу. Каждая операция — ровно в одной
+ * группе, чтобы при фильтре ничего не терялось; неизвестные — только во «Всех».
+ */
+export const OPERATION_KINDS = [
+  { key: 'sales', label: 'Продажи', refTypes: ['order_release', 'dispute_release'] },
+  {
+    key: 'purchases',
+    label: 'Покупки',
+    refTypes: ['order_payment_balance', 'order_payment', 'cashback'],
+  },
+  {
+    key: 'refunds',
+    label: 'Возвраты',
+    refTypes: [
+      'order_refund',
+      'order_refund_overdue',
+      'seller_refund',
+      'dispute_refund',
+      'oos_refund',
+    ],
+  },
+  { key: 'topups', label: 'Пополнения', refTypes: ['balance_topup', 'late_payment'] },
+  { key: 'payouts', label: 'Выводы', refTypes: ['payout_hold', 'payout_reverse', 'payout_settle'] },
+  { key: 'promotion', label: 'Продвижение', refTypes: ['promotion'] },
+] as const;
+
+export type OperationKind = (typeof OPERATION_KINDS)[number]['key'];
+export const OPERATION_KIND_KEYS = OPERATION_KINDS.map((k) => k.key) as [
+  OperationKind,
+  ...OperationKind[],
+];
+
+/** Операции группы — для условия выборки. */
+export const operationKindRefTypes = (kind: OperationKind): readonly string[] =>
+  OPERATION_KINDS.find((k) => k.key === kind)!.refTypes;
+
 /** Время в выписке — московское: площадка и её продавцы живут по нему. */
 export const MSK_OFFSET_MS = 3 * 3600_000;
 const DAY_MS = 86400_000;

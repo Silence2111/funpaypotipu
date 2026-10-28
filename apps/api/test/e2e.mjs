@@ -1077,6 +1077,44 @@ async function scenarioReports(rnd) {
   const bad = await j('/reports/statement?from=21.10.2026', { token: seller.token });
   check('Прошлый период — пусто; неверная дата — 400', old.rows?.length === 0 && old.closing === '0' && bad.status === 400, JSON.stringify({ rows: old.rows?.length, bad: bad.status }));
 
+  // «Кошелёк»: деньги в пути — выданная, но не подтверждённая продажа и заявка на вывод.
+  const open = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: await createListing(seller.token, 'accounts', '80000') }) });
+  await pay(buyer.token, open.body.id);
+  await j(`/orders/${open.body.id}/deliver`, { method: 'POST', token: seller.token });
+  const w = (await j('/wallet', { token: seller.token })).body;
+  check(
+    'Кошелёк: в сделках — выданная продажа до подтверждения, на выводе — заявка',
+    w.balance === wallet.balance && w.inDeals?.count === 1 && w.inDeals.amount === open.body.sellerPayoutAmount &&
+      w.withdrawing?.count === 1 && w.withdrawing.amount === '50000',
+    JSON.stringify(w),
+  );
+  const onlySales = (await j('/reports/statement?kind=sales', { token: seller.token })).body;
+  const onlyPayouts = (await j('/reports/statement?kind=payouts', { token: seller.token })).body;
+  check(
+    'Выписка по типу: только продажи или только выводы, их суммы; итоги — по балансу',
+    onlySales.total === 1 && onlySales.rows?.[0]?.refType === 'order_release' && onlySales.shown?.credits === payout &&
+      onlyPayouts.total === 1 && onlyPayouts.rows?.[0]?.amount === '-50000' && onlyPayouts.shown?.debits === '50000' &&
+      onlyPayouts.closing === st.closing,
+    JSON.stringify({ sales: onlySales.rows?.map((r) => r.refType), payouts: onlyPayouts.shown }),
+  );
+  const page1 = (await j('/reports/statement?limit=1', { token: seller.token })).body;
+  const page2 = (await j('/reports/statement?limit=1&offset=1', { token: seller.token })).body;
+  check(
+    'Выписка по страницам: новые сверху, «ещё» — пока есть',
+    page1.rows?.length === 1 && page1.more === true && page1.rows[0].refType === 'payout_hold' &&
+      page2.rows?.length === 1 && page2.rows[0].id !== page1.rows[0].id && page2.more === false,
+    JSON.stringify({ p1: page1.rows?.map((r) => r.refType), p2: page2.rows?.map((r) => r.refType), more: [page1.more, page2.more] }),
+  );
+  const kindCsv = await file('/reports/statement.csv?kind=payouts', seller.token);
+  const badKind = await j('/reports/statement?kind=salary', { token: seller.token });
+  check(
+    'Выписка файлом по типу: только выводы, тип в имени файла; неизвестный тип — 400',
+    /filename="gamemarket-statement-payouts-/.test(kindCsv.disp) && kindCsv.text.includes('Заявка на вывод;') &&
+      !kindCsv.text.includes('Зачисление за продажу') && kindCsv.text.includes('Остаток на конец') &&
+      badKind.status === 400 && badKind.body.kind?.[0] === 'Нет такого типа операций',
+    JSON.stringify({ disp: kindCsv.disp, bad: badKind.body }),
+  );
+
   const denied = await j('/reports/platform', { token: seller.token });
   const sum = (await j('/reports/platform?days=7', { token: fin.token })).body;
   const dailyGmv = (sum.daily ?? []).reduce((a, d) => a + BigInt(d.gmv), 0n);
@@ -2946,7 +2984,7 @@ async function scenarioYooKassa(rnd) {
     const wallet = await k('/wallet', { token: buyer.token });
     check(
       'Пополнение баланса через ЮKassa — деньги после подтверждения',
-      top.body.redirect === true && pt.confirmation.return_url.endsWith('/cabinet?topup=1') && wallet.body.balance === '50000',
+      top.body.redirect === true && pt.confirmation.return_url.endsWith('/cabinet/wallet?topup=1') && wallet.body.balance === '50000',
       wallet.body.balance,
     );
 

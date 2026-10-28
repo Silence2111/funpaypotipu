@@ -4144,6 +4144,157 @@ a.my-lot-title:hover {
   color: var(--success);
 }
 
+/* Выписка: период и тип операций в одну строку, свои даты под ними. */
+.statement-controls {
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+.statement-kind {
+  width: auto;
+  min-width: 180px;
+  max-width: 100%;
+}
+.statement-dates {
+  gap: 8px 16px;
+  flex-wrap: wrap;
+}
+.statement-dates label {
+  gap: 8px;
+}
+.statement-dates .input {
+  width: auto;
+}
+
+/* «Кошелёк»: крупное «доступно», тихо — деньги в пути. */
+.wallet-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px 40px;
+  padding: 28px;
+}
+.wallet-balance {
+  display: grid;
+  gap: 6px;
+}
+.wallet-amount {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(36px, 8vw, 48px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  color: var(--fg);
+}
+.wallet-pending {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 40px;
+  margin: 0;
+}
+.wallet-pending > div {
+  display: grid;
+  gap: 2px;
+  max-width: 260px;
+}
+.wallet-pending dt {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.wallet-pending dd {
+  margin: 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+}
+.wallet-pending .hint {
+  margin: 0;
+}
+.wallet-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.wallet-action {
+  padding: 24px;
+}
+@media (max-width: 900px) {
+  .wallet-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 720px) {
+  .wallet-hero,
+  .wallet-action {
+    padding: 20px;
+  }
+}
+
+/* Заявка на вывод: сумма и куда — слева, статус — справа. */
+.payout-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding: 14px 20px;
+}
+.payout-row + .payout-row {
+  border-top: 1px solid var(--border);
+}
+.payout-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.payout-amount {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+.payout-sub {
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+.payout-note {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+@media (max-width: 720px) {
+  .payout-row {
+    padding: 14px 16px;
+  }
+}
+
+/* Баланс на обзоре кабинета — ссылка в «Кошелёк». */
+.wallet-teaser {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 24px;
+  text-decoration: none;
+  color: inherit;
+}
+.wallet-teaser-main {
+  display: grid;
+  flex: 1;
+  min-width: 140px;
+}
+.wallet-teaser-go {
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.wallet-teaser:hover .wallet-teaser-go {
+  color: var(--accent);
+}
+
 /* Сводка площадки: главное число, график по дням, плитки, деньги. */
 .stats {
   display: grid;

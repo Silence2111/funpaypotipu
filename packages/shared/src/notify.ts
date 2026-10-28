@@ -179,6 +179,7 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
   if (type === 'new_message' && id('conversationId')) return `/chat/${id('conversationId')}`;
   if (id('orderId')) return `/orders/${id('orderId')}`;
   if (id('listingId')) return type === 'listing_blocked' ? '/cabinet/lots' : `/lot/${id('listingId')}`;
-  if (type.startsWith('payout') || type === 'cashback') return '/cabinet';
+  // Деньги — в кошелёк: там баланс, заявки на вывод и выписка.
+  if (type.startsWith('payout') || type === 'cashback') return '/cabinet/wallet';
   return '/cabinet';
 }
