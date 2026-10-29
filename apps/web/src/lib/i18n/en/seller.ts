@@ -174,6 +174,9 @@ export const SELLER: Record<string, string> = {
   // Мои лоты
   'Продать лот': 'Add listing',
   'Изменения сохранены.': 'Changes saved.',
+  'Изменения сохранены: «{title}».': 'Changes saved: “{title}”.',
+  'В этом списке его не видно.': 'It isn’t shown in this list.',
+  'Показать все лоты': 'Show all listings',
   Все: 'All',
   'В продаже': 'On sale',
   Сняты: 'Paused',

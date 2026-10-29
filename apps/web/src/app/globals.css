@@ -2303,6 +2303,13 @@ summary:focus-visible {
 .my-lot[data-selected='true'] {
   background: var(--accent-tint);
 }
+/* Только что изменённый лот после возврата с правки: подсвечен и плавно гаснет. */
+.my-lot[data-glow='on'] {
+  background: var(--accent-tint);
+}
+.my-lot[data-glow='off'] {
+  transition-duration: 0.4s;
+}
 .my-lot-check {
   grid-area: check;
 }
@@ -3406,6 +3413,10 @@ a.my-lot-title:hover {
   cursor: pointer;
 }
 .link-button:hover {
+  text-decoration: underline;
+}
+.alert .link-button {
+  color: inherit;
   text-decoration: underline;
 }
 

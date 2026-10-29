@@ -1,18 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { ListingForm, type EditableListing } from '@/components/listing-form';
+import { backToMyLots } from '@/lib/my-lots';
 import { useT } from '@/lib/i18n/client';
 
-/** Изменение своего лота: та же форма, что при создании, с сохранёнными значениями. */
+/**
+ * Изменение своего лота: та же форма, что при создании, с сохранёнными
+ * значениями. `?back=` — с какого списка «Моих лотов» пришли: туда и вернёт.
+ */
 export default function EditListingPage() {
+  return (
+    <Suspense fallback={null}>
+      <EditListing />
+    </Suspense>
+  );
+}
+
+function EditListing() {
   const t = useT();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const back = useSearchParams().get('back');
   const [listing, setListing] = useState<EditableListing | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -35,7 +48,7 @@ export default function EditListingPage() {
               ? t('Лот заблокирован модератором — изменить его нельзя. Если это ошибка, напишите в поддержку.')
               : err}
           </p>
-          <Link href="/cabinet/lots" className="btn secondary">
+          <Link href={backToMyLots(back)} className="btn secondary">
             {t('К моим лотам')}
           </Link>
         </div>
@@ -50,5 +63,5 @@ export default function EditListingPage() {
       </div>
     );
 
-  return <ListingForm initial={listing} />;
+  return <ListingForm initial={listing} back={back} />;
 }

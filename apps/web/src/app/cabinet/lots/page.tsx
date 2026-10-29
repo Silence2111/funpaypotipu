@@ -2,11 +2,12 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowUp, ArrowUpRight, BarChart3, CheckCircle2, FileSpreadsheet, Palmtree, Search, X } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
-import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
+import { isCurrentQuery, replaceUrl } from '@/lib/url';
+import { myLotsUrl } from '@/lib/my-lots';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { MyLotRow, type MyLot } from '@/components/my-lot-row';
 import { BulkPricePanel } from '@/components/bulk-price-panel';
@@ -75,7 +76,6 @@ export default function MyLotsPage() {
 function MyLots() {
   const t = useT();
   const router = useRouter();
-  const pathname = usePathname();
   const params = useSearchParams();
   const [rows, setRows] = useState<MyLot[] | null>(null);
   const [away, setAway] = useState<Away | null>(null);
@@ -83,8 +83,12 @@ function MyLots() {
   // списку; ?f=sold_out из сводки «Сегодня» открывает сразу закончившиеся.
   const [filter, setFilter] = useState<Filter>(() => filterOf(params.get('f')));
   const [q, setQ] = useState(() => params.get('q') ?? '');
-  // «Изменения сохранены» — после правки лота; адрес дальше меняют фильтры.
-  const [updated] = useState(() => !!params.get('updated'));
+  // После правки лота: какой лот изменили (`?updated=<id>`, у старых ссылок —
+  // «1»). Адрес дальше меняют фильтры, поэтому запоминаем при открытии.
+  const [updated] = useState(() => params.get('updated'));
+  // Подсветка правленого лота: «on» — видна, «off» — гаснет.
+  const [glow, setGlow] = useState<'on' | 'off' | null>(null);
+  const glowed = useRef(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   // Панель «Цена ±%» над действиями с выбранными лотами.
@@ -116,14 +120,15 @@ function MyLots() {
   // Последний записанный адрес помним: его возврат через useSearchParams — не
   // переход, и набранное после него не откатывается.
   const written = useRef(params.toString());
+  // Тот же адрес уходит в ссылку «Изменить» — с правки вернёт к этому списку.
+  const listUrl = myLotsUrl(filter, q);
   useEffect(() => {
     const timer = setTimeout(() => {
-      const url = withQuery(pathname, { f: filter !== 'all' && filter, q: q.trim() });
-      written.current = url.split('?')[1] ?? '';
-      replaceUrl(url);
+      written.current = listUrl.split('?')[1] ?? '';
+      replaceUrl(listUrl);
     }, 300);
     return () => clearTimeout(timer);
-  }, [filter, q, pathname]);
+  }, [listUrl]);
 
   // Переход по адресу извне — «Мои лоты» в меню, сводка «Сегодня».
   useEffect(() => {
@@ -159,6 +164,32 @@ function MyLots() {
     }
     return out;
   }, [rows, filter, q, t]);
+
+  // Правленый лот: в списке — прокрутить к нему и подсветить; не виден под
+  // фильтром или поиском — сказать об этом и предложить показать все лоты.
+  const edited = updated ? (rows?.find((l) => l.id === updated) ?? null) : null;
+  const editedShown = !!edited && groups.some((g) => g.items.some((l) => l.id === edited.id));
+  useEffect(() => {
+    if (!editedShown || glowed.current) return;
+    glowed.current = true;
+    // Прокрутка — только если лота не видно: под липкой шапкой (60 px) или
+    // нижней панелью телефона. Иначе вверху остаётся «Изменения сохранены».
+    const el = document.getElementById(`lot-${updated}`);
+    const r = el?.getBoundingClientRect();
+    if (el && r && (r.top < 64 || r.bottom > window.innerHeight - 80)) el.scrollIntoView({ block: 'center' });
+    setGlow('on');
+  }, [editedShown, updated]);
+  useEffect(() => {
+    if (glow !== 'on') return;
+    const off = setTimeout(() => setGlow('off'), 2000);
+    return () => clearTimeout(off);
+  }, [glow]);
+
+  function showAll() {
+    glowed.current = false;
+    setFilter('all');
+    setQ('');
+  }
 
   function pick(ids: string[], on: boolean) {
     setSelected((s) => {
@@ -271,10 +302,21 @@ function MyLots() {
         </div>
       </div>
 
-      {updated && (
+      {updated && rows !== null && (
         <div className="alert success" role="status">
           <CheckCircle2 size={18} strokeWidth={1.75} />
-          <span>{t('Изменения сохранены.')}</span>
+          <span>
+            {edited ? t('Изменения сохранены: «{title}».', { title: edited.title }) : t('Изменения сохранены.')}
+            {edited && !editedShown && (
+              <>
+                {' '}
+                {t('В этом списке его не видно.')}{' '}
+                <button type="button" className="link-button" onClick={showAll}>
+                  {t('Показать все лоты')}
+                </button>
+              </>
+            )}
+          </span>
         </div>
       )}
       {awaySince && (
@@ -402,6 +444,8 @@ function MyLots() {
                       onSelect={(on) => pick([l.id], on)}
                       onChanged={() => void load()}
                       onError={setErr}
+                      list={listUrl}
+                      glow={l.id === updated ? (glow ?? undefined) : undefined}
                     />
                   ))}
                 </div>

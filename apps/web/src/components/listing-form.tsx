@@ -16,6 +16,7 @@ import {
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice, formatQty } from '@/lib/format';
+import { backToMyLots } from '@/lib/my-lots';
 import { useT } from '@/lib/i18n/client';
 import { shrink } from '@/lib/photo';
 import { PriceHint } from './price-hint';
@@ -84,8 +85,14 @@ export function ListingForm({
   initial,
   copyOf,
   preset,
+  back,
 }: {
   initial?: EditableListing;
+  /**
+   * Правка из «Моих лотов»: с какого списка пришли. Сохранение вернёт к тому
+   * же фильтру и поиску; без него активный лот открывается на витрине.
+   */
+  back?: string | null;
   /**
    * «Копировать»: новый лот с условиями своего лота. Это создание, а не
    * правка: исходный лот не меняется, склад ключей и строк не копируется.
@@ -412,9 +419,9 @@ export function ListingForm({
         router.push(
           switchedOn && saved.status === 'sold_out'
             ? `/lot/${initial.id}?stock=1`
-            : initial.status === 'active'
+            : back == null && initial.status === 'active'
               ? `/lot/${initial.id}?updated=1`
-              : '/cabinet/lots?updated=1',
+              : backToMyLots(back, initial.id),
         );
       } catch (e) {
         setErr(apiErrorMessage(e, t('Не удалось сохранить изменения. Попробуйте ещё раз через минуту.')));
@@ -455,7 +462,12 @@ export function ListingForm({
 
   return (
     <div className="container" style={{ maxWidth: 600, paddingTop: 40 }}>
-      <h1 className="h1" style={{ fontSize: 32 }}>
+      {editing && (
+        <Link href={backToMyLots(back)} className="faint back-link" style={{ fontSize: 14 }}>
+          ← {t('Мои лоты')}
+        </Link>
+      )}
+      <h1 className="h1" style={{ fontSize: 32, marginTop: editing ? 8 : undefined }}>
         {editing ? t('Изменить лот') : copyOf ? t('Копия лота') : t('Новый лот')}
       </h1>
       <p className="muted" style={{ margin: '8px 0 24px' }}>

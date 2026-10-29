@@ -15,6 +15,7 @@ import {
   parseMoneyInput,
   perPackLabel,
 } from '@/lib/format';
+import { editLotUrl } from '@/lib/my-lots';
 import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
 import { BumpButton } from './bump-button';
@@ -68,12 +69,18 @@ export function MyLotRow({
   onSelect,
   onChanged,
   onError,
+  list,
+  glow,
 }: {
   lot: MyLot;
   selected: boolean;
   onSelect: (on: boolean) => void;
   onChanged: () => void;
   onError: (message: string) => void;
+  /** Адрес списка, с которого уходят на правку, — туда и вернёт сохранение. */
+  list: string;
+  /** Только что изменён: строка ненадолго подсвечена. */
+  glow?: 'on' | 'off';
 }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
@@ -119,7 +126,13 @@ export function MyLotRow({
   const canSale = (active || soldOut) && lot.topupMarkupBps == null;
 
   return (
-    <div className="my-lot" data-status={lot.status} data-selected={selected ? 'true' : undefined}>
+    <div
+      className="my-lot"
+      id={`lot-${lot.id}`}
+      data-status={lot.status}
+      data-selected={selected ? 'true' : undefined}
+      data-glow={glow}
+    >
       <input
         type="checkbox"
         className="my-lot-check"
@@ -159,7 +172,7 @@ export function MyLotRow({
         ) : soldOut ? (
           // Распроданный лот возвращается в продажу пополнением, а не
           // переключателем: без наличия его всё равно нельзя купить.
-          <Link href={lot.fulfillmentType === 'auto_key' ? `/lot/${lot.id}#keys` : `/cabinet/lot/${lot.id}`} className="my-lot-link">
+          <Link href={lot.fulfillmentType === 'auto_key' ? `/lot/${lot.id}#keys` : editLotUrl(lot.id, list)} className="my-lot-link">
             {lot.fulfillmentType === 'auto_key' ? t('Пополнить склад') : t('Пополнить')}
           </Link>
         ) : (
@@ -211,7 +224,7 @@ export function MyLotRow({
         )}
         {!blocked && (
           <Link
-            href={`/cabinet/lot/${lot.id}`}
+            href={editLotUrl(lot.id, list)}
             className="icon-btn"
             aria-label={t('Изменить «{title}»', { title: lot.title })}
             title={t('Изменить')}
