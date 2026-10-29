@@ -7,7 +7,7 @@ import { OPERATION_KINDS, mskDay, operationLabel, type OperationKind } from '@ga
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { downloadFile } from '@/lib/download';
-import { formatPrice } from '@/lib/format';
+import { formatPrice, mskDate, outsideMsk } from '@/lib/format';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
 
@@ -130,8 +130,9 @@ export function StatementView() {
   }
 
   const money = (v: string) => formatPrice(v, data?.currency ?? 'RUB', t);
-  const day = (iso: string) =>
-    new Date(iso).toLocaleDateString(t.locale, { day: 'numeric', month: 'short' });
+  const day = (iso: string) => mskDate(iso, t);
+  /** «+720 ₽» и «−1 000 ₽»; ноль — без знака, а не «−0 ₽». */
+  const signed = (sign: '+' | '−', v: string) => (v === '0' ? money(v) : `${sign}${money(v)}`);
   const kindLabel = OPERATION_KINDS.find((k) => k.key === kind)?.label;
 
   /** Суммы выбранного типа: что пришло и что ушло — без нулевой половины. */
@@ -227,11 +228,11 @@ export function StatementView() {
             </div>
             <div>
               <dt>{t('Поступило')}</dt>
-              <dd>+{money(data.credits)}</dd>
+              <dd>{signed('+', data.credits)}</dd>
             </div>
             <div>
               <dt>{t('Списано')}</dt>
-              <dd>−{money(data.debits)}</dd>
+              <dd>{signed('−', data.debits)}</dd>
             </div>
             <div>
               <dt>{t('На конец')}</dt>
@@ -311,6 +312,11 @@ export function StatementView() {
             >
               {busy === 'more' ? '…' : t('Показать ещё')}
             </button>
+          )}
+          {rows.length > 0 && outsideMsk() && (
+            <p className="faint" style={{ fontSize: 13, margin: 0 }}>
+              {t('Даты — по московскому времени, как и период выписки.')}
+            </p>
           )}
         </>
       )}

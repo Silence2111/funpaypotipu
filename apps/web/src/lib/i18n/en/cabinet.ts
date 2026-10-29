@@ -245,6 +245,7 @@ export const CABINET: Record<string, string> = {
     'Sales in this period: {n} for {gross}, {payout} credited to you.',
   'Выписка для Excel': 'Statement for Excel',
   'Продажи для Excel': 'Sales for Excel',
+  'Даты — по московскому времени, как и период выписки.': 'Dates are in Moscow time, like the statement period.',
   'За этот период операций нет.': 'No transactions in this period.',
   'Таких операций за период нет.': 'No transactions of this type in this period.',
   'Свой период': 'Custom period',

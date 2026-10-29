@@ -2,6 +2,16 @@ import { RU, type T } from './i18n/lang';
 
 const SYMBOLS: Record<string, string> = { RUB: '₽', USD: '$', EUR: '€' };
 
+/** Время площадки — московское: периоды выписки, сроки и сводки считаются по нему. */
+export const MSK_TZ = 'Europe/Moscow';
+
+/** «29 окт.» по Москве: дата операции совпадает с периодом выписки, где бы ни был браузер. */
+export const mskDate = (iso: string, t: T = RU) =>
+  new Date(iso).toLocaleDateString(t.locale, { day: 'numeric', month: 'short', timeZone: MSK_TZ });
+
+/** Браузер живёт не по Москве — тогда стоит сказать, что даты московские. */
+export const outsideMsk = (now = new Date()) => now.getTimezoneOffset() !== -180;
+
 /**
  * "150000" (копейки), RUB → "1 500 ₽", "73080" → "730,80 ₽". Разделяет тысячи
  * узким пробелом; копейки — двумя знаками или никак, а не «730,8».

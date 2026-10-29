@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { computeWithdrawalFee, getWithdrawalMethod } from '@gamemarket/shared';
-import { formatPrice } from '@/lib/format';
+import { formatPrice, mskDate } from '@/lib/format';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
 import { noteText } from '@/lib/hidden';
@@ -45,8 +45,8 @@ export function PayoutRequests({ items }: { items: MyPayout[] }) {
   const [all, setAll] = useState(false);
   const shown = all ? items : items.slice(0, FIRST);
   const now = Date.now();
-  const date = (iso: string) =>
-    new Date(iso).toLocaleDateString(t.locale, { day: 'numeric', month: 'short' });
+  // По Москве — как выписка рядом: заявка и её операция в выписке одного дня.
+  const date = (iso: string) => mskDate(iso, t);
 
   return (
     <div className="stack" style={{ gap: 12 }}>
