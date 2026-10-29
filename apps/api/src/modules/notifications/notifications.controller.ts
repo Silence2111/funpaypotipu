@@ -36,6 +36,12 @@ export class NotificationsController {
     return this.notifications.markAllRead(user.userId, group || undefined);
   }
 
+  /** Убрать прочитанные из списка — все, кроме сообщений, или одну группу: ?group=orders. */
+  @Post('clear-read')
+  clearRead(@CurrentUser() user: AuthUser, @Query('group') group?: string) {
+    return this.notifications.clearRead(user.userId, group || undefined);
+  }
+
   @Post(':id/read')
   read(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.notifications.markRead(id, user.userId);

@@ -1074,6 +1074,9 @@ model Notification {
   channel   NotificationChannel @default(in_app)
   payload   Json?
   readAt    DateTime?           @map("read_at")
+  // «Убрать прочитанные»: человек больше не видит его в списке, но запись
+  // остаётся — по ней сотрудник видит историю входов при восстановлении.
+  hiddenAt  DateTime?           @map("hidden_at")
   createdAt DateTime            @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

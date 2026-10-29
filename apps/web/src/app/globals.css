@@ -3090,6 +3090,14 @@ a.my-lot-title:hover {
 .chip[aria-pressed='true'] .notif-group-count {
   color: inherit;
 }
+/* «Убрать прочитанные»: вопрос и кнопки в одной строке, на телефоне — друг под другом. */
+.notif-confirm {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 16px;
+  font-size: 14px;
+}
 .notif-day-title {
   margin: 0 0 8px;
   font-size: 13px;

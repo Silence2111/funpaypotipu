@@ -253,7 +253,7 @@ export class NotificationsService {
    */
   listMine(userId: string, limit = 50) {
     return this.prisma.notification.findMany({
-      where: { userId, type: { not: 'new_message' } },
+      where: { userId, type: { not: 'new_message' }, hiddenAt: null },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
@@ -271,7 +271,8 @@ export class NotificationsService {
    * Страница «Уведомления»: вся история, новые сверху, с фильтром по группе
    * и «только непрочитанные». Дальше — по id последнего показанного: новые
    * уведомления, пришедшие между запросами, не сдвигают список. Рядом —
-   * сколько непрочитанных в каждой группе, для фильтров.
+   * сколько непрочитанных в каждой группе, для фильтров, и сколько
+   * прочитанных в выбранной — для «Убрать прочитанные». Убранные не видны.
    */
   async history(userId: string, q: HistoryQuery) {
     const types = this.typesOf(q.group);
@@ -292,18 +293,40 @@ export class NotificationsService {
         ],
       };
     }
-    const rows = await this.prisma.notification.findMany({
-      where: { userId, type: types, ...(q.unread ? { readAt: null } : {}), ...after },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: limit + 1,
-      select: { id: true, type: true, payload: true, readAt: true, createdAt: true },
-    });
+    const [rows, read, unread] = await Promise.all([
+      this.prisma.notification.findMany({
+        where: {
+          userId,
+          type: types,
+          hiddenAt: null,
+          ...(q.unread ? { readAt: null } : {}),
+          ...after,
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: limit + 1,
+        select: { id: true, type: true, payload: true, readAt: true, createdAt: true },
+      }),
+      this.prisma.notification.count({
+        where: { userId, type: types, hiddenAt: null, readAt: { not: null } },
+      }),
+      this.unreadByGroup(userId),
+    ]);
     const items = rows.slice(0, limit);
-    return {
-      items,
-      next: rows.length > limit ? items.at(-1)!.id : null,
-      unread: await this.unreadByGroup(userId),
-    };
+    return { items, next: rows.length > limit ? items.at(-1)!.id : null, unread, read };
+  }
+
+  /**
+   * «Убрать прочитанные» — все или одной группы. Уведомление скрывается из
+   * списка человека, а не удаляется: по входам, сменам пароля и почты
+   * сотрудник видит историю аккаунта при восстановлении доступа, и тот, кто
+   * сидит в чужом аккаунте, не сотрёт ими свои следы.
+   */
+  async clearRead(userId: string, group?: string) {
+    const r = await this.prisma.notification.updateMany({
+      where: { userId, type: this.typesOf(group), readAt: { not: null }, hiddenAt: null },
+      data: { hiddenAt: new Date() },
+    });
+    return { removed: r.count };
   }
 
   /** Непрочитанные по группам и всего — без сообщений. */

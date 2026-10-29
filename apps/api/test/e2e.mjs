@@ -1303,6 +1303,25 @@ async function scenarioNotificationsPage(rnd) {
       foreignAfter.readAt === null,
     JSON.stringify({ unread: readOrders.body.unread, unreadAll: kinds(unreadAll) }),
   );
+  // «Убрать прочитанные» в группе: из списка и колокольчика уходят, в базе остаются (для сотрудника).
+  const readCount = (await h('group=orders')).body.read;
+  const cleared = await j('/notifications/clear-read?group=orders', { method: 'POST', token: u.token });
+  const ordersAfter = await h('group=orders');
+  const allAfter = await h('');
+  const bell = (await j('/notifications', { token: u.token })).body;
+  const bellTypes = (Array.isArray(bell) ? bell : (bell.items ?? [])).map((n) => n.type);
+  const kept = await prisma.notification.count({
+    where: { userId: u.id, type: { in: ['order_paid', 'order_delivered'] }, hiddenAt: { not: null } },
+  });
+  const foreignKept = await prisma.notification.findUnique({ where: { id: foreign.id } });
+  const noMessages = await j('/notifications/clear-read?group=messages', { method: 'POST', token: u.token });
+  check(
+    'Уведомления: «Убрать прочитанные» в группе — из списка и колокольчика ушли, в базе остались; непрочитанные, чужие и сообщения — нет',
+    readCount === 2 && cleared.status === 201 && cleared.body.removed === 2 && kinds(ordersAfter) === '' && ordersAfter.body.read === 0 &&
+      kinds(allAfter) === 'new_login,review_received,dispute_opened' && !bellTypes.includes('order_paid') && !bellTypes.includes('order_delivered') &&
+      kept === 2 && foreignKept.hiddenAt === null && noMessages.status === 400,
+    JSON.stringify({ readCount, cleared: cleared.body, after: kinds(allAfter), bell: bellTypes, kept, noMessages: noMessages.status }),
+  );
 }
 
 /**

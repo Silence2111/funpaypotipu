@@ -14,6 +14,7 @@ type Row = {
   type: string;
   payload: Record<string, unknown>;
   readAt: Date | null;
+  hiddenAt?: Date | null;
   createdAt: Date;
 };
 type Where = Record<string, unknown>;
@@ -62,6 +63,9 @@ function setup() {
           .filter((r) => fits(r, where))
           .sort(newest)
           .slice(0, take),
+      ),
+      count: vi.fn(
+        async ({ where }: { where: Where }) => rows.filter((r) => fits(r, where)).length,
       ),
       findFirst: vi.fn(
         async ({ where }: { where: Where }) => rows.find((r) => fits(r, where)) ?? null,
@@ -154,5 +158,34 @@ describe('страница «Уведомления»', () => {
       'u2:order_paid',
     ]);
     await expect(svc.markAllRead('u1', 'nope')).rejects.toThrow(/Нет такой группы/);
+  });
+
+  it('«Убрать прочитанные» в группе — скрывает только её прочитанные и только свои; в списке и колокольчике их нет, в базе остаются', async () => {
+    const { svc, rows, add } = setup();
+    add('u1', 'order_paid', true);
+    add('u1', 'order_delivered', false);
+    add('u1', 'new_login', true);
+    add('u1', 'new_message', true);
+    add('u2', 'order_paid', true);
+
+    const before = await svc.history('u1', { group: 'orders' });
+    expect(before.read).toBe(1);
+    expect(await svc.clearRead('u1', 'orders')).toEqual({ removed: 1 });
+
+    const after = await svc.history('u1', { group: 'orders' });
+    expect(after.items.map((r) => r.type)).toEqual(['order_delivered']);
+    expect(after.read).toBe(0);
+    // Безопасность, сообщения и чужие — нетронуты; убранное — в базе, со временем скрытия.
+    expect(rows.filter((r) => r.hiddenAt).map((r) => [r.userId, r.type])).toEqual([
+      ['u1', 'order_paid'],
+    ]);
+    const bell = await svc.listMine('u1');
+    expect(bell.map((r) => r.type).sort()).toEqual(['new_login', 'order_delivered']);
+
+    // Без группы — все прочитанные, кроме сообщений; повтор ничего не делает.
+    expect(await svc.clearRead('u1')).toEqual({ removed: 1 });
+    expect(await svc.clearRead('u1')).toEqual({ removed: 0 });
+    expect(rows.find((r) => r.type === 'new_message')!.hiddenAt).toBeUndefined();
+    await expect(svc.clearRead('u1', 'nope')).rejects.toThrow('Нет такой группы уведомлений');
   });
 });

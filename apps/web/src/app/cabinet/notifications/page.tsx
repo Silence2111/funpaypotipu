@@ -30,6 +30,8 @@ interface Page {
   items: Notif[];
   next: string | null;
   unread: Unread;
+  /** Сколько прочитанных в выбранной группе — для «Убрать прочитанные». */
+  read: number;
 }
 
 /** Сообщения живут в мессенджере, у них свой счётчик. */
@@ -72,6 +74,10 @@ function NotificationsInner() {
   const [items, setItems] = useState<Notif[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [unread, setUnread] = useState<Unread | null>(null);
+  const [read, setRead] = useState(0);
+  // «Убрать прочитанные» спрашивает подтверждение в той же строке.
+  const [confirming, setConfirming] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -94,12 +100,15 @@ function NotificationsInner() {
     let stop = false;
     setItems(null);
     setErr(null);
+    setConfirming(false);
+    setDone(null);
     apiFetch<Page>(query())
       .then((p) => {
         if (stop) return;
         setItems(p.items);
         setNext(p.next);
         setUnread(p.unread);
+        setRead(p.read);
       })
       .catch((e) => !stop && setErr(apiErrorMessage(e, t('Не удалось загрузить уведомления.'))));
     return () => {
@@ -136,6 +145,7 @@ function NotificationsInner() {
         { method: 'POST' },
       );
       const now = new Date().toISOString();
+      setRead((n) => n + pending);
       setUnread(r.unread);
       // В «только непрочитанных» прочитанным здесь не место.
       setItems((prev) =>
@@ -145,6 +155,31 @@ function NotificationsInner() {
       announce();
     } catch (e) {
       setErr(apiErrorMessage(e, t('Не удалось отметить уведомления.')));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Прочитанные уходят из списка (и колокольчика) — в выбранной группе или
+   * все. Сервер их не удаляет: история входов нужна сотруднику при
+   * восстановлении доступа.
+   */
+  async function clearRead() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await apiFetch<{ removed: number }>(
+        `/notifications/clear-read${group ? `?group=${encodeURIComponent(group)}` : ''}`,
+        { method: 'POST' },
+      );
+      setItems((prev) => (prev ?? []).filter((n) => !n.readAt));
+      setRead(0);
+      setConfirming(false);
+      setDone(t('Убрано из списка: {n}', { n: r.removed }));
+      announce();
+    } catch (e) {
+      setErr(apiErrorMessage(e, t('Не удалось убрать уведомления.')));
     } finally {
       setBusy(false);
     }
@@ -201,17 +236,68 @@ function NotificationsInner() {
             />
             {t('Только непрочитанные')}
           </label>
-          {pending > 0 && (
-            <button
-              type="button"
-              className="btn secondary"
-              disabled={busy}
-              onClick={() => void readAll()}
-            >
-              {group ? t('Прочитать все в группе') : t('Прочитать все')}
-            </button>
-          )}
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            {pending > 0 && (
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={busy}
+                onClick={() => void readAll()}
+              >
+                {group ? t('Прочитать все в группе') : t('Прочитать все')}
+              </button>
+            )}
+            {read > 0 && !unreadOnly && !confirming && (
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={busy}
+                onClick={() => {
+                  setDone(null);
+                  setConfirming(true);
+                }}
+              >
+                {t('Убрать прочитанные')}
+              </button>
+            )}
+          </div>
         </div>
+        {confirming && (
+          <div
+            className="card flat row notif-confirm"
+            role="group"
+            aria-label={t('Убрать прочитанные')}
+          >
+            <span>
+              {group
+                ? t('Убрать из списка прочитанные уведомления этой группы ({n})?', { n: read })
+                : t('Убрать из списка все прочитанные уведомления ({n})?', { n: read })}
+            </span>
+            <span className="row" style={{ gap: 8 }}>
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={busy}
+                onClick={() => void clearRead()}
+              >
+                {t('Убрать')}
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={busy}
+                onClick={() => setConfirming(false)}
+              >
+                {t('Отмена')}
+              </button>
+            </span>
+          </div>
+        )}
+        {done && (
+          <p className="faint" role="status" style={{ fontSize: 13, margin: 0 }}>
+            {done}
+          </p>
+        )}
       </div>
 
       {err && (
