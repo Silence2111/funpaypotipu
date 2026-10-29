@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { replaceUrl, withQuery } from '@/lib/url';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { Stars } from '@/components/stars';
 import { ReviewPhotos } from '@/components/review-photos';
@@ -94,12 +95,13 @@ function ReviewsInner() {
     setTab(nextTab);
     setFilter(nextFilter);
     setReplyFor(null);
-    const q = new URLSearchParams();
-    if (nextTab === 'written') q.set('tab', 'written');
-    if (nextTab === 'received' && nextFilter !== 'auto')
-      q.set('unanswered', nextFilter === 'open' ? '1' : '0');
-    const s = q.toString();
-    router.replace(s ? `${pathname}?${s}` : pathname, { scroll: false });
+    const received = nextTab === 'received' && nextFilter !== 'auto';
+    replaceUrl(
+      withQuery(pathname, {
+        tab: nextTab === 'written' && 'written',
+        unanswered: received && (nextFilter === 'open' ? '1' : '0'),
+      }),
+    );
   }
 
   async function more() {

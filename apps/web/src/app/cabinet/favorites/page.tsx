@@ -17,6 +17,7 @@ import {
 } from '@gamemarket/shared';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { replaceUrl, withQuery } from '@/lib/url';
 import { formatListingPrice, formatPrice } from '@/lib/format';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { SaleMark } from '@/components/sale-mark';
@@ -100,14 +101,7 @@ function FavoritesInner() {
     setFilter(f);
     setSort(s);
     setGame(g);
-    const q = new URLSearchParams();
-    if (f !== 'all') q.set('f', f);
-    if (s !== 'added') q.set('sort', s);
-    if (g) q.set('game', g);
-    const str = q.toString();
-    // Список фильтруется в браузере — серверу ходить незачем: replaceState не
-    // запрашивает страницу, и быстрые переключения не перебивают друг друга.
-    window.history.replaceState(null, '', str ? `${pathname}?${str}` : pathname);
+    replaceUrl(withQuery(pathname, { f: f !== 'all' && f, sort: s !== 'added' && s, game: g }));
   }
 
   async function remove(l: FavListing) {

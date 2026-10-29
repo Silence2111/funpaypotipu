@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { NOTIFY_GROUPS, NOTIFY_LABELS, notifyGroupOf, notifyLink } from '@gamemarket/shared/notify';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
 import { dayLabel } from '@/lib/chat';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
@@ -63,6 +64,7 @@ function NotificationsInner() {
   const [group, setGroup] = useState(params.get('group') ?? '');
   const [unreadOnly, setUnreadOnly] = useState(params.get('unread') === '1');
   useEffect(() => {
+    if (!isCurrentQuery(params)) return;
     setGroup(params.get('group') ?? '');
     setUnreadOnly(params.get('unread') === '1');
   }, [params]);
@@ -107,11 +109,7 @@ function NotificationsInner() {
   function setFilter(nextGroup: string, nextUnread: boolean) {
     setGroup(nextGroup);
     setUnreadOnly(nextUnread);
-    const q = new URLSearchParams();
-    if (nextGroup) q.set('group', nextGroup);
-    if (nextUnread) q.set('unread', '1');
-    const s = q.toString();
-    router.replace(s ? `${pathname}?${s}` : pathname, { scroll: false });
+    replaceUrl(withQuery(pathname, { group: nextGroup, unread: nextUnread && '1' }));
   }
 
   async function more() {

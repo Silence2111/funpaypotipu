@@ -1,11 +1,12 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowUp, ArrowUpRight, BarChart3, CheckCircle2, FileSpreadsheet, Palmtree, Search, X } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { MyLotRow, type MyLot } from '@/components/my-lot-row';
 import { BulkPricePanel } from '@/components/bulk-price-panel';
@@ -34,6 +35,9 @@ const FILTERS: Array<[Filter, string]> = [
   ['sold_out', msg('Закончились')],
   ['blocked', msg('Заблокированы')],
 ];
+
+const filterOf = (f: string | null): Filter =>
+  FILTERS.some(([key]) => key === f) ? (f as Filter) : 'all';
 
 const inFilter = (l: MyLot, f: Filter) =>
   f === 'all' || (f === 'paused' ? l.status === 'paused' || l.status === 'draft' : l.status === f);
@@ -71,15 +75,16 @@ export default function MyLotsPage() {
 function MyLots() {
   const t = useT();
   const router = useRouter();
+  const pathname = usePathname();
   const params = useSearchParams();
   const [rows, setRows] = useState<MyLot[] | null>(null);
   const [away, setAway] = useState<Away | null>(null);
-  // ?f=sold_out — из сводки «Сегодня»: «Лоты закончились» открывает сразу их.
-  const [filter, setFilter] = useState<Filter>(() => {
-    const f = params.get('f');
-    return FILTERS.some(([key]) => key === f) ? (f as Filter) : 'all';
-  });
-  const [q, setQ] = useState('');
+  // Фильтр и поиск — в адресе: «Назад» со страницы лота вернёт к тому же
+  // списку; ?f=sold_out из сводки «Сегодня» открывает сразу закончившиеся.
+  const [filter, setFilter] = useState<Filter>(() => filterOf(params.get('f')));
+  const [q, setQ] = useState(() => params.get('q') ?? '');
+  // «Изменения сохранены» — после правки лота; адрес дальше меняют фильтры.
+  const [updated] = useState(() => !!params.get('updated'));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   // Панель «Цена ±%» над действиями с выбранными лотами.
@@ -106,6 +111,27 @@ function MyLots() {
     }
     void load();
   }, [router, load]);
+
+  // Адрес догоняет фильтр и поиск — после паузы в наборе, без запроса к серверу.
+  // Последний записанный адрес помним: его возврат через useSearchParams — не
+  // переход, и набранное после него не откатывается.
+  const written = useRef(params.toString());
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const url = withQuery(pathname, { f: filter !== 'all' && filter, q: q.trim() });
+      written.current = url.split('?')[1] ?? '';
+      replaceUrl(url);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filter, q, pathname]);
+
+  // Переход по адресу извне — «Мои лоты» в меню, сводка «Сегодня».
+  useEffect(() => {
+    if (!isCurrentQuery(params) || params.toString() === written.current) return;
+    written.current = params.toString();
+    setFilter(filterOf(params.get('f')));
+    setQ(params.get('q') ?? '');
+  }, [params]);
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { all: 0, active: 0, paused: 0, sold_out: 0, blocked: 0 };
@@ -245,7 +271,7 @@ function MyLots() {
         </div>
       </div>
 
-      {params.get('updated') && (
+      {updated && (
         <div className="alert success" role="status">
           <CheckCircle2 size={18} strokeWidth={1.75} />
           <span>{t('Изменения сохранены.')}</span>

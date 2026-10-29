@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
 import { formatPrice, timeLeft } from '@/lib/format';
 import { DISPUTE_STATUS } from '@/lib/disputes';
 import { CabinetNav } from '@/components/cabinet-nav';
@@ -78,6 +79,7 @@ function DisputesInner() {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isCurrentQuery(params)) return;
     setState(params.get('state') === 'closed' ? 'closed' : 'open');
   }, [params]);
 
@@ -99,7 +101,7 @@ function DisputesInner() {
 
   function show(next: 'open' | 'closed') {
     setState(next);
-    router.replace(next === 'closed' ? `${pathname}?state=closed` : pathname, { scroll: false });
+    replaceUrl(withQuery(pathname, { state: next === 'closed' && 'closed' }));
   }
 
   return (
