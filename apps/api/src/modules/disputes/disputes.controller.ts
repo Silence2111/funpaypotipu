@@ -46,10 +46,18 @@ export class DisputesController {
     return this.disputes.queue();
   }
 
-  /** Свои споры: ?state=open (по умолчанию) или closed. */
+  /** Свои споры: ?state=open (по умолчанию) или closed; дальше — ?before=<id>&limit=30. */
   @Get('mine')
-  mine(@CurrentUser() user: AuthUser, @Query('state') state?: string) {
-    return this.disputes.mine(user.userId, state === 'closed' ? 'closed' : 'open');
+  mine(
+    @CurrentUser() user: AuthUser,
+    @Query('state') state?: string,
+    @Query('before') before?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.disputes.mine(user.userId, state === 'closed' ? 'closed' : 'open', {
+      before: before || undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   @Get('by-order/:orderId')

@@ -20,6 +20,12 @@ import { ScanService } from '../antivirus/scan.service';
 
 const STAFF_ROLES = ['agent', 'moderator', 'admin'];
 const OPEN: DisputeStatus[] = ['open', 'in_review'];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * Открытые споры человека упорядочиваются в памяти — больше стольких открытых
+ * сразу не бывает и у крупного продавца.
+ */
+const OPEN_MAX = 1000;
 
 /** Часов на ответ стороне; меняется только для проверок. */
 const RESPONSE_HOURS = Number(process.env.DISPUTE_RESPONSE_HOURS ?? DISPUTE_RESPONSE_HOURS);
@@ -395,18 +401,97 @@ export class DisputesService {
 
   /**
    * Споры человека — и как покупателя, и как продавца. Открытые: сначала те,
-   * где ход за ним, с ближайшим сроком; закрытые — свежие сверху. Рядом —
-   * сколько открытых, закрытых и ждущих его ответа, для вкладок.
+   * где ход за ним, с ближайшим сроком; закрытые — по времени решения, свежие
+   * сверху. По `limit` (30) за раз, дальше — с `before`: id последнего
+   * показанного спора. Рядом — сколько открытых, закрытых и ждущих его
+   * ответа, для вкладок.
    */
-  async mine(userId: string, state: 'open' | 'closed' = 'open') {
+  async mine(
+    userId: string,
+    state: 'open' | 'closed' = 'open',
+    q: { before?: string; limit?: number } = {},
+  ) {
+    const limit = Math.min(Math.max(Math.trunc(q.limit ?? 30) || 30, 1), 100);
     const mine: Prisma.DisputeWhereInput = {
       order: { OR: [{ buyerId: userId }, { sellerId: userId }] },
     };
-    const [rows, open, closed, myTurn] = await Promise.all([
+    const last = q.before
+      ? UUID.test(q.before)
+        ? await this.prisma.dispute.findFirst({
+            where: { id: q.before, ...mine },
+            select: {
+              id: true,
+              status: true,
+              awaitingFrom: true,
+              respondBy: true,
+              createdAt: true,
+              resolvedAt: true,
+              order: { select: { buyerId: true } },
+            },
+          })
+        : null
+      : undefined;
+    if (last === null) throw new BadRequestException('Список споров устарел — обновите страницу');
+
+    let ids: string[];
+    let more: boolean;
+    if (state === 'open') {
+      // «Ход за мной» запросом не выразить: порядок — по всем открытым в
+      // памяти, страница — всё, что в этом порядке после последнего показанного.
+      // Порядок считается по текущим данным, поэтому и закрывшийся за это
+      // время спор-курсор находит своё место.
+      type Key = [number, number, number, string];
+      const keyOf = (d: NonNullable<typeof last>): Key => {
+        const side: Side = d.order.buyerId === userId ? 'buyer' : 'seller';
+        const turn = OPEN.includes(d.status) && d.awaitingFrom === side;
+        return [turn ? 0 : 1, d.respondBy?.getTime() ?? Infinity, -d.createdAt.getTime(), d.id];
+      };
+      const cmp = (a: Key, b: Key) =>
+        (a[0] - b[0] || a[1] - b[1] || a[2] - b[2]) || (a[3] < b[3] ? -1 : a[3] > b[3] ? 1 : 0);
+      const all = await this.prisma.dispute.findMany({
+        where: { ...mine, status: { in: OPEN } },
+        select: {
+          id: true,
+          status: true,
+          awaitingFrom: true,
+          respondBy: true,
+          createdAt: true,
+          resolvedAt: true,
+          order: { select: { buyerId: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: OPEN_MAX,
+      });
+      const sorted = all.map((d) => ({ id: d.id, key: keyOf(d) })).sort((a, b) => cmp(a.key, b.key));
+      const after = last ? sorted.filter((d) => cmp(d.key, keyOf(last)) > 0) : sorted;
+      ids = after.slice(0, limit).map((d) => d.id);
+      more = after.length > limit;
+    } else {
+      // Решённые без даты решения (такого не бывает, но поле необязательное) — в конце.
+      const after: Prisma.DisputeWhereInput = !last
+        ? {}
+        : last.resolvedAt
+          ? {
+              OR: [
+                { resolvedAt: { lt: last.resolvedAt } },
+                { resolvedAt: last.resolvedAt, id: { lt: last.id } },
+                { resolvedAt: null },
+              ],
+            }
+          : { resolvedAt: null, id: { lt: last.id } };
+      const rows = await this.prisma.dispute.findMany({
+        where: { ...mine, status: { notIn: OPEN }, ...after },
+        orderBy: [{ resolvedAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }],
+        take: limit + 1,
+        select: { id: true },
+      });
+      ids = rows.slice(0, limit).map((d) => d.id);
+      more = rows.length > limit;
+    }
+
+    const [found, open, closed, myTurn] = await Promise.all([
       this.prisma.dispute.findMany({
-        where: { ...mine, status: state === 'open' ? { in: OPEN } : { notIn: OPEN } },
-        orderBy: state === 'open' ? { createdAt: 'desc' } : [{ resolvedAt: 'desc' }, { createdAt: 'desc' }],
-        take: 100,
+        where: { id: { in: ids } },
         include: {
           order: {
             select: {
@@ -433,6 +518,8 @@ export class DisputesService {
         },
       }),
     ]);
+    const byId = new Map(found.map((d) => [d.id, d]));
+    const rows = ids.map((id) => byId.get(id)).filter((d): d is (typeof found)[number] => !!d);
     const names = await this.usernames(rows.flatMap((d) => [d.order.buyerId, d.order.sellerId]));
     const items = rows.map(({ order, ...d }) => {
       const side: Side = order.buyerId === userId ? 'buyer' : 'seller';
@@ -457,12 +544,11 @@ export class DisputesService {
         counterpart: names.get(side === 'buyer' ? order.sellerId : order.buyerId) ?? null,
       };
     });
-    // Где ждут ответа от этого человека — наверх, ближайший срок первым.
-    if (state === 'open') {
-      const due = (d: (typeof items)[number]) => d.respondBy?.getTime() ?? Infinity;
-      items.sort((a, b) => Number(b.myTurn) - Number(a.myTurn) || due(a) - due(b));
-    }
-    return { items, counts: { open, closed, myTurn } };
+    return {
+      items,
+      counts: { open, closed, myTurn },
+      next: more && ids.length ? ids.at(-1)! : null,
+    };
   }
 
   /** Найти спор пользователя по заказу (для перехода со страницы заказа). */

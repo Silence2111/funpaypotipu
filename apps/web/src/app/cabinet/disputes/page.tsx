@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
@@ -38,6 +38,8 @@ interface MyDispute {
 interface Mine {
   items: MyDispute[];
   counts: { open: number; closed: number; myTurn: number };
+  /** С какого спора продолжать «Показать ещё»; null — показаны все. */
+  next: string | null;
 }
 
 /** Что сейчас со спором — одной строкой, с точки зрения этого человека. */
@@ -77,6 +79,9 @@ function DisputesInner() {
   );
   const [data, setData] = useState<Mine | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // «Показать ещё» дописывает только к той вкладке, с которой начинал.
+  const current = useRef(state);
 
   useEffect(() => {
     if (!isCurrentQuery(params)) return;
@@ -89,6 +94,7 @@ function DisputesInner() {
       return;
     }
     let stop = false;
+    current.current = state;
     setData(null);
     setErr(null);
     apiFetch<Mine>(`/disputes/mine?state=${state}`)
@@ -98,6 +104,26 @@ function DisputesInner() {
       stop = true;
     };
   }, [state, router, t]);
+
+  async function more() {
+    if (!data?.next) return;
+    const start = state;
+    setBusy(true);
+    try {
+      const r = await apiFetch<Mine>(`/disputes/mine?state=${start}&before=${data.next}`);
+      if (current.current !== start) return;
+      // Спор мог сменить место, пока листали, — второй раз его не показываем.
+      setData((prev) => {
+        if (!prev) return r;
+        const seen = new Set(prev.items.map((d) => d.id));
+        return { ...r, items: [...prev.items, ...r.items.filter((d) => !seen.has(d.id))] };
+      });
+    } catch (e) {
+      setErr(apiErrorMessage(e, t('Не удалось загрузить споры.')));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function show(next: 'open' | 'closed') {
     setState(next);
@@ -199,6 +225,17 @@ function DisputesInner() {
             );
           })}
         </div>
+      )}
+      {data?.next && (
+        <button
+          type="button"
+          className="btn secondary"
+          disabled={busy}
+          onClick={() => void more()}
+          style={{ alignSelf: 'center' }}
+        >
+          {busy ? '…' : t('Показать ещё')}
+        </button>
       )}
     </div>
   );

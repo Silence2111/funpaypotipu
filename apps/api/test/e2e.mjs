@@ -1424,6 +1424,20 @@ async function scenarioDisputes(rnd) {
       v.messages.some((m) => m.senderId === null && /Продавец вернул деньги/.test(m.body)),
     JSON.stringify({ refund: refund.status, status: v.dispute.status, note: v.dispute.resolutionNote }),
   );
+
+  // «Показать ещё» в «Спорах»: закрытые по одному — решённый позже первым, дальше пусто; чужой и неверный курсор — 400.
+  const page = async (token, q) => j(`/disputes/mine?state=closed&limit=1${q}`, { token });
+  const p1 = (await page(buyer.token, '')).body;
+  const p2 = (await page(buyer.token, `&before=${p1.next}`)).body;
+  const foreignCursor = await page(agent.token, `&before=${p1.next}`);
+  const badCursor = await page(buyer.token, '&before=nope');
+  check(
+    '«Споры» по страницам: закрытые по одному — решённый позже первым, затем следующий, дальше ничего; чужой и неверный курсор — 400',
+    p1.items?.length === 1 && p1.items[0].id === b.dispute.id && p1.next === b.dispute.id && p1.counts.closed === 2 &&
+      p2.items?.length === 1 && p2.items[0].id === a.dispute.id && p2.next === null &&
+      foreignCursor.status === 400 && badCursor.status === 400,
+    JSON.stringify({ p1: p1.items?.map((d) => d.id), next: p1.next, p2: p2.items?.map((d) => d.id), next2: p2.next, foreign: foreignCursor.status, bad: badCursor.status }),
+  );
 }
 
 /**
