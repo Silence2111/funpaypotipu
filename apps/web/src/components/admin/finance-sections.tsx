@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
 import { Empty, when } from './shared';
+import { PAYOUT_REJECT_REASONS } from '@gamemarket/shared';
 
 interface Payout {
   id: string;
@@ -29,13 +30,11 @@ interface Kyc {
 
 const METHOD: Record<string, string> = { card: 'на карту', sbp: 'по СБП', yoomoney: 'на ЮMoney', usdt: 'в USDT' };
 
-/** Частые причины отказа — подсказкой в поле; текст можно поправить. */
-const REJECT_HINTS = [
-  'Реквизиты не на ваше имя — укажите свои',
-  'Реквизиты с ошибкой — проверьте номер и создайте заявку заново',
-  'Нужна проверка личности: «Безопасность» → «Проверка личности»',
-  'Деньги за сделку в споре — вывод после его решения',
-];
+/**
+ * Частые причины отказа — подсказкой в поле; текст можно поправить. Выбранная
+ * слово в слово уходит продавцу на его языке.
+ */
+const REJECT_HINTS = PAYOUT_REJECT_REASONS;
 
 /**
  * Заявки на вывод: одобрить или отклонить — деньги двигает API с ролью

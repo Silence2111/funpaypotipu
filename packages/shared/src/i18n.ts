@@ -104,6 +104,16 @@ export const EN_SHARED: Phrasebook = {
   ЮMoney: 'YooMoney',
   'Неизвестный способ оплаты: {key}': 'Unknown payment method: {key}',
 
+  // Причины отказа в выводе из подсказок сотруднику
+  'Реквизиты не на ваше имя — укажите свои':
+    'The payout details aren’t in your name — enter your own',
+  'Реквизиты с ошибкой — проверьте номер и создайте заявку заново':
+    'There’s an error in the payout details — check the number and create a new request',
+  'Нужна проверка личности: «Безопасность» → «Проверка личности»':
+    'ID verification is required: “Security” → “ID verification”',
+  'Деньги за сделку в споре — вывод после его решения':
+    'The money from this deal is under dispute — you can withdraw it once the dispute is resolved',
+
   // Выписка по балансу: операции и период
   'Пополнение баланса': 'Balance top-up',
   'Оплата заказа с баланса': 'Order paid from balance',

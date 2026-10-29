@@ -7,7 +7,7 @@ import { Bell } from 'lucide-react';
 import { NOTIFY_LABELS, notifyLink } from '@gamemarket/shared/notify';
 import { apiFetch, getToken } from '@/lib/session';
 import { useT } from '@/lib/i18n/client';
-import { userText } from '@/lib/hidden';
+import { noteText } from '@/lib/hidden';
 
 interface Notif {
   id: string;
@@ -87,7 +87,7 @@ export function NotificationsBell() {
               <span style={{ fontWeight: n.readAt ? 400 : 600 }}>{NOTIFY_LABELS[n.type] ? t.d(NOTIFY_LABELS[n.type]) : t('Уведомление')}</span>
               {typeof n.payload?.preview === 'string' && n.payload.preview && (
                 <span className="faint" style={{ display: 'block', fontSize: 12, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {userText(t, n.payload.preview)}
+                  {noteText(t, n.payload.preview)}
                 </span>
               )}
             </Link>

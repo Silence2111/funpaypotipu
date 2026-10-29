@@ -5,6 +5,7 @@ import { computeWithdrawalFee, getWithdrawalMethod } from '@gamemarket/shared';
 import { formatPrice } from '@/lib/format';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
+import { noteText } from '@/lib/hidden';
 
 export interface MyPayout {
   id: string;
@@ -76,7 +77,7 @@ export function PayoutRequests({ items }: { items: MyPayout[] }) {
                 )}
                 {p.status === 'rejected' && p.rejectReason && (
                   <span className="payout-reason">
-                    {t('Причина: {reason}', { reason: p.rejectReason })}
+                    {t('Причина: {reason}', { reason: noteText(t, p.rejectReason) })}
                   </span>
                 )}
                 {p.status === 'rejected' && !p.rejectReason && p.failureReason && (

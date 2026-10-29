@@ -2,7 +2,9 @@ import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common'
 import { Prisma, PrismaClient } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import {
+  EN_SHARED,
   HIDDEN_MARK,
+  isPayoutRejectReason,
   NOTIFY_GROUPS,
   notifyGroupOf,
   notifyLink,
@@ -18,10 +20,13 @@ import type { Lang } from '../../i18n/lang';
 
 /**
  * Превью уведомления — слова людей или название лота; скрытый контакт в нём
- * API помечает по-русски, получателю метка — на его языке.
+ * API помечает по-русски, получателю метка — на его языке. Причина отказа в
+ * выводе, выбранная сотрудником из подсказок слово в слово, — переводом.
  */
-const shown = (lang: Lang, text: string) =>
-  text.includes(HIDDEN_MARK) ? text.split(HIDDEN_MARK).join(say(lang, HIDDEN_MARK)) : text;
+const shown = (lang: Lang, text: string) => {
+  if (lang === 'en' && isPayoutRejectReason(text)) return EN_SHARED[text] ?? text;
+  return text.includes(HIDDEN_MARK) ? text.split(HIDDEN_MARK).join(say(lang, HIDDEN_MARK)) : text;
+};
 
 /**
  * Темы писем для важных событий; для остальных — подпись из shared/notify.ts.

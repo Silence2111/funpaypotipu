@@ -164,6 +164,26 @@ describe('уведомления на языке профиля', () => {
       expect.stringContaining('звоните [hidden]'),
     );
 
+    // Отказ в выводе: причина из подсказок — переводом, своя — как написана.
+    await en.svc.notify('u1', 'payout_rejected', {
+      payoutId: 'p1',
+      preview: 'Реквизиты не на ваше имя — укажите свои',
+    });
+    expect(en.telegram.notify).toHaveBeenLastCalledWith(
+      { id: 'u1', telegramId: '555' },
+      expect.objectContaining({
+        text: expect.stringContaining('“The payout details aren’t in your name — enter your own”'),
+      }),
+    );
+    await en.svc.notify('u1', 'payout_rejected', {
+      payoutId: 'p2',
+      preview: 'Карта заблокирована банком',
+    });
+    expect(en.telegram.notify).toHaveBeenLastCalledWith(
+      { id: 'u1', telegramId: '555' },
+      expect.objectContaining({ text: expect.stringContaining('“Карта заблокирована банком”') }),
+    );
+
     const ru = notifier('ru');
     await ru.svc.notify('u1', 'new_message', { conversationId: 'c1', preview, from: 'olga' });
     expect(ru.telegram.notify).toHaveBeenCalledWith(

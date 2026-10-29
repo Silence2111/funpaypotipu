@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EN_SHARED, preferredLang, translateText } from './i18n';
 import { NOTIFY_GROUPS, NOTIFY_LABELS } from './notify';
 import { PAYMENT_METHODS } from './payment';
-import { WITHDRAWAL_METHODS } from './withdrawal';
+import { PAYOUT_REJECT_REASONS, WITHDRAWAL_METHODS } from './withdrawal';
 import { SELLER_LEVELS } from './seller-level';
 import { buyerDataError } from './buyer-data';
 import { benchmark, RANK_RULES } from './ranking';
@@ -46,6 +46,7 @@ describe('EN_SHARED', () => {
       ...NOTIFY_GROUPS.flatMap((g) => [g.label, g.hint]),
       ...PAYMENT_METHODS.map((m) => m.label),
       ...WITHDRAWAL_METHODS.map((m) => m.label),
+      ...PAYOUT_REJECT_REASONS,
       ...Object.values(SELLER_LEVELS).map((l) => l.label),
       ...Object.keys(RANK_RULES),
     ];
