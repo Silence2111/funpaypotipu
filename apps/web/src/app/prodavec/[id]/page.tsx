@@ -13,6 +13,7 @@ import { ReportButton } from '@/components/report-button';
 import { BlockButton } from '@/components/block-button';
 import { FollowButton } from '@/components/follow-button';
 import { getT } from '@/lib/i18n/server';
+import { userText } from '@/lib/hidden';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -84,7 +85,7 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
             </p>
             {seller.bio && (
               <p className="muted" style={{ margin: '12px 0 0', fontSize: 15, maxWidth: '60ch' }}>
-                {seller.bio}
+                {userText(t, seller.bio)}
               </p>
             )}
             <dl className="profile-stats">

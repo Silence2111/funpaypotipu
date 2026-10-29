@@ -140,6 +140,38 @@ describe('уведомления на языке профиля', () => {
     );
   });
 
+  it('скрытый контакт в превью — меткой на языке получателя', async () => {
+    const en = notifier('en');
+    const preview = 'пиши в [скрыто] или [скрыто]';
+    await en.svc.notify('u1', 'new_message', { conversationId: 'c1', preview, from: 'olga' });
+    expect(en.telegram.notify).toHaveBeenCalledWith(
+      { id: 'u1', telegramId: '555' },
+      expect.objectContaining({
+        text: expect.stringMatching(/^New message\n“пиши в \[hidden\] или \[hidden\]”\n/),
+      }),
+    );
+    await vi.waitFor(() => expect(en.push.send).toHaveBeenCalled());
+    expect(en.push.send).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ body: 'пиши в [hidden] или [hidden]' }),
+      true,
+    );
+    // Письмо — тем же путём, что у любого уведомления с превью.
+    await en.svc.notify('u1', 'order_paid', { orderId: 'o1', preview: 'звоните [скрыто]' });
+    expect(en.mail.send).toHaveBeenCalledWith(
+      'a@b.c',
+      expect.any(String),
+      expect.stringContaining('звоните [hidden]'),
+    );
+
+    const ru = notifier('ru');
+    await ru.svc.notify('u1', 'new_message', { conversationId: 'c1', preview, from: 'olga' });
+    expect(ru.telegram.notify).toHaveBeenCalledWith(
+      { id: 'u1', telegramId: '555' },
+      expect.objectContaining({ text: expect.stringContaining('«пиши в [скрыто] или [скрыто]»') }),
+    );
+  });
+
   it('русский профиль — как раньше', async () => {
     const { svc, mail, telegram } = notifier('ru');
     await svc.notify('u1', 'order_paid', { orderId: 'o1' });
@@ -177,7 +209,11 @@ describe('бот Telegram', () => {
       'fetch',
       vi.fn(async (_url: string, init: { body: string }) => {
         sent.push((JSON.parse(init.body) as { text: string }).text);
-        return { ok: true, status: 200, json: async () => ({ ok: true, result: { message_id: 1 } }) };
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ ok: true, result: { message_id: 1 } }),
+        };
       }),
     );
     return { tg: new TelegramService(prisma as never), sent };

@@ -10,6 +10,7 @@ import { CabinetNav } from '@/components/cabinet-nav';
 import { Stars } from '@/components/stars';
 import { ReviewPhotos } from '@/components/review-photos';
 import { useT } from '@/lib/i18n/client';
+import { userText } from '@/lib/hidden';
 
 type Tab = 'received' | 'written';
 /** auto — есть без ответа, показываем их, иначе все; open и all — выбрал человек. */
@@ -249,14 +250,14 @@ function ReviewsInner() {
                   {r.order.title ?? r.order.publicNumber}
                 </Link>
               </div>
-              {r.comment && <p className="review-text">{r.comment}</p>}
+              {r.comment && <p className="review-text">{userText(t, r.comment)}</p>}
               <ReviewPhotos images={r.images} />
               {r.sellerReply && replyFor !== r.id && (
                 <p className="review-reply">
                   <span className="faint">
                     {tab === 'written' ? t('Ответ продавца:') : t('Ваш ответ:')}
                   </span>{' '}
-                  {r.sellerReply}
+                  {userText(t, r.sellerReply)}
                 </p>
               )}
               {tab === 'received' &&

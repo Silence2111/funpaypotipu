@@ -61,6 +61,7 @@ export const COMMON: Record<string, string> = {
   Покупки: 'Purchases',
   '{n} ждут подтверждения': '{n} to confirm',
   'Мои лоты': 'My listings',
+  '[скрыто]': '[hidden]',
   Кошелёк: 'Wallet',
   'Мой профиль на витрине': 'My public profile',
   Избранное: 'Favorites',

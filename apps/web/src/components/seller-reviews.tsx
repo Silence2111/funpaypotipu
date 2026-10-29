@@ -8,6 +8,7 @@ import { Stars } from '@/components/stars';
 import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
 import { ReviewPhotos } from './review-photos';
+import { userText } from '@/lib/hidden';
 
 interface Review {
   id: string;
@@ -158,11 +159,11 @@ export function SellerReviews({
                   {r.editedAt ? ` · ${t('изменён')}` : ''}
                 </time>
               </div>
-              {r.comment && <p className="review-text">{r.comment}</p>}
+              {r.comment && <p className="review-text">{userText(t, r.comment)}</p>}
               <ReviewPhotos images={r.images ?? []} />
               {r.sellerReply && replyFor !== r.id && (
                 <p className="review-reply">
-                  <span className="faint">{t('Ответ продавца:')}</span> {r.sellerReply}
+                  <span className="faint">{t('Ответ продавца:')}</span> {userText(t, r.sellerReply)}
                 </p>
               )}
               {own &&

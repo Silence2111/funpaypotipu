@@ -6,6 +6,7 @@ import { apiErrorMessage } from '@/lib/errors';
 import { StarInput, Stars } from '@/components/stars';
 import { useT } from '@/lib/i18n/client';
 import { ReviewPhotoPicker, ReviewPhotos, type ReviewPhoto } from './review-photos';
+import { userText } from '@/lib/hidden';
 
 interface Review {
   id: string;
@@ -139,11 +140,11 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
               {review.editedAt ? ` · ${t('изменён')}` : ''}
             </span>
           </div>
-          {review.comment && <p style={{ margin: '8px 0 0', fontSize: 15 }}>{review.comment}</p>}
+          {review.comment && <p style={{ margin: '8px 0 0', fontSize: 15 }}>{userText(t, review.comment)}</p>}
           <ReviewPhotos images={review.images.map((p) => p.url)} />
           {review.sellerReply && !replying && (
             <p className="muted" style={{ fontSize: 14, margin: '10px 0 0', paddingLeft: 12, borderLeft: '2px solid var(--border)' }}>
-              {t('Ответ продавца:')} {review.sellerReply}
+              {t('Ответ продавца:')} {userText(t, review.sellerReply)}
             </p>
           )}
           {canEdit && (

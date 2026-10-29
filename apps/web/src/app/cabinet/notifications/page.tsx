@@ -11,6 +11,7 @@ import { dayLabel } from '@/lib/chat';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
+import { userText } from '@/lib/hidden';
 
 interface Notif {
   id: string;
@@ -241,7 +242,8 @@ function NotificationsInner() {
               <div className="card notif-list">
                 {d.items.map((n) => {
                   const g = GROUPS.find((x) => x.key === notifyGroupOf(n.type));
-                  const preview = typeof n.payload?.preview === 'string' ? n.payload.preview : null;
+                  const preview =
+                    typeof n.payload?.preview === 'string' ? userText(t, n.payload.preview) : null;
                   return (
                     <Link
                       key={n.id}

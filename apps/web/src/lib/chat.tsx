@@ -5,6 +5,7 @@ import { io, type Socket } from 'socket.io-client';
 import type { ReplyTime } from '@gamemarket/shared';
 import { getToken } from './session';
 import { RU, msg, type T } from './i18n/lang';
+import { userText } from './hidden';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -179,12 +180,12 @@ export function systemText(t: T, body: string): string {
   // i18n-ignore-end
   if (about) return t('Вопрос о лоте «{title}»', { title: about[1]! });
   if (qty) return `${systemText(t, qty[1]!)} ${t('Количество: {qty}.', { qty: qtyText(t, qty[2]!) })}`;
-  if (why) return `${systemText(t, why[1]!)} ${t('Причина: {reason}', { reason: why[2]! })}`;
+  if (why) return `${systemText(t, why[1]!)} ${t('Причина: {reason}', { reason: userText(t, why[2]!) })}`;
   return body;
 }
 
 /** Последнее сообщение в списке диалогов: системное — переводом, вложение — подписью. */
 export function previewText(t: T, last: { system: boolean; text: string }): string {
   if (last.system) return systemText(t, last.text);
-  return last.text === 'Вложение' ? t('Вложение') : last.text; // i18n-ignore
+  return last.text === 'Вложение' ? t('Вложение') : userText(t, last.text); // i18n-ignore
 }

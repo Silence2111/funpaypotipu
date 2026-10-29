@@ -19,6 +19,7 @@ import {
 import { fillTemplate } from '@gamemarket/shared';
 import { Avatar } from './offers';
 import { useT } from '@/lib/i18n/client';
+import { userText } from '@/lib/hidden';
 
 const PAGE = 50;
 const TYPING_MS = 4000;
@@ -358,7 +359,7 @@ export function ChatThread({
                       ),
                     )
                   ) : (
-                    <span className="bubble-text">{m.body}</span>
+                    <span className="bubble-text">{userText(t, m.body)}</span>
                   )}
                   <span className="bubble-time">
                     {m.auto && <span className="bubble-auto">{t('автоответ')} · </span>}

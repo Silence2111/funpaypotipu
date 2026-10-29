@@ -5,6 +5,7 @@ import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { useT } from '@/lib/i18n/client';
+import { userText } from '@/lib/hidden';
 
 interface BuyerReview {
   good: boolean;
@@ -76,7 +77,9 @@ export function BuyerRating({ orderId, role }: { orderId: string; role: 'buyer' 
             ? t('Продавец рекомендует вас как покупателя')
             : t('Продавец не рекомендует вас как покупателя')}
         </p>
-        {review.comment && <p className="muted buyer-rating-comment">«{review.comment}»</p>}
+        {review.comment && (
+          <p className="muted buyer-rating-comment">«{userText(t, review.comment)}»</p>
+        )}
         <p className="hint" style={{ margin: 0 }}>
           {t('Комментарий видите только вы, в профиле — только число оценок.')}
         </p>

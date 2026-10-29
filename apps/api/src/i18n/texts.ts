@@ -9,6 +9,8 @@ import type { Lang } from './lang';
  * Новая фраза в say() без перевода роняет test/i18n-texts.test.ts.
  */
 export const EN_TEXTS: Record<string, string> = {
+  // Метка скрытого контакта в превью уведомлений
+  '[скрыто]': '[hidden]',
   // Выгрузки для Excel: выписка, продажи, сводка площадки
   'Дата (МСК)': 'Date (Moscow time)',
   Операция: 'Transaction',

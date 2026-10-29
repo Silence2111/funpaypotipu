@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common'
 import { Prisma, PrismaClient } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import {
+  HIDDEN_MARK,
   NOTIFY_GROUPS,
   notifyGroupOf,
   notifyLink,
@@ -14,6 +15,13 @@ import { TelegramService, type TgButton } from './telegram.service';
 import { PushService, type PushMessage } from './push.service';
 import { langOf, notifyLabel, say } from '../../i18n/texts';
 import type { Lang } from '../../i18n/lang';
+
+/**
+ * Превью уведомления — слова людей или название лота; скрытый контакт в нём
+ * API помечает по-русски, получателю метка — на его языке.
+ */
+const shown = (lang: Lang, text: string) =>
+  text.includes(HIDDEN_MARK) ? text.split(HIDDEN_MARK).join(say(lang, HIDDEN_MARK)) : text;
 
 /**
  * Темы писем для важных событий; для остальных — подпись из shared/notify.ts.
@@ -106,7 +114,8 @@ export class NotificationsService {
       const subject = this.subject(lang, type)!;
       // Подробности события — те же, что в Telegram и пуше: устройство и IP
       // входа, «было — стало» у цены.
-      const preview = typeof data.preview === 'string' && data.preview ? data.preview : null;
+      const preview =
+        typeof data.preview === 'string' && data.preview ? shown(lang, data.preview) : null;
       const action = say(lang, opts.mail?.action ?? 'Подробности');
       const href = opts.mail?.link ?? link;
       await this.mail.send(
@@ -182,7 +191,7 @@ export class NotificationsService {
       title: from
         ? say(lang, 'Сообщение от {name}', { name: from })
         : (notifyLabel(lang, type) ?? 'GameMarket'),
-      body: body ?? '',
+      body: body ? shown(lang, body) : '',
       url,
       ...(TAGGED.test(url) ? { tag: url } : {}),
     };
@@ -205,7 +214,7 @@ export class NotificationsService {
     const quote = lang === 'en' ? ['“', '”'] : ['«', '»'];
     const preview =
       typeof data.preview === 'string' && data.preview
-        ? `\n${quote[0]}${data.preview}${quote[1]}`
+        ? `\n${quote[0]}${shown(lang, data.preview)}${quote[1]}`
         : '';
     const text = `${title}${preview}\n${link}`;
     const id = (k: string) => (typeof data[k] === 'string' ? (data[k] as string) : null);

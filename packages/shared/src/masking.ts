@@ -4,7 +4,9 @@
  * мимо эскроу: скрываем телефоны, email, ссылки, @ники и упоминания мессенджеров.
  */
 
-const REPLACEMENT = '[скрыто]';
+/** Чем заменяется скрытый контакт. Сайт и уведомления показывают метку на языке человека. */
+export const HIDDEN_MARK = '[скрыто]';
+const REPLACEMENT = HIDDEN_MARK;
 
 const PATTERNS: RegExp[] = [
   // email
