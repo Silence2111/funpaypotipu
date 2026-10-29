@@ -1624,6 +1624,20 @@ async function scenarioPriceDrop(rnd) {
       favs.find((f) => f.id === lot)?.wasPrice === '100000',
     JSON.stringify({ back: back.length, second: second.map((n) => n.payload), fav: favs.find((f) => f.id === lot) }),
   );
+
+  // «Избранное» в кабинете: когда добавили и игра — для фильтров и порядка; убрать — с карточки.
+  const other = await createListing(seller.token, 'accounts', '50000', { title: `Второй pd${rnd}` });
+  await j('/favorites', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: other }) });
+  const both = (await j('/favorites', { token: buyer.token })).body;
+  const gone = await j(`/favorites/${other}`, { method: 'DELETE', token: buyer.token });
+  const after = (await j('/favorites', { token: buyer.token })).body;
+  check(
+    'Избранное: новые сверху, когда добавили и игра; убранный лот уходит из списка',
+    both.length === 2 && both[0].id === other && Date.parse(both[0].addedAt) >= Date.parse(both[1].addedAt) &&
+      both[1].game?.slug === 'cs2' && typeof both[1].game?.title === 'string' &&
+      gone.status === 200 && after.length === 1 && after[0].id === lot,
+    JSON.stringify({ both: both.map((f) => [f.id === lot ? 'lot' : 'other', f.addedAt, f.game]), gone: gone.status, after: after.length }),
+  );
 }
 
 /**

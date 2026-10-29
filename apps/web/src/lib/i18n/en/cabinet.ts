@@ -97,7 +97,6 @@ export const CABINET: Record<string, string> = {
   'подтвердите получение': 'confirm receipt',
 
   // Избранное
-  'В избранном пока пусто.': 'Your favorites list is empty.',
 
   // Поддержка
   'Новое обращение': 'New request',
@@ -155,6 +154,26 @@ export const CABINET: Record<string, string> = {
   'Заявки на вывод': 'Withdrawal requests',
   'Другие реквизиты': 'Other details',
   'Сохранённые реквизиты': 'Saved payout details',
+  // Избранное
+  'В продаже': 'On sale',
+  Подешевели: 'Cheaper now',
+  Закончились: 'Sold out',
+  'Недавно добавленные': 'Recently added',
+  'Сначала дешевле': 'Cheapest first',
+  'Сначала дороже': 'Most expensive first',
+  'Сильнее подешевели': 'Biggest price drop',
+  'Не удалось загрузить избранное.': 'Couldn’t load your favorites.',
+  'Не удалось убрать из избранного.': 'Couldn’t remove it from favorites.',
+  'В избранном пока пусто. «В избранное» на странице лота — и за его ценой можно следить.':
+    'Your favorites are empty. Tap “Add to favorites” on a listing page to track its price.',
+  Показать: 'Show',
+  Игра: 'Game',
+  'Все игры': 'All games',
+  Порядок: 'Order',
+  'Под этот фильтр ничего не подходит.': 'Nothing matches this filter.',
+  'Показать всё': 'Show all',
+  'Убрать из избранного: {title}': 'Remove from favorites: {title}',
+  'Убрать из избранного': 'Remove from favorites',
   'Запомнить реквизиты для следующих выводов': 'Remember these details for next withdrawals',
   'Удалить реквизиты {hint}': 'Delete payout details {hint}',
   'Не удалось удалить реквизиты': 'Couldn’t delete the payout details',

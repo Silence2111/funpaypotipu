@@ -69,11 +69,15 @@ export class FavoritesService {
     return { ok: true };
   }
 
+  /**
+   * Избранное новыми сверху: цена «было», когда добавили, игра, скидка и
+   * «минимум за 30 дней» — для фильтров и сортировки в кабинете.
+   */
   async listMine(userId: string) {
     const favs = await this.prisma.favorite.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
-      select: { listingId: true, addedUnitPrice: true },
+      select: { listingId: true, addedUnitPrice: true, createdAt: true },
     });
     const ids = favs.map((f) => f.listingId);
     if (!ids.length) return [];
@@ -90,11 +94,19 @@ export class FavoritesService {
         topupMarkupBps: true, // лот «на сумму покупателя»: в избранном цена «от»
         unitName: true, // поштучно: цена «за 1 000 золота»
         pricePerUnits: true,
+        saleListPrice: true,
+        saleRefPrice: true,
+        saleUntil: true,
+        priceLowUntil: true,
+        priceLowRef: true,
+        priceDropPct: true,
+        game: { select: { slug: true, title: true } },
         seller: { select: { profile: { select: { username: true, ratingAvg: true } } } },
       },
     });
     const byId = new Map(listings.map((l) => [l.id, l]));
     const added = new Map(favs.map((f) => [f.listingId, f.addedUnitPrice]));
+    const addedAt = new Map(favs.map((f) => [f.listingId, f.createdAt]));
     return ids
       .map((id) => byId.get(id))
       .filter((l): l is (typeof listings)[number] => !!l)
@@ -102,7 +114,11 @@ export class FavoritesService {
         // «Было» — цена при добавлении в той же пачке, если сейчас дешевле.
         const unit = added.get(l.id);
         const was = unit && l.topupMarkupBps == null ? packPrice(unit, l.pricePerUnits) : null;
-        return { ...l, wasPrice: was != null && was > l.price ? was.toString() : null };
+        return {
+          ...l,
+          wasPrice: was != null && was > l.price ? was.toString() : null,
+          addedAt: addedAt.get(l.id),
+        };
       });
   }
 

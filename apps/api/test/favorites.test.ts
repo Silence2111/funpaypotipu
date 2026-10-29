@@ -66,7 +66,11 @@ describe('в избранное', () => {
   it('«было» — в текущей пачке и только если подешевел', async () => {
     const { svc } = setup({
       favs: [
-        { listingId: 'cheaper', addedUnitPrice: new Prisma.Decimal('150') },
+        {
+          listingId: 'cheaper',
+          addedUnitPrice: new Prisma.Decimal('150'),
+          createdAt: new Date('2026-10-20T10:00:00Z'),
+        },
         { listingId: 'dearer', addedUnitPrice: new Prisma.Decimal('100') },
         { listingId: 'topup', addedUnitPrice: null },
       ],
@@ -83,6 +87,8 @@ describe('в избранное', () => {
       ['dearer', null],
       ['topup', null],
     ]);
+    // Когда добавили — для «Недавно добавленные» в кабинете.
+    expect(list[0]!.addedAt).toEqual(new Date('2026-10-20T10:00:00Z'));
   });
 });
 
