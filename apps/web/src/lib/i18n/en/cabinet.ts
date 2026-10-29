@@ -153,6 +153,11 @@ export const CABINET: Record<string, string> = {
   'Деньги придут автоматически через ЮKassa после проверки заявки.':
     'The money will arrive automatically via YooKassa once the request is checked.',
   'Заявки на вывод': 'Withdrawal requests',
+  'Другие реквизиты': 'Other details',
+  'Сохранённые реквизиты': 'Saved payout details',
+  'Запомнить реквизиты для следующих выводов': 'Remember these details for next withdrawals',
+  'Удалить реквизиты {hint}': 'Delete payout details {hint}',
+  'Не удалось удалить реквизиты': 'Couldn’t delete the payout details',
   'Укажите карту в форме ЮKassa': 'Enter the card in the YooKassa form',
   'Карта не подошла. Проверьте номер или возьмите другую карту.':
     'This card didn’t work. Check the number or use another card.',

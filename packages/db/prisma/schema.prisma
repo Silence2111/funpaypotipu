@@ -216,6 +216,7 @@ model User {
   ledgerAccounts LedgerAccount[]
   payments       Payment[]
   payouts        Payout[]
+  payoutDestinations PayoutDestination[]
   reviewsAuthored Review[]          @relation("ReviewAuthor")
   reviewsReceived Review[]          @relation("ReviewTarget")
   buyerReviewsGiven    BuyerReview[] @relation("BuyerReviewSeller")
@@ -701,6 +702,25 @@ model Payout {
   @@index([userId])
   @@index([status])
   @@map("payouts")
+}
+
+// Сохранённые реквизиты для вывода: в форме выбираются, а не вводятся заново.
+model PayoutDestination {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  method         String
+  // Те же реквизиты, что в заявке: зашифрованы, наружу — только маска.
+  destinationEnc String   @map("destination_enc")
+  // HMAC реквизитов: повтор не сохраняется дважды, а по нему реквизиты не восстановить.
+  fingerprint    String
+  createdAt      DateTime @default(now()) @map("created_at")
+  lastUsedAt     DateTime @default(now()) @map("last_used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprint])
+  @@index([userId, lastUsedAt])
+  @@map("payout_destinations")
 }
 
 // ──────────────────────────── COMMS ────────────────────────────

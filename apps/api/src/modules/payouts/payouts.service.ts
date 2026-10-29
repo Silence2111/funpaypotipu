@@ -28,6 +28,10 @@ import { YooKassaPayouts, type GatewayPayout, type PayoutDestination } from './y
 /** Первый вывод без продаж ждёт столько дней — защита от отмыва через пополнение. */
 /** Без причины отказ не сохраняется: продавцу нечего было бы исправлять. */
 export const REJECT_REASON_NEEDED = 'Напишите причину отказа — продавец увидит её';
+/** Сколько реквизитов помнить: давно не нужные уходят первыми. */
+const MAX_SAVED = 10;
+const SAVED_GONE = 'Сохранённые реквизиты не найдены — укажите их заново';
+const SAVED_STALE = 'Эти реквизиты сейчас не подходят для выплаты — укажите их заново';
 export const NEWBIE_HOLD_DAYS = Number(process.env.PAYOUT_NEWBIE_HOLD_DAYS ?? 3);
 // Вывод свыше порога — только после верификации личности (минорные единицы).
 export const KYC_REQUIRED_ABOVE = BigInt(process.env.PAYOUT_KYC_REQUIRED_ABOVE ?? 1_500_000);
@@ -96,7 +100,10 @@ export class PayoutsService {
   }
 
   private destinationOf(method: string, enc: string): PayoutDestination | null {
-    const raw = this.encryption.decrypt(enc);
+    return this.parseDestination(method, this.encryption.decrypt(enc));
+  }
+
+  private parseDestination(method: string, raw: string): PayoutDestination | null {
     if (method === 'yoomoney') return /^\d{11,20}$/.test(raw) ? { method, account: raw } : null;
     const d = parseJson(raw);
     if (method === 'card') return d?.token ? { method, token: d.token } : null;
@@ -133,7 +140,7 @@ export class PayoutsService {
     method: string,
     destination: string | undefined,
     currency = 'RUB',
-    details: { bankId?: string; card?: CardToken } = {},
+    details: { bankId?: string; card?: CardToken; savedId?: string; save?: boolean } = {},
   ) {
     if (amount <= 0n) throw new BadRequestException('Сумма должна быть положительной');
 
@@ -164,7 +171,9 @@ export class PayoutsService {
 
     // Шлюз выплатит сам — реквизиты проверяем сразу, а не при одобрении.
     let stored: string;
-    if (method === 'card' && this.gateway.handles('card')) {
+    if (details.savedId) {
+      stored = await this.savedDestination(userId, method, details.savedId);
+    } else if (method === 'card' && this.gateway.handles('card')) {
       // Номер карты остаётся в ЮKassa: у нас — токен из её виджета и маска.
       if (!details.card) {
         throw new BadRequestException('Введите карту в форме ЮKassa: номер карты площадка не принимает');
@@ -202,7 +211,83 @@ export class PayoutsService {
       refId: payout.id,
     });
 
+    if (details.savedId || details.save) await this.remember(userId, method, stored);
     return this.public(payout);
+  }
+
+  /**
+   * Сохранённые реквизиты для заявки. Шлюз выплачивает только то, что ему
+   * подходит (СБП с банком, токен карты), а вручную — только обычную
+   * строку: иначе заявку не выплатить, и реквизиты нужно ввести заново.
+   */
+  private async savedDestination(userId: string, method: string, id: string): Promise<string> {
+    const saved = await this.prisma.payoutDestination.findFirst({ where: { id, userId, method } });
+    if (!saved) throw new BadRequestException(SAVED_GONE);
+    const stored = this.encryption.decrypt(saved.destinationEnc);
+    const fits = this.gateway.handles(method)
+      ? this.parseDestination(method, stored) !== null
+      : parseJson(stored) === null;
+    if (!fits) throw new BadRequestException(SAVED_STALE);
+    return stored;
+  }
+
+  /**
+   * Запомнить реквизиты (или освежить уже сохранённые): те же — по отпечатку;
+   * карта из виджета — по первым и последним цифрам, токен заменяется новым.
+   * Хранится не больше MAX_SAVED, давно не нужные уходят первыми.
+   */
+  private async remember(userId: string, method: string, stored: string) {
+    const d = parseJson(stored);
+    const fingerprint = this.encryption.fingerprint(
+      d?.token ? `card:${d.first6}:${d.last4}` : `${method}:${stored}`,
+    );
+    const destinationEnc = this.encryption.encrypt(stored);
+    await this.prisma.payoutDestination.upsert({
+      where: { userId_fingerprint: { userId, fingerprint } },
+      create: { userId, method, destinationEnc, fingerprint },
+      update: { destinationEnc, lastUsedAt: new Date() },
+    });
+    const old = await this.prisma.payoutDestination.findMany({
+      where: { userId },
+      orderBy: { lastUsedAt: 'desc' },
+      skip: MAX_SAVED,
+      select: { id: true },
+    });
+    if (old.length) {
+      await this.prisma.payoutDestination.deleteMany({ where: { id: { in: old.map((o) => o.id) } } });
+    }
+  }
+
+  /** Сохранённые реквизиты продавца: маска, у СБП — банк; сами реквизиты наружу не идут. */
+  async destinations(userId: string) {
+    const rows = await this.prisma.payoutDestination.findMany({
+      where: { userId },
+      orderBy: { lastUsedAt: 'desc' },
+    });
+    const banks = rows.some((r) => r.method === 'sbp')
+      ? await this.gateway.sbpBanks().catch(() => [])
+      : [];
+    return rows.map((r) => {
+      let bankId: string | undefined;
+      try {
+        bankId = parseJson(this.encryption.decrypt(r.destinationEnc))?.bankId;
+      } catch {
+        bankId = undefined;
+      }
+      return {
+        id: r.id,
+        method: r.method,
+        hint: this.hint(r.method, r.destinationEnc),
+        bank: bankId ? (banks.find((b) => b.id === bankId)?.name ?? null) : null,
+        lastUsedAt: r.lastUsedAt,
+      };
+    });
+  }
+
+  async forgetDestination(userId: string, id: string) {
+    const gone = await this.prisma.payoutDestination.deleteMany({ where: { id, userId } });
+    if (!gone.count) throw new NotFoundException('Реквизиты не найдены');
+    return { ok: true };
   }
 
   listMine(userId: string) {

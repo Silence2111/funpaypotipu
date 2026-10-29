@@ -139,6 +139,7 @@ describe('шлюз выплат', () => {
 /** Заявки в памяти: updateMany с условием по статусу — как в базе. */
 function setup(over: Record<string, unknown> = {}) {
   const rows = new Map<string, Record<string, unknown>>();
+  const saved: Record<string, unknown>[] = [];
   const add = (p: Record<string, unknown>) => rows.set(p.id as string, p);
   const matches = (row: Record<string, unknown>, where: Record<string, unknown>) =>
     Object.entries(where).every(([k, v]) => {
@@ -192,6 +193,41 @@ function setup(over: Record<string, unknown> = {}) {
     },
     profile: { findUnique: vi.fn(async () => ({ salesCount: 3 })) },
     kycVerification: { findFirst: vi.fn(async () => ({ id: 'k' })) },
+    payoutDestination: {
+      findFirst: vi.fn(
+        async ({ where }: { where: Record<string, unknown> }) =>
+          saved.find((r) => matches(r, where)) ?? null,
+      ),
+      findMany: vi.fn(
+        async ({ where, skip = 0 }: { where: Record<string, unknown>; skip?: number }) =>
+          saved
+            .filter((r) => matches(r, where))
+            .sort((a, b) => (b.lastUsedAt as Date).getTime() - (a.lastUsedAt as Date).getTime())
+            .slice(skip),
+      ),
+      upsert: vi.fn(
+        async ({
+          where,
+          create,
+          update,
+        }: {
+          where: { userId_fingerprint: { userId: string; fingerprint: string } };
+          create: Record<string, unknown>;
+          update: Record<string, unknown>;
+        }) => {
+          const hit = saved.find((r) => matches(r, where.userId_fingerprint));
+          if (hit) return Object.assign(hit, update);
+          const row = { id: `d${saved.length + 1}`, lastUsedAt: new Date(), ...create };
+          saved.push(row);
+          return row;
+        },
+      ),
+      deleteMany: vi.fn(async ({ where }: { where: Record<string, unknown> }) => {
+        const gone = saved.filter((r) => matches(r, where));
+        gone.forEach((r) => saved.splice(saved.indexOf(r), 1));
+        return { count: gone.length };
+      }),
+    },
   };
   const posted = new Set<string>();
   const ledger = {
@@ -203,6 +239,7 @@ function setup(over: Record<string, unknown> = {}) {
   const encryption = {
     encrypt: (s: string) => `enc:${s}`,
     decrypt: (s: string) => s.replace(/^enc:/, ''),
+    fingerprint: (s: string) => `fp:${s}`,
   };
   const audit = { log: vi.fn(async (_e: { action: string }) => undefined) };
   const notifications = { notify: vi.fn(async () => undefined) };
@@ -229,7 +266,7 @@ function setup(over: Record<string, unknown> = {}) {
     notifications as never,
     gateway as never,
   );
-  return { svc, rows, ledger, posted, notifications, gateway, audit };
+  return { svc, rows, saved, ledger, posted, notifications, gateway, audit };
 }
 
 const AMOUNT = 100_000n; // 1000 ₽, СБП 2,5% → комиссия 25 ₽, на руки 975 ₽
@@ -316,6 +353,81 @@ describe('заявка и одобрение', () => {
     await expect(off.svc.approve('p1', 'fin')).rejects.toThrow(/только она/);
     await expect(off.svc.reveal('p1', 'fin')).rejects.toThrow(/отправляет ЮKassa/);
     expect(off.posted.has('payout_settle:p1')).toBe(false);
+  });
+});
+
+describe('сохранённые реквизиты', () => {
+  it('«запомнить» — сохраняются один раз, наружу только маска и банк; следующий вывод — по ним', async () => {
+    const { svc, rows, saved } = setup();
+    await svc.request('u1', AMOUNT, 'sbp', '+7 900 123-45-67', 'RUB', {
+      bankId: '100000000111',
+      save: true,
+    });
+    await svc.request('u1', AMOUNT, 'sbp', '8 (900) 123-45-67', 'RUB', {
+      bankId: '100000000111',
+      save: true,
+    });
+    expect(saved).toHaveLength(1);
+    const list = await svc.destinations('u1');
+    expect(list).toEqual([
+      {
+        id: 'd1',
+        method: 'sbp',
+        hint: '•••• 4567',
+        bank: 'Сбербанк',
+        lastUsedAt: expect.any(Date),
+      },
+    ]);
+    expect(JSON.stringify(list)).not.toContain('79001234567');
+
+    const third = await svc.request('u1', AMOUNT, 'sbp', undefined, 'RUB', { savedId: 'd1' });
+    expect(rows.get(third.id)!.destinationEnc).toBe(
+      'enc:{"phone":"79001234567","bankId":"100000000111"}',
+    );
+    // Чужие и другого способа — не подходят.
+    await expect(
+      svc.request('u2', AMOUNT, 'sbp', undefined, 'RUB', { savedId: 'd1' }),
+    ).rejects.toThrow('Сохранённые реквизиты не найдены');
+    await expect(
+      svc.request('u1', AMOUNT, 'yoomoney', undefined, 'RUB', { savedId: 'd1' }),
+    ).rejects.toThrow('Сохранённые реквизиты не найдены');
+  });
+
+  it('карта из виджета — одна запись на карту, токен новый; вручную её не выплатить', async () => {
+    const { svc, saved, gateway } = setup();
+    await svc.request('u1', AMOUNT, 'card', undefined, 'RUB', { card: CARD, save: true });
+    await svc.request('u1', AMOUNT, 'card', undefined, 'RUB', {
+      card: { ...CARD, token: 'pt-fedcba9876543210' },
+      save: true,
+    });
+    expect(saved).toHaveLength(1);
+    expect(saved[0]!.destinationEnc).toContain('pt-fedcba9876543210');
+    expect((await svc.destinations('u1'))[0]).toMatchObject({ hint: '•••• 4477', bank: null });
+
+    gateway.handles = (m: string) => m === 'sbp' || m === 'yoomoney';
+    await expect(
+      svc.request('u1', AMOUNT, 'card', undefined, 'RUB', { savedId: 'd1' }),
+    ).rejects.toThrow('сейчас не подходят');
+  });
+
+  it('удалить можно только свои; хранится не больше 10', async () => {
+    const { svc, saved } = setup();
+    for (let i = 0; i < 11; i++) {
+      await svc.request(
+        'u1',
+        50_000n,
+        'usdt',
+        `${USDT.slice(0, -2)}${String(i).padStart(2, '0')}`,
+        'RUB',
+        {
+          save: true,
+        },
+      );
+    }
+    expect(saved).toHaveLength(10);
+    await expect(svc.forgetDestination('u2', saved[0]!.id as string)).rejects.toThrow('не найдены');
+    await svc.forgetDestination('u1', saved[0]!.id as string);
+    expect(saved).toHaveLength(9);
   });
 });
 

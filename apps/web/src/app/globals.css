@@ -4263,6 +4263,36 @@ a.my-lot-title:hover {
   }
 }
 
+/* Сохранённые реквизиты в форме вывода: выбрать или ввести другие. */
+.payout-saved {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+.payout-saved-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  font-size: 14px;
+}
+.payout-saved-item label {
+  cursor: pointer;
+  flex-wrap: wrap;
+}
+.payout-saved-hint {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--fg);
+}
+.payout-saved-item .link-button {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.payout-saved-item .link-button:hover {
+  color: var(--fg);
+}
+
 /* Заявка на вывод: сумма и куда — слева, статус — справа. */
 .payout-row {
   display: grid;

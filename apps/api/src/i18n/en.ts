@@ -378,6 +378,10 @@ export const EN_API: Phrasebook = {
   'Нет такого типа операций': 'There’s no such transaction type',
   'Список заказов устарел — обновите страницу': 'The order list is out of date — refresh the page',
   'Напишите причину отказа — продавец увидит её': 'Write the reason for rejecting — the seller will see it',
+  'Сохранённые реквизиты не найдены — укажите их заново': 'Saved payout details not found — enter them again',
+  'Эти реквизиты сейчас не подходят для выплаты — укажите их заново':
+    'These payout details can’t be used right now — enter them again',
+  'Реквизиты не найдены': 'Payout details not found',
   'Нет доступа к диалогу': 'No access to this conversation',
   'Пустое сообщение': 'The message is empty',
   'Файл не прошёл антивирус-проверку: {reason}': 'The file failed the antivirus check: {reason}',

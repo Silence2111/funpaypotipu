@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -27,6 +27,10 @@ const requestSchema = z.object({
       issuer: z.string().max(120).optional(),
     })
     .optional(),
+  // Сохранённые реквизиты вместо ввода — из GET /payouts/destinations.
+  savedId: z.string().uuid().optional(),
+  // Запомнить введённые реквизиты для следующих выводов.
+  save: z.boolean().optional(),
 });
 // Причина отказа — продавцу в кошелёк и уведомление.
 const rejectSchema = z.object({
@@ -49,13 +53,36 @@ export class PayoutsController {
   async request(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(requestSchema))
-    body: { amount: string; method: string; destination?: string; bankId?: string; card?: CardToken },
+    body: {
+      amount: string;
+      method: string;
+      destination?: string;
+      bankId?: string;
+      card?: CardToken;
+      savedId?: string;
+      save?: boolean;
+    },
   ) {
     await this.account.assertCanTrade(user.userId);
     return this.payouts.request(user.userId, BigInt(body.amount), body.method, body.destination, 'RUB', {
       bankId: body.bankId,
       card: body.card,
+      savedId: body.savedId,
+      save: body.save,
     });
+  }
+
+  /** Сохранённые реквизиты: маска и банк — для выбора в форме вывода. */
+  @Get('destinations')
+  @UseGuards(JwtAuthGuard)
+  destinations(@CurrentUser() user: AuthUser) {
+    return this.payouts.destinations(user.userId);
+  }
+
+  @Delete('destinations/:id')
+  @UseGuards(JwtAuthGuard)
+  forget(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.payouts.forgetDestination(user.userId, id);
   }
 
   /** Банки СБП для выплаты; пусто — выплаты по СБП вручную. */

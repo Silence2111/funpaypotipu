@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from 'node:crypto';
 
 /**
  * Шифрование чувствительных данных в покое (ключи товаров, реквизиты выплат) —
@@ -17,6 +17,14 @@ export class EncryptionService {
     const enc = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag();
     return [iv, tag, enc].map((b) => b.toString('base64')).join(':');
+  }
+
+  /**
+   * Отпечаток для сравнения без расшифровки (одни и те же реквизиты дважды
+   * не сохраняются): HMAC тем же ключом — без ключа значение не подобрать.
+   */
+  fingerprint(plain: string): string {
+    return createHmac('sha256', this.key).update(plain, 'utf8').digest('hex');
   }
 
   decrypt(payload: string): string {

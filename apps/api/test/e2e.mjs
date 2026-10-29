@@ -918,6 +918,29 @@ async function scenarioPayout(rnd) {
       wBack.body.balance === '35000' && wBack.body.withdrawing.count === 0,
     JSON.stringify({ bare: bare.body, mine: mine?.rejectReason, note: note?.payload, balance: wBack.body.balance }),
   );
+
+  // Сохранённые реквизиты: запомнить при заявке, в следующий раз — выбрать.
+  const third = await j('/payouts', { method: 'POST', token: seller.token, body: JSON.stringify({ amount: '30000', method: 'card', destination: '4111 1111 1111 1111', save: true }) });
+  const kept = (await j('/payouts/destinations', { token: seller.token })).body;
+  await j(`/payouts/${third.body.id}/reject`, { method: 'POST', token: fin.token, body: JSON.stringify({ reason: 'Проверка сохранённых реквизитов' }) });
+  const again = await j('/payouts', { method: 'POST', token: seller.token, body: JSON.stringify({ amount: '30000', method: 'card', savedId: kept[0]?.id }) });
+  const sameCard = (await j(`/payouts/${again.body.id}/destination`, { token: fin.token })).body;
+  check(
+    'Реквизиты запомнены: наружу только маска; заявка по сохранённым уходит на ту же карту',
+    third.status === 201 && kept.length === 1 && kept[0].method === 'card' && kept[0].hint === '•••• 1111' &&
+      !JSON.stringify(kept).includes('4111 1111') && again.status === 201 && again.body.destinationHint === '•••• 1111' &&
+      sameCard.destination === '4111 1111 1111 1111',
+    JSON.stringify({ kept, again: again.body, dest: sameCard }),
+  );
+  const othersSee = (await j('/payouts/destinations', { token: buyer.token })).body;
+  const othersDelete = await j(`/payouts/destinations/${kept[0]?.id}`, { method: 'DELETE', token: buyer.token });
+  const forget = await j(`/payouts/destinations/${kept[0]?.id}`, { method: 'DELETE', token: seller.token });
+  const left = (await j('/payouts/destinations', { token: seller.token })).body;
+  check(
+    'Чужие реквизиты не видны и не удаляются; свои удалены — список пуст',
+    Array.isArray(othersSee) && othersSee.length === 0 && othersDelete.status === 404 && forget.status === 200 && left.length === 0,
+    JSON.stringify({ others: othersSee, del: othersDelete.status, forget: forget.status, left }),
+  );
 }
 
 /**
