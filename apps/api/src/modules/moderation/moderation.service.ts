@@ -8,6 +8,7 @@ import {
   type UserStatus,
 } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
+import { containsText } from '../../common/like';
 import { AuditService } from '../access/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -211,8 +212,8 @@ export class ModerationService {
     if (text) {
       where.OR = [
         ...(UUID.test(text) ? [{ id: text }] : []),
-        { title: { contains: text, mode: 'insensitive' } },
-        { seller: { profile: { username: { contains: text, mode: 'insensitive' } } } },
+        { title: containsText(text) },
+        { seller: { profile: { username: containsText(text) } } },
       ];
     }
     return this.prisma.listing.findMany({
@@ -239,8 +240,8 @@ export class ModerationService {
     if (text) {
       where.OR = [
         ...(UUID.test(text) ? [{ id: text }] : []),
-        { email: { contains: text, mode: 'insensitive' } },
-        { profile: { username: { contains: text, mode: 'insensitive' } } },
+        { email: containsText(text) },
+        { profile: { username: containsText(text) } },
       ];
     }
     const rows = await this.prisma.user.findMany({

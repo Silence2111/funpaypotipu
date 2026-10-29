@@ -37,6 +37,7 @@ import {
   sellerPromoDiscount,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
+import { containsText } from '../../common/like';
 import { LedgerService } from '../ledger/ledger.service';
 import { EncryptionService } from '../crypto/encryption.service';
 import { PromoService } from '../promo/promo.service';
@@ -811,14 +812,16 @@ export class OrdersService {
     const where: Prisma.OrderWhereInput = { ...mine };
     if (q.status?.length) where.status = { in: q.status };
     if (q.days) where.createdAt = { gte: new Date(Date.now() - q.days * 86_400_000) };
-    // «#GM-…» и «@ник» ищутся как есть, без значка впереди.
+    // «#GM-…» и «@ник» ищутся как есть, без значка впереди. Ищется то, что
+    // видно в списке: номер, ник другой стороны и название лота из самого
+    // заказа — лот после покупки могли переименовать или удалить.
     const text = q.q?.trim().replace(/^[#@]+/, '');
     if (text) {
-      const like = { contains: text, mode: 'insensitive' as const };
+      const like = containsText(text);
       const nick = { profile: { username: like } };
       where.OR = [
         { publicNumber: like },
-        { listing: { title: like } },
+        { listingSnapshot: { path: ['title'], string_contains: like.contains, mode: like.mode } },
         q.role === 'buyer' ? { seller: nick } : { buyer: nick },
       ];
     }

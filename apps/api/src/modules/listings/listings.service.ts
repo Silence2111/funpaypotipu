@@ -48,6 +48,7 @@ import { StorageService } from '../storage/storage.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { assetUrl } from '../storage/asset-url';
 import { ONLINE_MS } from '../../common/presence';
+import { containsText } from '../../common/like';
 
 const BOOST_MS = 24 * 3600 * 1000; // лот держится в топе сутки
 /** Как часто проверять автоподнятие: лот поднимется не позже чем через столько после конца паузы. */
@@ -153,7 +154,7 @@ export function listingFilters(f: {
       attributes: { path: [k], equals: v },
     }));
   }
-  if (f.q) where.title = { contains: f.q, mode: 'insensitive' };
+  if (f.q) where.title = containsText(f.q);
   if (f.minPrice != null || f.maxPrice != null) {
     where.price = {
       gte: f.minPrice != null ? BigInt(f.minPrice) : undefined,

@@ -76,7 +76,7 @@ describe('история заказов', () => {
     });
   });
 
-  it('поиск — номер, лот или ник продавца у покупок; «#» и «@» впереди не мешают', async () => {
+  it('поиск — номер, лот из заказа или ник продавца у покупок; «#» и «@» впереди не мешают; «_» — обычный знак', async () => {
     const { svc, calls } = setup([order(1, 'me', 's1')]);
     const r = await svc.history('me', {
       role: 'buyer',
@@ -85,13 +85,20 @@ describe('история заказов', () => {
       status: ['completed'],
     });
     expect(r.next).toBeNull();
-    const like = { contains: 'Nick_s1', mode: 'insensitive' };
+    const like = { contains: 'Nick\\_s1', mode: 'insensitive' };
     expect(calls[0]).toMatchObject({
       buyerId: 'me',
       status: { in: ['completed'] },
       OR: [
         { publicNumber: like },
-        { listing: { title: like } },
+        // Название — из снимка в заказе, а не нынешнее название лота.
+        {
+          listingSnapshot: {
+            path: ['title'],
+            string_contains: 'Nick\\_s1',
+            mode: 'insensitive',
+          },
+        },
         { seller: { profile: { username: like } } },
       ],
     });

@@ -1176,6 +1176,20 @@ async function scenarioReports(rnd) {
       byTitle.items?.length === 1 && byTitle.items[0].status === 'completed' && none.items?.length === 0,
     JSON.stringify({ nick: byNick.items?.length, number: byNumber.items?.length, title: byTitle.items?.length, none: none.items?.length }),
   );
+  // Лот переименовали после продажи: ищется название из заказа — то, что видно в списке.
+  const renamed = await j(`/listings/${listingId}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ title: 'Переименованный лот после продажи' }) });
+  const byOldTitle = (await hist('role=seller&q=e2e%20acc&status=completed')).body;
+  const byNewTitle = (await hist(`role=seller&q=${encodeURIComponent('Переименованный')}`)).body;
+  const byPercent = (await hist('role=seller&q=%25')).body;
+  const byUnderscore = (await hist('role=seller&q=_')).body;
+  const catalogPercent = (await j('/listings?q=%25&limit=50')).body;
+  check(
+    'Заказы: лот переименован — находится по названию из заказа, по новому — нет; «%» и «_» — обычные знаки, а не «что угодно» (и в каталоге)',
+    renamed.status === 200 && byOldTitle.items?.length === 1 && byOldTitle.items[0].title === 'E2E accounts' &&
+      byNewTitle.items?.length === 0 && byPercent.items?.length === 0 && byUnderscore.items?.length === 0 &&
+      catalogPercent.items?.every((l) => l.title.includes('%')),
+    JSON.stringify({ renamed: renamed.status, old: byOldTitle.items?.map((o) => o.title), now: byNewTitle.items?.length, pct: byPercent.items?.length, us: byUnderscore.items?.length, catalog: catalogPercent.items?.map((l) => l.title).slice(0, 3) }),
+  );
   const bought = (await hist('role=buyer', buyer.token)).body;
   const wrongSide = await hist(`role=seller&before=${order.body.id}`, buyer.token);
   const anon = await j('/orders/history?role=buyer');
