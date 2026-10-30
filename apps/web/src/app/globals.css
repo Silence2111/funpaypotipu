@@ -2282,6 +2282,12 @@ summary:focus-visible {
   accent-color: var(--accent);
   cursor: pointer;
 }
+/* «Показать ещё» под «Моими лотами»: кнопка и сколько показано из скольких. */
+.my-lots-more {
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 14px;
+}
 .my-lots {
   border: 1px solid var(--border);
   border-radius: var(--radius);

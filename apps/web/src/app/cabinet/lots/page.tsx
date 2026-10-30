@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowUp, ArrowUpRight, BarChart3, CheckCircle2, FileSpreadsheet, Palmtree, Search, X } from 'lucide-react';
@@ -39,6 +39,14 @@ const FILTERS: Array<[Filter, string]> = [
 
 const filterOf = (f: string | null): Filter =>
   FILTERS.some(([key]) => key === f) ? (f as Filter) : 'all';
+
+/**
+ * Сколько строк рисовать сразу и добавлять «Показать ещё». У продавца с
+ * 5 тыс. лотов страница рисовала все разом: 10 с до первой строки, 200 тыс.
+ * узлов, переключение фильтра — 15–28 с. Фильтр, поиск и счётчики
+ * по-прежнему считаются по всем лотам.
+ */
+const PAGE = 100;
 
 const inFilter = (l: MyLot, f: Filter) =>
   f === 'all' || (f === 'paused' ? l.status === 'paused' || l.status === 'draft' : l.status === f);
@@ -147,31 +155,64 @@ function MyLots() {
     return c;
   }, [rows]);
 
+  // Лоты под фильтром и поиском — все, новые сверху. Список догоняет поиск:
+  // буква появляется в поле сразу, а не после перерисовки списка (на
+  // медленном телефоне с тысячами лотов — до 0,7 с на букву).
+  const needle = useDeferredValue(q.trim().toLowerCase());
+  const matched = useMemo(
+    () =>
+      (rows ?? []).filter(
+        (r) => inFilter(r, filter) && (!needle || r.title.toLowerCase().includes(needle)),
+      ),
+    [rows, filter, needle],
+  );
+
+  // Сколько показано — для этого фильтра и поиска; сменили их — снова первая
+  // сотня. Правленый лот показан всегда, даже если он дальше.
+  const listKey = `${filter}\u0000${needle}`;
+  const [more, setMore] = useState({ key: '', n: PAGE });
+  const editedAt = updated ? matched.findIndex((l) => l.id === updated) : -1;
+  const visible = Math.max(
+    more.key === listKey ? more.n : PAGE,
+    editedAt >= 0 ? Math.ceil((editedAt + 1) / PAGE) * PAGE : 0,
+  );
+
   // Группы «игра · раздел» в порядке первого лота: свежие разделы сверху.
+  // Число и «выбрать все» — по всем лотам раздела под фильтром, строки — по
+  // показанным.
   const groups = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    const out: Array<{ categoryId: string; title: string; href: string; items: MyLot[] }> = [];
-    for (const r of rows ?? []) {
-      if (!inFilter(r, filter) || (needle && !r.title.toLowerCase().includes(needle))) continue;
+    const out: Array<{
+      categoryId: string;
+      title: string;
+      href: string;
+      ids: string[];
+      active: boolean;
+      items: MyLot[];
+    }> = [];
+    matched.forEach((r, i) => {
       let g = out.find((x) => x.categoryId === r.categoryId);
       if (!g) {
         g = {
           categoryId: r.categoryId,
           title: `${t.d(r.game.title)} · ${t.d(r.category.title)}`,
           href: `/igra/${r.game.slug}/${r.category.slug}`,
+          ids: [],
+          active: false,
           items: [],
         };
         out.push(g);
       }
-      g.items.push(r);
-    }
-    return out;
-  }, [rows, filter, q, t]);
+      g.ids.push(r.id);
+      if (r.status === 'active') g.active = true;
+      if (i < visible) g.items.push(r);
+    });
+    return out.filter((g) => g.items.length > 0);
+  }, [matched, visible, t]);
 
   // Правленый лот: в списке — прокрутить к нему и подсветить; не виден под
   // фильтром или поиском — сказать об этом и предложить показать все лоты.
   const edited = updated ? (rows?.find((l) => l.id === updated) ?? null) : null;
-  const editedShown = !!edited && groups.some((g) => g.items.some((l) => l.id === edited.id));
+  const editedShown = !!edited && editedAt >= 0;
   useEffect(() => {
     if (!editedShown || glowed.current) return;
     glowed.current = true;
@@ -412,7 +453,7 @@ function MyLots() {
 
           {groups.length === 0 && <p className="muted">{t('Ничего не нашлось.')}</p>}
           {groups.map((g) => {
-            const ids = g.items.map((l) => l.id);
+            const ids = g.ids;
             const chosen = ids.filter((id) => selected.has(id)).length;
             return (
               <section key={g.categoryId} aria-labelledby={`g-${g.categoryId}`}>
@@ -427,11 +468,11 @@ function MyLots() {
                     aria-label={t('Выбрать все: {name}', { name: g.title })}
                   />
                   <h2 className="my-lots-title" id={`g-${g.categoryId}`}>
-                    {g.title} <span className="faint">· {g.items.length}</span>
+                    {g.title} <span className="faint">· {ids.length}</span>
                   </h2>
                   <span className="my-lots-head-side">
                     {notes[g.categoryId] && <span className="faint" style={{ fontSize: 13 }}>{notes[g.categoryId]}</span>}
-                    {g.items.some((l) => l.status === 'active') && (
+                    {g.active && (
                       <button type="button" className="chip" disabled={busy} onClick={() => void bumpAll(g.categoryId)}>
                         <ArrowUp size={14} strokeWidth={1.75} /> {t('Поднять все')}
                       </button>
@@ -459,6 +500,21 @@ function MyLots() {
               </section>
             );
           })}
+
+          {matched.length > visible && (
+            <div className="row my-lots-more">
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={() => setMore({ key: listKey, n: visible + PAGE })}
+              >
+                {t('Показать ещё')}
+              </button>
+              <span className="faint">
+                {t('Показано {n} из {total}', { n: visible, total: matched.length })}
+              </span>
+            </div>
+          )}
 
           {selected.size > 0 && (
             <div className="bulk-bar" role="region" aria-label={t('Действия с выбранными лотами')}>

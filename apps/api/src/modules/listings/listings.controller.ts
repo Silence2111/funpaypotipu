@@ -39,6 +39,7 @@ import { requestLang } from '../../i18n/lang';
 import { toEnglish } from '../../i18n/translate';
 
 const bumpAllSchema = z.object({ categoryId: z.string().uuid().optional() });
+const mineQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(100).optional() });
 const bulkSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(500),
   action: z.enum(['pause', 'activate', 'bump']),
@@ -134,10 +135,18 @@ export class ListingsController {
     return this.listings.priceStats(query);
   }
 
+  /** Свои лоты, кроме архива; ?limit=5 — первые, для обзора кабинета. */
   @Get('mine')
   @UseGuards(JwtAuthGuard)
-  mine(@CurrentUser() user: AuthUser) {
-    return this.listings.listMine(user.userId);
+  mine(@CurrentUser() user: AuthUser, @Query(new ZodValidationPipe(mineQuerySchema)) query: z.infer<typeof mineQuerySchema>) {
+    return this.listings.listMine(user.userId, query.limit);
+  }
+
+  /** Сколько своих лотов под каждым фильтром «Моих лотов». Стоит до `mine/:id` — иначе «counts» разбирался бы как id лота. */
+  @Get('mine/counts')
+  @UseGuards(JwtAuthGuard)
+  mineCounts(@CurrentUser() user: AuthUser) {
+    return this.listings.countMine(user.userId);
   }
 
   /** Свой лот для формы изменения — в любом статусе, кроме архива. */

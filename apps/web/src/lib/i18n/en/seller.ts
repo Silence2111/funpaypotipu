@@ -178,6 +178,7 @@ export const SELLER: Record<string, string> = {
   'изменения сохранены': 'changes saved',
   'В этом списке его не видно.': 'It isn’t shown in this list.',
   'Показать все лоты': 'Show all listings',
+  'Показано {n} из {total}': 'Showing {n} of {total}',
   Все: 'All',
   'В продаже': 'On sale',
   Сняты: 'Paused',

@@ -32,6 +32,8 @@ export default function CabinetPage() {
   const [wallet, setWallet] = useState<WalletDto | null>(null);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [listings, setListings] = useState<ListingRow[]>([]);
+  // Сколько всего своих лотов: здесь видны первые пять, весь список — в «Моих лотах».
+  const [lotsTotal, setLotsTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,11 +49,13 @@ export default function CabinetPage() {
     Promise.all([
       apiFetch<WalletDto>('/wallet').catch(() => null),
       apiFetch<OrderRow[]>('/orders/mine').catch(() => []),
-      apiFetch<ListingRow[]>('/listings/mine').catch(() => []),
-    ]).then(([w, o, l]) => {
+      apiFetch<ListingRow[]>('/listings/mine?limit=5').catch(() => []),
+      apiFetch<{ all: number }>('/listings/mine/counts').catch(() => null),
+    ]).then(([w, o, l, c]) => {
       setWallet(w);
       setOrders(o ?? []);
       setListings(l ?? []);
+      setLotsTotal(c?.all ?? l?.length ?? 0);
       setLoading(false);
     });
   }, [router]);
@@ -128,7 +132,7 @@ export default function CabinetPage() {
               </div>
             ))}
             <Link href="/cabinet/lots" className="muted" style={{ fontSize: 14, minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
-              {listings.length > 5 ? t('Все лоты ({n}) →', { n: listings.length }) : t('Управлять лотами →')}
+              {lotsTotal > 5 ? t('Все лоты ({n}) →', { n: lotsTotal }) : t('Управлять лотами →')}
             </Link>
           </div>
         ) : (

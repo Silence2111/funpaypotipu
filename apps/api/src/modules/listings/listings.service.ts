@@ -137,6 +137,32 @@ const cardSelect = {
   game: { select: { slug: true, title: true } },
 } satisfies Prisma.ListingSelect;
 
+/** Строка «Моих лотов»: то, что показывают список, панель «Цена ±%» и обзор кабинета. */
+const mineSelect = {
+  id: true,
+  title: true,
+  price: true,
+  currency: true,
+  status: true,
+  pausedForAway: true,
+  categoryId: true,
+  boostUntil: true,
+  promotedUntil: true,
+  saleListPrice: true,
+  saleRefPrice: true,
+  saleUntil: true,
+  priceLowUntil: true,
+  priceLowRef: true,
+  priceDropPct: true,
+  fulfillmentType: true,
+  topupMarkupBps: true,
+  unitName: true,
+  pricePerUnits: true,
+  stock: true,
+  category: { select: { slug: true, title: true } },
+  game: { select: { slug: true, title: true } },
+} satisfies Prisma.ListingSelect;
+
 /**
  * Условия раздела, общие для выдачи и сохранённых поисков: параметры, текст
  * в названии, цена. Что пришло уведомлением о поиске — то и видно в разделе.
@@ -533,13 +559,36 @@ export class ListingsService {
     return this.resolveImages(listing);
   }
 
-  async listMine(sellerId: string) {
-    const rows = await this.prisma.listing.findMany({
+  /**
+   * «Мои лоты» — все свои лоты, кроме архива, новые сверху; `limit` — для
+   * обзора кабинета, где видны первые пять. В строке — только то, что видно
+   * в списке: с полной карточкой (продавец, фото, параметры) ответ продавцу
+   * с 5 тыс. лотов весил 4,6 МБ.
+   */
+  listMine(sellerId: string, limit?: number) {
+    return this.prisma.listing.findMany({
       where: { sellerId, status: { not: 'archived' } },
       orderBy: { createdAt: 'desc' },
-      select: { ...cardSelect, categoryId: true, pausedForAway: true },
+      take: limit,
+      select: mineSelect,
     });
-    return rows.map((r) => this.resolveImages(r));
+  }
+
+  /** Сколько своих лотов под каждым фильтром «Моих лотов»; снятые — вместе с черновиками. */
+  async countMine(sellerId: string) {
+    const rows = await this.prisma.listing.groupBy({
+      by: ['status'],
+      where: { sellerId, status: { not: 'archived' } },
+      _count: { _all: true },
+    });
+    const n = (s: string) => rows.find((r) => r.status === s)?._count._all ?? 0;
+    return {
+      all: rows.reduce((sum, r) => sum + r._count._all, 0),
+      active: n('active'),
+      paused: n('paused') + n('draft'),
+      sold_out: n('sold_out'),
+      blocked: n('blocked'),
+    };
   }
 
   /**

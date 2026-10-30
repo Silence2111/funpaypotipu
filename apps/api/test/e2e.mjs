@@ -599,6 +599,19 @@ async function scenarioMyLots(rnd) {
     back.body.restored === 2 && status[a] === 'active' && status[b] === 'active' && status[c] === 'paused',
     JSON.stringify(status),
   );
+  // Строка «Моих лотов» — без продавца и фото; обзор кабинета — первые лоты и их число.
+  const first = await j('/listings/mine?limit=1', { token: seller.token });
+  const counts = await j('/listings/mine/counts', { token: seller.token });
+  const badLimit = await j('/listings/mine?limit=0', { token: seller.token });
+  const anonCounts = await j('/listings/mine/counts');
+  check(
+    'Мои лоты: строка без продавца и фото; первые по ?limit, число по фильтрам; limit=0 — 400, без входа — 401',
+    mine.body.length === 3 && !('seller' in mine.body[0]) && !('images' in mine.body[0]) && mine.body[0].category?.title &&
+      first.body.length === 1 && first.body[0].id === mine.body[0].id &&
+      counts.body.all === 3 && counts.body.active === 2 && counts.body.paused === 1 && counts.body.sold_out === 0 &&
+      badLimit.status === 400 && anonCounts.status === 401,
+    JSON.stringify({ keys: Object.keys(mine.body[0] ?? {}), first: first.body.length, counts: counts.body, bad: badLimit.status, anon: anonCounts.status }),
+  );
 }
 
 async function scenarioTwoFactor(rnd) {
