@@ -3,8 +3,9 @@ import { OrdersService } from '../src/modules/orders/orders.service';
 
 /**
  * «Заказы» в кабинете: свои покупки или продажи новыми сверху, по
- * страницам; поиск — по номеру, лоту и нику другой стороны; страница дальше
- * — от последнего показанного, чужой заказ курсором не принимается.
+ * страницам; поиск — по номеру, лоту и нику другой стороны (отдельным
+ * запросом по триграммным индексам); страница дальше — от последнего
+ * показанного, чужой заказ курсором не принимается.
  */
 
 type Where = Record<string, unknown>;
@@ -25,13 +26,24 @@ function order(n: number, buyerId: string, sellerId: string) {
   };
 }
 
-function setup(rows: ReturnType<typeof order>[]) {
+type Sql = { text: string; values: unknown[] };
+
+function setup(rows: ReturnType<typeof order>[], found: string[] = []) {
   const calls: Where[] = [];
+  const raw: Sql[] = [];
   const prisma = {
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma)),
+    $queryRaw: vi.fn(async (q: Sql | TemplateStringsArray) => {
+      // Первый запрос транзакции — настройка плана, дальше — сам поиск.
+      if (!('text' in q)) return [];
+      raw.push(q);
+      return found.map((id) => ({ id }));
+    }),
     order: {
       findMany: vi.fn(async ({ where, take }: { where: Where; take: number }) => {
         calls.push(where);
-        return rows.slice(0, take);
+        const ids = (where.id as { in?: string[] } | undefined)?.in;
+        return (ids ? rows.filter((r) => ids.includes(r.id)) : rows).slice(0, take);
       }),
       findFirst: vi.fn(
         async ({ where }: { where: { id: string; sellerId?: string; buyerId?: string } }) => {
@@ -46,7 +58,7 @@ function setup(rows: ReturnType<typeof order>[]) {
   };
   const none = {} as never;
   const svc = new OrdersService(prisma as never, none, none, none, none, none, none, none, none);
-  return { svc, calls };
+  return { svc, calls, raw, prisma };
 }
 
 describe('история заказов', () => {
@@ -77,33 +89,51 @@ describe('история заказов', () => {
   });
 
   it('поиск — номер, лот из заказа или ник продавца у покупок; «#» и «@» впереди не мешают; «_» — обычный знак', async () => {
-    const { svc, calls } = setup([order(1, 'me', 's1')]);
+    const rows = [order(1, 'me', 's1')];
+    const { svc, calls, raw, prisma } = setup(rows, [rows[0]!.id]);
     const r = await svc.history('me', {
       role: 'buyer',
       q: '  @Nick_s1 ',
       days: 30,
       status: ['completed'],
     });
+    expect(r.items.map((o) => o.publicNumber)).toEqual(['GM-1']);
     expect(r.next).toBeNull();
-    const like = { contains: 'Nick\\_s1', mode: 'insensitive' };
-    expect(calls[0]).toMatchObject({
-      buyerId: 'me',
-      status: { in: ['completed'] },
-      OR: [
-        { publicNumber: like },
-        // Название — из снимка в заказе, а не нынешнее название лота.
-        {
-          listingSnapshot: {
-            path: ['title'],
-            string_contains: 'Nick\\_s1',
-            mode: 'insensitive',
-          },
-        },
-        { seller: { profile: { username: like } } },
-      ],
-    });
-    const since = (calls[0]!.createdAt as { gte: Date }).gte.getTime();
-    expect(Math.abs(since - (Date.now() - 30 * 24 * HOUR))).toBeLessThan(5000);
+    // Строки — по найденным id, в том же порядке «новые сверху».
+    expect(calls[0]).toEqual({ id: { in: [rows[0]!.id] } });
+
+    const [q] = raw;
+    const sql = q!.text.replace(/\s+/g, ' ');
+    // Три ветки: номер, название из снимка в заказе (а не нынешнее
+    // название лота) и ник продавца; у каждой — своя страница.
+    expect(sql).toContain('o.public_number ILIKE');
+    expect(sql).toContain(`(o.listing_snapshot ->> 'title') ILIKE`);
+    expect(sql).toContain('JOIN profiles p ON p.user_id = o.seller_id');
+    expect(sql).toContain('o.buyer_id = $1::uuid');
+    expect(sql.match(/UNION/g)).toHaveLength(2);
+    expect(q!.values).toContain('%Nick\\_s1%');
+    expect(q!.values).toContainEqual(['completed']);
+    expect(q!.values).toContain(31);
+    // План — под этот текст поиска, а не общий план подготовленного запроса.
+    const setup0 = prisma.$queryRaw.mock.calls[0]![0] as TemplateStringsArray;
+    expect(setup0.join('')).toContain("set_config('plan_cache_mode', 'force_custom_plan', true)");
+    const since = q!.values.find((v) => typeof v === 'string' && /^\d{4}-/.test(v)) as string;
+    expect(Math.abs(Date.parse(since) - (Date.now() - 30 * 24 * HOUR))).toBeLessThan(5000);
+  });
+
+  it('поиск со следующей страницы — от последнего показанного; у продаж — ник покупателя', async () => {
+    const rows = [order(1, 'b1', 'me'), order(2, 'b2', 'me')];
+    const { svc, raw } = setup(rows);
+    const r = await svc.history('me', { role: 'seller', q: 'лот', before: rows[0]!.id, limit: 1 });
+    expect(r.items).toEqual([]);
+    const sql = raw[0]!.text.replace(/\s+/g, ' ');
+    expect(sql).toContain('o.seller_id = $1::uuid');
+    expect(sql).toContain('JOIN profiles p ON p.user_id = o.buyer_id');
+    expect(sql).toContain(
+      '(o.created_at, o.id) < (SELECT c.created_at, c.id FROM orders c WHERE c.id =',
+    );
+    expect(raw[0]!.values).toContain(rows[0]!.id);
+    expect(raw[0]!.values).toContain(2);
   });
 
   it('курсор — только свой заказ этой стороны', async () => {

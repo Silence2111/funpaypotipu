@@ -1176,6 +1176,18 @@ async function scenarioReports(rnd) {
       byTitle.items?.length === 1 && byTitle.items[0].status === 'completed' && none.items?.length === 0,
     JSON.stringify({ nick: byNick.items?.length, number: byNumber.items?.length, title: byTitle.items?.length, none: none.items?.length }),
   );
+  // Поиск идёт отдельным запросом по индексам: страницы и сторона сделки — те же.
+  const nickQ = encodeURIComponent(`@rpb${rnd}`);
+  const nickP1 = (await hist(`role=seller&limit=1&q=${nickQ}`)).body;
+  const nickP2 = (await hist(`role=seller&limit=1&q=${nickQ}&before=${nickP1.next}`)).body;
+  const buyerBySeller = (await hist(`role=buyer&q=${encodeURIComponent(`rps${rnd}`)}&status=completed`, buyer.token)).body;
+  check(
+    'Заказы: поиск по страницам — от последнего показанного, без повторов; у покупок — по нику продавца со статусом',
+    nickP1.items?.length === 1 && nickP1.next === byNick.items?.[0]?.id && nickP2.items?.length === 1 &&
+      nickP2.items[0].id === byNick.items?.[1]?.id && nickP2.next === null &&
+      buyerBySeller.items?.length === 1 && buyerBySeller.items[0].status === 'completed' && buyerBySeller.items[0].role === 'buyer',
+    JSON.stringify({ p1: nickP1.items?.map((o) => o.id), next: nickP1.next, p2: nickP2.items?.map((o) => o.id), buyer: buyerBySeller.items?.map((o) => [o.status, o.role]) }),
+  );
   // Лот переименовали после продажи: ищется название из заказа — то, что видно в списке.
   const renamed = await j(`/listings/${listingId}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ title: 'Переименованный лот после продажи' }) });
   const byOldTitle = (await hist('role=seller&q=e2e%20acc&status=completed')).body;

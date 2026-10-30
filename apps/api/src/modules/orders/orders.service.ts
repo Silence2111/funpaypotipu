@@ -37,7 +37,7 @@ import {
   sellerPromoDiscount,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
-import { containsText } from '../../common/like';
+import { likeText } from '../../common/like';
 import { LedgerService } from '../ledger/ledger.service';
 import { EncryptionService } from '../crypto/encryption.service';
 import { PromoService } from '../promo/promo.service';
@@ -809,22 +809,10 @@ export class OrdersService {
     const limit = q.limit ?? 30;
     const mine: Prisma.OrderWhereInput =
       q.role === 'buyer' ? { buyerId: userId } : { sellerId: userId };
-    const where: Prisma.OrderWhereInput = { ...mine };
+    let where: Prisma.OrderWhereInput = { ...mine };
+    const since = q.days ? new Date(Date.now() - q.days * 86_400_000) : undefined;
     if (q.status?.length) where.status = { in: q.status };
-    if (q.days) where.createdAt = { gte: new Date(Date.now() - q.days * 86_400_000) };
-    // «#GM-…» и «@ник» ищутся как есть, без значка впереди. Ищется то, что
-    // видно в списке: номер, ник другой стороны и название лота из самого
-    // заказа — лот после покупки могли переименовать или удалить.
-    const text = q.q?.trim().replace(/^[#@]+/, '');
-    if (text) {
-      const like = containsText(text);
-      const nick = { profile: { username: like } };
-      where.OR = [
-        { publicNumber: like },
-        { listingSnapshot: { path: ['title'], string_contains: like.contains, mode: like.mode } },
-        q.role === 'buyer' ? { seller: nick } : { buyer: nick },
-      ];
-    }
+    if (since) where.createdAt = { gte: since };
     if (q.before) {
       const at = await this.prisma.order.findFirst({
         where: { id: q.before, ...mine },
@@ -835,6 +823,17 @@ export class OrdersService {
         { OR: [{ createdAt: { lt: at.createdAt } }, { createdAt: at.createdAt, id: { lt: at.id } }] },
       ];
     }
+    // «#GM-…» и «@ник» ищутся как есть, без значка впереди.
+    const text = q.q?.trim().replace(/^[#@]+/, '');
+    if (text) {
+      const ids = await this.searchIds(userId, q.role, text, {
+        status: q.status,
+        since,
+        before: q.before,
+        take: limit + 1,
+      });
+      where = { id: { in: ids } };
+    }
     const rows = await this.prisma.order.findMany({
       where,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -843,6 +842,59 @@ export class OrdersService {
     });
     const items = rows.slice(0, limit).map((o) => this.row(o, userId));
     return { items, next: rows.length > limit ? items[items.length - 1]!.id : null };
+  }
+
+  /**
+   * Поиск в «Заказах» — по тому, что видно в списке: номер, название лота из
+   * самого заказа (лот после покупки могли переименовать или удалить) и ник
+   * другой стороны. Одним условием с «или» база перебирала все заказы
+   * продавца — на 50 тыс. заказов 150–200 мс на каждый поиск. Здесь у каждой
+   * ветки свой триграммный индекс (миграция `orders_search_trgm`) и своя
+   * первая страница по времени; объединение — та же страница целиком.
+   */
+  private async searchIds(
+    userId: string,
+    role: 'buyer' | 'seller',
+    text: string,
+    q: { status?: OrderStatus[]; since?: Date; before?: string; take: number },
+  ): Promise<string[]> {
+    const pattern = `%${likeText(text)}%`;
+    const me = role === 'buyer' ? Prisma.sql`o.buyer_id` : Prisma.sql`o.seller_id`;
+    const other = role === 'buyer' ? Prisma.sql`o.seller_id` : Prisma.sql`o.buyer_id`;
+    const conds = [Prisma.sql`${me} = ${userId}::uuid`];
+    if (q.status?.length) conds.push(Prisma.sql`o.status::text = ANY(${q.status}::text[])`);
+    // Время в базе — UTC без пояса; пояс соединения на сравнение не влияет.
+    if (q.since) {
+      conds.push(Prisma.sql`o.created_at >= (${q.since.toISOString()}::timestamptz AT TIME ZONE 'UTC')`);
+    }
+    if (q.before) {
+      conds.push(
+        Prisma.sql`(o.created_at, o.id) < (SELECT c.created_at, c.id FROM orders c WHERE c.id = ${q.before}::uuid)`,
+      );
+    }
+    const base = Prisma.join(conds, ' AND ');
+    const page = Prisma.sql`ORDER BY o.created_at DESC, o.id DESC LIMIT ${q.take}`;
+    const query = Prisma.sql`
+      SELECT id FROM (
+        (SELECT o.id, o.created_at FROM orders o
+          WHERE ${base} AND o.public_number ILIKE ${pattern} ${page})
+        UNION
+        (SELECT o.id, o.created_at FROM orders o
+          WHERE ${base} AND (o.listing_snapshot ->> 'title') ILIKE ${pattern} ${page})
+        UNION
+        (SELECT o.id, o.created_at FROM orders o JOIN profiles p ON p.user_id = ${other}
+          WHERE ${base} AND p.username ILIKE ${pattern} ${page})
+      ) t
+      ORDER BY created_at DESC, id DESC LIMIT ${q.take}`;
+    // Какой индекс выгоднее, решает сам текст поиска. С шестого вызова база
+    // берёт общий план подготовленного запроса, а он текста не видит и
+    // перебирает заказы по нику (на 50 тыс. — 27 мс вместо 0,5). Поэтому
+    // только здесь, в своей транзакции, план строится под каждый поиск.
+    const rows = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT set_config('plan_cache_mode', 'force_custom_plan', true)`;
+      return tx.$queryRaw<Array<{ id: string }>>(query);
+    });
+    return rows.map((r) => r.id);
   }
 
   /** Строка списка заказов: своя роль, ник другой стороны, лот из снимка. */

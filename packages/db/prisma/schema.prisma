@@ -267,6 +267,8 @@ model Profile {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Поиск в «Заказах» по части ника другой стороны — триграммы (pg_trgm).
+  @@index([username(ops: raw("gin_trgm_ops"))], type: Gin, map: "profiles_username_trgm_idx")
   @@map("profiles")
 }
 
@@ -588,6 +590,12 @@ model Order {
   // «Заказы» в кабинете: свои покупки или продажи новыми сверху.
   @@index([buyerId, createdAt])
   @@index([sellerId, createdAt])
+  // Поиск в «Заказах» по части номера — триграммы (pg_trgm) вместе со своей
+  // стороной сделки (btree_gin). Такие же индексы по названию из снимка
+  // (`listing_snapshot ->> 'title'`) — только в миграции orders_search_trgm:
+  // индекс по выражению Prisma не описывает.
+  @@index([sellerId(ops: raw("uuid_ops")), publicNumber(ops: raw("gin_trgm_ops"))], type: Gin, map: "orders_seller_id_public_number_trgm_idx")
+  @@index([buyerId(ops: raw("uuid_ops")), publicNumber(ops: raw("gin_trgm_ops"))], type: Gin, map: "orders_buyer_id_public_number_trgm_idx")
   @@map("orders")
 }
 
