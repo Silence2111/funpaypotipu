@@ -20,8 +20,9 @@ interface State {
 /**
  * Покупатель глазами продавца — в заказе: сколько у него покупок и как его
  * оценили другие продавцы; после сделки — «Порекомендую» или «Не
- * порекомендую» с комментарием, который увидит только покупатель.
- * Покупателю — оценка, которую ему поставили.
+ * порекомендую» с комментарием, который увидит только покупатель; оценку
+ * можно изменить в срок или убрать. Покупателю — оценка, которую ему
+ * поставили.
  */
 export function BuyerRating({ orderId, role }: { orderId: string; role: 'buyer' | 'seller' }) {
   const t = useT();
@@ -29,6 +30,9 @@ export function BuyerRating({ orderId, role }: { orderId: string; role: 'buyer' 
   const [good, setGood] = useState<boolean | null>(null);
   const [comment, setComment] = useState('');
   const [editing, setEditing] = useState(false);
+  // «Убрать оценку» спрашивает подтверждение в той же карточке.
+  const [removing, setRemoving] = useState(false);
+  const [removed, setRemoved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -61,6 +65,28 @@ export function BuyerRating({ orderId, role }: { orderId: string; role: 'buyer' 
     } finally {
       setBusy(false);
     }
+  }
+
+  async function remove() {
+    setBusy(true);
+    setErr(null);
+    try {
+      await apiFetch(`/orders/${orderId}/buyer-review`, { method: 'DELETE' });
+      setRemoving(false);
+      setRemoved(true);
+      await load();
+    } catch (e) {
+      setErr(apiErrorMessage(e, t('Не удалось убрать оценку.')));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function cancelEdit() {
+    setGood(review?.good ?? null);
+    setComment(review?.comment ?? '');
+    setErr(null);
+    setEditing(false);
   }
 
   if (role === 'buyer') {
@@ -114,12 +140,69 @@ export function BuyerRating({ orderId, role }: { orderId: string; role: 'buyer' 
               ? t('Вы рекомендуете этого покупателя')
               : t('Вы не рекомендуете этого покупателя')}
           </span>
-          {canRate && (
-            <button type="button" className="btn ghost" onClick={() => setEditing(true)}>
+          {canRate && !removing && (
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                setRemoved(false);
+                setEditing(true);
+              }}
+            >
               {t('Изменить')}
             </button>
           )}
+          {!removing && (
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                setErr(null);
+                setRemoving(true);
+              }}
+            >
+              {t('Убрать оценку')}
+            </button>
+          )}
         </div>
+      )}
+      {review && removing && (
+        <div className="buyer-rating-confirm" role="group" aria-label={t('Убрать оценку')}>
+          <span>
+            {t('Убрать оценку? Покупатель перестанет её видеть, в профиле она не будет считаться.')}{' '}
+            {canRate
+              ? t('Поставить снова можно в течение 30 дней после сделки.')
+              : t('Срок оценки прошёл — поставить её снова будет нельзя.')}
+          </span>
+          <span className="row" style={{ gap: 8 }}>
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={busy}
+              onClick={() => void remove()}
+            >
+              {t('Убрать')}
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={busy}
+              onClick={() => setRemoving(false)}
+            >
+              {t('Отмена')}
+            </button>
+          </span>
+          {err && (
+            <p className="field-error" role="alert" style={{ margin: 0 }}>
+              {err}
+            </p>
+          )}
+        </div>
+      )}
+      {removed && !review && (
+        <p className="hint" role="status" style={{ margin: 0 }}>
+          {t('Оценка убрана.')}
+        </p>
       )}
       {form && (
         <div className="buyer-rating-form">
@@ -161,7 +244,7 @@ export function BuyerRating({ orderId, role }: { orderId: string; role: 'buyer' 
               {err}
             </p>
           )}
-          <div>
+          <div className="row" style={{ gap: 8 }}>
             <button
               type="button"
               className="btn"
@@ -170,6 +253,11 @@ export function BuyerRating({ orderId, role }: { orderId: string; role: 'buyer' 
             >
               {t('Сохранить оценку')}
             </button>
+            {review && (
+              <button type="button" className="btn ghost" disabled={busy} onClick={cancelEdit}>
+                {t('Отмена')}
+              </button>
+            )}
           </div>
         </div>
       )}

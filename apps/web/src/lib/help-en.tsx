@@ -290,7 +290,8 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
         <li>
           An order shows who is buying: how many purchases they have and how other sellers rated
           them. After the deal, “Recommend” or “Don’t recommend” the buyer within 30 days; only they
-          see your comment, and their profile shows just the numbers.
+          see your comment, and their profile shows just the numbers. You can change the rating
+          within those 30 days and remove it at any time.
         </li>
         <li>
           Prices at once — tick listings and tap “Price ±%”: you see the new prices before you

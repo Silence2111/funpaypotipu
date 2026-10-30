@@ -4769,6 +4769,15 @@ a.my-lot-title:hover {
   display: grid;
   gap: 10px;
 }
+/* «Убрать оценку?» — вопрос в карточке, без всплывающего окна. */
+.buyer-rating-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
 /* Загрузка из таблицы: шаги карточками, предпросмотр строк, ошибки — красным текстом без плашек. */
 .import-step {
   display: grid;

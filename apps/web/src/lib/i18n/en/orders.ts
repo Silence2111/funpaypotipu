@@ -119,6 +119,14 @@ export const ORDERS: Record<string, string> = {
   'Комментарий — необязательно, его увидит только покупатель': 'Comment — optional, only the buyer will see it',
   'Комментарий для покупателя': 'Comment for the buyer',
   'Сохранить оценку': 'Save rating',
+  'Убрать оценку': 'Remove rating',
+  'Убрать оценку? Покупатель перестанет её видеть, в профиле она не будет считаться.':
+    'Remove the rating? The buyer will no longer see it, and it won’t count in their profile.',
+  'Поставить снова можно в течение 30 дней после сделки.': 'You can rate again within 30 days after the deal.',
+  'Срок оценки прошёл — поставить её снова будет нельзя.':
+    'The rating period is over — you won’t be able to rate again.',
+  'Оценка убрана.': 'Rating removed.',
+  'Не удалось убрать оценку.': 'Couldn’t remove the rating.',
   'Закончился — сообщить о поступлении': 'Sold out — notify me when back',
   'Отменить заказ? Деньги вернутся на ваш баланс.':
     'Cancel the order? The money will return to your balance.',

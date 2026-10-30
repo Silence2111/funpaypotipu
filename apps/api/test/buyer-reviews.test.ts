@@ -6,13 +6,14 @@ import {
 
 /**
  * Оценка покупателя продавцом. Проверяется: оценивает только продавец и
- * только закрытую сделку в срок; уведомление — на первую оценку, правка
- * молчит; покупатель видит оценку без статистики, продавец — со статистикой.
+ * только закрытую сделку в срок; уведомление — на первую оценку, правка и
+ * оценка заново после «убрать» молчат; покупатель видит оценку без
+ * статистики, продавец — со статистикой; убрать может только продавец.
  */
 
 type Row = Record<string, unknown>;
 
-function setup(opts: { order?: Row | null; existing?: Row | null } = {}) {
+function setup(opts: { order?: Row | null; existing?: Row | null; notified?: boolean } = {}) {
   const order =
     opts.order === undefined
       ? { buyerId: 'b1', sellerId: 's1', status: 'completed', updatedAt: new Date() }
@@ -28,6 +29,7 @@ function setup(opts: { order?: Row | null; existing?: Row | null } = {}) {
       count: vi.fn(async ({ where }: { where: Row }) => (where.good ? 5 : 1)),
       deleteMany: vi.fn(async () => ({ count: 1 })),
     },
+    notification: { findFirst: vi.fn(async () => (opts.notified ? { id: 'n1' } : null)) },
     user: { findUnique: vi.fn(async () => ({ locale: 'ru' })) },
     profile: { findUnique: vi.fn(async () => ({ username: 'seller1' })) },
   };
@@ -76,6 +78,25 @@ describe('оценка покупателя', () => {
     const again = setup({ existing: { id: 'r1' } });
     await again.svc.rate('o1', 's1', { good: true, comment: 'Спасибо' });
     expect(again.notifications.notify).not.toHaveBeenCalled();
+  });
+
+  it('убрал и поставил снова — оценка новая, а уведомления второй раз нет', async () => {
+    const back = setup({ notified: true });
+    await back.svc.rate('o1', 's1', { good: false });
+    expect(back.prisma.buyerReview.upsert).toHaveBeenCalled();
+    expect(back.prisma.notification.findFirst.mock.calls[0]![0]).toMatchObject({
+      where: { userId: 'b1', type: 'buyer_review', payload: { path: ['orderId'], equals: 'o1' } },
+    });
+    expect(back.notifications.notify).not.toHaveBeenCalled();
+  });
+
+  it('убрать оценку может только продавец сделки', async () => {
+    const own = setup();
+    expect(await own.svc.remove('o1', 's1')).toEqual({ ok: true });
+    expect(own.prisma.buyerReview.deleteMany).toHaveBeenCalledWith({ where: { orderId: 'o1' } });
+    const buyer = setup();
+    await expect(buyer.svc.remove('o1', 'b1')).rejects.toThrow('только продавец');
+    expect(buyer.prisma.buyerReview.deleteMany).not.toHaveBeenCalled();
   });
 
   it('продавец видит статистику покупателя и может оценить; покупатель — только оценку; чужой — 403', async () => {

@@ -78,8 +78,9 @@ export class BuyerReviewsService {
       update: { good: input.good, comment },
       select: { good: true, comment: true, createdAt: true, updatedAt: true },
     });
-    // Уведомление — один раз, на первую оценку: правка не повод писать снова.
-    if (!existed) {
+    // Уведомление — одно на сделку: ни правка, ни «убрать» и поставить снова
+    // не повод писать покупателю ещё раз.
+    if (!existed && !(await this.notified(order.buyerId, orderId))) {
       const [buyer, profile] = await Promise.all([
         this.prisma.user.findUnique({ where: { id: order.buyerId }, select: { locale: true } }),
         this.prisma.profile.findUnique({ where: { userId: sellerId }, select: { username: true } }),
@@ -108,6 +109,19 @@ export class BuyerReviewsService {
       throw new ForbiddenException('Оценить покупателя может только продавец');
     await this.prisma.buyerReview.deleteMany({ where: { orderId } });
     return { ok: true };
+  }
+
+  /** Покупателю уже сообщали об оценке по этой сделке. */
+  private async notified(buyerId: string, orderId: string) {
+    const note = await this.prisma.notification.findFirst({
+      where: {
+        userId: buyerId,
+        type: 'buyer_review',
+        payload: { path: ['orderId'], equals: orderId },
+      },
+      select: { id: true },
+    });
+    return !!note;
   }
 
   private async order(orderId: string) {

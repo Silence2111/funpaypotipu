@@ -2317,6 +2317,19 @@ async function scenarioBuyerReview(rnd) {
       removed.status === 200 && profileAfter.asBuyer?.bad === 0,
     JSON.stringify({ seen, bad: bad.status, asBuyer: profile.asBuyer, after: profileAfter.asBuyer }),
   );
+  // Убрал и поставил снова: оценка новая, а уведомление по сделке — всё равно одно.
+  const again = await rate(seller2, o2, { good: true });
+  const o2Notes = (await j('/notifications', { token: buyer.token })).body.filter(
+    (n) => n.type === 'buyer_review' && n.payload?.orderId === o2,
+  );
+  const byBuyerRemove = await j(`/orders/${o2}/buyer-review`, { method: 'DELETE', token: buyer.token });
+  const stillThere = (await j(`/orders/${o2}/buyer-review`, { token: buyer.token })).body;
+  check(
+    'Оценка покупателя: убрал и поставил снова — уведомление по сделке одно; покупатель убрать не может — 403',
+    again.status === 200 && again.body.good === true && o2Notes.length === 1 && byBuyerRemove.status === 403 &&
+      stillThere.review?.good === true,
+    JSON.stringify({ again: again.status, notes: o2Notes.length, byBuyer: byBuyerRemove.status, review: stillThere.review }),
+  );
 }
 
 async function scenarioSellerToday(rnd) {
