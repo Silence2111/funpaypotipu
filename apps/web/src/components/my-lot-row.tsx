@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { Copy, Pencil, Percent, Trash2, TrendingUp } from 'lucide-react';
+import { Check, Copy, Pencil, Percent, Trash2, TrendingUp } from 'lucide-react';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { isPriceLow } from '@gamemarket/shared/price-history';
@@ -71,6 +71,7 @@ export function MyLotRow({
   onError,
   list,
   glow,
+  saved,
 }: {
   lot: MyLot;
   selected: boolean;
@@ -81,6 +82,8 @@ export function MyLotRow({
   list: string;
   /** Только что изменён: строка ненадолго подсвечена. */
   glow?: 'on' | 'off';
+  /** «Изменения сохранены» у строки: к ней прокрутили, плашка вверху — за экраном. */
+  saved?: boolean;
 }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
@@ -150,6 +153,12 @@ export function MyLotRow({
           <span className="my-lot-title">{lot.title}</span>
         )}
         <div className="my-lot-meta">
+          {saved && (
+            <span className="my-lot-saved">
+              <Check size={14} strokeWidth={1.75} aria-hidden />
+              {t('изменения сохранены')}
+            </span>
+          )}
           {soldOut && <span className="badge">{t('закончился')}</span>}
           {blocked && <span className="badge danger">{t('заблокирован модератором')}</span>}
           {lot.status === 'paused' && lot.pausedForAway && <span className="badge">{t('снят на время отпуска')}</span>}

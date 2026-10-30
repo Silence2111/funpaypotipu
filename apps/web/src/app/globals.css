@@ -2341,6 +2341,20 @@ a.my-lot-title:hover {
 .my-lot-meta .badge {
   padding: 2px 8px;
 }
+/* Подтверждение правки у самого лота, когда к нему прокрутили. */
+.my-lot-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  color: var(--success);
+  animation: banner-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .my-lot-saved {
+    animation: none;
+  }
+}
 .my-lot-price {
   grid-area: price;
   display: flex;

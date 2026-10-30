@@ -89,6 +89,9 @@ function MyLots() {
   // Подсветка правленого лота: «on» — видна, «off» — гаснет.
   const [glow, setGlow] = useState<'on' | 'off' | null>(null);
   const glowed = useRef(false);
+  // К лоту прокрутили — плашка «Изменения сохранены» осталась выше экрана,
+  // и то же подтверждение показываем у самого лота.
+  const [savedAtLot, setSavedAtLot] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   // Панель «Цена ±%» над действиями с выбранными лотами.
@@ -176,7 +179,10 @@ function MyLots() {
     // нижней панелью телефона. Иначе вверху остаётся «Изменения сохранены».
     const el = document.getElementById(`lot-${updated}`);
     const r = el?.getBoundingClientRect();
-    if (el && r && (r.top < 64 || r.bottom > window.innerHeight - 80)) el.scrollIntoView({ block: 'center' });
+    if (el && r && (r.top < 64 || r.bottom > window.innerHeight - 80)) {
+      el.scrollIntoView({ block: 'center' });
+      setSavedAtLot(true);
+    }
     setGlow('on');
   }, [editedShown, updated]);
   useEffect(() => {
@@ -446,6 +452,7 @@ function MyLots() {
                       onError={setErr}
                       list={listUrl}
                       glow={l.id === updated ? (glow ?? undefined) : undefined}
+                      saved={l.id === updated && savedAtLot}
                     />
                   ))}
                 </div>
