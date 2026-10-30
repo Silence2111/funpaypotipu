@@ -42,6 +42,12 @@ export class NotificationsController {
     return this.notifications.clearRead(user.userId, group || undefined);
   }
 
+  /** «Вернуть» убранное: ?at=<время из ответа clear-read>. */
+  @Post('restore')
+  restore(@CurrentUser() user: AuthUser, @Query('at') at?: string) {
+    return this.notifications.restore(user.userId, at);
+  }
+
   @Post(':id/read')
   read(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.notifications.markRead(id, user.userId);

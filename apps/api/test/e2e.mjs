@@ -1322,6 +1322,22 @@ async function scenarioNotificationsPage(rnd) {
       kept === 2 && foreignKept.hiddenAt === null && noMessages.status === 400,
     JSON.stringify({ readCount, cleared: cleared.body, after: kinds(allAfter), bell: bellTypes, kept, noMessages: noMessages.status }),
   );
+  // «Вернуть» сразу после: по времени скрытия из ответа — ровно эта пачка и только своя.
+  const restoreAt = (token, at) => j(`/notifications/restore?at=${encodeURIComponent(at)}`, { method: 'POST', token });
+  const strangerRestore = await restoreAt(other.token, cleared.body.at);
+  const badAt = await restoreAt(u.token, 'вчера');
+  const restored = await restoreAt(u.token, cleared.body.at);
+  const ordersBack = await h('group=orders');
+  const bellBack = (await j('/notifications', { token: u.token })).body.map((n) => n.type);
+  const again = await restoreAt(u.token, cleared.body.at);
+  const guestRestore = await j(`/notifications/restore?at=${encodeURIComponent(cleared.body.at)}`, { method: 'POST' });
+  check(
+    'Уведомления: «Вернуть» — убранное этим нажатием снова в списке и колокольчике; чужому — ничего, битое время — 400',
+    typeof cleared.body.at === 'string' && strangerRestore.body.restored === 0 && badAt.status === 400 && restored.body.restored === 2 &&
+      kinds(ordersBack) === 'order_delivered,order_paid' && ordersBack.body.read === 2 && bellBack.includes('order_paid') &&
+      again.body.restored === 0 && guestRestore.status === 401,
+    JSON.stringify({ at: cleared.body.at, stranger: strangerRestore.body, bad: badAt.status, restored: restored.body, back: kinds(ordersBack), again: again.body, guest: guestRestore.status }),
+  );
 }
 
 /**

@@ -55,6 +55,8 @@ const URGENT: Array<NotifyGroup | null> = ['orders', 'messages', 'disputes'];
 /** Группы страницы «Уведомления»: сообщения живут в мессенджере, там свой счётчик. */
 const HISTORY_GROUPS = NOTIFY_GROUPS.filter((g) => g.key !== 'messages');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Время скрытия, как его отдаёт «Убрать прочитанные»: `2026-10-30T10:00:00.123Z`. */
+const ISO_MS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
 export interface HistoryQuery {
   group?: string;
@@ -319,14 +321,27 @@ export class NotificationsService {
    * «Убрать прочитанные» — все или одной группы. Уведомление скрывается из
    * списка человека, а не удаляется: по входам, сменам пароля и почты
    * сотрудник видит историю аккаунта при восстановлении доступа, и тот, кто
-   * сидит в чужом аккаунте, не сотрёт ими свои следы.
+   * сидит в чужом аккаунте, не сотрёт ими свои следы. Время скрытия у всей
+   * пачки одно — по нему «Вернуть» возвращает ровно её.
    */
   async clearRead(userId: string, group?: string) {
+    const at = new Date();
     const r = await this.prisma.notification.updateMany({
       where: { userId, type: this.typesOf(group), readAt: { not: null }, hiddenAt: null },
-      data: { hiddenAt: new Date() },
+      data: { hiddenAt: at },
     });
-    return { removed: r.count };
+    return { removed: r.count, at: r.count ? at.toISOString() : null };
+  }
+
+  /** «Вернуть» после «Убрать прочитанные»: свои уведомления, скрытые в момент `at`. */
+  async restore(userId: string, at: string | undefined) {
+    if (!at || !ISO_MS.test(at))
+      throw new BadRequestException('Нечего вернуть — обновите страницу');
+    const r = await this.prisma.notification.updateMany({
+      where: { userId, hiddenAt: new Date(at) },
+      data: { hiddenAt: null },
+    });
+    return { restored: r.count };
   }
 
   /** Непрочитанные по группам и всего — без сообщений. */

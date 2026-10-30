@@ -52,6 +52,9 @@ function days(items: Notif[], now: Date, t: T) {
 /** Колокольчик в шапке перечитывает список, когда здесь что-то прочитали. */
 const announce = () => window.dispatchEvent(new Event('gm-notifications'));
 
+/** Строка итога: сколько убрали (со временем скрытия — для «Вернуть») или сколько вернули. */
+type Done = { removed: number; at: string | null } | { restored: number };
+
 /**
  * Все уведомления: колокольчик показывает последние, здесь — вся история,
  * новые сверху, по дням. Фильтр по группе с числом непрочитанных и «Только
@@ -77,7 +80,7 @@ function NotificationsInner() {
   const [read, setRead] = useState(0);
   // «Убрать прочитанные» спрашивает подтверждение в той же строке.
   const [confirming, setConfirming] = useState(false);
-  const [done, setDone] = useState<string | null>(null);
+  const [done, setDone] = useState<Done | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -92,6 +95,13 @@ function NotificationsInner() {
     [group, unreadOnly],
   );
 
+  const show = (p: Page) => {
+    setItems(p.items);
+    setNext(p.next);
+    setUnread(p.unread);
+    setRead(p.read);
+  };
+
   useEffect(() => {
     if (!getToken()) {
       router.replace(`/login?next=${encodeURIComponent('/cabinet/notifications')}`);
@@ -103,13 +113,7 @@ function NotificationsInner() {
     setConfirming(false);
     setDone(null);
     apiFetch<Page>(query())
-      .then((p) => {
-        if (stop) return;
-        setItems(p.items);
-        setNext(p.next);
-        setUnread(p.unread);
-        setRead(p.read);
-      })
+      .then((p) => !stop && show(p))
       .catch((e) => !stop && setErr(apiErrorMessage(e, t('Не удалось загрузить уведомления.'))));
     return () => {
       stop = true;
@@ -169,17 +173,36 @@ function NotificationsInner() {
     setBusy(true);
     setErr(null);
     try {
-      const r = await apiFetch<{ removed: number }>(
+      const r = await apiFetch<{ removed: number; at: string | null }>(
         `/notifications/clear-read${group ? `?group=${encodeURIComponent(group)}` : ''}`,
         { method: 'POST' },
       );
       setItems((prev) => (prev ?? []).filter((n) => !n.readAt));
       setRead(0);
       setConfirming(false);
-      setDone(t('Убрано из списка: {n}', { n: r.removed }));
+      setDone(r);
       announce();
     } catch (e) {
       setErr(apiErrorMessage(e, t('Не удалось убрать уведомления.')));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** «Вернуть» сразу после «Убрать»: та же пачка снова в списке — перечитываем его. */
+  async function restore(at: string) {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await apiFetch<{ restored: number }>(
+        `/notifications/restore?at=${encodeURIComponent(at)}`,
+        { method: 'POST' },
+      );
+      show(await apiFetch<Page>(query()));
+      setDone(r);
+      announce();
+    } catch (e) {
+      setErr(apiErrorMessage(e, t('Не удалось вернуть уведомления.')));
     } finally {
       setBusy(false);
     }
@@ -294,9 +317,23 @@ function NotificationsInner() {
           </div>
         )}
         {done && (
-          <p className="faint" role="status" style={{ fontSize: 13, margin: 0 }}>
-            {done}
-          </p>
+          <div className="row" style={{ gap: 12, fontSize: 13 }}>
+            <span className="faint" role="status">
+              {'restored' in done
+                ? t('Вернули в список: {n}', { n: done.restored })
+                : t('Убрано из списка: {n}', { n: done.removed })}
+            </span>
+            {'at' in done && done.at && (
+              <button
+                type="button"
+                className="link-button notif-undo"
+                disabled={busy}
+                onClick={() => void restore(done.at!)}
+              >
+                {t('Вернуть')}
+              </button>
+            )}
+          </div>
         )}
       </div>
 

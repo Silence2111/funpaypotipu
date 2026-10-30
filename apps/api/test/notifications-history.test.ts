@@ -35,7 +35,7 @@ function fits(r: Row, where: Where): boolean {
       if (typeof c.lt === 'string') return (value as string) < c.lt;
       return true;
     }
-    if (v instanceof Date) return (value as Date).getTime() === v.getTime();
+    if (v instanceof Date) return value instanceof Date && value.getTime() === v.getTime();
     return (value ?? null) === v;
   });
 }
@@ -170,7 +170,7 @@ describe('страница «Уведомления»', () => {
 
     const before = await svc.history('u1', { group: 'orders' });
     expect(before.read).toBe(1);
-    expect(await svc.clearRead('u1', 'orders')).toEqual({ removed: 1 });
+    expect(await svc.clearRead('u1', 'orders')).toEqual({ removed: 1, at: expect.any(String) });
 
     const after = await svc.history('u1', { group: 'orders' });
     expect(after.items.map((r) => r.type)).toEqual(['order_delivered']);
@@ -183,9 +183,43 @@ describe('страница «Уведомления»', () => {
     expect(bell.map((r) => r.type).sort()).toEqual(['new_login', 'order_delivered']);
 
     // Без группы — все прочитанные, кроме сообщений; повтор ничего не делает.
-    expect(await svc.clearRead('u1')).toEqual({ removed: 1 });
-    expect(await svc.clearRead('u1')).toEqual({ removed: 0 });
+    expect(await svc.clearRead('u1')).toEqual({ removed: 1, at: expect.any(String) });
+    expect(await svc.clearRead('u1')).toEqual({ removed: 0, at: null });
     expect(rows.find((r) => r.type === 'new_message')!.hiddenAt).toBeUndefined();
     await expect(svc.clearRead('u1', 'nope')).rejects.toThrow('Нет такой группы уведомлений');
+  });
+
+  it('«Вернуть» — ровно то, что убрали этим нажатием, и только своё; без времени или с битым — отказ', async () => {
+    vi.useFakeTimers();
+    try {
+      const { svc, rows, add } = setup();
+      add('u1', 'order_paid', true);
+      add('u1', 'review_received', true);
+      add('u2', 'order_paid', true);
+      vi.setSystemTime(T0 + 60_000);
+      const first = await svc.clearRead('u1', 'orders');
+      vi.setSystemTime(T0 + 120_000);
+      const second = await svc.clearRead('u1');
+      expect([first.removed, second.removed]).toEqual([1, 1]);
+      expect(first.at).toBe(new Date(T0 + 60_000).toISOString());
+
+      // Чужой с тем же временем ничего не вернёт.
+      expect(await svc.restore('u2', second.at!)).toEqual({ restored: 0 });
+      expect(await svc.restore('u1', second.at!)).toEqual({ restored: 1 });
+      const back = await svc.history('u1', {});
+      expect(back.items.map((r) => r.type)).toEqual(['review_received']);
+      expect(back.read).toBe(1);
+      // Первая пачка так и осталась убранной; повтор ничего не делает.
+      expect(rows.find((r) => r.userId === 'u1' && r.type === 'order_paid')!.hiddenAt).toEqual(
+        new Date(T0 + 60_000),
+      );
+      expect(await svc.restore('u1', second.at!)).toEqual({ restored: 0 });
+
+      await expect(svc.restore('u1', undefined)).rejects.toThrow('Нечего вернуть');
+      await expect(svc.restore('u1', 'вчера')).rejects.toThrow('Нечего вернуть');
+      await expect(svc.restore('u1', '2026-10-30')).rejects.toThrow('Нечего вернуть');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

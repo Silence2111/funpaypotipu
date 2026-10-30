@@ -375,6 +375,7 @@ export const EN_API: Phrasebook = {
   'Диалог не найден': 'Conversation not found',
   'Список уведомлений устарел — обновите страницу': 'The notification list is out of date — refresh the page',
   'Нет такой группы уведомлений': 'There’s no such notification group',
+  'Нечего вернуть — обновите страницу': 'Nothing to restore — refresh the page',
   'Нет такого типа операций': 'There’s no such transaction type',
   'Список заказов устарел — обновите страницу': 'The order list is out of date — refresh the page',
   'Список споров устарел — обновите страницу': 'The dispute list is out of date — refresh the page',
