@@ -66,5 +66,6 @@ IMAGE_OWNER=you IMAGE_TAG=v1.0.0 \
 - [ ] TLS (cert-manager / внешний LB), HSTS.
 - [ ] Бэкапы Postgres (PITR) и объектного хранилища; тест восстановления.
 - [ ] В Postgres доступны расширения `pg_trgm` и `btree_gin` (иначе `prisma migrate deploy` остановится на `20261030100000_orders_search_trgm`).
+- [ ] Ответы API сжимает сам API (brotli/gzip, кроме `/api/auth`); прокси перед ним может сжимать и своё — уже сжатое он второй раз не трогает.
 - [ ] Observability: логи (pino), метрики, Sentry, алерты на падение оплат/рост ошибок.
 - [ ] Рейт-лимиты на auth/платежах; ревью прав и ротация секретов.

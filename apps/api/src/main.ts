@@ -10,6 +10,7 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { loadEnv } from './config/env';
 import { corsOrigin, securityHeaders, trustProxySetting } from './common/http-security';
+import { apiCompression } from './common/compression';
 
 async function bootstrap() {
   const env = loadEnv();
@@ -21,6 +22,7 @@ async function bootstrap() {
   app.set('trust proxy', trustProxySetting());
   app.disable('x-powered-by');
   app.use(securityHeaders);
+  app.use(apiCompression);
   app.use(cookieParser());
   app.setGlobalPrefix('api');
   await app.listen(env.API_PORT);

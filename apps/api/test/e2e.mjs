@@ -3014,6 +3014,27 @@ async function scenarioSecurity(rnd) {
     'CORS: чужой сайт не получает доступа, сайт площадки — получает',
     !evil.headers.get('access-control-allow-origin') && site.headers.get('access-control-allow-origin') === 'http://localhost:3000',
   );
+  // Сжатие: ответ — как пришёл по сети, без распаковки fetch.
+  const { request } = await import('node:http');
+  const { gunzipSync } = await import('node:zlib');
+  const wire = (path, encoding) =>
+    new Promise((resolve, reject) => {
+      request(`${API}/api${path}`, { headers: { 'Accept-Encoding': encoding } }, (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => resolve({ headers: res.headers, body: Buffer.concat(chunks) }));
+      }).on('error', reject).end();
+    });
+  const zipped = await wire('/catalog/games', 'gzip');
+  const plain = await wire('/catalog/games', 'identity');
+  const tiny = await wire('/health', 'gzip');
+  check(
+    'Сжатие: большой ответ — gzip и распаковывается в тот же JSON, без сжатия — как раньше; мелкий — как есть',
+    zipped.headers['content-encoding'] === 'gzip' && /accept-encoding/i.test(zipped.headers.vary ?? '') &&
+      gunzipSync(zipped.body).equals(plain.body) && !plain.headers['content-encoding'] && zipped.body.length * 2 < plain.body.length &&
+      !tiny.headers['content-encoding'],
+    JSON.stringify({ zipped: [zipped.headers['content-encoding'], zipped.body.length], plain: plain.body.length, tiny: tiny.headers['content-encoding'] ?? null }),
+  );
   const ip = `10.${(rnd >> 8) % 250}.${rnd % 250}.7`;
   const forgot = (from, lang) =>
     j('/auth/forgot', {
