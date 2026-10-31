@@ -380,6 +380,7 @@ export const EN_API: Phrasebook = {
   'Список заказов устарел — обновите страницу': 'The order list is out of date — refresh the page',
   'Список споров устарел — обновите страницу': 'The dispute list is out of date — refresh the page',
   'Список диалогов устарел — обновите страницу': 'The conversation list is out of date — refresh the page',
+  'Список обращений устарел — обновите страницу': 'The ticket list is out of date — refresh the page',
   'Напишите причину отказа — продавец увидит её': 'Write the reason for rejecting — the seller will see it',
   'Сохранённые реквизиты не найдены — укажите их заново': 'Saved payout details not found — enter them again',
   'Эти реквизиты сейчас не подходят для выплаты — укажите их заново':

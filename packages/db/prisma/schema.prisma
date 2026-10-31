@@ -881,6 +881,10 @@ model SupportTicket {
 
   @@index([userId])
   @@index([status, lastMessageAt])
+  // Поиск в очереди поддержки: часть темы — триграммы (pg_trgm), заказ — к
+  // обращениям по нему.
+  @@index([subject(ops: raw("gin_trgm_ops"))], type: Gin, map: "support_tickets_subject_trgm_idx")
+  @@index([orderId])
   @@map("support_tickets")
 }
 

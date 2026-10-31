@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
-import { SUPPORT_CATEGORIES, SupportService, type SupportCategory, type TicketStatus } from './support.service';
+import { SUPPORT_CATEGORIES, SupportService, TICKET_STATUSES, type SupportCategory } from './support.service';
 import { RateLimit } from '../../common/rate-limit';
 
 const createSchema = z.object({
@@ -15,6 +15,27 @@ const createSchema = z.object({
   body: z.string().trim().min(10, 'Опишите вопрос подробнее — от 10 символов').max(4000),
 });
 const replySchema = z.object({ body: z.string().trim().min(1, 'Пустое сообщение').max(4000) });
+const STALE = 'Список обращений устарел — обновите страницу';
+const queueSchema = z.object({
+  status: z.enum(TICKET_STATUSES).default('open'),
+  q: z.string().trim().max(100).optional(),
+  // `next` прошлой страницы: «время_id» последнего показанного обращения.
+  cursor: z
+    .string()
+    .optional()
+    .transform((v, ctx) => {
+      if (v === undefined) return undefined;
+      const m = /^(.+)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.exec(v);
+      const at = m ? new Date(m[1]!) : null;
+      if (!m || !at || Number.isNaN(at.getTime())) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: STALE });
+        return z.NEVER;
+      }
+      return { at, id: m[2]! };
+    }),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+type QueueParams = z.infer<typeof queueSchema>;
 
 @Controller('support')
 @UseGuards(JwtAuthGuard)
@@ -38,9 +59,8 @@ export class SupportController {
   @Get('queue')
   @UseGuards(RolesGuard)
   @Roles('agent', 'moderator')
-  queue(@Query('status') status?: string) {
-    const s = (['open', 'answered', 'closed'] as const).find((v) => v === status);
-    return this.support.queue(s as TicketStatus | undefined);
+  queue(@Query(new ZodValidationPipe(queueSchema)) q: QueueParams) {
+    return this.support.queue(q);
   }
 
   @Get('tickets/:id')

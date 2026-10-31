@@ -61,3 +61,73 @@ describe('переписка', () => {
     expect(notifications.notify).not.toHaveBeenCalled();
   });
 });
+
+describe('очередь поддержки', () => {
+  type Sql = { text: string; values: unknown[] };
+  const at = (h: number) => new Date(Date.UTC(2026, 9, 31, h));
+  const ticket = (id: string, h: number) => ({
+    id, userId: 'u1', assigneeId: null, subject: `Вопрос ${id}`, category: 'other', status: 'open',
+    lastMessageAt: at(h), _count: { messages: 2 },
+  });
+
+  function queueSetup(page: string[], counts: Array<{ status: string; n: number }>) {
+    const raw: Sql[] = [];
+    const prisma = {
+      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma)),
+      $queryRaw: vi.fn(async (q: Sql | TemplateStringsArray) => {
+        // Настройка плана поиска — шаблоном, сами запросы — Prisma.sql.
+        if (!('text' in q)) return [];
+        raw.push(q);
+        return q.text.includes('count(*)') ? counts : page.map((id) => ({ id }));
+      }),
+      // Порядок из базы — не тот, что у страницы: собирается по id.
+      supportTicket: {
+        findMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) =>
+          [ticket('t1', 1), ticket('t3', 3), ticket('t2', 2)].filter((t) => where.id.in.includes(t.id)),
+        ),
+      },
+      profile: { findMany: vi.fn(async () => [{ userId: 'u1', username: 'buyer1' }]) },
+    };
+    const svc = new SupportService(prisma as never, {} as never);
+    const sql = (needle: string) => raw.find((q) => q.text.includes(needle))!;
+    return { svc, sql, prisma };
+  }
+
+  it('ждущие — старые сверху, по страницам; next — с последнего показанного; закрытые без поиска не считаются', async () => {
+    const { svc, sql, prisma } = queueSetup(['t1', 't2', 't3'], [{ status: 'open', n: 260 }, { status: 'answered', n: 4 }]);
+    const res = await svc.queue({ status: 'open', limit: 2 });
+    expect(res.items.map((t) => t.id)).toEqual(['t1', 't2']);
+    expect(res.items[0]).toMatchObject({ user: 'buyer1', messages: 2 });
+    expect(res.next).toBe(`${at(2).toISOString()}_t2`);
+    expect(res.counts).toEqual({ open: 260, answered: 4, closed: null });
+    const page = sql('LIMIT');
+    expect(page.text).toContain('ORDER BY t.last_message_at ASC, t.id ASC');
+    expect(page.values).toEqual(expect.arrayContaining(['open', 3]));
+    expect(sql('count(*)').text).toContain("t.status IN ('open', 'answered')");
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('закрытые — свежие сверху, курсор — раньше последнего показанного; последняя страница — без next', async () => {
+    const { svc, sql } = queueSetup(['t3'], []);
+    const res = await svc.queue({ status: 'closed', cursor: { at: at(4), id: '00000000-0000-4000-8000-000000000004' } });
+    expect(res.next).toBeNull();
+    const page = sql('LIMIT');
+    expect(page.text).toContain('ORDER BY t.last_message_at DESC, t.id DESC');
+    expect(page.text).toContain('(t.last_message_at, t.id) <');
+    expect(page.values).toEqual(expect.arrayContaining([at(4).toISOString(), '00000000-0000-4000-8000-000000000004']));
+  });
+
+  it('поиск — тема, ник автора, номер заказа; «#» впереди не мешает, «%» и «_» — обычные знаки; закрытые посчитаны', async () => {
+    const { svc, sql, prisma } = queueSetup(['t1'], [{ status: 'closed', n: 7 }]);
+    const res = await svc.queue({ status: 'closed', q: ' #GM-1%_ ' });
+    expect(res.counts).toEqual({ open: 0, answered: 0, closed: 7 });
+    const page = sql('LIMIT');
+    expect(page.text).toContain('t.subject ILIKE');
+    expect(page.text).toContain('p.username ILIKE');
+    expect(page.text).toContain('o.public_number ILIKE');
+    expect(page.values).toContain('%GM-1\\%\\_%');
+    expect(sql('count(*)').text).not.toContain("IN ('open', 'answered')");
+    // план под текст поиска — в своей транзакции; без поиска её нет
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+});

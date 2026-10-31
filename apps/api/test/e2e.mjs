@@ -485,8 +485,28 @@ async function scenarioSupport(rnd) {
   });
   check('Чужой заказ к обращению не прикрепить', foreign.status === 404);
   check('Чужое обращение не открыть', (await j(`/support/tickets/${t.body.id}`, { token: stranger.token })).status === 403);
-  const queue = await j('/support/queue', { token: agent.token });
-  check('Обращение в очереди поддержки', queue.body.some?.((q) => q.id === t.body.id && q.user === `spu${rnd}`));
+  // Очередь — по страницам: раньше отдавались 200 самых старых, и при
+  // очереди больше двухсот новое обращение сюда не попадало.
+  const queue = await j(`/support/queue?q=${encodeURIComponent(`@spu${rnd}`)}`, { token: agent.token });
+  check(
+    'Обращение находится в очереди по нику автора; счётчик — по найденному',
+    queue.body.items?.length === 1 && queue.body.items[0].id === t.body.id && queue.body.items[0].user === `spu${rnd}` &&
+      queue.body.counts?.open === 1 && queue.body.counts?.closed === 0,
+    JSON.stringify(queue.body.counts),
+  );
+  const byNumber = await j(`/support/queue?q=${encodeURIComponent(order.body.publicNumber)}`, { token: agent.token });
+  check('И по номеру заказа', byNumber.body.items?.some?.((q) => q.id === t.body.id));
+  const first = await j('/support/queue?limit=1', { token: agent.token });
+  const second = first.body.next ? await j(`/support/queue?limit=1&cursor=${encodeURIComponent(first.body.next)}`, { token: agent.token }) : null;
+  check(
+    'Очередь: старые сверху, «Показать ещё» — со следующего; всего ждут — счётчиком',
+    first.body.items?.length === 1 && first.body.counts.open >= 1 &&
+      (first.body.counts.open === 1 ? first.body.next === null : second?.body.items?.[0]?.id !== first.body.items[0].id &&
+        new Date(second.body.items[0].lastMessageAt) >= new Date(first.body.items[0].lastMessageAt)),
+    JSON.stringify([first.body.counts, first.body.next]),
+  );
+  const badCursor = await j('/support/queue?cursor=yesterday', { token: agent.token });
+  check('Битый курсор очереди — 400', badCursor.status === 400, String(badCursor.status));
   check('Пользователь очередь не видит', (await j('/support/queue', { token: user.token })).status === 403);
   await j(`/support/tickets/${t.body.id}/messages`, { method: 'POST', token: agent.token, body: JSON.stringify({ body: 'Попробуйте оплатить по СБП, проверим карту.' }) });
   const view = await j(`/support/tickets/${t.body.id}`, { token: user.token });
