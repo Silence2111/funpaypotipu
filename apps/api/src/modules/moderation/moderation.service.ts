@@ -9,6 +9,7 @@ import {
 } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import { containsText } from '../../common/like';
+import { nextCursor } from '../../common/cursor';
 import { AuditService } from '../access/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -19,6 +20,15 @@ export type ReportAction = 'block_listing' | 'freeze_user' | 'ban_user';
 /** Роли сотрудников: их статус меняет только администратор. */
 const STAFF_ROLES = ['agent', 'moderator', 'finance', 'admin'];
 const OPEN: ReportStatus[] = ['open', 'reviewing'];
+
+/** Страница очереди жалоб: какие, с какой жалобы продолжать, сколько. */
+export interface ReportsQuery {
+  /** Без статуса — открытые (новые и взятые в работу). */
+  status?: ReportStatus;
+  /** Из `next` прошлой страницы: время (подачи или решения) и id последней показанной. */
+  cursor?: { at: Date; id: string };
+  limit?: number;
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Injectable()
@@ -79,16 +89,31 @@ export class ModerationService {
    * нарушителя и сколько ещё открытых жалоб на ту же цель. Раньше очередь
    * отдавала голые id — модератору приходилось искать цель вручную.
    */
-  async listReports(status?: ReportStatus) {
-    const reports = await this.prisma.report.findMany({
-      where: { status: status ? status : { in: OPEN } },
-      orderBy: { createdAt: 'asc' },
-      take: 200,
-    });
+  async listReports(q: ReportsQuery = {}) {
+    // Открытые — от старых к новым, чтобы никто не ждал дольше всех;
+    // решённые и отклонённые — свежие решения сверху. Раньше обе — по 200
+    // от старых: при очереди больше двухсот новые жалобы сюда не попадали,
+    // а в «Решённых» были 200 самых первых решений, а не последние.
+    const decided = q.status === 'resolved' || q.status === 'rejected';
+    const limit = q.limit ?? 50;
+    const status = q.status ? q.status : { in: OPEN };
+    const c = q.cursor;
+    const page = decided
+      ? await this.prisma.report.findMany({
+          where: { status, ...(c ? { OR: [{ handledAt: { lt: c.at } }, { handledAt: c.at, id: { lt: c.id } }] } : {}) },
+          orderBy: [{ handledAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }],
+          take: limit + 1,
+        })
+      : await this.prisma.report.findMany({
+          where: { status, ...(c ? { OR: [{ createdAt: { gt: c.at } }, { createdAt: c.at, id: { gt: c.id } }] } : {}) },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          take: limit + 1,
+        });
+    const reports = page.slice(0, limit);
     const idsOf = (t: ReportTarget) => [...new Set(reports.filter((r) => r.targetType === t).map((r) => r.targetId))];
     const person = { select: { id: true, status: true, profile: { select: { username: true } } } };
 
-    const [listings, users, messages, reporters, counts] = await Promise.all([
+    const [listings, users, messages, reporters, counts, open] = await Promise.all([
       this.prisma.listing.findMany({
         where: { id: { in: idsOf('listing') } },
         select: { id: true, title: true, status: true, seller: person },
@@ -102,11 +127,13 @@ export class ModerationService {
         where: { id: { in: [...new Set(reports.map((r) => r.reporterId))] } },
         select: { id: true, profile: { select: { username: true } } },
       }),
+      // Открытые жалобы — только на цели этой страницы, а не вся очередь.
       this.prisma.report.groupBy({
         by: ['targetType', 'targetId'],
-        where: { status: { in: OPEN } },
+        where: { status: { in: OPEN }, targetId: { in: [...new Set(reports.map((r) => r.targetId))] } },
         _count: { _all: true },
       }),
+      this.prisma.report.count({ where: { status: { in: OPEN } } }),
     ]);
 
     type Person = { id: string; status: UserStatus; profile: { username: string } | null };
@@ -131,12 +158,19 @@ export class ModerationService {
       return m ? { text: m.body, conversationId: m.conversationId, sentAt: m.createdAt, user: who(m.sender) } : null;
     };
 
-    return reports.map((r) => ({
+    const items = reports.map((r) => ({
       ...r,
       reporter: reporterName.get(r.reporterId) ?? null,
       target: targetOf(r),
       openOnTarget: openCount.get(`${r.targetType}:${r.targetId}`) ?? 0,
     }));
+    const last = reports[reports.length - 1];
+    const next =
+      page.length > limit && last
+        ? nextCursor(decided ? (last.handledAt ?? last.createdAt) : last.createdAt, last.id)
+        : null;
+    // Сколько ждёт решения — всегда; решённые — вся история, их не считаем.
+    return { items, next, counts: { open } };
   }
 
   /**
@@ -165,7 +199,12 @@ export class ModerationService {
     });
     await this.prisma.report.updateMany({
       where: { id: { in: affected.map((a) => a.id) } },
-      data: { status: input.status, handledBy: staffId },
+      data: {
+        status: input.status,
+        handledBy: staffId,
+        // «Взял в работу» — ещё не решение.
+        ...(input.status === 'reviewing' ? {} : { handledAt: new Date() }),
+      },
     });
     await this.audit.log({
       actorId: staffId,

@@ -825,10 +825,13 @@ model Report {
   details    String?
   status     ReportStatus @default(open)
   handledBy  String?      @map("handled_by") @db.Uuid
+  /// Когда жалобу решили или отклонили — решённые в очереди идут по нему.
+  handledAt  DateTime?    @map("handled_at")
   createdAt  DateTime     @default(now()) @map("created_at")
 
   @@index([targetType, targetId])
-  @@index([status])
+  @@index([status, createdAt])
+  @@index([status, handledAt])
   @@map("reports")
 }
 

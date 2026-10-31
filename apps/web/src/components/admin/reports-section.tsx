@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
@@ -15,9 +15,19 @@ interface Row {
   details: string | null;
   status: string;
   createdAt: string;
+  /** Когда решили или отклонили. */
+  handledAt: string | null;
   reporter: string | null;
   openOnTarget: number;
   target: { title?: string; listingStatus?: string; text?: string; user: Person | null } | null;
+}
+
+interface Page {
+  items: Row[];
+  /** С какой жалобы продолжать «Показать ещё»; null — показаны все. */
+  next: string | null;
+  /** Сколько ждут решения — всегда; решённые не считаются. */
+  counts: { open: number };
 }
 
 const FILTERS = [
@@ -27,20 +37,73 @@ const FILTERS = [
 ];
 const KIND = { listing: 'Лот', user: 'Пользователь', message: 'Сообщение в чате' };
 
-/** Очередь жалоб: на что жалуются, кто нарушитель и решение одной кнопкой. */
+/**
+ * Очередь жалоб: на что жалуются, кто нарушитель и решение одной кнопкой.
+ * Открытые — от старых к новым, решённые — свежие решения сверху; по 50 и
+ * «Показать ещё». Раньше приходили 200 от старых: при очереди больше
+ * двухсот новые жалобы сюда не попадали, а в «Решённых» были самые первые.
+ */
 export function ReportsSection() {
   const [filter, setFilter] = useState('');
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [next, setNext] = useState<string | null>(null);
+  const [open, setOpen] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [more, setMore] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Ответ на прежний фильтр новый список не перетирает.
+  const current = useRef('');
 
-  const load = useCallback(async () => {
-    setRows(await apiFetch<Row[]>(`/moderation/reports${filter ? `?status=${filter}` : ''}`).catch(() => []));
-  }, [filter]);
+  const url = useCallback(
+    (cursor?: string) => {
+      const p = new URLSearchParams();
+      if (filter) p.set('status', filter);
+      if (cursor) p.set('cursor', cursor);
+      return `/moderation/reports?${p}`;
+    },
+    [filter],
+  );
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    const key = url();
+    current.current = key;
+    setRows(null);
+    setErr(null);
+    apiFetch<Page>(key)
+      .then((p) => {
+        if (current.current !== key) return;
+        setRows(p.items);
+        setNext(p.next);
+        setOpen(p.counts.open);
+      })
+      .catch((e) => {
+        if (current.current !== key) return;
+        setRows([]);
+        setNext(null);
+        setErr(apiErrorMessage(e, 'Не удалось загрузить жалобы.'));
+      });
+  }, [url]);
+
+  async function loadMore() {
+    if (!next || more) return;
+    const key = current.current;
+    setMore(true);
+    setErr(null);
+    try {
+      const p = await apiFetch<Page>(url(next));
+      if (current.current !== key) return;
+      setRows((prev) => {
+        const seen = new Set((prev ?? []).map((r) => r.id));
+        return [...(prev ?? []), ...p.items.filter((r) => !seen.has(r.id))];
+      });
+      setNext(p.next);
+      setOpen(p.counts.open);
+    } catch (e) {
+      setErr(apiErrorMessage(e, 'Не удалось загрузить жалобы.'));
+    } finally {
+      setMore(false);
+    }
+  }
 
   async function handle(r: Row, status: 'resolved' | 'rejected', action?: 'block_listing' | 'freeze_user' | 'ban_user') {
     const who = r.target?.user?.username ?? 'пользователя';
@@ -50,7 +113,10 @@ export function ReportsSection() {
     setErr(null);
     try {
       await apiFetch(`/moderation/reports/${r.id}/handle`, { method: 'POST', body: JSON.stringify({ status, action }) });
-      await load();
+      // Решение закрывает все открытые жалобы на эту цель — они уходят из
+      // списка сразу, подгруженные страницы остаются на месте.
+      setRows((prev) => prev?.filter((x) => !(x.targetType === r.targetType && x.targetId === r.targetId)) ?? prev);
+      setOpen((n) => (n === null ? n : Math.max(0, n - Math.max(1, r.openOnTarget))));
     } catch (e) {
       setErr(apiErrorMessage(e, 'Не удалось обработать жалобу.'));
     } finally {
@@ -64,6 +130,7 @@ export function ReportsSection() {
         {FILTERS.map((f) => (
           <button key={f.key} type="button" className="chip" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>
             {f.label}
+            {f.key === '' && open !== null && <span className="notif-group-count">{open}</span>}
           </button>
         ))}
       </div>
@@ -71,7 +138,7 @@ export function ReportsSection() {
       {rows === null ? (
         <div className="skeleton" style={{ height: 120 }} aria-busy="true" />
       ) : rows.length === 0 ? (
-        <Empty>{filter ? 'Таких жалоб нет.' : 'Открытых жалоб нет.'}</Empty>
+        err ? null : <Empty>{filter ? 'Таких жалоб нет.' : 'Открытых жалоб нет.'}</Empty>
       ) : (
         rows.map((r) => {
           const t = r.target;
@@ -138,11 +205,28 @@ export function ReportsSection() {
                   </button>
                 </div>
               ) : (
-                <p className="hint" style={{ marginTop: 10 }}>{r.status === 'resolved' ? 'Решена' : 'Отклонена'}</p>
+                <p className="hint" style={{ marginTop: 10 }}>
+                  {r.status === 'resolved' ? 'Решена' : 'Отклонена'}
+                  {r.handledAt ? ` ${when(r.handledAt)}` : ''}
+                </p>
               )}
             </article>
           );
         })
+      )}
+      {!!rows?.length && (next || (!filter && open !== null)) && (
+        <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          {next && (
+            <button type="button" className="btn secondary" disabled={more} onClick={() => void loadMore()}>
+              {more ? '…' : 'Показать ещё'}
+            </button>
+          )}
+          {!filter && open !== null && (
+            <span className="faint" style={{ fontSize: 13 }}>
+              Показано {rows.length} из {open}
+            </span>
+          )}
+        </div>
       )}
     </section>
   );

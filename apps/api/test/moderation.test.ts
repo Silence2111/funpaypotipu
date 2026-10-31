@@ -117,9 +117,18 @@ describe('жалобы', () => {
     await svc.handleReport('r1', 'mod', { status: 'resolved', action: 'block_listing' });
     expect(prisma.listing.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'blocked' } }));
     expect(calls.reportUpdateMany[0]).toMatchObject({ where: { id: { in: ['r1', 'r2'] } }, data: { status: 'resolved' } });
+    // время решения — по нему «Решённые» идут свежими сверху
+    expect((calls.reportUpdateMany[0] as { data: { handledAt?: unknown } }).data.handledAt).toBeInstanceOf(Date);
     expect(notifications.notify).toHaveBeenCalledWith('a', 'report_handled', { status: 'resolved' });
     expect(notifications.notify).toHaveBeenCalledWith('b', 'report_handled', { status: 'resolved' });
     expect(notifications.notify).toHaveBeenCalledWith('u-bad', 'listing_blocked', expect.objectContaining({ listingId: 'l1' }));
+  });
+
+  it('«взял в работу» — ещё не решение: времени решения нет', async () => {
+    const { svc, calls } = setup({ reports: [{ id: 'r1', reporterId: 'a', targetType: 'listing', targetId: 'l1', reason: 'x' }] });
+    await svc.handleReport('r1', 'mod', { status: 'reviewing' });
+    expect(calls.reportUpdateMany[0]).toMatchObject({ data: { status: 'reviewing' } });
+    expect((calls.reportUpdateMany[0] as { data: Record<string, unknown> }).data).not.toHaveProperty('handledAt');
   });
 
   it('отклонить жалобу с действием нельзя — действие только при решении', async () => {
@@ -146,5 +155,63 @@ describe('бан действует сразу', () => {
     const guard = new JwtAuthGuard(tokens as never, prisma as never);
     await expect(guard.canActivate(ctx('t'))).resolves.toBe(true);
     await expect(new AccountStatusService(prisma as never).assertCanTrade('u-bad')).rejects.toThrow(/заморожен/);
+  });
+});
+
+describe('очередь жалоб', () => {
+  const at = (h: number) => new Date(Date.UTC(2026, 9, 31, h));
+  const report = (id: string, h: number, extra: Record<string, unknown> = {}) => ({
+    id, reporterId: 'a', targetType: 'user', targetId: `u-${id}`, reason: 'Спам', details: null,
+    status: 'open', handledBy: null, handledAt: null, createdAt: at(h), ...extra,
+  });
+
+  function queueSetup(rows: ReturnType<typeof report>[], open = 0) {
+    const prisma = {
+      report: {
+        findMany: vi.fn(async ({ take }: { take: number }) => rows.slice(0, take)),
+        groupBy: vi.fn(async () => []),
+        count: vi.fn(async () => open),
+      },
+      listing: { findMany: vi.fn(async () => []) },
+      user: { findMany: vi.fn(async () => []) },
+      message: { findMany: vi.fn(async () => []) },
+    };
+    const svc = new ModerationService(prisma as never, {} as never, {} as never);
+    return { svc, prisma };
+  }
+
+  it('открытые — от старых к новым, по 50; next — с последней показанной; сколько ждёт — счётчиком', async () => {
+    const { svc, prisma } = queueSetup([report('r1', 1), report('r2', 2), report('r3', 3)], 260);
+    const res = await svc.listReports({ limit: 2 });
+    expect(res.items.map((r) => r.id)).toEqual(['r1', 'r2']);
+    expect(res.next).toBe(`${at(2).toISOString()}_r2`);
+    expect(res.counts).toEqual({ open: 260 });
+    expect(prisma.report.findMany.mock.calls[0]![0]).toMatchObject({
+      where: { status: { in: ['open', 'reviewing'] } },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 3,
+    });
+    // открытые жалобы на цель — только по целям этой страницы
+    expect(prisma.report.groupBy.mock.calls[0]![0]).toMatchObject({ where: { targetId: { in: ['u-r1', 'u-r2'] } } });
+  });
+
+  it('следующая страница открытых — после последней показанной', async () => {
+    const { svc, prisma } = queueSetup([report('r3', 3)]);
+    const res = await svc.listReports({ cursor: { at: at(2), id: 'r2' } });
+    expect(res.next).toBeNull();
+    expect(prisma.report.findMany.mock.calls[0]![0]).toMatchObject({
+      where: { OR: [{ createdAt: { gt: at(2) } }, { createdAt: at(2), id: { gt: 'r2' } }] },
+    });
+  });
+
+  it('решённые — свежие решения сверху, курсор — по времени решения', async () => {
+    const rows = [report('r9', 1, { status: 'resolved', handledAt: at(9) }), report('r8', 2, { status: 'resolved', handledAt: at(8) })];
+    const { svc, prisma } = queueSetup(rows);
+    const res = await svc.listReports({ status: 'resolved', limit: 1, cursor: { at: at(10), id: 'r10' } });
+    expect(res.next).toBe(`${at(9).toISOString()}_r9`);
+    expect(prisma.report.findMany.mock.calls[0]![0]).toMatchObject({
+      where: { status: 'resolved', OR: [{ handledAt: { lt: at(10) } }, { handledAt: at(10), id: { lt: 'r10' } }] },
+      orderBy: [{ handledAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }],
+    });
   });
 });

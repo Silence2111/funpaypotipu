@@ -3,6 +3,7 @@ import { Prisma, PrismaClient, type SupportTicket } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import { NotificationsService } from '../notifications/notifications.service';
 import { likeText } from '../../common/like';
+import { nextCursor } from '../../common/cursor';
 
 /** Кто отвечает в поддержке. Администратору открыто всё. */
 const SUPPORT_ROLES = ['agent', 'moderator', 'admin'];
@@ -199,7 +200,7 @@ export class SupportService {
       assignee: t.assigneeId ? names.get(t.assigneeId) ?? null : null,
     }));
     const last = items[items.length - 1];
-    const next = page.length > limit && last ? `${last.lastMessageAt.toISOString()}_${last.id}` : null;
+    const next = page.length > limit && last ? nextCursor(last.lastMessageAt, last.id) : null;
     return { items, next, counts };
   }
 

@@ -307,11 +307,34 @@ async function scenarioModeration(rnd) {
   check('Жалоба принята, повтор не плодит дубль', r1.status === 201 && r2.body.id === r1.body.id);
   check('Жалоба на несуществующее → 400/404', [400, 404].includes((await report({ targetType: 'listing', targetId: 'nope', reason: 'Другое' })).status));
   check('Покупатель не видит очередь модератора', (await j('/moderation/reports', { token: buyer.token })).status === 403);
-  const queue = await j('/moderation/reports', { token: mod.token });
-  const item = queue.body.find?.((r) => r.id === r1.body.id);
+  // Очередь — по страницам от старых: раньше 200 старейших, и при очереди
+  // больше двухсот новая жалоба сюда не попадала.
+  const items = [];
+  let cursor = null;
+  let first = null;
+  do {
+    const page = await j(`/moderation/reports?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { token: mod.token });
+    first ??= page.body;
+    items.push(...(page.body.items ?? []));
+    cursor = page.body.next;
+  } while (cursor);
+  const item = items.find((r) => r.id === r1.body.id);
   check('В очереди видно, на что жалоба', item?.target?.title === 'E2E accounts' && item?.target?.user?.id === seller.id);
+  check(
+    'Очередь жалоб: все открытые по страницам, от старых к новым, без повторов; сколько ждёт — счётчиком',
+    items.length === first.counts?.open && new Set(items.map((r) => r.id)).size === items.length &&
+      items.every((r, i) => i === 0 || r.createdAt >= items[i - 1].createdAt),
+    JSON.stringify([items.length, first.counts]),
+  );
+  check('Битый курсор жалоб — 400', (await j('/moderation/reports?cursor=x', { token: mod.token })).status === 400);
 
   await j(`/moderation/reports/${r1.body.id}/handle`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'resolved', action: 'block_listing' }) });
+  const decided = await j('/moderation/reports?status=resolved&limit=1', { token: mod.token });
+  check(
+    '«Решённые» — свежее решение первым, со временем решения',
+    decided.body.items?.[0]?.id === r1.body.id && Date.now() - new Date(decided.body.items[0].handledAt).getTime() < 60_000,
+    JSON.stringify(decided.body.items?.[0] && { id: decided.body.items[0].id, handledAt: decided.body.items[0].handledAt }),
+  );
   check('Лот заблокирован и пропал с витрины', (await j(`/listings/${bad}`)).status === 404);
   const relist = await j(`/listings/${bad}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'active' }) });
   check('Продавец сам блокировку не снимает', relist.status === 403);

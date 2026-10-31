@@ -7,6 +7,7 @@ import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { SUPPORT_CATEGORIES, SupportService, TICKET_STATUSES, type SupportCategory } from './support.service';
 import { RateLimit } from '../../common/rate-limit';
+import { timeCursor } from '../../common/cursor';
 
 const createSchema = z.object({
   subject: z.string().trim().min(3, 'Тема — от 3 символов').max(120),
@@ -19,20 +20,7 @@ const STALE = 'Список обращений устарел — обновит
 const queueSchema = z.object({
   status: z.enum(TICKET_STATUSES).default('open'),
   q: z.string().trim().max(100).optional(),
-  // `next` прошлой страницы: «время_id» последнего показанного обращения.
-  cursor: z
-    .string()
-    .optional()
-    .transform((v, ctx) => {
-      if (v === undefined) return undefined;
-      const m = /^(.+)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.exec(v);
-      const at = m ? new Date(m[1]!) : null;
-      if (!m || !at || Number.isNaN(at.getTime())) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: STALE });
-        return z.NEVER;
-      }
-      return { at, id: m[2]! };
-    }),
+  cursor: timeCursor(STALE),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 type QueueParams = z.infer<typeof queueSchema>;

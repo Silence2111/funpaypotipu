@@ -8,6 +8,7 @@ import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { ModerationService, type ReportAction, type ReportTarget } from './moderation.service';
 import { RateLimit } from '../../common/rate-limit';
+import { timeCursor } from '../../common/cursor';
 
 const reportSchema = z.object({
   targetType: z.enum(['listing', 'user', 'message']),
@@ -28,6 +29,12 @@ const USER_STATUSES = ['active', 'frozen', 'banned'] as const;
 const REPORT_STATUSES = ['open', 'reviewing', 'resolved', 'rejected'] as const;
 const pick = <T extends string>(v: string | undefined, allowed: readonly T[]): T | undefined =>
   allowed.includes(v as T) ? (v as T) : undefined;
+const reportsQuery = z.object({
+  status: z.enum(REPORT_STATUSES).optional(),
+  cursor: timeCursor('Список жалоб устарел — обновите страницу'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+type ReportsParams = z.infer<typeof reportsQuery>;
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -49,8 +56,8 @@ export class ModerationController {
   @Get('moderation/reports')
   @UseGuards(RolesGuard)
   @Roles('moderator')
-  reports(@Query('status') status?: string) {
-    return this.moderation.listReports(pick<ReportStatus>(status, REPORT_STATUSES));
+  reports(@Query(new ZodValidationPipe(reportsQuery)) q: ReportsParams) {
+    return this.moderation.listReports(q);
   }
 
   @Post('moderation/reports/:id/handle')
