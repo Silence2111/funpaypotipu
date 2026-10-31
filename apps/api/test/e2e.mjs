@@ -302,38 +302,49 @@ async function scenarioModeration(rnd) {
   const other = await createListing(seller.token, 'accounts', '90000');
 
   const report = (body) => j('/reports', { method: 'POST', token: buyer.token, body: JSON.stringify(body) });
+  const report2 = (token, body) => j('/reports', { method: 'POST', token, body: JSON.stringify(body) });
   const r1 = await report({ targetType: 'listing', targetId: bad, reason: 'Мошенничество', details: 'просит оплату на карту' });
   const r2 = await report({ targetType: 'listing', targetId: bad, reason: 'Мошенничество' });
   check('Жалоба принята, повтор не плодит дубль', r1.status === 201 && r2.body.id === r1.body.id);
   check('Жалоба на несуществующее → 400/404', [400, 404].includes((await report({ targetType: 'listing', targetId: 'nope', reason: 'Другое' })).status));
   check('Покупатель не видит очередь модератора', (await j('/moderation/reports', { token: buyer.token })).status === 403);
-  // Очередь — по страницам от старых: раньше 200 старейших, и при очереди
-  // больше двухсот новая жалоба сюда не попадала.
-  const items = [];
+  // Очередь — одна карточка на цель, по страницам от старых. Раньше каждая
+  // жалоба шла своей карточкой, по 200 старейших: новая жалоба при очереди
+  // больше двухсот сюда не попадала, а одна цель занимала столько строк,
+  // сколько на неё жалоб.
+  await report2(agent.token, { targetType: 'listing', targetId: bad, reason: 'Спам' });
+  const cards = [];
   let cursor = null;
   let first = null;
   do {
     const page = await j(`/moderation/reports?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { token: mod.token });
     first ??= page.body;
-    items.push(...(page.body.items ?? []));
+    cards.push(...(page.body.items ?? []));
     cursor = page.body.next;
   } while (cursor);
-  const item = items.find((r) => r.id === r1.body.id);
+  const item = cards.find((r) => r.targetType === 'listing' && r.targetId === bad);
   check('В очереди видно, на что жалоба', item?.target?.title === 'E2E accounts' && item?.target?.user?.id === seller.id);
   check(
-    'Очередь жалоб: все открытые по страницам, от старых к новым, без повторов; сколько ждёт — счётчиком',
-    items.length === first.counts?.open && new Set(items.map((r) => r.id)).size === items.length &&
-      items.every((r, i) => i === 0 || r.createdAt >= items[i - 1].createdAt),
-    JSON.stringify([items.length, first.counts]),
+    'Жалобы на одну цель — одна карточка: две жалобы, две причины',
+    item?.reports === 2 && item.reasons?.length === 2 && item.latest?.length === 2,
+    JSON.stringify(item && { reports: item.reports, reasons: item.reasons }),
+  );
+  check(
+    'Очередь жалоб: все цели по страницам, без повторов, по первой жалобе от старых; счётчики целей и жалоб сходятся',
+    cards.length === first.counts?.open && new Set(cards.map((r) => `${r.targetType}:${r.targetId}`)).size === cards.length &&
+      cards.every((r, i) => i === 0 || r.firstAt >= cards[i - 1].firstAt) &&
+      cards.reduce((sum, r) => sum + r.reports, 0) === first.counts.openReports,
+    JSON.stringify([cards.length, first.counts]),
   );
   check('Битый курсор жалоб — 400', (await j('/moderation/reports?cursor=x', { token: mod.token })).status === 400);
 
-  await j(`/moderation/reports/${r1.body.id}/handle`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'resolved', action: 'block_listing' }) });
+  await j(`/moderation/reports/${item?.id ?? r1.body.id}/handle`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'resolved', action: 'block_listing' }) });
   const decided = await j('/moderation/reports?status=resolved&limit=1', { token: mod.token });
   check(
-    '«Решённые» — свежее решение первым, со временем решения',
-    decided.body.items?.[0]?.id === r1.body.id && Date.now() - new Date(decided.body.items[0].handledAt).getTime() < 60_000,
-    JSON.stringify(decided.body.items?.[0] && { id: decided.body.items[0].id, handledAt: decided.body.items[0].handledAt }),
+    '«Решённые» — свежее решение первым, одной карточкой на обе жалобы, со временем решения',
+    decided.body.items?.[0]?.targetId === bad && decided.body.items[0].reports === 2 &&
+      Date.now() - new Date(decided.body.items[0].handledAt).getTime() < 60_000,
+    JSON.stringify(decided.body.items?.[0] && { reports: decided.body.items[0].reports, handledAt: decided.body.items[0].handledAt }),
   );
   check('Лот заблокирован и пропал с витрины', (await j(`/listings/${bad}`)).status === 404);
   const relist = await j(`/listings/${bad}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'active' }) });

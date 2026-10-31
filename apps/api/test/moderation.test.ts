@@ -160,58 +160,90 @@ describe('бан действует сразу', () => {
 
 describe('очередь жалоб', () => {
   const at = (h: number) => new Date(Date.UTC(2026, 9, 31, h));
-  const report = (id: string, h: number, extra: Record<string, unknown> = {}) => ({
-    id, reporterId: 'a', targetType: 'user', targetId: `u-${id}`, reason: 'Спам', details: null,
-    status: 'open', handledBy: null, handledAt: null, createdAt: at(h), ...extra,
-  });
+  const U1 = '00000000-0000-4000-8000-0000000000a1';
+  const L1 = '00000000-0000-4000-8000-0000000000b1';
+  const L2 = '00000000-0000-4000-8000-0000000000b2';
+  type Sql = { text: string; values: unknown[] };
 
-  function queueSetup(rows: ReturnType<typeof report>[], open = 0) {
+  function queueSetup(groups: Array<Record<string, unknown>>) {
+    const raw: string[] = [];
     const prisma = {
-      report: {
-        findMany: vi.fn(async ({ take }: { take: number }) => rows.slice(0, take)),
-        groupBy: vi.fn(async () => []),
-        count: vi.fn(async () => open),
+      // Карточки — Prisma.sql, причины, последние жалобы и счётчик — шаблоном.
+      $queryRaw: vi.fn(async (q: Sql | TemplateStringsArray) => {
+        const text = 'text' in q ? q.text : q.join('?');
+        raw.push(text);
+        if (text.includes('AS first_at')) return groups;
+        if (text.includes('row_number()')) {
+          return [
+            { id: 'r3', target_type: 'user', target_id: U1, handled_at: null, reporter_id: 'p1', reason: 'Спам', details: null, created_at: at(5) },
+            { id: 'r2', target_type: 'user', target_id: U1, handled_at: null, reporter_id: 'p2', reason: 'Мошенничество', details: 'Просит на карту', created_at: at(4) },
+            { id: 'r9', target_type: 'listing', target_id: L1, handled_at: null, reporter_id: 'p1', reason: 'Не то', details: null, created_at: at(6) },
+          ];
+        }
+        if (text.includes('r.reason, count(*)')) {
+          return [
+            { target_type: 'user', target_id: U1, handled_at: null, reason: 'Спам', n: 10 },
+            { target_type: 'user', target_id: U1, handled_at: null, reason: 'Мошенничество', n: 240 },
+            { target_type: 'listing', target_id: L1, handled_at: null, reason: 'Не то', n: 2 },
+          ];
+        }
+        if (text.includes('count(DISTINCT')) return [{ targets: 3, reports: 253 }];
+        return [];
+      }),
+      listing: { findMany: vi.fn(async () => [{ id: L1, title: 'Аккаунт', status: 'active', seller: { id: 's1', status: 'active', profile: { username: 'seller' } } }]) },
+      user: {
+        findMany: vi.fn(async () => [
+          { id: U1, status: 'active', profile: { username: 'bad' } },
+          { id: 'p1', status: 'active', profile: { username: 'first' } },
+          { id: 'p2', status: 'active', profile: { username: 'second' } },
+        ]),
       },
-      listing: { findMany: vi.fn(async () => []) },
-      user: { findMany: vi.fn(async () => []) },
       message: { findMany: vi.fn(async () => []) },
     };
     const svc = new ModerationService(prisma as never, {} as never, {} as never);
-    return { svc, prisma };
+    return { svc, raw };
   }
 
-  it('открытые — от старых к новым, по 50; next — с последней показанной; сколько ждёт — счётчиком', async () => {
-    const { svc, prisma } = queueSetup([report('r1', 1), report('r2', 2), report('r3', 3)], 260);
+  const group = (type: string, id: string, n: number, first: number, handled: Date | null = null) => ({
+    target_type: type, target_id: id, handled_at: handled, n, first_at: at(first), last_at: at(first + 4),
+  });
+
+  it('открытые — одна карточка на цель: число жалоб, причины по убыванию, последние; next — с последней карточки', async () => {
+    const { svc, raw } = queueSetup([group('user', U1, 250, 1), group('listing', L1, 2, 2), group('listing', L2, 1, 3)]);
     const res = await svc.listReports({ limit: 2 });
-    expect(res.items.map((r) => r.id)).toEqual(['r1', 'r2']);
-    expect(res.next).toBe(`${at(2).toISOString()}_r2`);
-    expect(res.counts).toEqual({ open: 260 });
-    expect(prisma.report.findMany.mock.calls[0]![0]).toMatchObject({
-      where: { status: { in: ['open', 'reviewing'] } },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      take: 3,
+    expect(res.items).toHaveLength(2);
+    expect(res.items[0]).toMatchObject({
+      id: 'r3', // решение по последней жалобе закрывает всю карточку
+      targetType: 'user',
+      reports: 250,
+      status: 'open',
+      reasons: [{ reason: 'Мошенничество', count: 240 }, { reason: 'Спам', count: 10 }],
+      latest: [{ reporter: 'first', reason: 'Спам' }, { reporter: 'second', details: 'Просит на карту' }],
+      target: { user: { username: 'bad' } },
     });
-    // открытые жалобы на цель — только по целям этой страницы
-    expect(prisma.report.groupBy.mock.calls[0]![0]).toMatchObject({ where: { targetId: { in: ['u-r1', 'u-r2'] } } });
+    expect(res.items[1]).toMatchObject({ id: 'r9', reports: 2, target: { title: 'Аккаунт' } });
+    expect(res.next).toBe(`${at(2).toISOString()}_${L1}`);
+    expect(res.counts).toEqual({ open: 3, openReports: 253 });
+    const groups = raw.find((t) => t.includes('AS first_at'))!;
+    expect(groups).toContain('GROUP BY r.target_type, r.target_id');
+    expect(groups).toContain('ORDER BY first_at ASC, r.target_id ASC');
   });
 
-  it('следующая страница открытых — после последней показанной', async () => {
-    const { svc, prisma } = queueSetup([report('r3', 3)]);
-    const res = await svc.listReports({ cursor: { at: at(2), id: 'r2' } });
+  it('следующая страница открытых — после первой жалобы последней карточки', async () => {
+    const { svc, raw } = queueSetup([group('listing', L2, 1, 3)]);
+    const res = await svc.listReports({ cursor: { at: at(2), id: L1 } });
     expect(res.next).toBeNull();
-    expect(prisma.report.findMany.mock.calls[0]![0]).toMatchObject({
-      where: { OR: [{ createdAt: { gt: at(2) } }, { createdAt: at(2), id: { gt: 'r2' } }] },
-    });
+    expect(raw.find((t) => t.includes('AS first_at'))).toContain('HAVING (min(r.created_at), r.target_id) >');
   });
 
-  it('решённые — свежие решения сверху, курсор — по времени решения', async () => {
-    const rows = [report('r9', 1, { status: 'resolved', handledAt: at(9) }), report('r8', 2, { status: 'resolved', handledAt: at(8) })];
-    const { svc, prisma } = queueSetup(rows);
-    const res = await svc.listReports({ status: 'resolved', limit: 1, cursor: { at: at(10), id: 'r10' } });
-    expect(res.next).toBe(`${at(9).toISOString()}_r9`);
-    expect(prisma.report.findMany.mock.calls[0]![0]).toMatchObject({
-      where: { status: 'resolved', OR: [{ handledAt: { lt: at(10) } }, { handledAt: at(10), id: { lt: 'r10' } }] },
-      orderBy: [{ handledAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }],
-    });
+  it('решённые — одно решение одной карточкой, свежие сверху, курсор — по времени решения', async () => {
+    const { svc, raw } = queueSetup([group('listing', L1, 20, 1, at(9)), group('user', U1, 1, 2, at(8))]);
+    const res = await svc.listReports({ status: 'resolved', limit: 1, cursor: { at: at(10), id: L2 } });
+    expect(res.items[0]).toMatchObject({ status: 'resolved', reports: 20, handledAt: at(9) });
+    expect(res.next).toBe(`${at(9).toISOString()}_${L1}`);
+    const groups = raw.find((t) => t.includes('AS first_at'))!;
+    expect(groups).toContain('GROUP BY r.handled_at, r.target_type, r.target_id');
+    expect(groups).toContain('(r.handled_at, r.target_id) <');
+    expect(groups).toContain('ORDER BY r.handled_at DESC NULLS LAST, r.target_id DESC');
   });
 });
