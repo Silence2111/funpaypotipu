@@ -8,6 +8,66 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./topup": {
+      "types": "./dist/topup.d.ts",
+      "default": "./dist/topup.js"
+    },
+    "./payment": {
+      "types": "./dist/payment.d.ts",
+      "default": "./dist/payment.js"
+    },
+    "./demo": {
+      "types": "./dist/demo.d.ts",
+      "default": "./dist/demo.js"
+    },
+    "./quantity": {
+      "types": "./dist/quantity.d.ts",
+      "default": "./dist/quantity.js"
+    },
+    "./notify": {
+      "types": "./dist/notify.d.ts",
+      "default": "./dist/notify.js"
+    },
+    "./buyer-data": {
+      "types": "./dist/buyer-data.d.ts",
+      "default": "./dist/buyer-data.js"
+    },
+    "./lot-stats": {
+      "types": "./dist/lot-stats.d.ts",
+      "default": "./dist/lot-stats.js"
+    },
+    "./sale": {
+      "types": "./dist/sale.d.ts",
+      "default": "./dist/sale.js"
+    },
+    "./reprice": {
+      "types": "./dist/reprice.d.ts",
+      "default": "./dist/reprice.js"
+    },
+    "./price-history": {
+      "types": "./dist/price-history.d.ts",
+      "default": "./dist/price-history.js"
+    },
+    "./favorites": {
+      "types": "./dist/favorites.d.ts",
+      "default": "./dist/favorites.js"
+    },
+    "./lot-import": {
+      "types": "./dist/lot-import.d.ts",
+      "default": "./dist/lot-import.js"
+    },
+    "./seller-promo": {
+      "types": "./dist/seller-promo.d.ts",
+      "default": "./dist/seller-promo.js"
+    },
+    "./saved-search": {
+      "types": "./dist/saved-search.d.ts",
+      "default": "./dist/saved-search.js"
+    },
+    "./i18n": {
+      "types": "./dist/i18n.d.ts",
+      "default": "./dist/i18n.js"
     }
   },
   "scripts": {

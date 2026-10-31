@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -18,6 +18,8 @@ const feeRuleSchema = z.object({
   active: z.boolean().optional(),
 });
 const roleSchema = z.object({ roleKey: z.string().min(2) });
+// Рублей за единицу валюты; границы ловят опечатку на порядок.
+const ratesSchema = z.object({ USD: z.number().min(10).max(1000), EUR: z.number().min(10).max(1000) });
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -28,6 +30,21 @@ export class AdminController {
   @Get('users')
   users() {
     return this.admin.listUsers();
+  }
+
+  @Get('roles')
+  roles() {
+    return this.admin.listRoles();
+  }
+
+  @Put('rates')
+  setRates(@CurrentUser() actor: AuthUser, @Body(new ZodValidationPipe(ratesSchema)) body: { USD: number; EUR: number }) {
+    return this.admin.setDisplayRates(actor.userId, body);
+  }
+
+  @Get('audit')
+  audit(@Query('limit') limit?: string) {
+    return this.admin.auditLog(Number(limit) || 100);
   }
 
   @Get('fee-rules')

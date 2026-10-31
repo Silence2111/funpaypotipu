@@ -26,6 +26,22 @@ export function getWithdrawalMethod(key: string): WithdrawalMethod | undefined {
   return WITHDRAWAL_METHODS.find((m) => m.key === key);
 }
 
+/**
+ * Частые причины отказа в выводе — подсказки сотруднику в консоли. Выбранную
+ * как есть продавец видит на своём языке (перевод — в общем словаре);
+ * поправленную или свою — как написал сотрудник.
+ */
+export const PAYOUT_REJECT_REASONS = [
+  'Реквизиты не на ваше имя — укажите свои',
+  'Реквизиты с ошибкой — проверьте номер и создайте заявку заново',
+  'Нужна проверка личности: «Безопасность» → «Проверка личности»',
+  'Деньги за сделку в споре — вывод после его решения',
+] as const;
+
+/** Причина отказа — подсказка из списка, слово в слово? Тогда её можно перевести. */
+export const isPayoutRejectReason = (text: string) =>
+  (PAYOUT_REJECT_REASONS as readonly string[]).includes(text);
+
 /** Комиссия за вывод брутто-суммы указанным методом (минорные единицы). */
 export function computeWithdrawalFee(gross: bigint, method: WithdrawalMethod): bigint {
   const pctFee = BigInt(Math.floor(Number(gross) * method.feePct));

@@ -1,8 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Star } from 'lucide-react';
-import { apiFetch } from '@/lib/session';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { apiFetch, useSession } from '@/lib/session';
+import { apiErrorMessage } from '@/lib/errors';
+import { Stars } from '@/components/stars';
+import { useT } from '@/lib/i18n/client';
+import type { T } from '@/lib/i18n/lang';
+import { ReviewPhotos } from './review-photos';
+import { userText } from '@/lib/hidden';
 
 interface Review {
   id: string;
@@ -10,55 +16,212 @@ interface Review {
   comment: string | null;
   sellerReply: string | null;
   createdAt: string;
-  author?: { profile?: { username?: string } | null } | null;
+  editedAt?: string | null;
+  /** Игра и раздел сделки, сумма — вилкой. */
+  game: { slug: string; title: string };
+  section: { slug: string; title: string };
+  amountRange: string;
+  /** Фото к отзыву — адреса для показа. */
+  images: string[];
 }
 
-function Stars({ n }: { n: number }) {
-  return (
-    <span className="row" style={{ gap: 1 }}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Star key={i} size={13} strokeWidth={1.75}
-          fill={i <= n ? '#f5a623' : 'none'} color={i <= n ? '#f5a623' : 'var(--fg-faint)'} />
-      ))}
-    </span>
-  );
+const PAGE = 20;
+
+/** Вилка суммы от API — «до 500 ₽», «1 000–5 000 ₽», «от 50 000 ₽» — на языке сайта. */
+function rangeText(range: string, t: T): string {
+  const [head, ...rest] = range.split(' ');
+  const sum = rest.join(' ');
+  if (head === 'до') return t('до {sum}', { sum }); // i18n-ignore
+  if (head === 'от') return t('от {price}', { price: sum }); // i18n-ignore
+  return range;
 }
 
-/** Публичные отзывы о продавце (по userId). */
-export function SellerReviews({ sellerId }: { sellerId: string }) {
+/**
+ * Отзывы о продавце, как на FunPay: оценка, игра и раздел сделки, сумма
+ * вилкой, текст и ответ продавца. Сам продавец отвечает прямо здесь.
+ *
+ * В профиле — фильтр по оценке и «Показать ещё»; на странице лота —
+ * последние несколько и ссылка на все.
+ */
+export function SellerReviews({
+  sellerId,
+  breakdown,
+  photoReviews = 0,
+  preview,
+}: {
+  sellerId: string;
+  /** Сколько отзывов с каждой оценкой — для фильтра в профиле. */
+  breakdown?: Array<{ star: number; count: number }>;
+  /** Сколько отзывов с фото — для фильтра «С фото». */
+  photoReviews?: number;
+  /** Показать только столько последних и ссылку на профиль. */
+  preview?: number;
+}) {
+  const t = useT();
+  const { user } = useSession();
+  const own = user?.id === sellerId;
+  const [rating, setRating] = useState<number | null>(null);
+  const [withPhotos, setWithPhotos] = useState(false);
   const [items, setItems] = useState<Review[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [more, setMore] = useState(false);
+  const [replyFor, setReplyFor] = useState<string | null>(null);
+  const [text, setText] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  const limit = preview ?? PAGE;
 
-  useEffect(() => {
-    apiFetch<Review[]>(`/reviews/user/${sellerId}`)
-      .then(setItems)
-      .catch(() => setItems([]));
-  }, [sellerId]);
+  const load = useCallback(
+    (p: number, append: boolean) => {
+      const q = new URLSearchParams({ page: String(p), limit: String(limit) });
+      if (rating) q.set('rating', String(rating));
+      if (withPhotos) q.set('photos', '1');
+      apiFetch<Review[]>(`/reviews/user/${sellerId}?${q}`)
+        .then((rows) => {
+          setItems((prev) => (append && prev ? [...prev, ...rows] : rows));
+          setMore(!preview && rows.length === limit);
+          setPage(p);
+        })
+        .catch(() => setItems((prev) => prev ?? []));
+    },
+    [sellerId, rating, withPhotos, limit, preview],
+  );
 
-  if (items === null) return null;
-  if (items.length === 0)
-    return <p className="muted" style={{ fontSize: 14 }}>Отзывов о продавце пока нет.</p>;
+  useEffect(() => load(1, false), [load]);
+
+  async function sendReply(id: string) {
+    setErr(null);
+    try {
+      await apiFetch(`/reviews/${id}/reply`, { method: 'POST', body: JSON.stringify({ text }) });
+      setReplyFor(null);
+      load(1, false);
+    } catch (e) {
+      setErr(apiErrorMessage(e, t('Не удалось сохранить ответ.')));
+    }
+  }
+
+  const total = breakdown?.reduce((n, b) => n + b.count, 0) ?? 0;
 
   return (
-    <div className="grid" style={{ gap: 12 }}>
-      {items.map((r) => (
-        <div key={r.id} className="card" style={{ padding: 16 }}>
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span className="row" style={{ gap: 8, fontSize: 14 }}>
-              <Stars n={r.rating} />
-              <span className="faint">{r.author?.profile?.username ?? 'покупатель'}</span>
-            </span>
-            <span className="faint" style={{ fontSize: 12 }}>
-              {new Date(r.createdAt).toLocaleDateString('ru-RU')}
-            </span>
-          </div>
-          {r.comment && <p className="muted" style={{ fontSize: 14, margin: '8px 0 0' }}>{r.comment}</p>}
-          {r.sellerReply && (
-            <p className="faint" style={{ fontSize: 13, margin: '8px 0 0', paddingLeft: 12, borderLeft: '2px solid var(--border)' }}>
-              Ответ продавца: {r.sellerReply}
-            </p>
+    <div>
+      {breakdown && total > 0 && (
+        <nav className="row" aria-label={t('Оценка')} style={{ gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+          <button
+            type="button"
+            className="chip"
+            aria-pressed={rating === null && !withPhotos}
+            onClick={() => {
+              setRating(null);
+              setWithPhotos(false);
+            }}
+          >
+            {t('Все')} <span className="faint">{total}</span>
+          </button>
+          {photoReviews > 0 && (
+            <button type="button" className="chip" aria-pressed={withPhotos} onClick={() => setWithPhotos((v) => !v)}>
+              {t('С фото')} <span className="faint">{photoReviews}</span>
+            </button>
           )}
+          {[5, 4, 3, 2, 1].map((star) => {
+            const count = breakdown.find((b) => b.star === star)?.count ?? 0;
+            return (
+              <button
+                key={star}
+                type="button"
+                className="chip"
+                aria-pressed={rating === star}
+                disabled={count === 0}
+                onClick={() => setRating(rating === star ? null : star)}
+              >
+                {star} ★ <span className="faint">{count}</span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
+      {items === null ? null : items.length === 0 ? (
+        <p className="muted" style={{ fontSize: 14 }}>
+          {rating || withPhotos ? t('Таких отзывов нет.') : t('Отзывов о продавце пока нет.')}
+        </p>
+      ) : (
+        <div className="reviews">
+          {items.map((r) => (
+            <article key={r.id} className="review">
+              <div className="review-head">
+                <Stars n={r.rating} />
+                <Link href={`/igra/${r.game.slug}/${r.section.slug}`} className="review-deal">
+                  {t.d(r.game.title)} · {t.d(r.section.title)}
+                </Link>
+                <span className="faint">{rangeText(r.amountRange, t)}</span>
+                <span className="spacer" />
+                <time className="faint" dateTime={r.createdAt}>
+                  {new Date(r.createdAt).toLocaleDateString(t.locale, { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {r.editedAt ? ` · ${t('изменён')}` : ''}
+                </time>
+              </div>
+              {r.comment && <p className="review-text">{userText(t, r.comment)}</p>}
+              <ReviewPhotos images={r.images ?? []} />
+              {r.sellerReply && replyFor !== r.id && (
+                <p className="review-reply">
+                  <span className="faint">{t('Ответ продавца:')}</span> {userText(t, r.sellerReply)}
+                </p>
+              )}
+              {own &&
+                (replyFor === r.id ? (
+                  <div style={{ marginTop: 10 }}>
+                    <textarea
+                      className="input"
+                      rows={2}
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      placeholder={t('Ответ увидят все покупатели. Контакты скроются.')}
+                      style={{ resize: 'vertical' }}
+                    />
+                    <div className="row" style={{ gap: 8, marginTop: 8 }}>
+                      <button className="btn" type="button" onClick={() => void sendReply(r.id)}>
+                        {t('Опубликовать ответ')}
+                      </button>
+                      <button className="btn ghost" type="button" onClick={() => setReplyFor(null)}>
+                        {t('Отмена')}
+                      </button>
+                    </div>
+                    {err && (
+                      <p className="field-error" role="alert" style={{ marginTop: 8 }}>
+                        {err}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    className="chip"
+                    type="button"
+                    style={{ marginTop: 10, fontSize: 13 }}
+                    onClick={() => {
+                      setText(r.sellerReply ?? '');
+                      setErr(null);
+                      setReplyFor(r.id);
+                    }}
+                  >
+                    {r.sellerReply ? t('Изменить ответ') : t('Ответить')}
+                  </button>
+                ))}
+            </article>
+          ))}
         </div>
-      ))}
+      )}
+
+      {more && (
+        <button type="button" className="btn secondary" style={{ marginTop: 16 }} onClick={() => load(page + 1, true)}>
+          {t('Показать ещё')}
+        </button>
+      )}
+      {preview && items && items.length >= preview && (
+        <p style={{ marginTop: 12, fontSize: 14 }}>
+          <Link href={`/prodavec/${sellerId}#reviews`} className="inline-link">
+            {t('Все отзывы о продавце')}
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

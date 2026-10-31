@@ -2,19 +2,91 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { nextQtyTier, qtyError, qtyPrice, type QtyTier } from '@gamemarket/shared/quantity';
+import { buyerDataError, type BuyerField } from '@gamemarket/shared/buyer-data';
+import { sellerPromoDiscount } from '@gamemarket/shared/seller-promo';
 import { apiFetch, getToken } from '@/lib/session';
+import { apiErrorMessage } from '@/lib/errors';
+import { payOrder } from '@/lib/checkout';
+import { formatPrice, formatQty } from '@/lib/format';
+import { PayMethods, priceFor, type PayMethod } from '@/components/pay-methods';
+import { useT } from '@/lib/i18n/client';
 
-/** Оформление заказа: create (+ промокод, +UID для пополнений) → deposit → оплата → заказ. */
-export function BuyButton({ listingId, fulfillmentType }: { listingId: string; fulfillmentType?: string }) {
+/** Условия поштучного лота: покупатель выбирает количество, сумма — за него. */
+export interface QtyOffer {
+  price: string;
+  currency: string;
+  unitName: string | null;
+  pricePerUnits: number;
+  minQty: number;
+  stock: number | null;
+  /** Скидка за количество; пусто — без неё. */
+  tiers?: QtyTier[];
+}
+
+/** «25 000», «25000», «25 000» → 25000; не число — NaN. */
+const parseQty = (v: string) => (/^\d[\d\s\u00a0\u202f]*$/.test(v.trim()) ? Number(v.replace(/\D/g, '')) : NaN);
+
+/**
+ * Оформление заказа: количество, промокод, UID для пополнений, способ оплаты
+ * с ценой по нему → заказ → оплата выбранным способом → страница заказа.
+ */
+export function BuyButton({
+  listingId,
+  fulfillmentType,
+  price,
+  currency,
+  qtyOffer,
+  buyerFields = [],
+  initialQty,
+}: {
+  listingId: string;
+  fulfillmentType?: string;
+  /** Цена лота целиком; у поштучного сумма считается из количества. */
+  price: string;
+  currency: string;
+  qtyOffer?: QtyOffer;
+  /** Что продавец спрашивает у покупателя: ник, сервер. */
+  buyerFields?: BuyerField[];
+  /** Количество из «Купить снова» — не меньше минимума и не больше наличия. */
+  initialQty?: number;
+}) {
+  const t = useT();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [promo, setPromo] = useState('');
+  // Проверенный промокод: у кода продавца скидка уже в цене, у кода
+  // площадки — при оплате (её потолок считает сервер).
+  const [promoInfo, setPromoInfo] = useState<{ source: 'seller' | 'platform'; percent?: number } | null>(null);
+  const [promoErr, setPromoErr] = useState<string | null>(null);
   const [account, setAccount] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [qtyInput, setQtyInput] = useState(() => {
+    if (!qtyOffer) return '1';
+    const want = Math.min(initialQty ?? qtyOffer.minQty, qtyOffer.stock ?? Infinity);
+    return String(Math.max(qtyOffer.minQty, want));
+  });
+  const [method, setMethod] = useState<PayMethod>('sbp');
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
 
   const isTopUp = fulfillmentType === 'provider';
-  const canBuy = !isTopUp || (account.trim().length > 0 && confirmed);
+  const qty = parseQty(qtyInput);
+  const qtyRaw = qtyOffer ? qtyError(qty, qtyOffer) : null;
+  const qtyProblem = qtyRaw && t.d(qtyRaw);
+  const tiers = qtyOffer?.tiers ?? [];
+  const deal =
+    qtyOffer && !qtyProblem ? qtyPrice(BigInt(qtyOffer.price), qtyOffer.pricePerUnits, qty, tiers) : null;
+  const base = qtyOffer ? (deal?.total ?? null) : BigInt(price);
+  // Следующая ступень — если столько есть в наличии: «Взять 50 шт. — скидка 10%».
+  const next = deal ? nextQtyTier(tiers, qty) : null;
+  const reachable = next && (qtyOffer?.stock == null || next.from <= qtyOffer.stock) ? next : null;
+  const sellerOff = base != null && promoInfo?.source === 'seller' ? sellerPromoDiscount(base, promoInfo.percent ?? 0) : 0n;
+  const priced = base != null ? base - sellerOff : null;
+  const toPay = priced != null ? priceFor(priced, method) : null;
+  const answersRaw = buyerDataError(buyerFields, answers);
+  const answersProblem = answersRaw && t.d(answersRaw);
+  const canBuy = (!isTopUp || (account.trim().length > 0 && confirmed)) && !qtyProblem;
 
   async function createOrder() {
     const order = await apiFetch<{ id: string }>('/orders', {
@@ -23,70 +95,191 @@ export function BuyButton({ listingId, fulfillmentType }: { listingId: string; f
         listingId,
         ...(promo.trim() ? { promoCode: promo.trim() } : {}),
         ...(isTopUp && account.trim() ? { account: account.trim() } : {}),
+        ...(qtyOffer ? { qty } : {}),
+        ...(buyerFields.length ? { buyerData: answers } : {}),
       }),
     });
     return order.id;
   }
 
-  async function buy() {
-    if (!getToken()) return router.push('/login');
-    if (!canBuy) { setErr('Укажите игровой ID/логин и подтвердите'); return; }
-    setBusy(true);
-    setErr(null);
+  async function applyPromo() {
+    setPromoErr(null);
+    setPromoInfo(null);
     try {
-      const orderId = await createOrder();
-      const dep = await apiFetch<{ providerRef: string }>('/payments/deposit', {
-        method: 'POST',
-        body: JSON.stringify({ orderId }),
-      });
-      await apiFetch(`/payments/mock/callback?providerRef=${dep.providerRef}`, { method: 'POST' });
-      router.push(`/orders/${orderId}`);
-    } catch {
-      setErr('Не удалось оформить заказ');
-      setBusy(false);
+      setPromoInfo(
+        await apiFetch<{ source: 'seller' | 'platform'; percent?: number }>(
+          `/promo/check?code=${encodeURIComponent(promo.trim())}&listingId=${listingId}`,
+        ),
+      );
+    } catch (e) {
+      setPromoErr(apiErrorMessage(e, t('Промокод не подошёл.')));
     }
   }
 
-  async function buyFromBalance() {
-    if (!getToken()) return router.push('/login');
-    if (!canBuy) { setErr('Укажите игровой ID/логин и подтвердите'); return; }
+  async function buy() {
+    if (!getToken()) {
+      const page = method === 'balance' ? 'login' : 'register';
+      return router.push(`/${page}?next=${encodeURIComponent(`/lot/${listingId}`)}`);
+    }
+    if (!canBuy) {
+      setErr(qtyProblem ?? t('Укажите игровой ID и отметьте, что он верный'));
+      return;
+    }
+    if (answersProblem) {
+      setErr(answersProblem);
+      return;
+    }
     setBusy(true);
     setErr(null);
+    let orderId: string;
     try {
-      const orderId = await createOrder();
-      await apiFetch(`/orders/${orderId}/pay-from-balance`, { method: 'POST' });
+      orderId = await createOrder();
+    } catch (e) {
+      setErr(apiErrorMessage(e, t('Не удалось оформить заказ. Обновите страницу и попробуйте ещё раз.')));
+      setBusy(false);
+      return;
+    }
+    try {
+      // Шлюз с переходом — дальше страница оплаты, вернёт на заказ сам.
+      if ((await payOrder(orderId, method)) === 'redirect') return;
       router.push(`/orders/${orderId}`);
     } catch {
-      setErr('Недостаточно средств на балансе или ошибка');
-      setBusy(false);
+      // Заказ уже создан: оплатить его другим способом можно на его странице.
+      router.push(`/orders/${orderId}?pay=failed`);
     }
   }
 
   return (
     <>
+      {qtyOffer && (
+        <div className="field" style={{ marginBottom: 12 }}>
+          <label className="label" htmlFor="buy-qty">
+            {t('Количество')}
+            {qtyOffer.unitName ? `, ${t.d(qtyOffer.unitName)}` : ''}
+          </label>
+          <input id="buy-qty" className="input" inputMode="numeric" autoComplete="off" value={qtyInput}
+            onChange={(e) => { setQtyInput(e.target.value); setErr(null); }}
+            aria-invalid={!!qtyProblem} aria-describedby="buy-qty-note" />
+          {qtyProblem && qtyInput.trim() ? (
+            <p className="field-error" id="buy-qty-note">{qtyProblem}</p>
+          ) : (
+            <p className="hint" id="buy-qty-note">
+              {t('От {qty}', {
+                qty: qtyOffer.minQty > 1 ? formatQty(qtyOffer.minQty, qtyOffer.unitName, t) : 1,
+              })}
+              {qtyOffer.stock != null
+                ? ` · ${t('в наличии {qty}', { qty: formatQty(qtyOffer.stock, qtyOffer.unitName, t) })}`
+                : ''}
+            </p>
+          )}
+          {tiers.length > 0 && (
+            <div className="qty-deal">
+              <p className="hint" style={{ margin: 0 }}>
+                {t('Оптом дешевле: {tiers}', {
+                  tiers: tiers
+                    .map((x) => t('от {qty} — {pct}%', { qty: formatQty(x.from, qtyOffer.unitName, t), pct: x.pct }))
+                    .join(' · '),
+                })}
+              </p>
+              {deal?.tier && (
+                <p className="promo-applied" style={{ margin: 0 }}>
+                  {t('Скидка за количество {pct}%: −{sum}', {
+                    pct: deal.tier.pct,
+                    sum: formatPrice(deal.discount.toString(), currency, t),
+                  })}
+                </p>
+              )}
+              {reachable && (
+                <button type="button" className="chip" style={{ justifySelf: 'start' }}
+                  onClick={() => { setQtyInput(String(reachable.from)); setErr(null); }}>
+                  {t('Взять {qty} — скидка {pct}%', {
+                    qty: formatQty(reachable.from, qtyOffer.unitName, t),
+                    pct: reachable.pct,
+                  })}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {buyerFields.length > 0 && (
+        <div className="stack-form" style={{ gap: 12, marginBottom: 12 }}>
+          {buyerFields.map((f, i) => (
+            <div key={f.label} className="field">
+              <label className="label" htmlFor={`buyer-field-${i}`}>
+                {f.label}
+                {f.required ? '' : ` — ${t('необязательно')}`}
+              </label>
+              <input id={`buyer-field-${i}`} className="input" maxLength={100} value={answers[f.label] ?? ''}
+                autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                onChange={(e) => {
+                  setAnswers((a) => ({ ...a, [f.label]: e.target.value }));
+                  setErr(null);
+                }} />
+            </div>
+          ))}
+          <p className="hint" style={{ margin: 0 }}>{t('Продавец увидит это в заказе — переписываться не придётся.')}</p>
+        </div>
+      )}
+
       {isTopUp && (
-        <div style={{ marginBottom: 10 }}>
-          <input className="input" placeholder="Игровой ID / логин" value={account}
+        <div className="field" style={{ marginBottom: 12 }}>
+          <label className="label" htmlFor="topup-account">{t('Игровой ID или логин')}</label>
+          <input id="topup-account" className="input" placeholder={t('Например, 812345678')} value={account}
+            autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false}
             onChange={(e) => setAccount(e.target.value)} />
-          <label className="row muted" style={{ gap: 8, fontSize: 12.5, marginTop: 8, alignItems: 'flex-start' }}>
+          <label className="row muted" style={{ gap: 10, fontSize: 13, marginTop: 6, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>
             <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}
-              style={{ marginTop: 2 }} />
-            <span>Я указал верный ID — пополнение придёт на этот аккаунт, возврат при ошибке в ID невозможен</span>
+              style={{ marginTop: 2, width: 18, height: 18, accentColor: 'var(--accent)' }} />
+            <span>{t('ID верный. Пополнение придёт на этот аккаунт, при ошибке в ID вернуть его нельзя')}</span>
           </label>
         </div>
       )}
 
-      <input className="input" placeholder="Промокод (необязательно)" value={promo}
-        onChange={(e) => setPromo(e.target.value)} style={{ marginBottom: 10 }} />
+      <details style={{ marginBottom: 12 }}>
+        <summary className="faint" style={{ fontSize: 13, cursor: 'pointer', minHeight: 32 }}>{t('Есть промокод?')}</summary>
+        <div className="field" style={{ marginTop: 8 }}>
+          <label className="label" htmlFor="promo" style={{ fontSize: 13 }}>{t('Промокод')}</label>
+          <div className="row" style={{ gap: 8 }}>
+            <input id="promo" className="input" placeholder={t('Например, START10')} value={promo}
+              autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false}
+              style={{ flex: 1, minWidth: 0 }}
+              onChange={(e) => {
+                setPromo(e.target.value);
+                setPromoInfo(null);
+                setPromoErr(null);
+              }} />
+            <button type="button" className="chip" disabled={promo.trim().length < 3} onClick={() => void applyPromo()}>
+              {t('Применить')}
+            </button>
+          </div>
+          {promoInfo?.source === 'seller' ? (
+            <p className="promo-applied">{t('Скидка продавца {pct}% — уже в цене.', { pct: promoInfo.percent ?? 0 })}</p>
+          ) : promoInfo ? (
+            <p className="promo-applied">{t('Промокод площадки: скидка учтётся в сумме заказа.')}</p>
+          ) : promoErr ? (
+            <p className="field-error">{promoErr}</p>
+          ) : (
+            <p className="hint">{t('Скидка учтётся в сумме заказа при оплате.')}</p>
+          )}
+        </div>
+      </details>
 
-      <button className="btn" style={{ width: '100%' }} onClick={buy} disabled={busy || !canBuy} type="button">
-        {busy ? 'Оформляем…' : 'Купить'}
+      <div style={{ marginBottom: 14 }}>
+        <PayMethods base={priced} currency={currency} value={method} onChange={setMethod} />
+      </div>
+
+      <button className="btn block lg" onClick={buy} disabled={busy || !canBuy} type="button">
+        {busy
+          ? t('Оформляем заказ…')
+          : toPay != null
+            ? t('Оплатить {sum}', { sum: formatPrice(toPay.toString(), currency, t) })
+            : t('Оплатить')}
       </button>
-      <button className="btn ghost" style={{ width: '100%', marginTop: 8 }} onClick={buyFromBalance}
-        disabled={busy || !canBuy} type="button">
-        Оплатить с баланса
-      </button>
-      {err && <p style={{ color: '#d33', fontSize: 13, marginTop: 8 }}>{err}</p>}
+      {err && (
+        <p className="field-error" role="alert" style={{ marginTop: 10, textAlign: 'center' }}>{err}</p>
+      )}
     </>
   );
 }

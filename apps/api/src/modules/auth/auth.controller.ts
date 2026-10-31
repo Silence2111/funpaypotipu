@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Param,
   Post,
   Req,
   Res,
@@ -19,15 +20,21 @@ import {
 } from '@gamemarket/shared';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
-import { AuthService, type IssuedAuth, type RequestCtx } from './auth.service';
+import { AuthService } from './auth.service';
+import { REFRESH_COOKIE, REFRESH_PATH, completeLogin, ctxOf } from './auth-http';
 import { TwoFactorService } from './twofactor.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser, type AuthUser } from './current-user.decorator';
+import { RateLimit } from '../../common/rate-limit';
 
-const codeSchema = z.object({ code: z.string().min(6).max(8) });
-
-const REFRESH_COOKIE = 'refresh_token';
-const REFRESH_PATH = '/api/auth';
+// Код из приложения — 6 цифр, резервный — «abcde-fghjk».
+const codeSchema = z.object({ code: z.string().trim().min(6).max(20) });
+const passwordSchema = z.object({
+  // Нет у аккаунта, заведённого через сервис: там пароль задают впервые.
+  current: z.string().optional(),
+  // Те же правила, что при регистрации.
+  next: z.string().min(8, 'Новый пароль — от 8 символов').max(128),
+});
 
 @Controller('auth')
 export class AuthController {
@@ -37,6 +44,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @RateLimit('auth-register', 10, 3600)
   @UsePipes(new ZodValidationPipe(registerSchema))
   async register(
     @Body() body: RegisterInput,
@@ -47,6 +55,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @RateLimit('auth-login', 30, 600)
   @HttpCode(200)
   @UsePipes(new ZodValidationPipe(loginSchema))
   async login(
@@ -58,25 +67,30 @@ export class AuthController {
   }
 
   @Post('forgot')
+  @RateLimit('auth-forgot', 5, 900)
   @HttpCode(200)
   async forgot(
     @Body(new ZodValidationPipe(z.object({ email: z.string().email() }))) body: { email: string },
+    @Req() req: Request,
   ) {
-    await this.auth.requestPasswordReset(body.email);
+    await this.auth.requestPasswordReset(body.email, ctxOf(req).lang);
     return { ok: true };
   }
 
   @Post('reset')
+  @RateLimit('auth-reset', 10, 900)
   @HttpCode(200)
   async reset(
     @Body(new ZodValidationPipe(z.object({ token: z.string().min(10), password: z.string().min(8).max(200) })))
     body: { token: string; password: string },
+    @Req() req: Request,
   ) {
-    await this.auth.resetPassword(body.token, body.password);
+    await this.auth.resetPassword(body.token, body.password, ctxOf(req));
     return { ok: true };
   }
 
   @Post('verify-email')
+  @RateLimit('auth-verify', 20, 900)
   @HttpCode(200)
   async verifyEmail(
     @Body(new ZodValidationPipe(z.object({ token: z.string().min(10) }))) body: { token: string },
@@ -103,54 +117,122 @@ export class AuthController {
     res.clearCookie(REFRESH_COOKIE, { path: REFRESH_PATH });
   }
 
+  // ── Пароль и сеансы ──
+  @Post('password')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  changePassword(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(passwordSchema)) body: { current?: string; next: string },
+    @Req() req: Request,
+  ) {
+    return this.auth.changePassword(user.userId, body.current, body.next, user.sessionFamily, ctxOf(req));
+  }
+
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  sessions(@CurrentUser() user: AuthUser) {
+    return this.auth.sessions(user.userId, user.sessionFamily);
+  }
+
+  @Post('sessions/:id/revoke')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  revokeSession(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.auth.revokeSession(user.userId, id, user.sessionFamily);
+  }
+
+  /** «Это не я» из предупреждения о входе: завершить сеанс и забыть устройство. */
+  @Post('sessions/:id/not-me')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  denySession(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.auth.denySession(user.userId, id, user.sessionFamily);
+  }
+
+  @Post('sessions/revoke-others')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  revokeOthers(@CurrentUser() user: AuthUser) {
+    return this.auth.revokeOtherSessions(user.userId, user.sessionFamily);
+  }
+
+  /** Кто я и мои роли — консоль сотрудника показывает только свои разделы. */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@CurrentUser() user: AuthUser): AuthUser {
-    return user;
+  async me(@CurrentUser() user: AuthUser) {
+    return { ...user, roles: await this.auth.rolesOf(user.userId) };
   }
 
   // ── Двухфакторная аутентификация ──
+  @Get('2fa')
+  @UseGuards(JwtAuthGuard)
+  twoFactorStatus(@CurrentUser() user: AuthUser) {
+    return this.twoFactor.status(user.userId);
+  }
+
   @Post('2fa/setup')
+  @RateLimit('auth-2fa', 20, 600)
   @UseGuards(JwtAuthGuard)
   setup2fa(@CurrentUser() user: AuthUser) {
     return this.twoFactor.setup(user.userId, user.username);
   }
 
   @Post('2fa/enable')
+  @RateLimit('auth-2fa', 20, 600)
   @UseGuards(JwtAuthGuard)
   enable2fa(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(codeSchema)) body: { code: string },
+    @Req() req: Request,
   ) {
-    return this.twoFactor.enable(user.userId, body.code);
+    return this.twoFactor.enable(user.userId, body.code, ctxOf(req));
   }
 
   @Post('2fa/disable')
+  @RateLimit('auth-2fa', 20, 600)
   @UseGuards(JwtAuthGuard)
   disable2fa(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(codeSchema)) body: { code: string },
+    @Req() req: Request,
   ) {
-    return this.twoFactor.disable(user.userId, body.code);
+    return this.twoFactor.disable(user.userId, body.code, ctxOf(req));
   }
 
-  /** Refresh — в httpOnly cookie, access — в теле ответа. */
-  private complete(issued: IssuedAuth, res: Response): AuthResponse {
-    res.cookie(REFRESH_COOKIE, issued.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: REFRESH_PATH,
-      maxAge: Number(process.env.JWT_REFRESH_TTL ?? 2592000) * 1000,
-    });
-    return { user: issued.user, accessToken: issued.accessToken };
+  /**
+   * «Это не я» из письма о включении входа с кодом: ссылка и пароль, который
+   * был при включении, — вход с кодом выключен, пароль новый, все вышли.
+   */
+  @Post('2fa/revoke')
+  @RateLimit('auth-2fa-revoke', 10, 900)
+  @HttpCode(200)
+  revoke2fa(
+    @Body(
+      new ZodValidationPipe(
+        z.object({
+          token: z.string().min(10),
+          password: z.string().min(1).max(200),
+          next: z.string().min(8).max(200),
+        }),
+      ),
+    )
+    body: { token: string; password: string; next: string },
+    @Req() req: Request,
+  ) {
+    return this.twoFactor.revokeByLink(body.token, body.password, body.next, ctxOf(req));
   }
-}
 
-function ctxOf(req: Request): RequestCtx {
-  return {
-    userAgent: req.headers['user-agent'],
-    ip: req.ip,
-    fingerprint: (req.headers['x-device-fingerprint'] as string | undefined) ?? undefined,
-  };
+  /** Новые резервные коды взамен старых — по коду из приложения. */
+  @Post('2fa/recovery')
+  @RateLimit('auth-2fa', 20, 600)
+  @UseGuards(JwtAuthGuard)
+  regenerate2fa(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(codeSchema)) body: { code: string },
+  ) {
+    return this.twoFactor.regenerate(user.userId, body.code);
+  }
+
+  private complete = completeLogin;
 }

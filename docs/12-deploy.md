@@ -52,7 +52,7 @@ IMAGE_OWNER=you IMAGE_TAG=v1.0.0 \
 
 | Компонент | Managed-вариант |
 |-----------|-----------------|
-| PostgreSQL | RDS / Cloud SQL / managed PG (бэкапы + PITR) |
+| PostgreSQL | RDS / Cloud SQL / managed PG (бэкапы + PITR), версия 13+ с расширениями `pg_trgm` и `btree_gin` — их включает миграция поиска в «Заказах»; в управляемом PG их иногда сначала разрешают в настройках кластера |
 | Redis | ElastiCache / managed Redis |
 | Объекты | S3 / GCS (вместо self-hosted MinIO) |
 | Поиск | Meilisearch Cloud / self-hosted с бэкапом индекса |
@@ -65,5 +65,7 @@ IMAGE_OWNER=you IMAGE_TAG=v1.0.0 \
 - [ ] Реальный `PaymentProvider` вместо `mock` (класс + ключи шлюза, вебхук-подпись).
 - [ ] TLS (cert-manager / внешний LB), HSTS.
 - [ ] Бэкапы Postgres (PITR) и объектного хранилища; тест восстановления.
+- [ ] В Postgres доступны расширения `pg_trgm` и `btree_gin` (иначе `prisma migrate deploy` остановится на `20261030100000_orders_search_trgm`).
+- [ ] Ответы API сжимает сам API (brotli/gzip, кроме `/api/auth`); прокси перед ним может сжимать и своё — уже сжатое он второй раз не трогает.
 - [ ] Observability: логи (pino), метрики, Sentry, алерты на падение оплат/рост ошибок.
 - [ ] Рейт-лимиты на auth/платежах; ревью прав и ротация секретов.

@@ -19,7 +19,13 @@ data:
   SMTP_PORT: "587"
   SMTP_SECURE: "true"
   SMTP_FROM: "no-reply@gamemarket.example"
-  PAYMENT_PROVIDER: "mock"
+  # Заглушка подтверждает оплату, не приняв денег, — в бою только ЮKassa
+  # (ключи — в секретах ниже).
+  PAYMENT_PROVIDER: "yookassa"
+  # Адрес сайта: ссылки в письмах, возврат после оплаты, CORS.
+  WEB_URL: "https://gamemarket.example"
+  # API за nginx-ingress: адрес покупателя — из X-Forwarded-For частной сети.
+  TRUST_PROXY: "loopback, linklocal, uniquelocal"
   ORDER_AUTO_CONFIRM_TTL_MS: "259200000"
   ORDER_SWEEP_INTERVAL_MS: "60000"
 ---
@@ -37,6 +43,8 @@ stringData:
   JWT_REFRESH_SECRET: "CHANGE_ME"
   DATA_ENCRYPTION_KEY: "CHANGE_ME"
   MOCK_WEBHOOK_SECRET: "CHANGE_ME"
+  YOOKASSA_SHOP_ID: "CHANGE_ME"
+  YOOKASSA_SECRET_KEY: "CHANGE_ME"
   S3_ACCESS_KEY: "CHANGE_ME"
   S3_SECRET_KEY: "CHANGE_ME"
   MEILI_MASTER_KEY: "CHANGE_ME"
