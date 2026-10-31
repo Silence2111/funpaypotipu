@@ -48,7 +48,8 @@ export default function CabinetPage() {
     }
     Promise.all([
       apiFetch<WalletDto>('/wallet').catch(() => null),
-      apiFetch<OrderRow[]>('/orders/mine').catch(() => []),
+      // Здесь видны пять последних — весь список в «Заказах».
+      apiFetch<OrderRow[]>('/orders/mine?limit=5').catch(() => []),
       apiFetch<ListingRow[]>('/listings/mine?limit=5').catch(() => []),
       apiFetch<{ all: number }>('/listings/mine/counts').catch(() => null),
     ]).then(([w, o, l, c]) => {

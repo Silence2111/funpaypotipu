@@ -772,7 +772,10 @@ export class OrdersService {
    * Вторая сторона и название — сразу в ответе: список «Продажи» без них
    * превращался в столбик номеров.
    */
-  async listMine(userId: string, q: { role?: 'buyer' | 'seller'; status?: OrderStatus[] } = {}) {
+  async listMine(
+    userId: string,
+    q: { role?: 'buyer' | 'seller'; status?: OrderStatus[]; limit?: number } = {},
+  ) {
     const where: Prisma.OrderWhereInput =
       q.role === 'buyer'
         ? { buyerId: userId }
@@ -783,7 +786,7 @@ export class OrdersService {
     const rows = await this.prisma.order.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take: 200,
+      take: q.limit ?? 200,
       include: WITH_PARTIES,
     });
     return rows.map((o) => this.row(o, userId));

@@ -46,7 +46,7 @@ function Support() {
       return;
     }
     void load();
-    apiFetch<OrderRow[]>('/orders/mine').then((o) => setOrders(o.slice(0, 30))).catch(() => {});
+    apiFetch<OrderRow[]>('/orders/mine?limit=30').then(setOrders).catch(() => {});
   }, [router, load]);
 
   async function submit(e: FormEvent) {

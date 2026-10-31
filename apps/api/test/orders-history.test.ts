@@ -136,6 +136,17 @@ describe('история заказов', () => {
     expect(raw[0]!.values).toContain(2);
   });
 
+  it('короткий список: обзору кабинета — пять последних, без limit — до 200', async () => {
+    const rows = [1, 2, 3, 4, 5, 6].map((n) => order(n, 'b1', 'me'));
+    const { svc, prisma } = setup(rows);
+    expect(
+      (await svc.listMine('me', { role: 'seller', limit: 5 })).map((o) => o.publicNumber),
+    ).toEqual(['GM-1', 'GM-2', 'GM-3', 'GM-4', 'GM-5']);
+    await svc.listMine('me');
+    const takes = prisma.order.findMany.mock.calls.map((c) => (c[0] as { take: number }).take);
+    expect(takes).toEqual([5, 200]);
+  });
+
   it('курсор — только свой заказ этой стороны', async () => {
     const rows = [order(1, 'b1', 'me'), order(2, 'me', 's2')];
     const { svc } = setup(rows);

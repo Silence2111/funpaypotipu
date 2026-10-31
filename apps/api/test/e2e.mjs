@@ -1215,6 +1215,14 @@ async function scenarioReports(rnd) {
       catalogPercent.items?.every((l) => l.title.includes('%')),
     JSON.stringify({ renamed: renamed.status, old: byOldTitle.items?.map((o) => o.title), now: byNewTitle.items?.length, pct: byPercent.items?.length, us: byUnderscore.items?.length, catalog: catalogPercent.items?.map((l) => l.title).slice(0, 3) }),
   );
+  // Короткий список заказов: обзору кабинета — пять последних, а не до двухсот.
+  const latest = await j('/orders/mine?limit=1', { token: seller.token });
+  const zero = await j('/orders/mine?limit=0', { token: seller.token });
+  check(
+    'Заказы: ?limit — самые новые, limit=0 — 400',
+    latest.status === 200 && latest.body.length === 1 && latest.body[0].id === sales2.items?.[0]?.id && zero.status === 400,
+    JSON.stringify({ latest: latest.body?.map?.((o) => o.publicNumber), zero: zero.status }),
+  );
   const bought = (await hist('role=buyer', buyer.token)).body;
   const wrongSide = await hist(`role=seller&before=${order.body.id}`, buyer.token);
   const anon = await j('/orders/history?role=buyer');

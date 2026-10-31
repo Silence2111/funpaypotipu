@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { useSummary } from '@/lib/summary';
 import { isCurrentQuery, isPlainClick, replaceUrl, withQuery } from '@/lib/url';
 import { formatPrice, formatQty } from '@/lib/format';
 import { CabinetNav } from '@/components/cabinet-nav';
@@ -109,7 +110,11 @@ function Orders() {
   const [next, setNext] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [toShip, setToShip] = useState(0);
+  // Сколько продаж ждут выдачи — видно на вкладке, как счётчик на FunPay. Из
+  // той же сводки, что и в шапке: раньше вкладка считала строки списка
+  // оплаченных продаж, а он обрезан на 200, — и у продавца с 300 ждущими
+  // выдачи писала «200».
+  const toShip = useSummary(true)?.sales.toDeliver ?? 0;
   const key = keyOf(view);
   // «Показать ещё» дописывает только к тому списку, с которого начинал.
   const current = useRef(key);
@@ -150,14 +155,6 @@ function Orders() {
     // query() собирается из того же, что и key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, key, t]);
-
-  // Сколько продаж ждут выдачи — видно на вкладке, как счётчик на FunPay.
-  useEffect(() => {
-    if (!getToken()) return;
-    apiFetch<Row[]>('/orders/mine?role=seller&status=paid')
-      .then((r) => setToShip(r.length))
-      .catch(() => {});
-  }, []);
 
   // Переход по ссылке, пока страница открыта, — «Продажи» и «Покупки» в меню
   // шапки: выбор берём из адреса. Свой же адрес совпадёт с выбором и ничего

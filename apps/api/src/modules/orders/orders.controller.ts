@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { ORDER_STATUS, type OrderStatus } from '@gamemarket/shared';
+import { ORDER_STATUS } from '@gamemarket/shared';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -29,6 +29,8 @@ const mineQuery = z.object({
     .optional()
     .transform((v) => (v ? v.split(',').filter(Boolean) : []))
     .pipe(z.array(z.enum(ORDER_STATUS))),
+  // Обзору кабинета — пять последних, выбору заказа в поддержке — 30.
+  limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 
 // «Заказы» в кабинете: поиск, период в днях и страницы по последнему показанному.
@@ -39,6 +41,7 @@ const historyQuery = mineQuery.extend({
   before: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(30),
 });
+type MineQuery = z.infer<typeof mineQuery>;
 type HistoryQuery = z.infer<typeof historyQuery>;
 
 const refundSchema = z.object({ reason: z.string().max(300).optional() });
@@ -66,7 +69,7 @@ export class OrdersController {
   @Get('mine')
   mine(
     @CurrentUser() user: AuthUser,
-    @Query(new ZodValidationPipe(mineQuery)) q: { role?: 'buyer' | 'seller'; status: OrderStatus[] },
+    @Query(new ZodValidationPipe(mineQuery)) q: MineQuery,
   ) {
     return this.orders.listMine(user.userId, q);
   }
