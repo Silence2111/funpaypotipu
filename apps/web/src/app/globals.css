@@ -1827,6 +1827,16 @@ summary:focus-visible {
   padding: 12px 16px 16px;
   border-top: 1px solid var(--border);
 }
+/* Открытый по ссылке диалог старше загруженных — над списком. */
+.conv-pinned {
+  border-bottom: 1px solid var(--border);
+}
+.conv-pinned-caption {
+  margin: 0;
+  padding: 10px 16px 0;
+  font-size: 12px;
+  color: var(--fg-faint);
+}
 .conv-item:hover {
   background: var(--bg-subtle);
 }

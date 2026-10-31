@@ -169,6 +169,27 @@ export function ChatList({ activeId, meId }: { activeId?: string; meId: string }
   const shown = !needle ? items : ready ? found!.items : nearby;
   const hasMore = !needle ? more : ready && found!.more;
 
+  // Диалог, открытый по ссылке (из заказа, уведомления, Telegram), бывает
+  // старше загруженных страниц — тогда его не было видно в списке вовсе.
+  // Он стоит над списком, пока до него не дойдёт «Показать ещё» или в нём
+  // не появится новое сообщение (тогда он встаёт в список наверх).
+  const [opened, setOpened] = useState<ConversationItem | null>(null);
+  const listed = !!activeId && !!items?.some((c) => c.id === activeId);
+  const loadedOnce = items !== null;
+  useEffect(() => {
+    if (!activeId || !loadedOnce || listed || opened?.id === activeId) return;
+    let stale = false;
+    apiFetch<ConversationItem>(`/conversations/${activeId}`)
+      .then((c) => {
+        if (!stale) setOpened({ ...c, unread: 0 });
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [activeId, loadedOnce, listed, opened?.id]);
+  const pinned = !needle && !listed && opened && opened.id === activeId ? opened : null;
+
   async function showMore() {
     const searching = needle;
     const list = searching ? found?.items : items;
@@ -191,6 +212,45 @@ export function ChatList({ activeId, meId }: { activeId?: string; meId: string }
     }
   }
 
+  const row = (c: ConversationItem) => {
+    const mine = c.last?.senderId === meId;
+    return (
+      <Link
+        key={c.id}
+        href={`/chat/${c.id}`}
+        className="conv-item"
+        aria-current={c.id === activeId ? 'page' : undefined}
+      >
+        <Avatar
+          name={c.counterpart.username}
+          url={c.counterpart.avatarUrl}
+          online={isOnline(c.counterpart.onlineAt)}
+          size={44}
+          t={t}
+        />
+        <span className="conv-main">
+          <span className="conv-name">{c.counterpart.username}</span>
+          <span className="conv-context">
+            {c.order
+              ? `${c.role === 'buyer' ? t('Покупка {n}', { n: c.order.publicNumber }) : t('Продажа {n}', { n: c.order.publicNumber })} · ${ORDER_STATUS_LABELS[c.order.status] ? t(ORDER_STATUS_LABELS[c.order.status]!) : c.order.status}`
+              : t('До покупки')}
+          </span>
+          <span className="conv-preview" data-unread={c.unread > 0 ? 'true' : undefined}>
+            {c.last ? `${mine ? `${t('Вы:')} ` : ''}${previewText(t, c.last)}` : t('Сообщений пока нет')}
+          </span>
+        </span>
+        <span className="conv-meta">
+          <time dateTime={c.lastMessageAt}>{listTime(c.lastMessageAt, new Date(), t)}</time>
+          {c.unread > 0 && (
+            <span className="conv-unread" aria-label={t('Непрочитанных: {n}', { n: c.unread })}>
+              {c.unread > 99 ? '99+' : c.unread}
+            </span>
+          )}
+        </span>
+      </Link>
+    );
+  };
+
   return (
     <>
       <div className="messenger-list-head">
@@ -211,6 +271,12 @@ export function ChatList({ activeId, meId }: { activeId?: string; meId: string }
         </div>
       </div>
       <nav className="conv-list" aria-label={t('Диалоги')}>
+        {pinned && (
+          <div className="conv-pinned">
+            <p className="conv-pinned-caption">{t('Открытый диалог')}</p>
+            {row(pinned)}
+          </div>
+        )}
         {shown === null || (shown.length === 0 && !ready) ? null : shown.length === 0 ? (
           <p className="muted" style={{ padding: '16px 20px', fontSize: 14, margin: 0 }}>
             {needle
@@ -218,44 +284,7 @@ export function ChatList({ activeId, meId }: { activeId?: string; meId: string }
               : t('Диалогов пока нет. Напишите продавцу со страницы лота — переписка появится здесь.')}
           </p>
         ) : (
-          shown.map((c) => {
-            const mine = c.last?.senderId === meId;
-            return (
-              <Link
-                key={c.id}
-                href={`/chat/${c.id}`}
-                className="conv-item"
-                aria-current={c.id === activeId ? 'page' : undefined}
-              >
-                <Avatar
-                  name={c.counterpart.username}
-                  url={c.counterpart.avatarUrl}
-                  online={isOnline(c.counterpart.onlineAt)}
-                  size={44}
-                  t={t}
-                />
-                <span className="conv-main">
-                  <span className="conv-name">{c.counterpart.username}</span>
-                  <span className="conv-context">
-                    {c.order
-                      ? `${c.role === 'buyer' ? t('Покупка {n}', { n: c.order.publicNumber }) : t('Продажа {n}', { n: c.order.publicNumber })} · ${ORDER_STATUS_LABELS[c.order.status] ? t(ORDER_STATUS_LABELS[c.order.status]!) : c.order.status}`
-                      : t('До покупки')}
-                  </span>
-                  <span className="conv-preview" data-unread={c.unread > 0 ? 'true' : undefined}>
-                    {c.last ? `${mine ? `${t('Вы:')} ` : ''}${previewText(t, c.last)}` : t('Сообщений пока нет')}
-                  </span>
-                </span>
-                <span className="conv-meta">
-                  <time dateTime={c.lastMessageAt}>{listTime(c.lastMessageAt, new Date(), t)}</time>
-                  {c.unread > 0 && (
-                    <span className="conv-unread" aria-label={t('Непрочитанных: {n}', { n: c.unread })}>
-                      {c.unread > 99 ? '99+' : c.unread}
-                    </span>
-                  )}
-                </span>
-              </Link>
-            );
-          })
+          shown.map(row)
         )}
         {failed && (
           <p className="muted" role="alert" style={{ padding: '12px 16px', fontSize: 14, margin: 0 }}>
