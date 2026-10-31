@@ -224,6 +224,7 @@ export const ORDERS: Record<string, string> = {
   Диалоги: 'Conversations',
   'Все диалоги': 'All conversations',
   'Никого не нашлось.': 'No one found.',
+  'Не удалось загрузить диалоги. Попробуйте ещё раз.': 'Couldn’t load conversations. Try again.',
   'Диалогов пока нет. Напишите продавцу со страницы лота — переписка появится здесь.':
     'No conversations yet. Message a seller from a listing page — the conversation will appear here.',
   'Покупка {n}': 'Purchase {n}',

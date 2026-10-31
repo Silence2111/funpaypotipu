@@ -54,6 +54,10 @@ function setup(rows: ReturnType<typeof order>[], found: string[] = []) {
           return { id: r.id, createdAt: r.createdAt };
         },
       ),
+      findUnique: vi.fn(async ({ where }: { where: { id: string } }) => {
+        const r = rows.find((o) => o.id === where.id);
+        return r ? { ...r, conversation: { id: `conv-${r.id}` } } : null;
+      }),
     },
   };
   const none = {} as never;
@@ -154,5 +158,16 @@ describe('история заказов', () => {
     await expect(svc.history('me', { role: 'seller', before: rows[1]!.id })).rejects.toThrow(
       'Список заказов устарел',
     );
+  });
+});
+
+describe('страница заказа', () => {
+  it('с id диалога сделки — страница не ищет его в обрезанном списке мессенджера; чужой — нет', async () => {
+    const rows = [order(1, 'b1', 'me')];
+    const { svc } = setup(rows);
+    const got = await svc.getForUser(rows[0]!.id, 'me');
+    expect(got).toMatchObject({ id: rows[0]!.id, conversationId: `conv-${rows[0]!.id}` });
+    expect(got).not.toHaveProperty('conversation');
+    await expect(svc.getForUser(rows[0]!.id, 'stranger')).rejects.toThrow('Нет доступа к заказу');
   });
 });

@@ -1823,6 +1823,10 @@ summary:focus-visible {
 .conv-item + .conv-item {
   border-top: 1px solid var(--border);
 }
+.conv-more {
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border);
+}
 .conv-item:hover {
   background: var(--bg-subtle);
 }

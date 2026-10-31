@@ -23,6 +23,17 @@ import { StorageService } from '../storage/storage.service';
 import { ScanService } from '../antivirus/scan.service';
 import { BlocksService } from '../access/blocks.service';
 import { assetUrl } from '../storage/asset-url';
+import { likeText } from '../../common/like';
+
+/** Страница списка диалогов: сколько, от какого диалога дальше и что искать. */
+export interface ConversationsQuery {
+  limit?: number;
+  /** Время и id последнего показанного диалога — «Показать ещё» продолжает с него. */
+  before?: Date;
+  beforeId?: string;
+  /** Часть ника собеседника, номера или названия заказа. */
+  q?: string;
+}
 
 export interface ChatAttachmentDto {
   url: string;
@@ -154,9 +165,70 @@ export class ChatService {
    * последнее сообщение, непрочитанные, заказ, если диалог по сделке. Раньше
    * список отдавал голые строки диалогов, и сайт писал «Диалог по сделке» без
    * имени собеседника и текста.
+   *
+   * Свежие сверху — по времени, которое список и показывает: последнее
+   * сообщение, у пустого диалога — создание. Раньше отдавались 200 последних
+   * и всё: у продавца с тысячами заказов старые переписки было не открыть, а
+   * поиск на сайте перебирал только загруженные. Теперь — страница и
+   * «Показать ещё» от последнего показанного, а ищет база.
    */
-  listConversations(userId: string) {
-    return this.describe(userId, {});
+  async listConversations(userId: string, q: ConversationsQuery = {}) {
+    const ids = await this.pageIds(userId, q);
+    if (!ids.length) return [];
+    const place = new Map(ids.map((id, i) => [id, i]));
+    const rows = await this.describe(userId, { id: { in: ids } });
+    return rows.sort((a, b) => place.get(a.id)! - place.get(b.id)!);
+  }
+
+  /**
+   * Id диалогов страницы. Своя ветка на каждую сторону (я продаю / я
+   * покупаю), а в поиске — ещё и на каждое поле: ник через триграммы
+   * профилей, номер и название — через триграммы заказов той же стороны
+   * (миграция `orders_search_trgm`). Одним условием с «или» база соединяла
+   * все диалоги продавца с заказами и профилями: на 20 тыс. диалогов — 25 мс
+   * на поиск, ветками — 1,5–15.
+   */
+  private async pageIds(userId: string, q: ConversationsQuery): Promise<string[]> {
+    const take = q.limit ?? 200;
+    const at = Prisma.sql`COALESCE(c.last_message_at, c.created_at)`;
+    // Время в базе — UTC без пояса; пояс соединения на сравнение не влияет.
+    const after =
+      q.before && q.beforeId
+        ? Prisma.sql`AND (${at}, c.id) < (${q.before.toISOString()}::timestamptz AT TIME ZONE 'UTC', ${q.beforeId}::uuid)`
+        : Prisma.empty;
+    const text = q.q?.trim();
+    const pattern = text ? `%${likeText(text)}%` : '';
+    const sides = [
+      { mine: Prisma.sql`c.seller_id`, other: Prisma.sql`c.buyer_id`, orderSide: Prisma.sql`o.seller_id` },
+      { mine: Prisma.sql`c.buyer_id`, other: Prisma.sql`c.seller_id`, orderSide: Prisma.sql`o.buyer_id` },
+    ];
+    const branches = sides.flatMap(({ mine, other, orderSide }) => {
+      const where = Prisma.sql`WHERE ${mine} = ${userId}::uuid ${after}`;
+      if (!text) return [Prisma.sql`FROM conversations c ${where}`];
+      const withOrder = Prisma.sql`FROM conversations c JOIN orders o ON o.id = c.order_id ${where} AND ${orderSide} = ${userId}::uuid`;
+      return [
+        Prisma.sql`FROM conversations c JOIN profiles p ON p.user_id = ${other} ${where} AND p.username ILIKE ${pattern}`,
+        Prisma.sql`${withOrder} AND o.public_number ILIKE ${pattern}`,
+        Prisma.sql`${withOrder} AND (o.listing_snapshot ->> 'title') ILIKE ${pattern}`,
+      ];
+    });
+    const query = Prisma.sql`
+      SELECT id FROM (${Prisma.join(
+        branches.map((from) => Prisma.sql`(SELECT c.id, ${at} AS sort_at ${from} ORDER BY ${at} DESC, c.id DESC LIMIT ${take})`),
+        ' UNION ',
+      )}) t
+      ORDER BY sort_at DESC, id DESC LIMIT ${take}`;
+    if (!text) {
+      const rows = await this.prisma.$queryRaw<Array<{ id: string }>>(query);
+      return rows.map((r) => r.id);
+    }
+    // Какой индекс выгоднее, решает текст поиска, а общий план
+    // подготовленного запроса его не видит — как в поиске по заказам.
+    const rows = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT set_config('plan_cache_mode', 'force_custom_plan', true)`;
+      return tx.$queryRaw<Array<{ id: string }>>(query);
+    });
+    return rows.map((r) => r.id);
   }
 
   /** Один диалог для шапки мессенджера: собеседник и заказ — без загрузки всего списка. */

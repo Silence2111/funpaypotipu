@@ -12,6 +12,19 @@ const historySchema = z.object({
   before: z.coerce.date().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
+const listSchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(200).default(200),
+    // «Показать ещё»: время и id последнего показанного диалога.
+    before: z.coerce.date().optional(),
+    beforeId: z.string().uuid().optional(),
+    q: z.string().trim().max(100).optional(),
+  })
+  .refine((v) => !v.before === !v.beforeId, {
+    path: ['beforeId'],
+    message: 'Список диалогов устарел — обновите страницу',
+  });
+type ListQuery = z.infer<typeof listSchema>;
 const uploadSchema = z.object({ mime: z.string().min(3).max(100) });
 const attachmentSchema = z.object({
   key: z.string().min(3).max(300),
@@ -24,9 +37,10 @@ const attachmentSchema = z.object({
 export class ChatController {
   constructor(private readonly chat: ChatService) {}
 
+  /** Свежие диалоги сверху; ?limit, ?before+beforeId — следующая страница, ?q — поиск. */
   @Get()
-  list(@CurrentUser() user: AuthUser) {
-    return this.chat.listConversations(user.userId);
+  list(@CurrentUser() user: AuthUser, @Query(new ZodValidationPipe(listSchema)) q: ListQuery) {
+    return this.chat.listConversations(user.userId, q);
   }
 
   /** Начатый диалог с продавцом лота и непрочитанные в нём; { id: null } — ничего не создаёт. */

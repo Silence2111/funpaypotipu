@@ -35,8 +35,9 @@ interface Order {
     qtyDiscount?: { from: number; pct: number; discount: string };
   } | null;
   autoConfirmAt?: string | null; sellerPayoutAmount?: string;
+  /** Диалог сделки — приходит с заказом, а не поиском по списку мессенджера. */
+  conversationId?: string | null;
 }
-interface Conversation { id: string; orderId: string | null }
 
 const STATUS: Record<string, string> = {
   created: msg('Ждёт оплаты'), paid: msg('Оплачен, деньги у площадки'), delivered: msg('Выдан, идёт проверка'),
@@ -96,7 +97,6 @@ export default function OrderPage() {
   const id = params.id;
   const t = useT();
   const [order, setOrder] = useState<Order | null>(null);
-  const [conv, setConv] = useState<Conversation | null>(null);
   const [keys, setKeys] = useState<string[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -115,16 +115,10 @@ export default function OrderPage() {
     setOrder(await apiFetch<Order>(`/orders/${id}`));
   }, [id]);
 
-  const loadConv = useCallback(async () => {
-    const convs = await apiFetch<Conversation[]>('/conversations').catch(() => []);
-    setConv(convs.find((x) => x.orderId === id) ?? null);
-  }, [id]);
-
   useEffect(() => {
     if (!getToken()) return;
     loadOrder().catch(() => setErr(t('Заказ не найден')));
-    loadConv();
-  }, [loadOrder, loadConv, t]);
+  }, [loadOrder, t]);
 
   // Оформление с лота: заказ создан, а оплата не прошла — платим отсюда.
   useEffect(() => {
@@ -496,8 +490,8 @@ export default function OrderPage() {
 
       <section style={{ marginTop: 40 }}>
         <h2 className="h2" style={{ fontSize: 18, marginBottom: 12 }}>{t('Чат по сделке')}</h2>
-        {conv && me ? (
-          <OrderChat conversationId={conv.id} meId={me.id} />
+        {order.conversationId && me ? (
+          <OrderChat conversationId={order.conversationId} meId={me.id} />
         ) : (
           <p className="muted" style={{ fontSize: 14 }}>
             {t('Чат откроется, когда заказ будет оплачен. Всё, что написано в нём, увидит арбитр при споре.')}

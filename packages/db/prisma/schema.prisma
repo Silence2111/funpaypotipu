@@ -745,8 +745,10 @@ model Conversation {
   order    Order?    @relation(fields: [orderId], references: [id])
   messages Message[]
 
-  @@index([buyerId])
-  @@index([sellerId])
+  // Мессенджер: свои диалоги каждой стороны свежими сверху — индексы
+  // (buyer_id | seller_id, COALESCE(last_message_at, created_at) DESC, id DESC)
+  // только в миграции conversations_activity: индекс по выражению Prisma не
+  // описывает.
   @@map("conversations")
 }
 

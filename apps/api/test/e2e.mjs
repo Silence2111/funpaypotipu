@@ -412,6 +412,28 @@ async function scenarioAccount(rnd) {
   const preSale = (await j('/conversations', { token: seller.token })).body.find?.((c) => c.id === ask.body.id);
   check('У продавца два непрочитанных вопроса, строка о лоте не в счёт', preSale?.unread === 2 && preSale?.order === null, String(preSale?.unread));
 
+  // Мессенджер по страницам: раньше отдавались 200 последних диалогов — у
+  // продавца с тысячами заказов старые переписки было не открыть и не найти,
+  // а страница заказа искала свой чат в этом же списке.
+  const all = (await j('/conversations', { token: seller.token })).body;
+  const p1 = await j('/conversations?limit=1', { token: seller.token });
+  const p2 = await j(`/conversations?limit=1&before=${encodeURIComponent(p1.body[0]?.lastMessageAt)}&beforeId=${p1.body[0]?.id}`, { token: seller.token });
+  check(
+    'Мессенджер: свежие сверху, «Показать ещё» — со следующего, без повторов',
+    all.length >= 3 && p1.body[0]?.id === all[0].id && p2.body.length === 1 && p2.body[0].id === all[1].id,
+    JSON.stringify([all.map((c) => c.id), p1.body[0]?.id, p2.body[0]?.id]),
+  );
+  const byNick = await j(`/conversations?q=${encodeURIComponent(`acb${rnd}`.toUpperCase())}`, { token: seller.token });
+  const byNumber = await j(`/conversations?q=${encodeURIComponent(order.body.publicNumber)}`, { token: seller.token });
+  const halfCursor = await j(`/conversations?before=${encodeURIComponent(new Date().toISOString())}`, { token: seller.token });
+  check(
+    'Мессенджер: поиск в базе — по нику без регистра и по номеру заказа; курсор без id — 400',
+    byNick.body.length === all.length && byNumber.body.length === 1 && byNumber.body[0].id === orderConv?.id && halfCursor.status === 400,
+    JSON.stringify([byNick.body.length, all.length, byNumber.body.map?.((c) => c.id), halfCursor.status]),
+  );
+  const orderPage = await j(`/orders/${order.body.id}`, { token: seller.token });
+  check('Заказ отдаёт id своего диалога — чат в старом заказе не теряется', orderPage.body.conversationId === orderConv?.id, orderPage.body.conversationId);
+
   const prof = await j('/account/profile', { method: 'PATCH', token: seller.token, body: JSON.stringify({ displayName: 'Склад аккаунтов', bio: 'Отвечаю быстро, пишите в телеграм @fast_seller' }) });
   check('Профиль сохранён, контакты в «о себе» скрыты', prof.body.displayName === 'Склад аккаунтов' && !/fast_seller/.test(prof.body.bio ?? ''), prof.body.bio);
   const pub = await j(`/sellers/${seller.id}`);

@@ -915,12 +915,22 @@ export class OrdersService {
     };
   }
 
+  /**
+   * Заказ для его страницы — с id диалога сделки. Раньше страница искала
+   * диалог в списке мессенджера, а тот обрезан: у продавца с тысячами
+   * заказов в старом заказе чата не было вовсе.
+   */
   async getForUser(orderId: string, userId: string) {
-    const order = await this.get(orderId);
-    if (order.buyerId !== userId && order.sellerId !== userId) {
+    const found = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { conversation: { select: { id: true } } },
+    });
+    if (!found) throw new NotFoundException('Заказ не найден');
+    if (found.buyerId !== userId && found.sellerId !== userId) {
       throw new ForbiddenException('Нет доступа к заказу');
     }
-    return order;
+    const { conversation, ...order } = found;
+    return { ...order, conversationId: conversation?.id ?? null };
   }
 
   private async get(orderId: string) {
