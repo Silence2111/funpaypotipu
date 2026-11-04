@@ -22,11 +22,20 @@ import { Roles } from '../access/roles.decorator';
 import {
   DEAL_ANSWERS,
   RECOVERY_REASONS,
+  RECOVERY_STATUSES,
   RecoveryService,
   type DealAnswer,
   type RecoveryReason,
-  type RecoveryStatus,
 } from './recovery.service';
+import { timeCursor } from '../../common/cursor';
+
+const queueSchema = z.object({
+  status: z.enum(RECOVERY_STATUSES).default('pending'),
+  q: z.string().trim().max(100).optional(),
+  cursor: timeCursor('Список заявок устарел — обновите страницу'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+type QueueParams = z.infer<typeof queueSchema>;
 
 const requestSchema = z.object({
   email: z.string().trim().email().max(200),
@@ -178,9 +187,8 @@ export class RecoveryController {
   @Get('queue')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('agent', 'moderator')
-  queue(@Query('status') status?: string) {
-    const s = (['pending', 'restored', 'rejected'] as const).find((v) => v === status) ?? 'pending';
-    return this.recovery.queue(s as RecoveryStatus);
+  queue(@Query(new ZodValidationPipe(queueSchema)) q: QueueParams) {
+    return this.recovery.queue(q);
   }
 
   @Get(':id')

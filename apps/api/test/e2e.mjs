@@ -2680,9 +2680,21 @@ async function scenarioRecovery(rnd) {
     alerts = (await j('/notifications', { token: owner.token })).body.filter((n) => n.type === 'recovery_requested');
   }
   const mine = (await j('/recovery/mine', { token: owner.token })).body.request;
-  const queue = (await j('/recovery/queue', { token: agent.token })).body;
+  // Заявка этого прогона — поиском по нику: очередь общая, и раньше она
+  // отдавала 100 старейших — свежая заявка за ними не попадала в список.
+  const queue = (await j(`/recovery/queue?q=qro${rnd}`, { token: agent.token })).body.items ?? [];
   const row = queue.find((r) => r.id === mine?.id);
   const outsider = await j('/recovery/queue', { token: seller.token });
+  const qFirst = (await j('/recovery/queue?limit=1', { token: agent.token })).body;
+  const qSecond = qFirst.next ? (await j(`/recovery/queue?limit=1&cursor=${encodeURIComponent(qFirst.next)}`, { token: agent.token })).body : null;
+  check(
+    'Очередь восстановления: старые сверху, «Показать ещё» — со следующей; счётчики; поиск по нику; битый курсор — 400',
+    qFirst.items?.length === 1 && qFirst.counts?.pending >= 1 && row?.status === 'pending' &&
+      (qFirst.counts.pending === 1 ? qFirst.next === null : qSecond?.items?.[0]?.id !== qFirst.items[0].id &&
+        new Date(qSecond.items[0].createdAt) >= new Date(qFirst.items[0].createdAt)) &&
+      (await j('/recovery/queue?cursor=x', { token: agent.token })).status === 400,
+    JSON.stringify([qFirst.counts, qFirst.next]),
+  );
   const objected = await j(`/recovery/${mine?.id}/object`, { method: 'POST', token: owner.token });
   const detail = (await j(`/recovery/${mine?.id}`, { token: agent.token })).body;
   const early = await j(`/recovery/${mine?.id}/restore`, { method: 'POST', token: agent.token });
@@ -2729,7 +2741,7 @@ async function scenarioRecoveryNewEmail(rnd) {
     j('/recovery', { method: 'POST', body: JSON.stringify({ email, reason: 'password', orderNumbers: [], details: 'Нет доступа ни к аккаунту, ни к почте', newEmail: fresh.toUpperCase() }) });
   const sent = await ask(`qno${rnd}@e2e.local`);
   await ask(`qnx${rnd}@e2e.local`);
-  const queue = (await j('/recovery/queue', { token: agent.token })).body;
+  const queue = (await j(`/recovery/queue?q=${rnd}`, { token: agent.token })).body.items ?? [];
   const mine = queue.find((r) => r.email === `qno${rnd}@e2e.local`);
   const theirs = queue.find((r) => r.email === `qnx${rnd}@e2e.local`);
   const noKyc = await j(`/recovery/${theirs?.id}/request-docs`, { method: 'POST', token: agent.token });
@@ -2798,7 +2810,7 @@ async function scenarioRecoveryDeals(rnd) {
     method: 'POST', headers: { 'X-Forwarded-For': CLAIM_IP },
     body: JSON.stringify({ email: `qwo${rnd}@e2e.local`, reason: 'password', orderNumbers: [], details: 'Нет доступа ни к аккаунту, ни к почте', newEmail: fresh }),
   });
-  const mine = (await j('/recovery/queue', { token: agent.token })).body.find((r) => r.email === `qwo${rnd}@e2e.local`);
+  const mine = (await j(`/recovery/queue?q=qwo${rnd}`, { token: agent.token })).body.items?.find((r) => r.email === `qwo${rnd}@e2e.local`);
   const docs = await j(`/recovery/${mine?.id}/request-docs`, { method: 'POST', token: agent.token });
   const asked = await j(`/recovery/${mine?.id}/request-deals`, { method: 'POST', token: agent.token });
   const rec = await prisma.accountRecovery.findUnique({ where: { id: mine.id } });
@@ -3399,7 +3411,7 @@ async function scenarioYooKassa(rnd) {
       });
     await claim('ykb', '203.0.113.81');
     await claim('ykf', '203.0.113.82');
-    const queue = (await k('/recovery/queue', { token: ag.token })).body;
+    const queue = (await k(`/recovery/queue?q=${rnd}`, { token: ag.token })).body.items ?? [];
     const rid = queue.find((r) => r.email === `ykb${rnd}@e2e.local`)?.id;
     const noCards = await k(`/recovery/${queue.find((r) => r.email === `ykf${rnd}@e2e.local`)?.id}/request-card`, { method: 'POST', token: ag.token });
     const askedCard = await k(`/recovery/${rid}/request-card`, { method: 'POST', token: ag.token });

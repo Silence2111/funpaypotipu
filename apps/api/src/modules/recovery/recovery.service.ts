@@ -22,6 +22,8 @@ import { CARD_CHECK_PURPOSE, YooKassaProvider } from '../payments/yookassa.provi
 import type { CardPrint } from '../payments/payment.provider';
 import { langOf, say } from '../../i18n/texts';
 import { maskEmail } from '../../common/mask';
+import { containsText } from '../../common/like';
+import { nextCursor } from '../../common/cursor';
 
 /**
  * Решение по заявке — не раньше чем через 3 дня. Если заявку подал не
@@ -31,6 +33,16 @@ export const RECOVERY_WAIT_MS = 72 * 3_600_000;
 export const RECOVERY_REASONS = ['two_factor', 'password', 'other'] as const;
 export type RecoveryReason = (typeof RECOVERY_REASONS)[number];
 export type RecoveryStatus = 'pending' | 'restored' | 'rejected';
+export const RECOVERY_STATUSES = ['pending', 'restored', 'rejected'] as const;
+
+/** Страница очереди восстановления: какие, что искать, с какой заявки продолжать. */
+export interface RecoveryQueueQuery {
+  status?: RecoveryStatus;
+  q?: string;
+  /** Из `next` прошлой страницы: время (подачи или решения) и id последней показанной. */
+  cursor?: { at: Date; id: string };
+  limit?: number;
+}
 
 /** Ссылка «Загрузите документы» на новую почту живёт неделю. */
 export const RECOVERY_DOCS_TTL = 7 * 86_400;
@@ -312,20 +324,60 @@ export class RecoveryService {
     return { ok: true };
   }
 
-  /** Очередь сотрудника: ждущие решения — старые сверху. */
-  async queue(status: RecoveryStatus) {
-    const rows = await this.prisma.accountRecovery.findMany({
-      where: { status },
-      orderBy: { createdAt: status === 'pending' ? 'asc' : 'desc' },
-      take: 100,
-      include: { user: { select: { email: true, profile: { select: { username: true } } } } },
-    });
+  /**
+   * Очередь сотрудника: ждущие решения — старые сверху, решённые — свежие
+   * решения сверху. По страницам, со счётчиками; поиск — по нику, почте
+   * аккаунта и новой почте из заявки. Раньше отдавались 100 и всё: при
+   * очереди больше сотни новые заявки сотрудник не видел, а решённую
+   * старше сотой было не найти.
+   */
+  async queue(q: RecoveryQueueQuery = {}) {
+    const status = q.status ?? 'pending';
+    const pending = status === 'pending';
+    const limit = q.limit ?? 50;
+    const text = q.q?.trim().replace(/^[#@]+/, '');
+    // Заявок на восстановление мало — поиск обычным условием.
+    const match: Prisma.AccountRecoveryWhereInput = text
+      ? {
+          OR: [
+            { user: { email: containsText(text) } },
+            { user: { profile: { username: containsText(text) } } },
+            { contactEmail: containsText(text) },
+          ],
+        }
+      : {};
+    const c = q.cursor;
+    const after: Prisma.AccountRecoveryWhereInput = !c
+      ? {}
+      : pending
+        ? { OR: [{ createdAt: { gt: c.at } }, { createdAt: c.at, id: { gt: c.id } }] }
+        : { OR: [{ decidedAt: { lt: c.at } }, { decidedAt: c.at, id: { lt: c.id } }] };
+    const [page, grouped] = await Promise.all([
+      this.prisma.accountRecovery.findMany({
+        where: { status, AND: [match, after] },
+        orderBy: pending
+          ? [{ createdAt: 'asc' }, { id: 'asc' }]
+          : [{ decidedAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }],
+        take: limit + 1,
+        include: { user: { select: { email: true, profile: { select: { username: true } } } } },
+      }),
+      this.prisma.accountRecovery.groupBy({ by: ['status'], where: match, _count: { _all: true } }),
+    ]);
+    const rows = page.slice(0, limit);
+    const count = (s: RecoveryStatus) => grouped.find((g) => g.status === s)?._count._all ?? 0;
+    const counts = { pending: count('pending'), restored: count('restored'), rejected: count('rejected') };
+    const last = rows[rows.length - 1];
+    const next =
+      page.length > limit && last
+        ? nextCursor(pending ? last.createdAt : (last.decidedAt ?? last.createdAt), last.id)
+        : null;
     const matched = await this.matches(
       rows.map((r) => ({ userId: r.userId, numbers: r.orderNumbers })),
     );
-    return rows.map((r, i) => ({
+    const items = rows.map((r, i) => ({
       id: r.id,
       createdAt: r.createdAt,
+      decidedAt: r.decidedAt,
       status: r.status,
       reason: r.reason,
       email: r.user.email,
@@ -335,6 +387,7 @@ export class RecoveryService {
       newEmail: r.contactEmail,
       decideAfter: new Date(r.createdAt.getTime() + RECOVERY_WAIT_MS),
     }));
+    return { items, next, counts };
   }
 
   /** Заявка целиком: что совпало с аккаунтом и что с ним происходило. */

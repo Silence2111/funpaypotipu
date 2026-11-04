@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { NOTIFY_LABELS } from '@gamemarket/shared';
 import { apiFetch } from '@/lib/session';
+import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
 import { ORDER_STATUS_LABELS } from '@/lib/chat';
 import { apiErrorMessage } from '@/lib/errors';
 import { FileText } from 'lucide-react';
@@ -11,6 +13,7 @@ import { Empty, when } from './shared';
 interface Row {
   id: string;
   createdAt: string;
+  decidedAt: string | null;
   status: string;
   reason: string;
   email: string | null;
@@ -106,11 +109,25 @@ const REASON: Record<string, string> = {
   other: 'другое',
 };
 
-const FILTERS = [
+type Status = 'pending' | 'restored' | 'rejected';
+type Counts = Record<Status, number>;
+interface Page {
+  items: Row[];
+  /** С какой заявки продолжать «Показать ещё»; null — показаны все. */
+  next: string | null;
+  /** Сколько в каждом статусе; в поиске — найденных. */
+  counts: Counts;
+}
+
+const FILTERS: Array<{ key: Status; label: string }> = [
   { key: 'pending', label: 'Ждут решения' },
   { key: 'restored', label: 'Восстановлены' },
   { key: 'rejected', label: 'Отклонены' },
 ];
+const readStatus = (v: string | null): Status => FILTERS.find((f) => f.key === v)?.key ?? 'pending';
+/** Адрес очереди с фильтром и поиском — ссылкой открывается тот же список. */
+const queueUrl = (status: Status, q: string) =>
+  withQuery('/admin', { tab: 'recovery', status: status !== 'pending' && status, q: q.trim() });
 
 const rub = (minor: string) => `${(Number(minor) / 100).toLocaleString('ru-RU')} ₽`;
 
@@ -118,22 +135,93 @@ const rub = (minor: string) => `${(Number(minor) / 100).toLocaleString('ru-RU')}
  * «Не могу войти»: заявки на восстановление доступа. Решение — не раньше
  * чем через 3 дня после заявки; перед ним видно, какие заказы из заявки у
  * аккаунта, возражал ли владелец из аккаунта и что с аккаунтом происходило.
+ *
+ * Ждущие — от старых к новым, решённые — свежие решения сверху; по 50 и
+ * «Показать ещё», у фильтров — сколько заявок, поиск по нику и почте.
+ * Раньше приходили 100 и всё: при очереди больше сотни новые заявки сюда не
+ * попадали. Фильтр и поиск — в адресе страницы.
  */
 export function RecoverySection() {
-  const [status, setStatus] = useState('pending');
+  const params = useSearchParams();
+  const [status, setStatus] = useState<Status>(readStatus(params.get('status')));
+  const [text, setText] = useState(params.get('q') ?? '');
+  const [query, setQuery] = useState(params.get('q') ?? '');
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [next, setNext] = useState<string | null>(null);
+  const [counts, setCounts] = useState<Counts | null>(null);
+  const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<Detail | null>(null);
   const [note, setNote] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  // Ответ на прежний фильтр или поиск новый список не перетирает.
+  const current = useRef('');
 
-  const load = useCallback(async () => {
-    setRows(await apiFetch<Row[]>(`/recovery/queue?status=${status}`).catch(() => []));
-  }, [status]);
+  // Адрес сменили снаружи (ссылкой) — список за ним.
   useEffect(() => {
+    if (!isCurrentQuery(params)) return;
+    setStatus(readStatus(params.get('status')));
+    setQuery(params.get('q') ?? '');
+    setText(params.get('q') ?? '');
+  }, [params]);
+
+  function go(change: { status?: Status; q?: string }) {
+    const s = change.status ?? status;
+    const q = (change.q ?? query).trim();
+    setStatus(s);
+    setQuery(q);
+    replaceUrl(queueUrl(s, q));
+  }
+
+  const url = useCallback(
+    (cursor?: string) => {
+      const p = new URLSearchParams({ status });
+      if (query) p.set('q', query);
+      if (cursor) p.set('cursor', cursor);
+      return `/recovery/queue?${p}`;
+    },
+    [status, query],
+  );
+
+  useEffect(() => {
+    const key = url();
+    current.current = key;
     setRows(null);
     setOpen(null);
-    void load();
-  }, [load]);
+    apiFetch<Page>(key)
+      .then((p) => {
+        if (current.current !== key) return;
+        setRows(p.items);
+        setNext(p.next);
+        setCounts(p.counts);
+      })
+      .catch((e) => {
+        if (current.current !== key) return;
+        setRows([]);
+        setNext(null);
+        setErr(apiErrorMessage(e, 'Не удалось загрузить заявки.'));
+      });
+  }, [url]);
+
+  async function more() {
+    if (!next || busy) return;
+    const key = current.current;
+    setBusy(true);
+    setErr(null);
+    try {
+      const p = await apiFetch<Page>(url(next));
+      if (current.current !== key) return;
+      setRows((prev) => {
+        const seen = new Set((prev ?? []).map((r) => r.id));
+        return [...(prev ?? []), ...p.items.filter((r) => !seen.has(r.id))];
+      });
+      setNext(p.next);
+      setCounts(p.counts);
+    } catch (e) {
+      setErr(apiErrorMessage(e, 'Не удалось загрузить заявки.'));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function show(id: string) {
     setErr(null);
@@ -170,7 +258,11 @@ export function RecoverySection() {
         body: action === 'reject' ? JSON.stringify({ note }) : undefined,
       });
       setOpen(null);
-      await load();
+      // Решённая заявка уходит из «Ждут решения» сразу — подгруженные страницы
+      // остаются на месте, счётчики сдвигаются.
+      setRows((prev) => prev?.filter((r) => r.id !== id) ?? prev);
+      const to: Status = action === 'reject' ? 'rejected' : 'restored';
+      setCounts((c) => c && { ...c, pending: Math.max(0, c.pending - 1), [to]: c[to] + 1 });
     } catch (e) {
       setErr(apiErrorMessage(e, 'Не удалось сохранить решение.'));
     }
@@ -178,10 +270,23 @@ export function RecoverySection() {
 
   return (
     <section className="stack-form" style={{ gap: 16 }}>
+      <form
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          go({ q: text });
+        }}
+        className="row"
+        style={{ gap: 8, flexWrap: 'wrap' }}
+      >
+        <input className="input" style={{ flex: 1, minWidth: 200 }} placeholder="Ник или почта"
+          value={text} onChange={(e) => setText(e.target.value)} aria-label="Поиск заявок" />
+        <button className="btn secondary" type="submit">Найти</button>
+      </form>
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
         {FILTERS.map((f) => (
-          <button key={f.key} type="button" className="chip" aria-pressed={status === f.key} onClick={() => setStatus(f.key)}>
+          <button key={f.key} type="button" className="chip" aria-pressed={status === f.key} onClick={() => go({ status: f.key })}>
             {f.label}
+            {counts && <span className="notif-group-count">{counts[f.key]}</span>}
           </button>
         ))}
       </div>
@@ -189,7 +294,7 @@ export function RecoverySection() {
       {rows === null ? (
         <div className="skeleton" style={{ height: 100 }} aria-busy="true" />
       ) : rows.length === 0 ? (
-        <Empty>Заявок нет.</Empty>
+        err ? null : <Empty>{query ? 'Ничего не нашлось.' : 'Заявок нет.'}</Empty>
       ) : (
         <div className="grid" style={{ gap: 8 }}>
           {rows.map((r) => (
@@ -201,6 +306,7 @@ export function RecoverySection() {
                 <span className="faint" style={{ fontSize: 13 }}>
                   {REASON[r.reason] ?? r.reason} · заказов совпало: {r.orders.found} из {r.orders.given} · {when(r.createdAt)}
                   {r.status === 'pending' ? ` · решение после ${when(r.decideAfter)}` : ''}
+                  {r.decidedAt ? ` · решена ${when(r.decidedAt)}` : ''}
                 </span>
                 {r.objected && <span className="badge warning">владелец из аккаунта возражает</span>}
                 {r.newEmail && <span className="badge">нет доступа к почте · просит {r.newEmail}</span>}
@@ -210,6 +316,20 @@ export function RecoverySection() {
               )}
             </div>
           ))}
+        </div>
+      )}
+      {!!rows?.length && (next || counts) && (
+        <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          {next && (
+            <button type="button" className="btn secondary" disabled={busy} onClick={() => void more()}>
+              {busy ? '…' : 'Показать ещё'}
+            </button>
+          )}
+          {counts && (
+            <span className="faint" style={{ fontSize: 13 }}>
+              Показано {rows.length} из {counts[status]}
+            </span>
+          )}
         </div>
       )}
     </section>
