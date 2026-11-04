@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/session';
+import { isCurrentQuery, replaceUrl } from '@/lib/url';
+import { readSupportStatus, supportQueueUrl, ticketUrl, type SupportStatus } from '@/lib/support-queue';
 import { apiErrorMessage } from '@/lib/errors';
 import { SUPPORT_CATEGORY } from '@/components/support-ui';
 import { Empty, when } from './shared';
@@ -18,7 +21,7 @@ interface Row {
   assignee: string | null;
 }
 
-type Status = 'open' | 'answered' | 'closed';
+type Status = SupportStatus;
 
 /** Сколько в каждом статусе (в поиске — найденных); закрытые без поиска не считаются. */
 interface Counts {
@@ -54,11 +57,15 @@ function waiting(iso: string, now: number) {
  * дольше всех. По 50 и «Показать ещё», у фильтров — сколько обращений;
  * поиск — по теме, нику автора и номеру заказа. Раньше приходили 200 и всё:
  * при очереди больше двухсот новые обращения сюда не попадали.
+ *
+ * Фильтр и поиск — в адресе страницы: «Назад» и «← Очередь поддержки» из
+ * обращения возвращают к тому же списку, а не к «Ждут ответа» без поиска.
  */
 export function SupportSection() {
-  const [status, setStatus] = useState<Status>('open');
-  const [text, setText] = useState('');
-  const [query, setQuery] = useState('');
+  const params = useSearchParams();
+  const [status, setStatus] = useState<Status>(readSupportStatus(params.get('status')));
+  const [text, setText] = useState(params.get('q') ?? '');
+  const [query, setQuery] = useState(params.get('q') ?? '');
   const [rows, setRows] = useState<Row[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [counts, setCounts] = useState<Counts | null>(null);
@@ -66,6 +73,22 @@ export function SupportSection() {
   const [err, setErr] = useState<string | null>(null);
   // Ответ на прежний фильтр или поиск новый список не перетирает.
   const current = useRef('');
+
+  // Адрес сменили снаружи (ссылкой) — список за ним.
+  useEffect(() => {
+    if (!isCurrentQuery(params)) return;
+    setStatus(readSupportStatus(params.get('status')));
+    setQuery(params.get('q') ?? '');
+    setText(params.get('q') ?? '');
+  }, [params]);
+
+  function go(next: { status?: Status; q?: string }) {
+    const s = next.status ?? status;
+    const q = (next.q ?? query).trim();
+    setStatus(s);
+    setQuery(q);
+    replaceUrl(supportQueueUrl(s, q));
+  }
 
   const url = useCallback(
     (cursor?: string) => {
@@ -126,7 +149,7 @@ export function SupportSection() {
       <form
         onSubmit={(e: FormEvent) => {
           e.preventDefault();
-          setQuery(text.trim());
+          go({ q: text });
         }}
         className="row"
         style={{ gap: 8, flexWrap: 'wrap' }}
@@ -137,7 +160,7 @@ export function SupportSection() {
       </form>
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
         {FILTERS.map((f) => (
-          <button key={f.key} type="button" className="chip" aria-pressed={status === f.key} onClick={() => setStatus(f.key)}>
+          <button key={f.key} type="button" className="chip" aria-pressed={status === f.key} onClick={() => go({ status: f.key })}>
             {f.label}
             {counts?.[f.key] != null && <span className="notif-group-count">{counts[f.key]}</span>}
           </button>
@@ -151,7 +174,7 @@ export function SupportSection() {
       ) : (
         <div className="grid" style={{ gap: 8 }}>
           {rows.map((t) => (
-            <Link key={t.id} href={`/cabinet/support/${t.id}`} className="card link" style={{ padding: 16, display: 'block' }}>
+            <Link key={t.id} href={ticketUrl(t.id, supportQueueUrl(status, query))} className="card link" style={{ padding: 16, display: 'block' }}>
               <div className="row" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 600 }}>{t.subject}</span>
                 {t.status === 'open' ? (

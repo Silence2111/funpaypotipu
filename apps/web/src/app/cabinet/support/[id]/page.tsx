@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Suspense, useCallback, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { apiFetch, useSession } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { SUPPORT_CATEGORY, TicketStatusBadge } from '@/components/support-ui';
 import { useT } from '@/lib/i18n/client';
+import { backToSupportQueue } from '@/lib/support-queue';
 
 interface View {
   ticket: { id: string; subject: string; category: string; status: string; createdAt: string };
@@ -18,7 +19,17 @@ interface View {
 
 /** Переписка по обращению — у автора и у сотрудника поддержки одна страница. */
 export default function TicketPage() {
+  return (
+    <Suspense fallback={null}>
+      <Ticket />
+    </Suspense>
+  );
+}
+
+function Ticket() {
   const { id } = useParams<{ id: string }>();
+  // Сотрудник пришёл из очереди: с каким фильтром и поиском — туда и «назад».
+  const back = useSearchParams().get('back');
   const t = useT();
   const { ready, token } = useSession();
   const [view, setView] = useState<View | null>(null);
@@ -68,7 +79,7 @@ export default function TicketPage() {
 
   return (
     <div className="container" style={{ paddingTop: 40, maxWidth: 720 }}>
-      <Link href={staffView ? '/admin?tab=support' : '/cabinet/support'} className="faint" style={{ fontSize: 13 }}>
+      <Link href={staffView ? backToSupportQueue(back) : '/cabinet/support'} className="faint" style={{ fontSize: 13 }}>
         ← {staffView ? t('Очередь поддержки') : t('Все обращения')}
       </Link>
       <div className="row" style={{ justifyContent: 'space-between', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
