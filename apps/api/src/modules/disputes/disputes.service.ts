@@ -17,9 +17,21 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../access/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { ScanService } from '../antivirus/scan.service';
+import { likeText } from '../../common/like';
+import { nextCursor } from '../../common/cursor';
 
 const STAFF_ROLES = ['agent', 'moderator', 'admin'];
 const OPEN: DisputeStatus[] = ['open', 'in_review'];
+const CLOSED: DisputeStatus[] = ['resolved_buyer', 'resolved_seller', 'cancelled'];
+
+/** Страница очереди арбитра: открытые или решённые, что искать, с какого спора продолжать. */
+export interface DisputesQueueQuery {
+  state?: 'open' | 'closed';
+  q?: string;
+  /** Из `next` прошлой страницы; `missed` — у открытых: последний пропустил срок. */
+  cursor?: { missed: boolean; at: Date; id: string };
+  limit?: number;
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
  * Открытые споры человека упорядочиваются в памяти — больше стольких открытых
@@ -567,24 +579,65 @@ export class DisputesService {
     );
   }
 
-  /** Очередь арбитра: сумма, стороны, кто взял, сколько ждёт. */
-  async queue() {
-    const disputes = await this.prisma.dispute.findMany({
-      where: { status: { in: ['open', 'in_review'] } },
-      orderBy: { createdAt: 'asc' },
-      include: {
-        order: {
-          select: { publicNumber: true, amount: true, currency: true, buyerId: true, sellerId: true, listingSnapshot: true },
+  /**
+   * Очередь арбитра: сумма, стороны, кто взял, чей ход. Открытые — кто
+   * пропустил срок ответа, сверху (такой спор можно решать по тому, что
+   * есть), дальше от старых к новым; решённые — свежие решения сверху. По
+   * страницам, со счётчиками; поиск — по номеру заказа, лоту из заказа и
+   * никам сторон. Раньше открытые грузились все разом, а решённых в консоли
+   * не было вовсе: найти, чем кончился спор, было негде.
+   */
+  async queue(q: DisputesQueueQuery = {}) {
+    const closed = q.state === 'closed';
+    const limit = q.limit ?? 50;
+    const text = q.q?.trim().replace(/^[#@]+/, '');
+    const pattern = `%${likeText(text ?? '')}%`;
+    // Споров меньше, чем заказов: для каждого спора заказ — по ключу, ники —
+    // одним подзапросом по триграммам профилей.
+    const match = text
+      ? Prisma.sql`AND EXISTS (SELECT 1 FROM orders o WHERE o.id = d.order_id AND (
+          o.public_number ILIKE ${pattern} OR (o.listing_snapshot ->> 'title') ILIKE ${pattern}
+          OR o.buyer_id IN (SELECT p.user_id FROM profiles p WHERE p.username ILIKE ${pattern})
+          OR o.seller_id IN (SELECT p.user_id FROM profiles p WHERE p.username ILIKE ${pattern})))`
+      : Prisma.empty;
+    const c = q.cursor;
+    // Время в базе — UTC без пояса.
+    const at = c ? Prisma.sql`(${c.at.toISOString()}::timestamptz AT TIME ZONE 'UTC')` : Prisma.empty;
+    const page = await this.prisma.$queryRaw<Array<{ id: string; missed: boolean; at: Date }>>(
+      closed
+        ? Prisma.sql`
+            SELECT d.id, FALSE AS missed, d.resolved_at AS at FROM disputes d
+            WHERE d.status::text = ANY(${CLOSED}::text[]) ${match}
+              ${c ? Prisma.sql`AND (d.resolved_at, d.id) < (${at}, ${c.id}::uuid)` : Prisma.empty}
+            ORDER BY d.resolved_at DESC NULLS LAST, d.id DESC LIMIT ${limit + 1}`
+        : Prisma.sql`
+            SELECT d.id, d.missed_by IS NOT NULL AS missed, d.created_at AS at FROM disputes d
+            WHERE d.status::text = ANY(${OPEN}::text[]) ${match}
+              ${c ? Prisma.sql`AND (d.missed_by IS NULL, d.created_at, d.id) > (${!c.missed}, ${at}, ${c.id}::uuid)` : Prisma.empty}
+            ORDER BY d.missed_by IS NULL, d.created_at, d.id LIMIT ${limit + 1}`,
+    );
+    const [counted] = await this.prisma.$queryRaw<Array<{ open: number; missed: number; closed: number }>>`
+      SELECT count(*) FILTER (WHERE d.status::text = ANY(${OPEN}::text[]))::int AS open,
+             count(*) FILTER (WHERE d.status::text = ANY(${OPEN}::text[]) AND d.missed_by IS NOT NULL)::int AS missed,
+             count(*) FILTER (WHERE d.status::text = ANY(${CLOSED}::text[]))::int AS closed
+      FROM disputes d WHERE TRUE ${match}`;
+    const ids = page.slice(0, limit).map((r) => r.id);
+    const place = new Map(ids.map((id, i) => [id, i]));
+    const disputes = (
+      await this.prisma.dispute.findMany({
+        where: { id: { in: ids } },
+        include: {
+          order: {
+            select: { publicNumber: true, amount: true, currency: true, buyerId: true, sellerId: true, listingSnapshot: true },
+          },
+          _count: { select: { messages: true } },
         },
-        _count: { select: { messages: true } },
-      },
-    });
+      })
+    ).sort((a, b) => place.get(a.id)! - place.get(b.id)!);
     const names = await this.usernames(
       disputes.flatMap((d) => [d.order?.buyerId, d.order?.sellerId, d.arbiterId]),
     );
-    // Кто промолчал — наверх: такой спор можно решать по тому, что есть.
-    disputes.sort((a, b) => Number(!!b.missedBy) - Number(!!a.missedBy));
-    return disputes.map(({ order, _count, ...d }) => ({
+    const items = disputes.map(({ order, _count, ...d }) => ({
       ...d,
       messages: _count.messages,
       order: order
@@ -599,6 +652,11 @@ export class DisputesService {
       seller: order ? names.get(order.sellerId) ?? null : null,
       arbiter: d.arbiterId ? names.get(d.arbiterId) ?? null : null,
     }));
+    const last = page[ids.length - 1];
+    // Курсор открытых помнит, пропустил ли последний спор срок: эти идут первыми.
+    const next =
+      page.length > limit && last ? `${last.missed ? 'm' : 'w'}${nextCursor(last.at, last.id)}` : null;
+    return { items, next, counts: counted ?? { open: 0, missed: 0, closed: 0 } };
   }
 
   private async get(disputeId: string) {

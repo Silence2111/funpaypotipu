@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Clock, Paperclip, ShieldAlert } from 'lucide-react';
 import { apiFetch, getToken, useSession } from '@/lib/session';
@@ -10,6 +10,7 @@ import { formatPrice, timeLeft } from '@/lib/format';
 import { DISPUTE_STATUS } from '@/lib/disputes';
 import { uploadViaPresignedUrl } from '@/lib/upload';
 import { useT } from '@/lib/i18n/client';
+import { backToDisputesQueue } from '@/lib/disputes-queue';
 
 interface Attach { url: string; mime: string }
 interface DMsg {
@@ -47,8 +48,18 @@ interface DisputeView {
 const STATUS = DISPUTE_STATUS;
 
 export default function DisputePage() {
+  return (
+    <Suspense fallback={null}>
+      <Dispute />
+    </Suspense>
+  );
+}
+
+function Dispute() {
   const params = useParams<{ id: string }>();
   const id = params.id;
+  // Арбитр пришёл из очереди: с какой вкладкой и поиском — туда и «назад».
+  const back = useSearchParams().get('back');
   const t = useT();
   const { ready, token, user: me } = useSession();
   const [view, setView] = useState<DisputeView | null>(null);
@@ -164,7 +175,15 @@ export default function DisputePage() {
         </h1>
         <span className={open ? 'badge warning' : 'badge'}>{STATUS[dispute.status] ? t(STATUS[dispute.status]!) : dispute.status}</span>
       </div>
-      <Link href={`/orders/${dispute.orderId}`} className="faint" style={{ fontSize: 13 }}>← {t('К заказу')}</Link>
+      <p className="faint" style={{ fontSize: 13, margin: 0 }}>
+        {back && (
+          <>
+            <Link href={backToDisputesQueue(back)} className="faint">← {t('Очередь споров')}</Link>
+            {' · '}
+          </>
+        )}
+        <Link href={`/orders/${dispute.orderId}`} className="faint">{back ? t('К заказу') : `← ${t('К заказу')}`}</Link>
+      </p>
 
       <div className="card" style={{ marginTop: 16, padding: 16 }}>
         {order && (

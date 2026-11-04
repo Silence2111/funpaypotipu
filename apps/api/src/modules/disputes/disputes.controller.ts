@@ -7,8 +7,30 @@ import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { DisputesService } from './disputes.service';
 import { RateLimit } from '../../common/rate-limit';
+import { timeCursor } from '../../common/cursor';
 
 const openSchema = z.object({ orderId: z.string().uuid(), reason: z.string().min(3).max(2000) });
+const STALE = 'Список споров устарел — обновите страницу';
+// `next` прошлой страницы: «m» или «w» (пропустил ли последний срок) и «время_id».
+const queueCursor = z
+  .string()
+  .optional()
+  .transform((v, ctx) => {
+    if (v === undefined) return undefined;
+    const rest = timeCursor(STALE).safeParse(v.slice(1));
+    if (!/^[mw]/.test(v) || !rest.success || !rest.data) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: STALE });
+      return z.NEVER;
+    }
+    return { missed: v[0] === 'm', ...rest.data };
+  });
+const queueSchema = z.object({
+  state: z.enum(['open', 'closed']).default('open'),
+  q: z.string().trim().max(100).optional(),
+  cursor: queueCursor,
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+type QueueParams = z.infer<typeof queueSchema>;
 const attachmentSchema = z.object({
   key: z.string().max(300),
   mime: z.string().max(120),
@@ -42,8 +64,8 @@ export class DisputesController {
   @Get('queue')
   @UseGuards(RolesGuard)
   @Roles('agent')
-  queue() {
-    return this.disputes.queue();
+  queue(@Query(new ZodValidationPipe(queueSchema)) q: QueueParams) {
+    return this.disputes.queue(q);
   }
 
   /** Свои споры: ?state=open (по умолчанию) или closed; дальше — ?before=<id>&limit=30. */

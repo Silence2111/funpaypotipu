@@ -125,6 +125,7 @@ export const CABINET: Record<string, string> = {
   'Обращение не найдено': 'Request not found',
   'Войдите, чтобы открыть обращение.': 'Sign in to open the request.',
   'Очередь поддержки': 'Support queue',
+  'Очередь споров': 'Dispute queue',
   'Все обращения': 'All requests',
   заказ: 'order',
   'от {name}': 'from {name}',

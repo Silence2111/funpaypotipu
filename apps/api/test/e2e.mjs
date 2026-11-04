@@ -376,8 +376,8 @@ async function scenarioModeration(rnd) {
   await j(`/moderation/users/${buyer.id}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'active' }) });
 
   const dispute = await j('/disputes', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: order.body.id, reason: 'Продавец пропал после оплаты' }) });
-  const dq = await j('/disputes/queue', { token: agent.token });
-  const inQueue = dq.body.find?.((d) => d.id === dispute.body.id);
+  const dq = await j(`/disputes/queue?q=${encodeURIComponent(order.body.publicNumber)}`, { token: agent.token });
+  const inQueue = dq.body.items?.find?.((d) => d.id === dispute.body.id);
   check('Спор в очереди арбитра с суммой и сторонами', inQueue?.order?.amount === '90000' && inQueue?.buyer === `mdb${rnd}`);
   const view = await j(`/disputes/${dispute.body.id}`, { token: agent.token });
   check('Арбитр видит стороны и может решать', view.body.canResolve === true && view.body.parties?.seller?.id === seller.id);
@@ -1540,10 +1540,25 @@ async function scenarioDisputes(rnd) {
     if (d.missedBy && noted) missed = d;
   }
   v = await view(a.dispute.id, agent.token);
-  const queue = (await j('/disputes/queue', { token: agent.token })).body;
-  // Наверху — только споры, где кто-то промолчал (в общей базе они бывают и от других прогонов).
+  // Очередь по страницам: наверху — только споры, где кто-то промолчал (в
+  // общей базе они бывают и от других прогонов).
+  const queue = [];
+  let qFirst = null;
+  for (let cursor = null, first = true; first || cursor; first = false) {
+    const page = (await j(`/disputes/queue?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { token: agent.token })).body;
+    qFirst ??= page;
+    queue.push(...(page.items ?? []));
+    cursor = page.next;
+  }
   const at = queue.findIndex((q) => q.id === a.dispute.id);
   const raised = at >= 0 && queue.slice(0, at).every((q) => q.missedBy);
+  check(
+    'Очередь арбитра по страницам: все открытые без повторов, пропустившие срок — первыми; счётчики сходятся',
+    queue.length === qFirst.counts?.open && new Set(queue.map((q) => q.id)).size === queue.length &&
+      queue.filter((q) => q.missedBy).length === qFirst.counts.missed &&
+      queue.every((q, i) => i === 0 || !q.missedBy || queue[i - 1].missedBy),
+    JSON.stringify([queue.length, qFirst.counts]),
+  );
   check(
     'Срок прошёл — «покупатель не ответил» сообщением площадки, спор поднят в очереди; деньги на месте',
     missed?.missedBy === 'buyer' && v.messages.some((m) => m.senderId === null && /Покупатель не ответил в срок/.test(m.body)) &&
@@ -1571,6 +1586,17 @@ async function scenarioDisputes(rnd) {
     !openNow.items.some((d) => d.id === a.dispute.id) && closedNow.items[0]?.id === a.dispute.id &&
       closedNow.items[0].status === 'cancelled' && closedNow.counts.closed === 1,
     JSON.stringify({ open: openNow.counts, closed: closedNow.items?.map((d) => d.status) }),
+  );
+  // У арбитра — вкладка «Решённые»: раньше решённых споров в консоли не было.
+  const arbClosed = await j('/disputes/queue?state=closed&limit=1', { token: agent.token });
+  const byNick = await j(`/disputes/queue?state=closed&q=${encodeURIComponent(`DSB${rnd}`)}`, { token: agent.token });
+  const badQueueCursor = await j('/disputes/queue?cursor=x2026-01-01T00:00:00.000Z_00000000-0000-4000-8000-000000000000', { token: agent.token });
+  check(
+    '«Решённые» у арбитра: только что закрытый спор первым; поиск по нику стороны без регистра; битый курсор — 400',
+    arbClosed.body.items?.[0]?.id === a.dispute.id && arbClosed.body.items[0].status === 'cancelled' &&
+      byNick.body.items?.length === 1 && byNick.body.counts?.closed === 1 && byNick.body.counts?.open === 0 &&
+      badQueueCursor.status === 400,
+    JSON.stringify([arbClosed.body.items?.[0]?.status, byNick.body.counts, badQueueCursor.status]),
   );
 
   const b = await deal('60000');
