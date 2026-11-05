@@ -1,14 +1,22 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
-import { KycService } from './kyc.service';
+import { KYC_QUEUE_STATUSES, KycService } from './kyc.service';
 import { RateLimit } from '../../common/rate-limit';
+import { timeCursor } from '../../common/cursor';
 
 const uploadSchema = z.object({ mime: z.string().min(3).max(100) });
+const queueSchema = z.object({
+  status: z.enum(KYC_QUEUE_STATUSES).default('pending'),
+  q: z.string().trim().max(100).optional(),
+  cursor: timeCursor('Список заявок устарел — обновите страницу'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+type QueueParams = z.infer<typeof queueSchema>;
 const key = z.string().min(3).max(200);
 // Документ — разворот и, если нужно, второе фото; селфи — с документом в руке.
 const submitSchema = z.object({
@@ -50,11 +58,12 @@ export class KycController {
   }
 
   // ── Модератор ──
-  @Get('pending')
+  /** Очередь: ?status=pending (по умолчанию) | approved | rejected, ?q — ник, имя, почта; дальше — ?cursor. */
+  @Get('queue')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('moderator')
-  pending() {
-    return this.kyc.pending();
+  queue(@Query(new ZodValidationPipe(queueSchema)) q: QueueParams) {
+    return this.kyc.queue(q);
   }
 
   @Post(':id/review')

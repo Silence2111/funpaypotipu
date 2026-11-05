@@ -13,6 +13,20 @@ import { SAFE_KEY, StorageService } from '../storage/storage.service';
 import { AuditService } from '../access/audit.service';
 import { ScanService } from '../antivirus/scan.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { containsText } from '../../common/like';
+import { nextCursor } from '../../common/cursor';
+
+export const KYC_QUEUE_STATUSES = ['pending', 'approved', 'rejected'] as const;
+export type KycQueueStatus = (typeof KYC_QUEUE_STATUSES)[number];
+
+/** Страница очереди проверки: какие, что искать, с какой заявки продолжать. */
+export interface KycQueueQuery {
+  status?: KycQueueStatus;
+  q?: string;
+  /** Из `next` прошлой страницы: время (подачи или решения) и id последней показанной. */
+  cursor?: { at: Date; id: string };
+  limit?: number;
+}
 
 /** Документ и селфи — фото или PDF скана. */
 const KYC_TYPES: Record<string, string> = {
@@ -111,25 +125,63 @@ export class KycService {
   // ── Сотрудник проверки ──
 
   /**
-   * Очередь заявок с документами. Раньше в очереди были только номер
-   * пользователя и уровень: самих документов сотрудник не видел, и одобрить
-   * или отклонить можно было только вслепую.
+   * Очередь заявок с документами — по страницам. Ждущие — от старых к новым;
+   * одобренные и отклонённые — свежие решения сверху, с причиной и тем, кто
+   * решал. Поиск — по нику, имени и почте; счётчики по статусам. Раньше
+   * отдавались все ждущие разом — и ссылки на документы для каждой: при
+   * наплыве заявок страница грузила сотни фото, а решённых заявок и поиска
+   * не было вовсе.
    */
-  async pending() {
-    const rows = await this.prisma.kycVerification.findMany({
-      where: { status: 'pending' },
-      orderBy: { createdAt: 'asc' },
-      include: {
-        user: {
-          select: {
-            email: true,
-            createdAt: true,
-            profile: { select: { username: true, displayName: true, salesCount: true } },
+  async queue(q: KycQueueQuery = {}) {
+    const status = q.status ?? 'pending';
+    const pending = status === 'pending';
+    const limit = q.limit ?? 50;
+    const text = q.q?.trim().replace(/^[#@]+/, '');
+    // Заявок на проверку мало — поиск обычным условием.
+    const match: Prisma.KycVerificationWhereInput = text
+      ? {
+          OR: [
+            { user: { email: containsText(text) } },
+            { user: { profile: { username: containsText(text) } } },
+            { user: { profile: { displayName: containsText(text) } } },
+          ],
+        }
+      : {};
+    const c = q.cursor;
+    const after: Prisma.KycVerificationWhereInput = !c
+      ? {}
+      : pending
+        ? { OR: [{ createdAt: { gt: c.at } }, { createdAt: c.at, id: { gt: c.id } }] }
+        : { OR: [{ reviewedAt: { lt: c.at } }, { reviewedAt: c.at, id: { lt: c.id } }] };
+    const [page, grouped] = await Promise.all([
+      this.prisma.kycVerification.findMany({
+        where: { status, AND: [match, after] },
+        orderBy: pending
+          ? [{ createdAt: 'asc' }, { id: 'asc' }]
+          : [{ reviewedAt: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }],
+        take: limit + 1,
+        include: {
+          user: {
+            select: {
+              email: true,
+              createdAt: true,
+              profile: { select: { username: true, displayName: true, salesCount: true } },
+            },
           },
         },
-      },
-    });
-    return Promise.all(
+      }),
+      this.prisma.kycVerification.groupBy({ by: ['status'], where: match, _count: { _all: true } }),
+    ]);
+    const rows = page.slice(0, limit);
+    const reviewers = new Map(
+      (
+        await this.prisma.profile.findMany({
+          where: { userId: { in: [...new Set(rows.map((k) => k.reviewedBy).filter((v): v is string => !!v))] } },
+          select: { userId: true, username: true },
+        })
+      ).map((p) => [p.userId, p.username]),
+    );
+    const items = await Promise.all(
       rows.map(async (k) => {
         const refs = (k.documentRefs ?? {}) as Refs;
         const files = [
@@ -141,7 +193,10 @@ export class KycService {
           userId: k.userId,
           level: k.level,
           status: k.status,
+          reason: k.reason,
           createdAt: k.createdAt,
+          reviewedAt: k.reviewedAt,
+          reviewer: k.reviewedBy ? (reviewers.get(k.reviewedBy) ?? null) : null,
           user: {
             username: k.user.profile?.username ?? null,
             displayName: k.user.profile?.displayName ?? null,
@@ -149,6 +204,7 @@ export class KycService {
             since: k.user.createdAt,
             sales: k.user.profile?.salesCount ?? 0,
           },
+          // Ссылки на документы — только этой страницы, на час.
           files: await Promise.all(
             files.map(async (f) => ({
               kind: f.kind,
@@ -159,6 +215,17 @@ export class KycService {
         };
       }),
     );
+    const count = (s: KycQueueStatus) => grouped.find((g) => g.status === s)?._count._all ?? 0;
+    const last = rows[rows.length - 1];
+    const next =
+      page.length > limit && last
+        ? nextCursor(pending ? last.createdAt : (last.reviewedAt ?? last.createdAt), last.id)
+        : null;
+    return {
+      items,
+      next,
+      counts: { pending: count('pending'), approved: count('approved'), rejected: count('rejected') },
+    };
   }
 
   async review(id: string, reviewerId: string, decision: 'approve' | 'reject', reason?: string) {

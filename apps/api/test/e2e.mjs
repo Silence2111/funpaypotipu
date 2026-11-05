@@ -801,11 +801,12 @@ async function scenarioKyc(rnd) {
   check('Документ и селфи — на проверке', sent.status === 201 && sent.body.status === 'pending', JSON.stringify(sent.body));
   const twice = await j('/kyc', { method: 'POST', token: seller.token, body: JSON.stringify({ documentKeys: [doc], selfieKey: selfie }) });
   check('Пока на проверке, вторая заявка не принимается', twice.status === 409, String(twice.status));
-  const queue = await j('/kyc/pending', { token: mod.token });
-  const mine = queue.body.find?.((k) => k.userId === seller.id);
+  // Заявка этого прогона — поиском по нику: очередь общая и идёт страницами.
+  const queue = await j(`/kyc/queue?q=kysk${rnd}`, { token: mod.token });
+  const mine = queue.body.items?.find?.((k) => k.userId === seller.id);
   const shown = mine?.files?.[0] ? await fetch(abs(mine.files[0].url)) : null;
   check('Сотрудник видит заявку: кто, документ и селфи', mine?.user?.username === `kys${'k' + rnd}` && mine.files.length === 2 && shown?.status === 200, JSON.stringify(mine?.files?.map((f) => f.kind)));
-  check('Продавцу очередь недоступна', (await j('/kyc/pending', { token: seller.token })).status === 403);
+  check('Продавцу очередь недоступна', (await j('/kyc/queue', { token: seller.token })).status === 403);
   const noReason = await j(`/kyc/${mine?.id}/review`, { method: 'POST', token: mod.token, body: JSON.stringify({ decision: 'reject' }) });
   check('Отказ без причины не проходит', noReason.status === 400, String(noReason.status));
   await j(`/kyc/${mine?.id}/review`, { method: 'POST', token: mod.token, body: JSON.stringify({ decision: 'reject', reason: 'Селфи размыто' }) });
@@ -813,10 +814,21 @@ async function scenarioKyc(rnd) {
   const bell = await j('/notifications', { token: seller.token });
   check('Продавец видит причину отказа и уведомление', after.body.status === 'rejected' && after.body.reason === 'Селфи размыто' && bell.body.some?.((n) => n.type === 'kyc_rejected'), JSON.stringify(after.body));
   const again = await j('/kyc', { method: 'POST', token: seller.token, body: JSON.stringify({ documentKeys: [await upload(seller)], selfieKey: await upload(seller) }) });
-  const next = (await j('/kyc/pending', { token: mod.token })).body.find?.((k) => k.userId === seller.id);
+  const next = (await j(`/kyc/queue?q=kysk${rnd}`, { token: mod.token })).body.items?.find?.((k) => k.userId === seller.id);
   await j(`/kyc/${next?.id}/review`, { method: 'POST', token: mod.token, body: JSON.stringify({ decision: 'approve' }) });
   const profile = await j(`/sellers/${seller.id}`);
   check('Переснял — одобрено, в профиле «Документы проверены»', again.status === 201 && profile.body.verified === true, JSON.stringify({ s: again.status, v: profile.body.verified }));
+  // Решённые заявки в консоли — раньше их там не было вовсе.
+  const rejectedList = (await j(`/kyc/queue?status=rejected&q=kysk${rnd}`, { token: mod.token })).body;
+  const approvedFirst = (await j('/kyc/queue?status=approved&limit=1', { token: mod.token })).body;
+  check(
+    'Очередь проверки: отклонённая — с причиной и сотрудником, одобренная — первой в «Одобрены»; счётчики по найденному; битый курсор — 400',
+    rejectedList.items?.[0]?.reason === 'Селфи размыто' && rejectedList.items[0].reviewer === `kymk${rnd}` &&
+      rejectedList.counts?.rejected === 1 && rejectedList.counts?.approved === 1 && rejectedList.counts?.pending === 0 &&
+      approvedFirst.items?.[0]?.id === next?.id &&
+      (await j('/kyc/queue?cursor=x', { token: mod.token })).status === 400,
+    JSON.stringify([rejectedList.items?.[0]?.reviewer, rejectedList.counts, approvedFirst.items?.[0]?.id === next?.id]),
+  );
 }
 
 // Вход через Google и VK ID — весь обмен кодом против тестового сервера
