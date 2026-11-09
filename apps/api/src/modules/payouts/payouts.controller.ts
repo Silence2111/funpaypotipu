@@ -7,8 +7,18 @@ import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { WITHDRAWAL_METHOD_KEYS } from '@gamemarket/shared';
 import { AccountStatusService } from '../access/account-status.service';
-import { PayoutsService, REJECT_REASON_NEEDED, type CardToken } from './payouts.service';
+import { PAYOUT_QUEUE_STATUSES, PayoutsService, REJECT_REASON_NEEDED, type CardToken } from './payouts.service';
 import { RateLimit } from '../../common/rate-limit';
+import { timeCursor } from '../../common/cursor';
+
+/** Очередь финансов: ?status (по умолчанию — ждут решения), ?q — ник, почта, номер у шлюза; дальше — ?cursor. */
+const queueSchema = z.object({
+  status: z.enum(PAYOUT_QUEUE_STATUSES).default('requested'),
+  q: z.string().trim().max(100).optional(),
+  cursor: timeCursor('Список заявок устарел — обновите страницу'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+type QueueParams = z.infer<typeof queueSchema>;
 
 const requestSchema = z.object({
   amount: z.union([z.string(), z.number()]).transform((v) => String(v))
@@ -108,8 +118,8 @@ export class PayoutsController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('finance')
-  list(@Query('status') status?: 'requested' | 'approved' | 'processing' | 'paid' | 'rejected') {
-    return this.payouts.list(status);
+  list(@Query(new ZodValidationPipe(queueSchema)) q: QueueParams) {
+    return this.payouts.queue(q);
   }
 
   @Post(':id/approve')

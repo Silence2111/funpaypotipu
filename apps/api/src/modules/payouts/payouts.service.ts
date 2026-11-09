@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { z } from 'zod';
-import { PrismaClient } from '@gamemarket/db';
+import { Prisma, PrismaClient } from '@gamemarket/db';
 import {
   holdForPayout,
   reversePayoutHold,
@@ -24,6 +24,20 @@ import { EncryptionService } from '../crypto/encryption.service';
 import { AuditService } from '../access/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { YooKassaPayouts, type GatewayPayout, type PayoutDestination } from './yookassa-payouts';
+import { containsText } from '../../common/like';
+import { nextCursor } from '../../common/cursor';
+
+export const PAYOUT_QUEUE_STATUSES = ['requested', 'approved', 'processing', 'paid', 'rejected'] as const;
+export type PayoutQueueStatus = (typeof PAYOUT_QUEUE_STATUSES)[number];
+
+/** Страница очереди выплат: какие, что искать, с какой заявки продолжать. */
+export interface PayoutsQueueQuery {
+  status?: PayoutQueueStatus;
+  q?: string;
+  /** Из `next` прошлой страницы: время (заявки или решения) и id последней показанной. */
+  cursor?: { at: Date; id: string };
+  limit?: number;
+}
 
 /** Первый вывод без продаж ждёт столько дней — защита от отмыва через пополнение. */
 /** Без причины отказ не сохраняется: продавцу нечего было бы исправлять. */
@@ -296,10 +310,74 @@ export class PayoutsService {
       .then((rows) => rows.map((p) => this.public(p)));
   }
 
-  list(status?: 'requested' | 'approved' | 'processing' | 'paid' | 'rejected') {
-    return this.prisma.payout
-      .findMany({ where: status ? { status } : undefined, orderBy: { createdAt: 'asc' } })
-      .then((rows) => rows.map((p) => this.public(p)));
+  /**
+   * Очередь финансов: чей вывод — ник и почта продавца, — по страницам.
+   * Ждущие решения и отправляемые — от старых к новым; выплаченные и
+   * отклонённые — свежие решения сверху, с тем, кто решал. Поиск — по нику,
+   * почте и номеру у шлюза; счётчики по статусам. Раньше отдавались все
+   * заявки статуса разом и без продавца: сотрудник одобрял вывод, не видя,
+   * чей он, а выплаченных и отклонённых в консоли не было.
+   */
+  async queue(q: PayoutsQueueQuery = {}) {
+    const status = q.status ?? 'requested';
+    const waiting = status === 'requested' || status === 'approved' || status === 'processing';
+    const limit = q.limit ?? 50;
+    const text = q.q?.trim().replace(/^[#@]+/, '');
+    // Заявок на вывод на порядки меньше, чем заказов, — поиск обычным условием.
+    const match: Prisma.PayoutWhereInput = text
+      ? {
+          OR: [
+            { user: { email: containsText(text) } },
+            { user: { profile: { username: containsText(text) } } },
+            { externalId: containsText(text) },
+          ],
+        }
+      : {};
+    const c = q.cursor;
+    // Решение — последнее изменение заявки: после выплаты и отказа её не меняют.
+    const after: Prisma.PayoutWhereInput = !c
+      ? {}
+      : waiting
+        ? { OR: [{ createdAt: { gt: c.at } }, { createdAt: c.at, id: { gt: c.id } }] }
+        : { OR: [{ updatedAt: { lt: c.at } }, { updatedAt: c.at, id: { lt: c.id } }] };
+    const [page, grouped] = await Promise.all([
+      this.prisma.payout.findMany({
+        where: { status, AND: [match, after] },
+        orderBy: waiting ? [{ createdAt: 'asc' }, { id: 'asc' }] : [{ updatedAt: 'desc' }, { id: 'desc' }],
+        take: limit + 1,
+        include: { user: { select: { email: true, profile: { select: { username: true } } } } },
+      }),
+      this.prisma.payout.groupBy({ by: ['status'], where: match, _count: { _all: true } }),
+    ]);
+    const rows = page.slice(0, limit);
+    const staff = new Map(
+      (
+        await this.prisma.profile.findMany({
+          where: { userId: { in: [...new Set(rows.map((p) => p.approvedBy).filter((v): v is string => !!v))] } },
+          select: { userId: true, username: true },
+        })
+      ).map((p) => [p.userId, p.username]),
+    );
+    const items = rows.map((p) => ({
+      ...this.public(p),
+      updatedAt: p.updatedAt,
+      seller: { id: p.userId, username: p.user.profile?.username ?? null, email: p.user.email },
+      decidedBy: p.approvedBy ? (staff.get(p.approvedBy) ?? null) : null,
+    }));
+    const count = (s: PayoutQueueStatus) => grouped.find((g) => g.status === s)?._count._all ?? 0;
+    const last = rows[rows.length - 1];
+    const next = page.length > limit && last ? nextCursor(waiting ? last.createdAt : last.updatedAt, last.id) : null;
+    return {
+      items,
+      next,
+      counts: {
+        requested: count('requested'),
+        approved: count('approved'),
+        processing: count('processing'),
+        paid: count('paid'),
+        rejected: count('rejected'),
+      },
+    };
   }
 
   /** Одобрение выплаты (finance): проверка холда → отправка → баланс покидает площадку. */

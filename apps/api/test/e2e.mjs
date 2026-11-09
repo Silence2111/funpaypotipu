@@ -1019,6 +1019,19 @@ async function scenarioPayout(rnd) {
       wBack.body.balance === '35000' && wBack.body.withdrawing.count === 0,
     JSON.stringify({ bare: bare.body, mine: mine?.rejectReason, note: note?.payload, balance: wBack.body.balance }),
   );
+  // Очередь финансов: чей вывод и что с ним стало. Раньше заявки шли без
+  // продавца и только ждущие — выплаченных и отклонённых в консоли не было.
+  const finPaid = (await j(`/payouts?status=paid&q=pys${rnd}`, { token: fin.token })).body;
+  const finRejected = (await j(`/payouts?status=rejected&q=pys${rnd}`, { token: fin.token })).body;
+  const finFirst = (await j('/payouts?status=rejected&limit=1', { token: fin.token })).body;
+  check(
+    'Очередь выплат: продавец и кто решал; выплаченная и отклонённая по нику; свежий отказ — первым; счётчики; продавцу — 403',
+    finPaid.items?.[0]?.id === req.body.id && finPaid.items[0].seller?.username === `pys${rnd}` && finPaid.items[0].decidedBy === `pyf${rnd}` &&
+      finRejected.items?.[0]?.id === second.body.id && finRejected.items[0].rejectReason === why &&
+      finPaid.counts?.paid === 1 && finPaid.counts?.rejected === 1 && finFirst.items?.[0]?.id === second.body.id &&
+      (await j('/payouts', { token: seller.token })).status === 403 && (await j('/payouts?cursor=x', { token: fin.token })).status === 400,
+    JSON.stringify([finPaid.items?.[0]?.seller, finPaid.items?.[0]?.decidedBy, finPaid.counts]),
+  );
 
   // Сохранённые реквизиты: запомнить при заявке, в следующий раз — выбрать.
   const third = await j('/payouts', { method: 'POST', token: seller.token, body: JSON.stringify({ amount: '30000', method: 'card', destination: '4111 1111 1111 1111', save: true }) });

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { FileText } from 'lucide-react';
 import { apiFetch } from '@/lib/session';
 import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
@@ -19,6 +20,16 @@ interface Payout {
   createdAt?: string;
   externalId?: string | null;
   destinationHint?: string | null;
+  /** Причина отказа — продавец видит её в кошельке. */
+  rejectReason?: string | null;
+  /** Когда решили: у выплаченных и отклонённых. */
+  updatedAt?: string;
+  /** Чей вывод. */
+  seller?: { id: string; username: string | null; email: string | null };
+  /** Кто одобрил или отклонил. */
+  decidedBy?: string | null;
+  /** Почему не прошла автоматическая выплата. */
+  failureReason?: string | null;
 }
 interface Kyc {
   id: string;
@@ -42,6 +53,27 @@ const METHOD: Record<string, string> = { card: 'на карту', sbp: 'по С�
  */
 const REJECT_HINTS = PAYOUT_REJECT_REASONS;
 
+type PayoutStatus = 'requested' | 'processing' | 'paid' | 'rejected';
+type PayoutCounts = Record<PayoutStatus | 'approved', number>;
+interface PayoutPage {
+  items: Payout[];
+  /** С какой заявки продолжать «Показать ещё»; null — показаны все. */
+  next: string | null;
+  /** Сколько в каждом статусе; в поиске — найденных. */
+  counts: PayoutCounts;
+}
+const PAYOUT_FILTERS: Array<{ key: PayoutStatus; label: string }> = [
+  { key: 'requested', label: 'Ждут решения' },
+  { key: 'processing', label: 'Отправляются' },
+  { key: 'paid', label: 'Выплачены' },
+  { key: 'rejected', label: 'Отклонены' },
+];
+const readPayoutStatus = (v: string | null): PayoutStatus =>
+  PAYOUT_FILTERS.find((f) => f.key === v)?.key ?? 'requested';
+/** Адрес очереди с фильтром и поиском — ссылкой открывается тот же список. */
+const payoutsUrl = (status: PayoutStatus, q: string) =>
+  withQuery('/admin', { tab: 'payouts', status: status !== 'requested' && status, q: q.trim() });
+
 /**
  * Заявки на вывод: одобрить или отклонить — деньги двигает API с ролью
  * «финансы». Способы, которые выплачивает ЮKassa, уходят сами после
@@ -49,40 +81,120 @@ const REJECT_HINTS = PAYOUT_REJECT_REASONS;
  * переводятся вручную — одобрение значит «перевёл». Реквизиты для ручного
  * перевода открываются по кнопке, каждое открытие пишется в журнал. Отказ —
  * только с причиной: продавец увидит её в кошельке и уведомлении.
+ *
+ * У заявки — чей вывод: ник со ссылкой на продавца и почта. Ждущие — от
+ * старых к новым, выплаченные и отклонённые — свежие решения сверху, с тем,
+ * кто решал; по 50 и «Показать ещё», поиск по нику, почте и номеру у
+ * ЮKassa. Раньше приходили все заявки разом и без продавца, а выплаченных и
+ * отклонённых здесь не было. Фильтр и поиск — в адресе страницы.
  */
 export function PayoutsSection() {
+  const params = useSearchParams();
+  const [status, setStatus] = useState<PayoutStatus>(readPayoutStatus(params.get('status')));
+  const [text, setText] = useState(params.get('q') ?? '');
+  const [query, setQuery] = useState(params.get('q') ?? '');
   const [rows, setRows] = useState<Payout[] | null>(null);
-  const [sending, setSending] = useState<Payout[]>([]);
+  const [next, setNext] = useState<string | null>(null);
+  const [counts, setCounts] = useState<PayoutCounts | null>(null);
+  const [busy, setBusy] = useState(false);
   const [auto, setAuto] = useState<Record<string, boolean>>({});
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
-  const load = useCallback(async () => {
-    setRows(await apiFetch<Payout[]>('/payouts?status=requested').catch(() => []));
-    setSending(await apiFetch<Payout[]>('/payouts?status=processing').catch(() => []));
-  }, []);
+  // Ответ на прежний фильтр или поиск новый список не перетирает.
+  const current = useRef('');
+
   useEffect(() => {
     apiFetch<Array<{ key: string; auto?: boolean }>>('/payouts/methods')
       .then((m) => setAuto(Object.fromEntries(m.map((x) => [x.key, !!x.auto]))))
       .catch(() => {});
   }, []);
-  useEffect(() => {
-    void load();
-  }, [load]);
 
-  async function act(id: string, action: 'approve' | 'reject') {
+  // Адрес сменили снаружи (ссылкой) — список за ним.
+  useEffect(() => {
+    if (!isCurrentQuery(params)) return;
+    setStatus(readPayoutStatus(params.get('status')));
+    setQuery(params.get('q') ?? '');
+    setText(params.get('q') ?? '');
+  }, [params]);
+
+  function go(change: { status?: PayoutStatus; q?: string }) {
+    const st = change.status ?? status;
+    const q = (change.q ?? query).trim();
+    setStatus(st);
+    setQuery(q);
+    replaceUrl(payoutsUrl(st, q));
+  }
+
+  const url = useCallback(
+    (cursor?: string) => {
+      const p = new URLSearchParams({ status });
+      if (query) p.set('q', query);
+      if (cursor) p.set('cursor', cursor);
+      return `/payouts?${p}`;
+    },
+    [status, query],
+  );
+
+  useEffect(() => {
+    const key = url();
+    current.current = key;
+    setRows(null);
     setErr(null);
-    const reason = reasons[id]?.trim();
+    apiFetch<PayoutPage>(key)
+      .then((p) => {
+        if (current.current !== key) return;
+        setRows(p.items);
+        setNext(p.next);
+        setCounts(p.counts);
+      })
+      .catch((e) => {
+        if (current.current !== key) return;
+        setRows([]);
+        setNext(null);
+        setErr(apiErrorMessage(e, 'Не удалось загрузить заявки.'));
+      });
+  }, [url]);
+
+  async function more() {
+    if (!next || busy) return;
+    const key = current.current;
+    setBusy(true);
+    setErr(null);
+    try {
+      const p = await apiFetch<PayoutPage>(url(next));
+      if (current.current !== key) return;
+      setRows((prev) => {
+        const seen = new Set((prev ?? []).map((x) => x.id));
+        return [...(prev ?? []), ...p.items.filter((x) => !seen.has(x.id))];
+      });
+      setNext(p.next);
+      setCounts(p.counts);
+    } catch (e) {
+      setErr(apiErrorMessage(e, 'Не удалось загрузить заявки.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function act(p: Payout, action: 'approve' | 'reject') {
+    setErr(null);
+    const reason = reasons[p.id]?.trim();
     if (action === 'reject' && !reason) {
       setErr('Напишите причину отказа: продавец увидит её и поймёт, что исправить.');
       return;
     }
     try {
-      await apiFetch(`/payouts/${id}/${action}`, {
+      await apiFetch(`/payouts/${p.id}/${action}`, {
         method: 'POST',
         body: JSON.stringify(action === 'reject' ? { reason } : {}),
       });
-      await load();
+      // Решённая заявка уходит из «Ждут решения» сразу — подгруженные
+      // страницы остаются на месте, счётчики сдвигаются: через ЮKassa — в
+      // «Отправляются», вручную — в «Выплачены».
+      setRows((prev) => prev?.filter((x) => x.id !== p.id) ?? prev);
+      const to: PayoutStatus = action === 'reject' ? 'rejected' : auto[p.method] ? 'processing' : 'paid';
+      setCounts((c) => c && { ...c, requested: Math.max(0, c.requested - 1), [to]: c[to] + 1 });
     } catch (e) {
       setErr(apiErrorMessage(e, 'Не удалось обработать заявку.'));
     }
@@ -98,73 +210,115 @@ export function PayoutsSection() {
     }
   }
 
-  if (rows === null) return <div className="skeleton" style={{ height: 80 }} aria-busy="true" />;
   return (
-    <section className="grid" style={{ gap: 8 }}>
+    <section className="stack-form" style={{ gap: 16 }}>
+      <form
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          go({ q: text });
+        }}
+        className="row"
+        style={{ gap: 8, flexWrap: 'wrap' }}
+      >
+        <input className="input" style={{ flex: 1, minWidth: 200 }} placeholder="Ник, почта или номер у ЮKassa"
+          value={text} onChange={(e) => setText(e.target.value)} aria-label="Поиск заявок на вывод" />
+        <button className="btn secondary" type="submit">Найти</button>
+      </form>
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        {PAYOUT_FILTERS.map((f) => (
+          <button key={f.key} type="button" className="chip" aria-pressed={status === f.key} onClick={() => go({ status: f.key })}>
+            {f.label}
+            {counts && <span className="notif-group-count">{counts[f.key]}</span>}
+          </button>
+        ))}
+      </div>
       {err && <div className="alert error" role="alert">{err}</div>}
       <datalist id="payout-reject-hints">
         {REJECT_HINTS.map((h) => (
           <option key={h} value={h} />
         ))}
       </datalist>
-      {rows.length === 0 ? (
-        <Empty>Заявок на вывод нет.</Empty>
+      {rows === null ? (
+        <div className="skeleton" style={{ height: 80 }} aria-busy="true" />
+      ) : rows.length === 0 ? (
+        err ? null : <Empty>{query ? 'Ничего не нашлось.' : status === 'requested' ? 'Заявок на вывод нет.' : 'Таких заявок нет.'}</Empty>
       ) : (
-        rows.map((p) => (
-          <div key={p.id} className="card row" style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
-            <span>
-              <span className="price" style={{ fontSize: 16 }}>{formatPrice(p.amount, p.currency)}</span>{' '}
-              <span className="faint" style={{ fontSize: 13 }}>
-                {METHOD[p.method] ?? p.method}
-                {p.destinationHint ? ` ${p.destinationHint}` : ''}
-                {auto[p.method] ? ' · через ЮKassa' : ' · вручную'}
-                {p.createdAt ? ` · ${when(p.createdAt)}` : ''}
-              </span>
-              {revealed[p.id] && (
-                <code className="secret" style={{ marginTop: 8 }}>{revealed[p.id]}</code>
-              )}
-            </span>
-            <span className="row" style={{ gap: 8 }}>
-              {!auto[p.method] && !revealed[p.id] && (
-                <button className="chip" onClick={() => void reveal(p.id)} type="button">Реквизиты</button>
-              )}
-              <button className="btn" onClick={() => void act(p.id, 'approve')} type="button">
-                {auto[p.method] ? 'Отправить' : 'Одобрить'}
-              </button>
-            </span>
-            <span className="row" style={{ gap: 8, flexBasis: '100%', flexWrap: 'wrap' }}>
-              <input
-                className="input"
-                style={{ flex: 1, minWidth: 200 }}
-                aria-label="Причина отказа"
-                placeholder="Причина отказа — её увидит продавец"
-                list="payout-reject-hints"
-                maxLength={300}
-                value={reasons[p.id] ?? ''}
-                onChange={(e) => setReasons((r) => ({ ...r, [p.id]: e.target.value }))}
-              />
-              <button className="chip" onClick={() => void act(p.id, 'reject')} type="button">Отклонить</button>
-            </span>
-          </div>
-        ))
-      )}
-      {sending.length > 0 && (
-        <>
-          <h3 className="h2" style={{ fontSize: 16, marginTop: 12 }}>Отправляются через ЮKassa</h3>
-          {sending.map((p) => (
+        <div className="grid" style={{ gap: 8 }}>
+          {rows.map((p) => (
             <div key={p.id} className="card row" style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
               <span>
                 <span className="price" style={{ fontSize: 16 }}>{formatPrice(p.amount, p.currency)}</span>{' '}
+                {p.seller && (
+                  <>
+                    <Link href={`/prodavec/${p.seller.id}`} style={{ fontWeight: 600 }}>
+                      {p.seller.username ?? p.seller.id.slice(0, 8)}
+                    </Link>{' '}
+                  </>
+                )}
                 <span className="faint" style={{ fontSize: 13 }}>
-                  {METHOD[p.method] ?? p.method}
-                  {p.destinationHint ? ` ${p.destinationHint}` : ''}
-                  {p.externalId ? ` · ${p.externalId}` : ''}
+                  {[
+                    p.seller?.email,
+                    `${METHOD[p.method] ?? p.method}${p.destinationHint ? ` ${p.destinationHint}` : ''}`,
+                    auto[p.method] ? 'через ЮKassa' : 'вручную',
+                    p.externalId,
+                    p.createdAt ? when(p.createdAt) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </span>
+                {revealed[p.id] && (
+                  <code className="secret" style={{ marginTop: 8 }}>{revealed[p.id]}</code>
+                )}
               </span>
-              <span className="faint" style={{ fontSize: 13 }}>ждём подтверждения ЮKassa</span>
+              {p.status === 'requested' ? (
+                <>
+                  <span className="row" style={{ gap: 8 }}>
+                    {!auto[p.method] && !revealed[p.id] && (
+                      <button className="chip" onClick={() => void reveal(p.id)} type="button">Реквизиты</button>
+                    )}
+                    <button className="btn" onClick={() => void act(p, 'approve')} type="button">
+                      {auto[p.method] ? 'Отправить' : 'Одобрить'}
+                    </button>
+                  </span>
+                  <span className="row" style={{ gap: 8, flexBasis: '100%', flexWrap: 'wrap' }}>
+                    <input
+                      className="input"
+                      style={{ flex: 1, minWidth: 200 }}
+                      aria-label="Причина отказа"
+                      placeholder="Причина отказа — её увидит продавец"
+                      list="payout-reject-hints"
+                      maxLength={300}
+                      value={reasons[p.id] ?? ''}
+                      onChange={(e) => setReasons((r) => ({ ...r, [p.id]: e.target.value }))}
+                    />
+                    <button className="chip" onClick={() => void act(p, 'reject')} type="button">Отклонить</button>
+                  </span>
+                </>
+              ) : (
+                <span className="faint" style={{ fontSize: 13, flexBasis: '100%' }}>
+                  {p.status === 'processing' || p.status === 'approved'
+                    ? 'ждём подтверждения ЮKassa'
+                    : `${p.status === 'paid' ? 'Выплачено' : 'Отклонено'}${p.updatedAt ? ` ${when(p.updatedAt)}` : ''}${p.decidedBy ? ` · ${p.decidedBy}` : ''}${p.status === 'rejected' && p.rejectReason ? ` · «${p.rejectReason}»` : ''}`}
+                  {p.failureReason ? ` · ЮKassa: ${p.failureReason}` : ''}
+                </span>
+              )}
             </div>
           ))}
-        </>
+        </div>
+      )}
+      {!!rows?.length && (next || counts) && (
+        <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          {next && (
+            <button type="button" className="btn secondary" disabled={busy} onClick={() => void more()}>
+              {busy ? '…' : 'Показать ещё'}
+            </button>
+          )}
+          {counts && (
+            <span className="faint" style={{ fontSize: 13 }}>
+              Показано {rows.length} из {counts[status]}
+            </span>
+          )}
+        </div>
       )}
     </section>
   );
