@@ -36,6 +36,12 @@ export const NOTIFY_GROUPS = [
     types: ['saved_search', 'price_drop', 'back_in_stock', 'seller_new_lots', 'seller_sale'],
   },
   {
+    key: 'requests',
+    label: 'Запросы покупателей',
+    hint: 'покупатель ищет в разделе, где вы продаёте; продавец ответил лотом на ваш запрос',
+    types: ['buy_request', 'buy_request_offer'],
+  },
+  {
     key: 'security',
     label: 'Безопасность',
     hint: 'вход с нового устройства, смена пароля, почты и входа с кодом, восстановление доступа — письмом всегда',
@@ -66,9 +72,9 @@ export type NotifyPrefs = Partial<Record<NotifyChannel, Partial<Record<NotifyGro
  * их включают ради быстрых уведомлений о заказах и сообщениях.
  */
 export const DEFAULT_NOTIFY: Record<NotifyChannel, Record<NotifyGroup, boolean>> = {
-  email: { orders: true, messages: false, disputes: true, reviews: false, finance: true, support: true, searches: false, security: true, moderation: true },
-  telegram: { orders: true, messages: true, disputes: true, reviews: true, finance: true, support: true, searches: true, security: true, moderation: true },
-  push: { orders: true, messages: true, disputes: true, reviews: true, finance: true, support: true, searches: true, security: true, moderation: true },
+  email: { orders: true, messages: false, disputes: true, reviews: false, finance: true, support: true, searches: false, requests: false, security: true, moderation: true },
+  telegram: { orders: true, messages: true, disputes: true, reviews: true, finance: true, support: true, searches: true, requests: true, security: true, moderation: true },
+  push: { orders: true, messages: true, disputes: true, reviews: true, finance: true, support: true, searches: true, requests: true, security: true, moderation: true },
 };
 
 /**
@@ -120,6 +126,8 @@ export const NOTIFY_LABELS: Record<string, string> = {
   back_in_stock: 'Лот снова в продаже',
   seller_new_lots: 'Новые лоты у продавца из подписок',
   seller_sale: 'Скидка у продавца из подписок',
+  buy_request: 'Покупатель ищет в вашем разделе',
+  buy_request_offer: 'Продавец ответил лотом на ваш запрос',
 };
 
 export function notifyGroupOf(type: string): NotifyGroup | null {
@@ -154,6 +162,11 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
     if (id('listingId')) return `/lot/${id('listingId')}`;
     const path = id('path');
     return path?.startsWith('/igra/') ? path : '/cabinet/searches';
+  }
+  // Запрос покупателя — продавцу в кабинет с этим запросом сверху; ответ
+  // продавца покупателю — на лот (ниже, общим правилом listingId).
+  if (type === 'buy_request') {
+    return id('requestId') ? `/cabinet/requests?r=${encodeURIComponent(id('requestId')!)}` : '/cabinet/requests';
   }
   // Подписка: один лот — на него, несколько — в профиль продавца.
   if (type === 'seller_new_lots' || type === 'seller_sale') {

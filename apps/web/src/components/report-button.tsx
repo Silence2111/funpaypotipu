@@ -25,11 +25,14 @@ export function ReportButton({
   targetType,
   targetId,
   ownerId,
+  inline = false,
 }: {
-  targetType: 'listing' | 'user';
+  targetType: 'listing' | 'user' | 'buy_request';
   targetId: string;
   /** Чей лот или профиль: себе жаловаться не нужно. */
   ownerId: string;
+  /** В строке с другими кнопками: закрытая — по ширине кнопки, открытая — на всю. */
+  inline?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -71,7 +74,7 @@ export function ReportButton({
   }
 
   return (
-    <div style={{ width: '100%' }}>
+    <div style={{ width: inline && !open ? 'auto' : '100%' }}>
       {!open && (
         <button
           type="button"
@@ -88,7 +91,11 @@ export function ReportButton({
         <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
           <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="label" style={{ padding: 0, marginBottom: 8 }}>
-              {targetType === 'listing' ? t('Что не так с лотом') : t('Что не так с пользователем')}
+              {targetType === 'listing'
+                ? t('Что не так с лотом')
+                : targetType === 'buy_request'
+                  ? t('Что не так с запросом')
+                  : t('Что не так с пользователем')}
             </legend>
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
               {REASONS.map((r) => (

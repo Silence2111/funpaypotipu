@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import type { ReportStatus, UserStatus } from '@gamemarket/db';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
@@ -17,7 +17,7 @@ import { RateLimit } from '../../common/rate-limit';
 import { timeCursor } from '../../common/cursor';
 
 const reportSchema = z.object({
-  targetType: z.enum(['listing', 'user', 'message']),
+  targetType: z.enum(['listing', 'user', 'message', 'buy_request']),
   // Цели — строки с uuid-ключом: мусорный id отсекается здесь, а не падением базы.
   targetId: z.string().uuid(),
   reason: z.string().trim().min(3).max(200),
@@ -26,7 +26,7 @@ const reportSchema = z.object({
 
 const handleSchema = z.object({
   status: z.enum(['reviewing', 'resolved', 'rejected']),
-  action: z.enum(['block_listing', 'freeze_user', 'ban_user']).optional(),
+  action: z.enum(['block_listing', 'remove_request', 'freeze_user', 'ban_user']).optional(),
   note: z.string().trim().max(500).optional(),
 });
 
@@ -87,7 +87,8 @@ export class ModerationController {
   @Roles('moderator')
   handle(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    // Не uuid — 400, а не 500 от базы.
+    @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(handleSchema))
     body: { status: ReportStatus; action?: ReportAction; note?: string },
   ) {
@@ -113,7 +114,7 @@ export class ModerationController {
   @Roles('moderator')
   listingStatus(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(z.object({ status: z.enum(['active', 'blocked']), reason: z.string().trim().max(500).optional() })))
     body: { status: 'active' | 'blocked'; reason?: string },
   ) {
@@ -125,7 +126,7 @@ export class ModerationController {
   @Roles('moderator')
   userStatus(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(z.object({ status: z.enum(USER_STATUSES), reason: z.string().trim().max(500).optional() })))
     body: { status: UserStatus; reason?: string },
   ) {

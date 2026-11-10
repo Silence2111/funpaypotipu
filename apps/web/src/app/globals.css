@@ -4115,6 +4115,98 @@ a.my-lot-title:hover {
   justify-items: start;
 }
 
+/* Запросы покупателей «Хочу купить» (часть 115): в разделе и в кабинете. */
+.requests {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.request-item {
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px;
+}
+.request-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+.request-text {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.request-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.request-budget {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.request-offer {
+  flex: 1 1 100%;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  animation: tpl-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.request-lots {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.request-lot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.request-lot-title {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.request-lot-price {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.request-offers {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.request-offers li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
 /* Подписки на продавцов: аватар с именем и сводкой; число подписчиков у кнопки. */
 .following-main {
   display: flex;

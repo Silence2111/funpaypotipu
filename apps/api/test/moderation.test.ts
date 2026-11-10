@@ -199,6 +199,7 @@ describe('очередь жалоб', () => {
         ]),
       },
       message: { findMany: vi.fn(async () => []) },
+      buyRequest: { findMany: vi.fn(async () => []) },
       // Поиск по нику: найденные люди.
       profile: { findMany: vi.fn(async () => [{ userId: U1 }]) },
     };
@@ -280,7 +281,7 @@ describe('очередь жалоб', () => {
     const { svc, raw } = queueSetup([]);
     await svc.listReports({ q: L1.toUpperCase() });
     const groups = raw.find((t) => t.includes('AS first_at'))!;
-    expect(groups).toContain("unnest(ARRAY['listing', 'user', 'message'])");
+    expect(groups).toContain("unnest(ARRAY['listing', 'user', 'message', 'buy_request'])");
     expect(groups).toContain('r3.id = ');
   });
 });

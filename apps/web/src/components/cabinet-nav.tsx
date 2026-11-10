@@ -20,6 +20,7 @@ const LINKS = [
   { href: '/cabinet/notifications', label: msg('Уведомления') },
   { href: '/cabinet/favorites', label: msg('Избранное') },
   { href: '/cabinet/searches', label: msg('Поиски') },
+  { href: '/cabinet/requests', label: msg('Запросы') },
   { href: '/cabinet/following', label: msg('Подписки') },
   { href: '/cabinet/settings', label: msg('Профиль') },
   { href: '/cabinet/security', label: msg('Безопасность') },

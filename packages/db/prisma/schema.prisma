@@ -202,39 +202,41 @@ model User {
   updatedAt     DateTime   @updatedAt @map("updated_at")
   deletedAt     DateTime?  @map("deleted_at")
 
-  profile        Profile?
-  supportTickets SupportTicket[]    @relation("SupportTickets")
-  blocksMade     UserBlock[]        @relation("BlocksMade")
-  blocksReceived UserBlock[]        @relation("BlocksReceived")
-  kyc            KycVerification[]
-  sessions       AuthSession[]
-  twoFactor      TwoFactor?
-  socialAccounts SocialAccount[]
-  listings       Listing[]
-  ordersAsBuyer  Order[]            @relation("BuyerOrders")
-  ordersAsSeller Order[]            @relation("SellerOrders")
-  ledgerAccounts LedgerAccount[]
-  payments       Payment[]
-  payouts        Payout[]
-  payoutDestinations PayoutDestination[]
-  reviewsAuthored Review[]          @relation("ReviewAuthor")
-  reviewsReceived Review[]          @relation("ReviewTarget")
-  buyerReviewsGiven    BuyerReview[] @relation("BuyerReviewSeller")
-  buyerReviewsReceived BuyerReview[] @relation("BuyerReviewBuyer")
-  messages       Message[]
-  notifications  Notification[]
-  pushSubscriptions PushSubscription[]
-  replyTemplates ReplyTemplate[]
-  savedSearches  SavedSearch[]
-  sellerPromos   SellerPromo[]
-  following      SellerFollow[]     @relation("Following")
-  followers      SellerFollow[]     @relation("Followers")
-  favorites      Favorite[]
-  stockWatches   StockWatch[]
-  roles          UserRole[]
-  riskSignals    RiskSignal[]
-  recoveries     AccountRecovery[]
-  emailChanges   EmailChange[]
+  profile              Profile?
+  supportTickets       SupportTicket[]     @relation("SupportTickets")
+  blocksMade           UserBlock[]         @relation("BlocksMade")
+  blocksReceived       UserBlock[]         @relation("BlocksReceived")
+  kyc                  KycVerification[]
+  sessions             AuthSession[]
+  twoFactor            TwoFactor?
+  socialAccounts       SocialAccount[]
+  listings             Listing[]
+  ordersAsBuyer        Order[]             @relation("BuyerOrders")
+  ordersAsSeller       Order[]             @relation("SellerOrders")
+  ledgerAccounts       LedgerAccount[]
+  payments             Payment[]
+  payouts              Payout[]
+  payoutDestinations   PayoutDestination[]
+  reviewsAuthored      Review[]            @relation("ReviewAuthor")
+  reviewsReceived      Review[]            @relation("ReviewTarget")
+  buyerReviewsGiven    BuyerReview[]       @relation("BuyerReviewSeller")
+  buyerReviewsReceived BuyerReview[]       @relation("BuyerReviewBuyer")
+  messages             Message[]
+  notifications        Notification[]
+  pushSubscriptions    PushSubscription[]
+  replyTemplates       ReplyTemplate[]
+  savedSearches        SavedSearch[]
+  buyRequests          BuyRequest[]
+  buyRequestOffers     BuyRequestOffer[]
+  sellerPromos         SellerPromo[]
+  following            SellerFollow[]      @relation("Following")
+  followers            SellerFollow[]      @relation("Followers")
+  favorites            Favorite[]
+  stockWatches         StockWatch[]
+  roles                UserRole[]
+  riskSignals          RiskSignal[]
+  recoveries           AccountRecovery[]
+  emailChanges         EmailChange[]
 
   // Консоль: новые сверху, по статусу со счётчиками, поиск по части почты.
   @@index([createdAt, id])
@@ -244,30 +246,30 @@ model User {
 }
 
 model Profile {
-  userId      String   @id @map("user_id") @db.Uuid
-  username    String   @unique
-  displayName String   @map("display_name")
-  avatarUrl   String?  @map("avatar_url")
-  bio         String?
-  country     String?
-  ratingAvg   Float    @default(0) @map("rating_avg")
-  ratingCount Int      @default(0) @map("rating_count")
-  salesCount  Int      @default(0) @map("sales_count")
-  onlineAt    DateTime? @map("online_at")
+  userId           String    @id @map("user_id") @db.Uuid
+  username         String    @unique
+  displayName      String    @map("display_name")
+  avatarUrl        String?   @map("avatar_url")
+  bio              String?
+  country          String?
+  ratingAvg        Float     @default(0) @map("rating_avg")
+  ratingCount      Int       @default(0) @map("rating_count")
+  salesCount       Int       @default(0) @map("sales_count")
+  onlineAt         DateTime? @map("online_at")
   // «Отпуск»: продавец снял лоты разом и вернёт их одной кнопкой. null — работает.
-  awaySince   DateTime? @map("away_since")
+  awaySince        DateTime? @map("away_since")
   // Инструменты продавца: приветствие покупателю в новом диалоге (null —
   // выключено) и автоподнятие лотов, как только проходит пауза.
-  greetingText String?  @map("greeting_text")
-  autoRaise    Boolean  @default(false) @map("auto_raise")
+  greetingText     String?   @map("greeting_text")
+  autoRaise        Boolean   @default(false) @map("auto_raise")
   // Последние живые ответы продавца покупателям: [[когда, сколько ждали]],
   // секунды. Из них — «обычно отвечает за …» (packages/shared/src/reply.ts).
-  replySamples Json     @default("[]") @map("reply_samples")
+  replySamples     Json      @default("[]") @map("reply_samples")
   // Когда человек последний раз открывал ленту подписок: новое после этого
   // — «с прошлого визита».
   followFeedSeenAt DateTime? @map("follow_feed_seen_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -358,14 +360,14 @@ model SocialAccount {
 }
 
 model TwoFactor {
-  userId            String    @id @map("user_id") @db.Uuid
-  secretEnc         String    @map("secret_enc")
-  recoveryCodesEnc  String?   @map("recovery_codes_enc")
-  enabledAt         DateTime? @map("enabled_at")
+  userId               String    @id @map("user_id") @db.Uuid
+  secretEnc            String    @map("secret_enc")
+  recoveryCodesEnc     String?   @map("recovery_codes_enc")
+  enabledAt            DateTime? @map("enabled_at")
   // Пароль аккаунта (хеш) в момент включения. «Это не я» из письма выключает
   // вход с кодом, только если назвать этот пароль: его знает владелец, а не
   // тот, кто читает почту и сбросил пароль через неё.
-  passwordHashAtEnable String? @map("password_hash_at_enable")
+  passwordHashAtEnable String?   @map("password_hash_at_enable")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -382,19 +384,19 @@ enum GameKind {
 }
 
 model Game {
-  id        String   @id @default(uuid()) @db.Uuid
-  slug      String   @unique
+  id        String    @id @default(uuid()) @db.Uuid
+  slug      String    @unique
   title     String
-  kind      GameKind @default(game)
+  kind      GameKind  @default(game)
   // Как игру ищут на самом деле: «кс», «ксго», «дота», «вов». Поиск по играм
   // сравнивает запрос и с названием, и с этими словами.
-  aliases   String[] @default([])
-  iconUrl   String?  @map("icon_url")
-  coverUrl  String?  @map("cover_url")
-  isActive  Boolean  @default(true) @map("is_active")
+  aliases   String[]  @default([])
+  iconUrl   String?   @map("icon_url")
+  coverUrl  String?   @map("cover_url")
+  isActive  Boolean   @default(true) @map("is_active")
   // Чем меньше, тем выше в «Популярных»; у остальных игр — 100.
-  sortOrder Int      @default(0) @map("sort_order")
-  createdAt DateTime @default(now()) @map("created_at")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at")
   /// Изменено в консоли: сид каталога больше не перезаписывает и не удаляет.
   editedAt  DateTime? @map("edited_at")
 
@@ -423,12 +425,13 @@ model Category {
   /// Изменено в консоли: сид каталога больше не перезаписывает и не удаляет.
   editedAt        DateTime?       @map("edited_at")
 
-  game       Game?       @relation(fields: [gameId], references: [id])
-  parent     Category?   @relation("CategoryTree", fields: [parentId], references: [id])
-  children   Category[]  @relation("CategoryTree")
-  attributes Attribute[]
-  listings   Listing[]
+  game          Game?         @relation(fields: [gameId], references: [id])
+  parent        Category?     @relation("CategoryTree", fields: [parentId], references: [id])
+  children      Category[]    @relation("CategoryTree")
+  attributes    Attribute[]
+  listings      Listing[]
   savedSearches SavedSearch[]
+  buyRequests   BuyRequest[]
 
   @@unique([gameId, slug])
   @@index([parentId])
@@ -436,15 +439,15 @@ model Category {
 }
 
 model Attribute {
-  id         String   @id @default(uuid()) @db.Uuid
-  categoryId String   @map("category_id") @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
+  categoryId String    @map("category_id") @db.Uuid
   key        String
   label      String
   type       String // enum|string|int|bool|range
   options    Json?
-  isFilter   Boolean  @default(true) @map("is_filter")
-  isRequired Boolean  @default(false) @map("is_required")
-  sortOrder  Int      @default(0) @map("sort_order")
+  isFilter   Boolean   @default(true) @map("is_filter")
+  isRequired Boolean   @default(false) @map("is_required")
+  sortOrder  Int       @default(0) @map("sort_order")
   /// Изменено или добавлено в консоли: сид каталога больше не перезаписывает и не удаляет.
   editedAt   DateTime? @map("edited_at")
 
@@ -455,77 +458,78 @@ model Attribute {
 }
 
 model Listing {
-  id              String          @id @default(uuid()) @db.Uuid
-  sellerId        String          @map("seller_id") @db.Uuid
-  gameId          String          @map("game_id") @db.Uuid
-  categoryId      String          @map("category_id") @db.Uuid
-  title           String
-  description     String
-  price           BigInt // минорные единицы
-  currency        String          @db.Char(3)
-  attributes      Json            @default("{}")
-  images          Json            @default("[]")
-  stock           Int? // null = ручная выдача без жёсткого склада
-  status          ListingStatus   @default(draft)
-  fulfillmentType FulfillmentType @default(manual) @map("fulfillment_type")
-  autoDelivery    Boolean         @default(false) @map("auto_delivery")
-  deliveryTemplate String?        @map("delivery_template")
-  viewsCount      Int             @default(0) @map("views_count")
-  salesCount      Int             @default(0) @map("sales_count")
-  boostUntil      DateTime?       @map("boost_until")
+  id               String          @id @default(uuid()) @db.Uuid
+  sellerId         String          @map("seller_id") @db.Uuid
+  gameId           String          @map("game_id") @db.Uuid
+  categoryId       String          @map("category_id") @db.Uuid
+  title            String
+  description      String
+  price            BigInt // минорные единицы
+  currency         String          @db.Char(3)
+  attributes       Json            @default("{}")
+  images           Json            @default("[]")
+  stock            Int? // null = ручная выдача без жёсткого склада
+  status           ListingStatus   @default(draft)
+  fulfillmentType  FulfillmentType @default(manual) @map("fulfillment_type")
+  autoDelivery     Boolean         @default(false) @map("auto_delivery")
+  deliveryTemplate String?         @map("delivery_template")
+  viewsCount       Int             @default(0) @map("views_count")
+  salesCount       Int             @default(0) @map("sales_count")
+  boostUntil       DateTime?       @map("boost_until")
   // Платное продвижение с баланса: до этого времени лот выше в своём разделе.
-  promotedUntil   DateTime?       @map("promoted_until")
+  promotedUntil    DateTime?       @map("promoted_until")
   // Временная скидка: price — уже сниженная, прежняя цена — здесь; до
   // saleUntil. Срок вышел — фоновая задача возвращает прежнюю (shared/sale.ts).
-  saleListPrice   BigInt?         @map("sale_list_price")
-  saleUntil       DateTime?       @map("sale_until")
+  saleListPrice    BigInt?         @map("sale_list_price")
+  saleUntil        DateTime?       @map("sale_until")
   // Когда скидка началась — подписчики продавца узнают о ней один раз.
-  saleStartedAt   DateTime?       @map("sale_started_at")
+  saleStartedAt    DateTime?       @map("sale_started_at")
   // От чего скидка показывается покупателю: самая низкая цена за 7 дней до
   // неё (shared/sale.ts). saleListPrice — цена, что вернётся после скидки.
-  saleRefPrice    BigInt?         @map("sale_ref_price")
+  saleRefPrice     BigInt?         @map("sale_ref_price")
   // Отметка «минимум за 30 дней»: до этого времени цена — самая низкая у
   // лота за 30 дней. Ставит и снимает триггер базы при смене цены
   // (shared/price-history.ts).
-  priceLowUntil   DateTime?       @map("price_low_until")
+  priceLowUntil    DateTime?       @map("price_low_until")
   // От какой цены идут снижения подряд — самая низкая за 30 дней до первого.
-  priceLowRef     BigInt?         @map("price_low_ref")
+  priceLowRef      BigInt?         @map("price_low_ref")
   // Насколько цена снижена, %: у скидки — как «−N%», у отметки — от
   // priceLowRef. Сортировка «Сначала большие снижения». Ставит тот же триггер.
-  priceDropPct    Int?            @map("price_drop_pct") @db.SmallInt
+  priceDropPct     Int?            @map("price_drop_pct") @db.SmallInt
   // Пополнение на сумму покупателя (packages/shared/src/topup.ts): покупатель
   // вводит, сколько зачислить, и платит номинал плюс наценку. Все три поля
   // заданы или все null; у такого лота price — цена минимальной суммы («от»).
-  topupMarkupBps  Int?            @map("topup_markup_bps")
-  topupMin        BigInt?         @map("topup_min")
-  topupMax        BigInt?         @map("topup_max")
+  topupMarkupBps   Int?            @map("topup_markup_bps")
+  topupMin         BigInt?         @map("topup_min")
+  topupMax         BigInt?         @map("topup_max")
   // Продажа поштучно (packages/shared/src/quantity.ts): price — за
   // pricePerUnits единиц, покупатель выбирает количество от minQty до stock.
   // unitName null — обычный лот, продаётся целиком.
   // Что продавец спрашивает у покупателя при покупке: [{ label, required }],
   // до трёх полей — ник, сервер, ID персонажа. Только у ручной выдачи.
-  buyerFields     Json?           @map("buyer_fields")
-  unitName        String?         @map("unit_name")
-  pricePerUnits   Int             @default(1) @map("price_per_units")
-  minQty          Int             @default(1) @map("min_qty")
+  buyerFields      Json?           @map("buyer_fields")
+  unitName         String?         @map("unit_name")
+  pricePerUnits    Int             @default(1) @map("price_per_units")
+  minQty           Int             @default(1) @map("min_qty")
   // Скидка за количество: [{ from, pct }] по возрастанию, до трёх ступеней
   // (shared/quantity.ts). null — без скидки.
-  qtyDiscounts    Json?           @map("qty_discounts")
+  qtyDiscounts     Json?           @map("qty_discounts")
   // Снят на время отпуска продавца — вернётся в продажу вместе с остальными,
   // а снятые раньше вручную останутся снятыми.
-  pausedForAway   Boolean         @default(false) @map("paused_for_away")
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  pausedForAway    Boolean         @default(false) @map("paused_for_away")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
 
-  seller       User          @relation(fields: [sellerId], references: [id])
-  game         Game          @relation(fields: [gameId], references: [id])
-  category     Category      @relation(fields: [categoryId], references: [id])
-  digitalGoods DigitalGood[]
-  orders       Order[]
-  searchHits   SavedSearchHit[]
-  viewDays     ListingViewDay[]
-  pricePoints  ListingPricePoint[]
-  stockWatches StockWatch[]
+  seller        User                @relation(fields: [sellerId], references: [id])
+  game          Game                @relation(fields: [gameId], references: [id])
+  category      Category            @relation(fields: [categoryId], references: [id])
+  digitalGoods  DigitalGood[]
+  orders        Order[]
+  searchHits    SavedSearchHit[]
+  requestOffers BuyRequestOffer[]
+  viewDays      ListingViewDay[]
+  pricePoints   ListingPricePoint[]
+  stockWatches  StockWatch[]
 
   // FTS по (title, description) и GIN по attributes — добавить SQL-миграцией
   @@index([categoryId, price])
@@ -541,14 +545,14 @@ model Listing {
 // ────────────────────────── INVENTORY ──────────────────────────
 
 model DigitalGood {
-  id                String            @id @default(uuid()) @db.Uuid
-  listingId         String            @map("listing_id") @db.Uuid
-  payloadEnc        String            @map("payload_enc") // зашифрованный ключ/код
-  status            DigitalGoodStatus @default(available)
+  id                 String            @id @default(uuid()) @db.Uuid
+  listingId          String            @map("listing_id") @db.Uuid
+  payloadEnc         String            @map("payload_enc") // зашифрованный ключ/код
+  status             DigitalGoodStatus @default(available)
   // Не уникален: заказ на несколько штук получает несколько ключей.
-  reservedForOrderId String?          @map("reserved_for_order_id") @db.Uuid
-  deliveredAt       DateTime?         @map("delivered_at")
-  createdAt         DateTime          @default(now()) @map("created_at")
+  reservedForOrderId String?           @map("reserved_for_order_id") @db.Uuid
+  deliveredAt        DateTime?         @map("delivered_at")
+  createdAt          DateTime          @default(now()) @map("created_at")
 
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
@@ -585,17 +589,17 @@ model Order {
   createdAt          DateTime        @default(now()) @map("created_at")
   updatedAt          DateTime        @updatedAt @map("updated_at")
 
-  buyer        User          @relation("BuyerOrders", fields: [buyerId], references: [id])
-  seller       User          @relation("SellerOrders", fields: [sellerId], references: [id])
-  listing      Listing       @relation(fields: [listingId], references: [id])
+  buyer          User            @relation("BuyerOrders", fields: [buyerId], references: [id])
+  seller         User            @relation("SellerOrders", fields: [sellerId], references: [id])
+  listing        Listing         @relation(fields: [listingId], references: [id])
   sellerPromoUse SellerPromoUse?
-  delivery     Delivery?
-  dispute      Dispute?
-  review       Review?
-  buyerReview  BuyerReview?
-  conversation Conversation?
-  ledgerEntries LedgerEntry[]
-  payments     Payment[]
+  delivery       Delivery?
+  dispute        Dispute?
+  review         Review?
+  buyerReview    BuyerReview?
+  conversation   Conversation?
+  ledgerEntries  LedgerEntry[]
+  payments       Payment[]
 
   @@index([buyerId])
   @@index([sellerId])
@@ -747,13 +751,13 @@ model PayoutDestination {
 // ──────────────────────────── COMMS ────────────────────────────
 
 model Conversation {
-  id            String   @id @default(uuid()) @db.Uuid
-  orderId       String?  @unique @map("order_id") @db.Uuid
-  buyerId       String   @map("buyer_id") @db.Uuid
-  sellerId      String   @map("seller_id") @db.Uuid
+  id            String    @id @default(uuid()) @db.Uuid
+  orderId       String?   @unique @map("order_id") @db.Uuid
+  buyerId       String    @map("buyer_id") @db.Uuid
+  sellerId      String    @map("seller_id") @db.Uuid
   lastMessageAt DateTime? @map("last_message_at")
-  status        String   @default("open")
-  createdAt     DateTime @default(now()) @map("created_at")
+  status        String    @default("open")
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   order    Order?    @relation(fields: [orderId], references: [id])
   messages Message[]
@@ -805,21 +809,21 @@ model Attachment {
 // ─────────────────────── TRUST & SAFETY ───────────────────────
 
 model Review {
-  id         String   @id @default(uuid()) @db.Uuid
-  orderId    String   @unique @map("order_id") @db.Uuid
-  authorId   String   @map("author_id") @db.Uuid
-  targetId   String   @map("target_id") @db.Uuid
-  rating     Int // 1..5
-  comment    String?
-  sellerReply String? @map("seller_reply")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id          String    @id @default(uuid()) @db.Uuid
+  orderId     String    @unique @map("order_id") @db.Uuid
+  authorId    String    @map("author_id") @db.Uuid
+  targetId    String    @map("target_id") @db.Uuid
+  rating      Int // 1..5
+  comment     String?
+  sellerReply String?   @map("seller_reply")
+  createdAt   DateTime  @default(now()) @map("created_at")
   // Покупатель может поправить отзыв в первые 14 дней — витрина пишет «изменён».
-  editedAt   DateTime? @map("edited_at")
-  repliedAt  DateTime? @map("replied_at")
+  editedAt    DateTime? @map("edited_at")
+  repliedAt   DateTime? @map("replied_at")
   // Фото к отзыву — ключи хранилища (reviews/<автор>/…), до 5; счётчик —
   // для фильтра «С фото» без разбора JSON.
-  images     Json     @default("[]")
-  photoCount Int      @default(0) @map("photo_count")
+  images      Json      @default("[]")
+  photoCount  Int       @default(0) @map("photo_count")
 
   order  Order @relation(fields: [orderId], references: [id])
   author User  @relation("ReviewAuthor", fields: [authorId], references: [id])
@@ -926,46 +930,46 @@ model SupportMessage {
 /// Сотрудник решает не раньше чем через 3 дня: владелец, если он ещё в
 /// аккаунте, успеет отметить «Заявку подал не я».
 model AccountRecovery {
-  id           String    @id @default(uuid()) @db.Uuid
-  userId       String    @map("user_id") @db.Uuid
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String    @map("user_id") @db.Uuid
   /// two_factor — вход с кодом включил не владелец, password — пароль сменили, other
-  reason       String
+  reason              String
   /// Номера заказов из формы — сотрудник видит, какие из них у этого аккаунта.
-  orderNumbers String[]  @map("order_numbers")
-  details      String
-  ip           String?
-  userAgent    String?   @map("user_agent")
+  orderNumbers        String[]  @map("order_numbers")
+  details             String
+  ip                  String?
+  userAgent           String?   @map("user_agent")
   /// pending — ждёт решения, restored — доступ восстановлен, rejected — отклонена
-  status       String    @default("pending")
+  status              String    @default("pending")
   /// Из аккаунта отметили «Заявку подал не я»: когда и с какого устройства.
-  objectedAt   DateTime? @map("objected_at")
-  objectedFrom String?   @map("objected_from")
+  objectedAt          DateTime? @map("objected_at")
+  objectedFrom        String?   @map("objected_from")
   /// «Нет доступа и к почте аккаунта»: куда ответить и, если сотрудник решит,
   /// какую почту привязать. Только при пройденной проверке личности.
-  contactEmail String?   @map("contact_email")
+  contactEmail        String?   @map("contact_email")
   /// Сотрудник попросил документы — ссылка ушла на contactEmail; новая
   /// просьба делает прежнюю ссылку недействительной.
   evidenceRequestedAt DateTime? @map("evidence_requested_at")
   /// { keys: [фото документа], selfie } — ключи хранилища, как у проверки личности.
-  evidenceRefs Json?     @map("evidence_refs")
-  evidenceAt   DateTime? @map("evidence_at")
+  evidenceRefs        Json?     @map("evidence_refs")
+  evidenceAt          DateTime? @map("evidence_at")
   /// Проверки личности нет — сотрудник попросил описать сделки: ссылка ушла на
   /// contactEmail, новая просьба делает прежнюю недействительной.
-  dealsRequestedAt DateTime? @map("deals_requested_at")
-  dealsAt      DateTime? @map("deals_at")
+  dealsRequestedAt    DateTime? @map("deals_requested_at")
+  dealsAt             DateTime? @map("deals_at")
   /// С какого IP прислали описания: подтверждение с того же IP не считается.
-  dealsIp      String?   @map("deals_ip")
+  dealsIp             String?   @map("deals_ip")
   /// Проверка картой: сотрудник попросил — ссылка ушла на contactEmail;
   /// проверочный платёж 1 ₽ без списания (id у ЮKassa) и итог сверки —
   /// { first6, last4, type, expiry, matched, firstUsedAt, source }.
-  cardRequestedAt DateTime? @map("card_requested_at")
-  cardPaymentId   String?   @map("card_payment_id")
-  cardCheckedAt   DateTime? @map("card_checked_at")
-  cardResult      Json?     @map("card_result")
-  decidedById  String?   @map("decided_by_id") @db.Uuid
-  decidedAt    DateTime? @map("decided_at")
-  note         String?
-  createdAt    DateTime  @default(now()) @map("created_at")
+  cardRequestedAt     DateTime? @map("card_requested_at")
+  cardPaymentId       String?   @map("card_payment_id")
+  cardCheckedAt       DateTime? @map("card_checked_at")
+  cardResult          Json?     @map("card_result")
+  decidedById         String?   @map("decided_by_id") @db.Uuid
+  decidedAt           DateTime? @map("decided_at")
+  note                String?
+  createdAt           DateTime  @default(now()) @map("created_at")
 
   user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   deals RecoveryDeal[]
@@ -1232,6 +1236,60 @@ model SavedSearchHit {
   @@map("saved_search_hits")
 }
 
+enum BuyRequestStatus {
+  open // ищет; после expires_at — истёк, отдельного статуса не нужно
+  closed // покупатель закрыл: нашёл или передумал
+  removed // снят модератором по жалобе
+}
+
+// Запрос покупателя «Хочу купить» (часть 115): что и до какой цены — в
+// разделе игры. Продавцам раздела — уведомление, ответ — своим лотом;
+// покупатель получает ссылку на лот. Виден в разделе и в кабинете.
+model BuyRequest {
+  id            String           @id @default(uuid()) @db.Uuid
+  buyerId       String           @map("buyer_id") @db.Uuid
+  categoryId    String           @map("category_id") @db.Uuid
+  // Контакты скрыты при сохранении, как в чате: запрос не уводит сделку.
+  text          String           @db.VarChar(300)
+  maxPrice      BigInt?          @map("max_price") // минорные единицы
+  status        BuyRequestStatus @default(open)
+  expiresAt     DateTime         @map("expires_at")
+  // Рассылка продавцам раздела: отметка ставится до рассылки — второй
+  // экземпляр API не разошлёт повторно.
+  notifiedAt    DateTime?        @map("notified_at")
+  notifiedCount Int              @default(0) @map("notified_count")
+  closedAt      DateTime?        @map("closed_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  buyer    User              @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  category Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  offers   BuyRequestOffer[]
+
+  @@index([categoryId, status, expiresAt])
+  @@index([buyerId, createdAt])
+  @@index([status, notifiedAt])
+  @@map("buy_requests")
+}
+
+// Ответ продавца на запрос — его лот из того же раздела.
+model BuyRequestOffer {
+  id        String   @id @default(uuid()) @db.Uuid
+  requestId String   @map("request_id") @db.Uuid
+  sellerId  String   @map("seller_id") @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  request BuyRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  seller  User       @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  listing Listing    @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, listingId])
+  @@index([requestId, sellerId])
+  @@index([sellerId])
+  @@index([listingId])
+  @@map("buy_request_offers")
+}
+
 // Цена лота во времени — для «Истории цены» на странице лота. Точку пишет
 // триггер базы при создании лота и при каждой смене цены или пачки — любым
 // путём: правкой, скидкой, ценами разом, возвратом цены по сроку.
@@ -1323,15 +1381,15 @@ model ReplyTemplate {
 }
 
 model Favorite {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  listingId String   @map("listing_id") @db.Uuid
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  listingId      String   @map("listing_id") @db.Uuid
   // Цена за единицу (копейки / pricePerUnits): при добавлении — для «было» в
   // избранном, и последняя, о которой сообщили, — снижение считается от неё.
   // null — лот «на сумму покупателя», его цену не отслеживаем.
   addedUnitPrice Decimal? @map("added_unit_price") @db.Decimal(24, 6)
   watchUnitPrice Decimal? @map("watch_unit_price") @db.Decimal(24, 6)
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

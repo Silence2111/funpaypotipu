@@ -951,8 +951,9 @@ async function scenarioPush(rnd) {
   const user = await register('psh', rnd);
   const s0 = await j('/account/notifications', { token: user.token });
   check('Ключ сервера для подписки есть, устройств нет', /^[A-Za-z0-9_-]{80,}$/.test(s0.body.push?.publicKey ?? '') && s0.body.push?.devices === 0, JSON.stringify(s0.body.push));
-  // Девять групп: с частью 34 добавились «Сохранённые поиски», с частью 56 — «Безопасность».
-  check('Пуши по умолчанию включены во всех группах', Object.values(s0.body.prefs?.push ?? {}).every(Boolean) && Object.keys(s0.body.prefs?.push ?? {}).length === 9);
+  // Десять групп: с частью 34 добавились «Сохранённые поиски», с частью 56 —
+  // «Безопасность», с частью 115 — «Запросы покупателей».
+  check('Пуши по умолчанию включены во всех группах', Object.values(s0.body.prefs?.push ?? {}).every(Boolean) && Object.keys(s0.body.prefs?.push ?? {}).length === 10);
   const ecdh = createECDH('prime256v1');
   const keys = { p256dh: ecdh.generateKeys().toString('base64url'), auth: randomBytes(16).toString('base64url') };
   const endpoint = `https://fcm.googleapis.com/fcm/send/e2e-${rnd}`;
@@ -2054,6 +2055,175 @@ async function scenarioSavedSearches(rnd) {
     off.body.notify === false && quiet.length === 2 && mine[0]?.lastHitAt && foreign.status === 404 &&
       del.status === 200 && left.length === 0,
     JSON.stringify({ off: off.body?.notify, quiet: quiet.length, mine: mine[0], foreign: foreign.status, del: del.status }),
+  );
+}
+
+/**
+ * Запросы покупателей «Хочу купить» (часть 115): покупатель пишет в
+ * разделе, что ищет и до какой цены; продавцам раздела — уведомление;
+ * продавец отвечает лотом — покупателю ссылка на лот. Контакты скрыты,
+ * лимиты, чёрный список, жалоба и снятие модератором, закрытие и срок.
+ */
+async function scenarioBuyRequests(rnd) {
+  console.log('\n— Запросы покупателей —');
+  const buyer = await register('rqb', rnd);
+  const seller = await register('rqs', rnd);
+  const blocked = await register('rqx', rnd);
+  const keysOnly = await register('rqk', rnd);
+  const mod = await register('rqm', rnd);
+  await grant(mod.id, 'moderator');
+  const game = await j('/catalog/games/cs2');
+  const skins = game.body.categories.find((c) => c.slug === 'skins');
+  const other = game.body.categories.find((c) => c.slug === 'other');
+  const lot = (u, price, slug = 'skins') => createListing(u.token, slug, price, { title: `Запросы ${rnd} ${slug}` });
+  const cheap = await lot(seller, '100000');
+  const pricey = await lot(seller, '200000');
+  const third = await lot(seller, '90000');
+  const fourth = await lot(seller, '80000');
+  const blockedLot = await lot(blocked, '100000');
+  const keyLot = await lot(keysOnly, '50000', 'keys');
+  const foreignLot = await lot(blocked, '70000');
+  // Покупатель закрылся от одного из продавцов раздела.
+  await j('/account/blocks', { method: 'POST', token: buyer.token, body: JSON.stringify({ userId: blocked.id }) });
+
+  const create = (body, token = buyer.token) => j('/buy-requests', { method: 'POST', token, body: JSON.stringify(body) });
+  // Длинное число скрылось бы как телефон: метка запроса — буквами.
+  const tag = `k${rnd.toString(36)}`;
+  const text = `Нож Karambit ${tag}, пишите @mytelegram`;
+  const r = await create({ categoryId: skins.id, text, maxPrice: 150000 });
+  const short = await create({ categoryId: skins.id, text: 'нож' });
+  const dup = await create({ categoryId: skins.id, text, maxPrice: 150000 });
+  const anon = await j('/buy-requests', { method: 'POST', body: JSON.stringify({ categoryId: skins.id, text }) });
+  const pub = await j(`/buy-requests?categoryId=${skins.id}`);
+  const shown = pub.body.items?.find((x) => x.id === r.body.id);
+  check(
+    'Запрос создан: контакт скрыт, до 1 500 ₽, виден в разделе без входа; короткий — 400, повтор — 409, без входа — 401',
+    r.status === 201 && r.body.state === 'open' && !r.body.text.includes('@mytelegram') && r.body.text.includes('[скрыто]') &&
+      r.body.maxPrice === '150000' && !!shown && shown.buyer.username === `rqb${rnd}` && shown.offers === 0 &&
+      short.status === 400 && dup.status === 409 && anon.status === 401,
+    JSON.stringify({ r: r.body, short: short.status, dup: dup.status, anon: anon.status, shown }),
+  );
+
+  // Продавцам раздела — уведомление; продавцу из чёрного списка и продавцу
+  // другого раздела — нет.
+  const told = async (u) =>
+    (await j('/notifications', { token: u.token })).body.filter((n) => n.type === 'buy_request' && n.payload.requestId === r.body.id);
+  let mine = [];
+  for (let i = 0; i < 20 && !mine.length; i++) {
+    mine = await told(seller);
+    if (!mine.length) await wait(300);
+  }
+  const notBlocked = await told(blocked);
+  const notKeys = await told(keysOnly);
+  const own = await told(buyer);
+  check(
+    'Продавцу раздела — «Покупатель ищет»: что, до какой цены, ссылка в кабинет; в чёрном списке, другого раздела и себе — нет',
+    mine.length === 1 && mine[0].payload.preview.includes('до 1') && mine[0].payload.preview.includes('Karambit') &&
+      notBlocked.length === 0 && notKeys.length === 0 && own.length === 0,
+    JSON.stringify({ mine: mine.map((n) => n.payload), notBlocked: notBlocked.length, notKeys: notKeys.length }),
+  );
+
+  // Кабинет продавца: в своих разделах и во всех.
+  const forSeller = (u, q = '') => j(`/buy-requests/for-seller${q}`, { token: u.token });
+  const sMine = (await forSeller(seller)).body;
+  const kMine = (await forSeller(keysOnly)).body;
+  const kAll = (await forSeller(keysOnly, '?scope=all')).body;
+  const xAll = (await forSeller(blocked, '?scope=all')).body;
+  const bAll = (await forSeller(buyer, '?scope=all')).body;
+  check(
+    'Продавцу — запросы его разделов; «Все разделы» — и чужих; из чёрного списка и свой — нет',
+    sMine.items.some((x) => x.id === r.body.id) && sMine.sellingIn >= 1 &&
+      !kMine.items.some((x) => x.id === r.body.id) && kAll.items.some((x) => x.id === r.body.id) &&
+      !xAll.items.some((x) => x.id === r.body.id) && !bAll.items.some((x) => x.id === r.body.id),
+    JSON.stringify({ sMine: sMine.items.length, kMine: kMine.items.length, kAll: kAll.items.length }),
+  );
+
+  // Ответ лотом.
+  const cand = (await j(`/buy-requests/${r.body.id}/candidates`, { token: seller.token })).body;
+  const offer = (listingId, u = seller) =>
+    j(`/buy-requests/${r.body.id}/offers`, { method: 'POST', token: u.token, body: JSON.stringify({ listingId }) });
+  const wrongCat = await offer(keyLot, keysOnly);
+  const notMine = await offer(foreignLot);
+  const ok1 = await offer(cheap);
+  const again = await offer(cheap);
+  const ok2 = await offer(pricey);
+  const ok3 = await offer(third);
+  const tooMany = await offer(fourth);
+  const ownReq = await offer(cheap, buyer);
+  const fromBlocked = await offer(blockedLot, blocked);
+  check(
+    'Ответ лотом: свои лоты раздела с «в бюджете»; другой раздел — 400, чужой лот — 404, повтор — 409, больше трёх — 400; свой запрос — 400, из чёрного списка — 403',
+    cand.items.find((l) => l.id === cheap)?.withinBudget === true && cand.items.find((l) => l.id === pricey)?.withinBudget === false &&
+      cand.left === 3 && wrongCat.status === 400 && notMine.status === 404 && ok1.status === 201 && again.status === 409 &&
+      ok2.status === 201 && ok3.status === 201 && tooMany.status === 400 && ownReq.status === 400 && fromBlocked.status === 403,
+    JSON.stringify({ wrongCat: wrongCat.status, notMine: notMine.status, ok1: ok1.status, again: again.status, tooMany: tooMany.status, ownReq: ownReq.status, fromBlocked: fromBlocked.status }),
+  );
+
+  const answers = (await j('/notifications', { token: buyer.token })).body.filter((n) => n.type === 'buy_request_offer');
+  const myReqs = (await j('/buy-requests/mine', { token: buyer.token })).body;
+  const mr = myReqs.find((x) => x.id === r.body.id);
+  check(
+    'Покупателю — «Продавец ответил лотом» со ссылкой на лот; в «Моих запросах» — три лота, дорогой — «выше бюджета»',
+    answers.some((n) => n.payload.listingId === cheap && n.payload.preview.includes(`rqs${rnd}`)) && answers.length === 3 &&
+      mr?.offers.length === 3 && mr.offers.find((o) => o.listing.id === pricey)?.listing.withinBudget === false &&
+      mr.notified >= 1 && (await j(`/buy-requests?categoryId=${skins.id}`)).body.items.find((x) => x.id === r.body.id)?.offers === 3,
+    JSON.stringify({ answers: answers.map((n) => n.payload), offers: mr?.offers.length, notified: mr?.notified }),
+  );
+
+  // Лимит открытых: пять, шестой — 400. Закрытый освобождает место.
+  const more = [];
+  for (let i = 0; i < 4; i++) more.push(await create({ categoryId: other.id, text: `Ищу прочее ${rnd} номер ${i}` }));
+  const sixth = await create({ categoryId: other.id, text: `Ищу прочее ${rnd} номер 5` });
+  const foreignClose = await j(`/buy-requests/${more[0].body.id}/close`, { method: 'POST', token: seller.token });
+  const closed = await j(`/buy-requests/${more[0].body.id}/close`, { method: 'POST', token: buyer.token });
+  const closedAgain = await j(`/buy-requests/${more[0].body.id}/close`, { method: 'POST', token: buyer.token });
+  const afterClose = await create({ categoryId: other.id, text: `Ищу прочее ${rnd} номер 6` });
+  const closedOffer = await j(`/buy-requests/${more[0].body.id}/candidates`, { token: seller.token });
+  check(
+    'Открытых — не больше пяти; закрыть может только автор, один раз; закрытый не в разделе и на него не ответить',
+    more.every((m) => m.status === 201) && sixth.status === 400 && foreignClose.status === 404 && closed.body.state === 'closed' &&
+      closedAgain.status === 404 && afterClose.status === 201 && closedOffer.status === 404 &&
+      !(await j(`/buy-requests?categoryId=${other.id}`)).body.items.some((x) => x.id === more[0].body.id),
+    JSON.stringify({ more: more.map((m) => m.status), sixth: sixth.status, closed: closed.body?.state, afterClose: afterClose.status }),
+  );
+
+  // Срок вышел — «истёк»: не в разделе, ответить нельзя.
+  await prisma.buyRequest.update({ where: { id: more[1].body.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+  const expired = (await j('/buy-requests/mine', { token: buyer.token })).body.find((x) => x.id === more[1].body.id);
+  check(
+    'Срок вышел — «истёк» у автора, из раздела пропал, ответить нельзя',
+    expired?.state === 'expired' && (await j(`/buy-requests/${more[1].body.id}/candidates`, { token: seller.token })).status === 404 &&
+      !(await j(`/buy-requests?categoryId=${other.id}`)).body.items.some((x) => x.id === more[1].body.id),
+    JSON.stringify({ expired: expired?.state }),
+  );
+
+  // Жалоба на запрос — в очередь модератора; «Снять запрос».
+  const rep = await j('/reports', {
+    method: 'POST', token: seller.token,
+    body: JSON.stringify({ targetType: 'buy_request', targetId: r.body.id, reason: 'Контакты вне площадки' }),
+  });
+  const ownRep = await j('/reports', {
+    method: 'POST', token: buyer.token,
+    body: JSON.stringify({ targetType: 'buy_request', targetId: r.body.id, reason: 'Другое', details: 'проверка' }),
+  });
+  const queue = (await j(`/moderation/reports?q=${encodeURIComponent(`Karambit ${tag}`)}`, { token: mod.token })).body;
+  const card = queue.items?.find((c) => c.targetType === 'buy_request' && c.targetId === r.body.id);
+  const wrongAction = await j(`/moderation/reports/${card?.id}/handle`, {
+    method: 'POST', token: mod.token, body: JSON.stringify({ status: 'resolved', action: 'block_listing' }),
+  });
+  const handled = await j(`/moderation/reports/${card?.id}/handle`, {
+    method: 'POST', token: mod.token, body: JSON.stringify({ status: 'resolved', action: 'remove_request', note: 'контакты' }),
+  });
+  const gone = (await j(`/buy-requests?categoryId=${skins.id}`)).body.items.some((x) => x.id === r.body.id);
+  const removed = (await j('/buy-requests/mine', { token: buyer.token })).body.find((x) => x.id === r.body.id);
+  const logged = await prisma.moderationAction.findFirst({ where: { targetType: 'buy_request', targetId: r.body.id } });
+  const reporterTold = (await j('/notifications', { token: seller.token })).body.some((n) => n.type === 'report_handled');
+  check(
+    'Жалоба на запрос — в очереди с текстом и автором (поиск по тексту); «Заблокировать лот» к запросу — 400; «Снять запрос» — пропал из раздела, у автора «снят», решение в журнале, пожаловавшемуся — ответ; на свой — 400',
+    rep.status === 201 && ownRep.status === 400 && card?.target?.text?.includes('Karambit') && card.target.user?.username === `rqb${rnd}` &&
+      card.target.section?.slug === 'skins' && wrongAction.status === 400 && [200, 201].includes(handled.status) && !gone &&
+      removed?.state === 'removed' && logged?.action === 'hide' && reporterTold,
+    JSON.stringify({ rep: rep.status, ownRep: ownRep.status, card: card?.target, wrongAction: wrongAction.status, handled: handled.status, gone, removed: removed?.state }),
   );
 }
 
@@ -3935,6 +4105,21 @@ async function scenarioTelegramBot(rnd) {
         fromSeller.filter((b) => b === `tgb${rnd}, спасибо за покупку. Буду рад отзыву.`).length === 1,
       JSON.stringify({ tpl: tpl.status, withTpl: withTpl?.body.reply_markup, list: list?.body, stale: !!stale, tplSent: tplSent?.body.text, fromSeller: fromSeller.slice(-3) }),
     );
+
+    // Запрос покупателя — продавцу раздела и в Telegram (часть 115).
+    const skins = game.body.categories.find((c) => c.slug === 'skins');
+    await k('/listings', {
+      method: 'POST', token: seller.token,
+      body: JSON.stringify({ gameId: game.body.id, categoryId: skins.id, title: `Скин для запроса ${rnd}`, description: 'test', price: '40000', currency: 'RUB', attributes: REQUIRED_ATTRS.skins }),
+    });
+    const ask = `Ищу перчатки tg${rnd.toString(36)}`;
+    const req = await k('/buy-requests', { method: 'POST', token: buyer.token, body: JSON.stringify({ categoryId: skins.id, text: ask, maxPrice: 50000 }) });
+    const tgAsk = await waitFor(() => tg.to(SELLER_CHAT).find((c) => (c.body.text ?? '').includes(ask)));
+    check(
+      'Telegram: продавцу раздела — «Покупатель ищет в вашем разделе» с текстом запроса и ценой',
+      req.status === 201 && !!tgAsk && tgAsk.body.text.includes('Покупатель ищет в вашем разделе') && tgAsk.body.text.includes('500'),
+      JSON.stringify({ req: req.status, tg: tgAsk?.body.text }),
+    );
   } finally {
     child.kill();
     tg.close();
@@ -3966,6 +4151,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioMyLots(rnd);
   await scenarioSellerTools(rnd);
   await scenarioSavedSearches(rnd);
+  await scenarioBuyRequests(rnd);
   await scenarioPriceDrop(rnd);
   await scenarioLotStats(rnd);
   await scenarioSale(rnd);

@@ -8,15 +8,16 @@ import {
   type ReportStatus,
   type UserStatus,
 } from '@gamemarket/db';
+import { buyRequestState } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { containsText, likeText } from '../../common/like';
 import { nextCursor } from '../../common/cursor';
 import { AuditService } from '../access/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
-export type ReportTarget = 'listing' | 'user' | 'message';
+export type ReportTarget = 'listing' | 'user' | 'message' | 'buy_request';
 /** Что модератор делает с нарушителем, закрывая жалобу. */
-export type ReportAction = 'block_listing' | 'freeze_user' | 'ban_user';
+export type ReportAction = 'block_listing' | 'remove_request' | 'freeze_user' | 'ban_user';
 
 /** Роли сотрудников: их статус меняет только администратор. */
 const STAFF_ROLES = ['agent', 'moderator', 'finance', 'admin'];
@@ -135,6 +136,12 @@ export class ModerationService {
       if (user.id === reporterId) throw new BadRequestException('На себя жаловаться не нужно');
       return;
     }
+    if (targetType === 'buy_request') {
+      const r = await this.prisma.buyRequest.findUnique({ where: { id: targetId }, select: { buyerId: true } });
+      if (!r) throw new NotFoundException('Запрос не найден');
+      if (r.buyerId === reporterId) throw new BadRequestException('На свой запрос жаловаться не нужно');
+      return;
+    }
     // Сообщение: жалуется участник диалога, а не любой, кто узнал id.
     const message = await this.prisma.message.findUnique({
       where: { id: targetId },
@@ -201,7 +208,7 @@ export class ModerationService {
     const idsOf = (t: ReportTarget) => [...new Set(page.filter((g) => g.target_type === t).map((g) => g.target_id))];
     const person = { select: { id: true, status: true, profile: { select: { username: true } } } };
 
-    const [reasons, latest, listings, users, messages, open] = await Promise.all([
+    const [reasons, latest, listings, users, messages, requests, open] = await Promise.all([
       this.prisma.$queryRaw<Array<{ target_type: string; target_id: string; handled_at: Date | null; reason: string; n: number }>>`
         SELECT r.target_type, r.target_id, ${decided ? Prisma.sql`r.handled_at` : Prisma.sql`NULL::timestamp`} AS handled_at,
                r.reason, count(*)::int AS n
@@ -225,6 +232,19 @@ export class ModerationService {
         where: { id: { in: idsOf('message').filter((id) => UUID.test(id)) } },
         select: { id: true, body: true, conversationId: true, createdAt: true, sender: person },
       }),
+      this.prisma.buyRequest.findMany({
+        where: { id: { in: idsOf('buy_request').filter((id) => UUID.test(id)) } },
+        select: {
+          id: true,
+          text: true,
+          maxPrice: true,
+          status: true,
+          expiresAt: true,
+          createdAt: true,
+          category: { select: { slug: true, title: true, game: { select: { slug: true, title: true } } } },
+          buyer: person,
+        },
+      }),
       // Сколько ждёт решения — всегда, в поиске — найденных; решённые — вся
       // история, их не считаем.
       this.prisma.$queryRaw<Array<{ targets: number; reports: number }>>`
@@ -242,6 +262,7 @@ export class ModerationService {
     const listingById = new Map(listings.map((l) => [l.id, l]));
     const userById = new Map(users.map((u) => [u.id, u]));
     const messageById = new Map(messages.map((m) => [m.id, m]));
+    const requestById = new Map(requests.map((r) => [r.id, r]));
     const reporterName = new Map(reporters.map((u) => [u.id, u.profile?.username ?? null]));
 
     const targetOf = (type: string, id: string) => {
@@ -252,6 +273,19 @@ export class ModerationService {
       if (type === 'user') {
         const u = userById.get(id);
         return u ? { user: who(u) } : null;
+      }
+      if (type === 'buy_request') {
+        const r = requestById.get(id);
+        return r
+          ? {
+              text: r.text,
+              maxPrice: r.maxPrice?.toString() ?? null,
+              requestState: buyRequestState(r),
+              sentAt: r.createdAt,
+              section: { slug: r.category.slug, title: r.category.title, game: r.category.game },
+              user: who(r.buyer),
+            }
+          : null;
       }
       const m = messageById.get(id);
       return m ? { text: m.body, conversationId: m.conversationId, sentAt: m.createdAt, user: who(m.sender) } : null;
@@ -345,6 +379,11 @@ export class ModerationService {
       await this.setListingStatus(staffId, report.targetId, 'blocked', reason);
       return;
     }
+    if (action === 'remove_request') {
+      if (report.targetType !== 'buy_request') throw new BadRequestException('Снять можно только запрос покупателя');
+      await this.removeRequest(staffId, report.targetId, reason);
+      return;
+    }
     const userId = await this.responsibleUser(report);
     if (!userId) throw new NotFoundException('Пользователь не найден');
     await this.setUserStatus(staffId, userId, action === 'ban_user' ? 'banned' : 'frozen', reason);
@@ -357,8 +396,29 @@ export class ModerationService {
       const l = await this.prisma.listing.findUnique({ where: { id: report.targetId }, select: { sellerId: true } });
       return l?.sellerId ?? null;
     }
+    if (report.targetType === 'buy_request') {
+      const r = await this.prisma.buyRequest.findUnique({ where: { id: report.targetId }, select: { buyerId: true } });
+      return r?.buyerId ?? null;
+    }
     const m = await this.prisma.message.findUnique({ where: { id: report.targetId }, select: { senderId: true } });
     return m?.senderId ?? null;
+  }
+
+  /**
+   * Запрос покупателя снят по жалобе: из раздела и у продавцов пропадает,
+   * у автора — «снят модератором». Решение — в журнале модерации.
+   */
+  private async removeRequest(staffId: string, requestId: string, reason: string) {
+    const r = await this.prisma.buyRequest.findUnique({ where: { id: requestId }, select: { status: true, text: true } });
+    if (!r) throw new NotFoundException('Запрос не найден');
+    if (r.status !== 'removed') {
+      await this.prisma.buyRequest.update({
+        where: { id: requestId },
+        data: { status: 'removed', closedAt: new Date() },
+      });
+    }
+    // Текст — в записи журнала: по нему видно, что сняли, и после снятия.
+    await this.record(staffId, 'buy_request', requestId, 'hide', reason, { status: 'removed', text: r.text });
   }
 
   // ── Лоты и пользователи в консоли ──
@@ -557,6 +617,8 @@ export class ModerationService {
           WHERE l.title ILIKE ${like} OR l.seller_id IN (SELECT id FROM who)`,
         Prisma.sql`SELECT r3.target_type, r3.target_id FROM reports r3
           WHERE r3.reporter_id IN (SELECT id FROM who) AND ${inStatus}`,
+        Prisma.sql`SELECT 'buy_request'::text, b.id::text FROM buy_requests b
+          WHERE b.text ILIKE ${like} OR b.buyer_id IN (SELECT id FROM who)`,
         // Индекса по автору у сообщений нет — от жалоб на сообщения, их мало.
         // Цель — строка: в uuid переводится, только если она им и выглядит.
         Prisma.sql`SELECT r3.target_type, r3.target_id FROM reports r3
@@ -566,7 +628,7 @@ export class ModerationService {
       ];
       if (id) {
         parts.push(
-          Prisma.sql`SELECT t, ${id}::text FROM unnest(ARRAY['listing', 'user', 'message']) t`,
+          Prisma.sql`SELECT t, ${id}::text FROM unnest(ARRAY['listing', 'user', 'message', 'buy_request']) t`,
           Prisma.sql`SELECT r3.target_type, r3.target_id FROM reports r3 WHERE r3.id = ${id}::uuid`,
         );
       }
