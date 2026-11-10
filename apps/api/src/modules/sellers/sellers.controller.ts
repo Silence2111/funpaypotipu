@@ -7,6 +7,13 @@ import { SellersService } from './sellers.service';
 export class SellersController {
   constructor(private readonly sellers: SellersService) {}
 
+  /** «Сегодня» в кабинете продавца: продажи за день и что ждёт его самого. */
+  @Get('me/today')
+  @UseGuards(JwtAuthGuard)
+  today(@CurrentUser() user: AuthUser) {
+    return this.sellers.today(user.userId);
+  }
+
   /** Аналитика собственного кабинета (перед :id, чтобы «me» не ушёл в параметр). */
   @Get('me/dashboard')
   @UseGuards(JwtAuthGuard)

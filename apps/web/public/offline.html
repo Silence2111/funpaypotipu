@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#FFFFFF" />
+    <title>Нет соединения · GameMarket</title>
+    <style>
+      :root {
+        --page: #f4f5f7;
+        --bg: #ffffff;
+        --fg: #0e1116;
+        --fg-muted: #3a3d45;
+        --border: #ececf2;
+        --accent: #225aea;
+        --accent-hover: #1b49c4;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --page: #0b0b0c;
+          --bg: #121317;
+          --fg: #f4f5f7;
+          --fg-muted: #d8d8dd;
+          --border: rgba(255, 255, 255, 0.08);
+          --accent: #4e82ff;
+          --accent-hover: #6d97ff;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 24px 16px;
+        background: var(--page);
+        color: var(--fg);
+        font: 16px/1.6 Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+      main {
+        width: 100%;
+        max-width: 420px;
+        padding: 32px 28px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        background: var(--bg);
+        text-align: center;
+      }
+      svg {
+        color: var(--accent);
+      }
+      h1 {
+        margin: 16px 0 8px;
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      p {
+        margin: 0;
+        color: var(--fg-muted);
+      }
+      button {
+        margin-top: 24px;
+        min-height: 44px;
+        padding: 11px 22px;
+        border: 0;
+        border-radius: 12px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover {
+        background: var(--accent-hover);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 20h.01" />
+        <path d="M8.5 16.429a5 5 0 0 1 7 0" />
+        <path d="M5 12.859a10 10 0 0 1 5.17-2.69" />
+        <path d="M19 12.859a10 10 0 0 0-2.007-1.523" />
+        <path d="M2 8.82a15 15 0 0 1 4.177-2.643" />
+        <path d="M22 8.82a15 15 0 0 0-11.288-3.764" />
+        <path d="m2 2 20 20" />
+      </svg>
+      <h1>Нет соединения</h1>
+      <p>Проверьте интернет. Страница откроется сама, как только связь вернётся. Деньги в сделках в безопасности — они у площадки.</p>
+      <button type="button" onclick="location.reload()">Обновить</button>
+    </main>
+    <script>
+      // Язык — как у сайта: выбранный переключателем (cookie gm_lang), иначе по
+      // языкам браузера: русский, если он среди них (или украинский,
+      // белорусский, казахский), иначе английский.
+      (function () {
+        var chosen = document.cookie.match(/(?:^|; )gm_lang=(ru|en)/);
+        var langs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+        var en = chosen
+          ? chosen[1] === 'en'
+          : !langs.some(function (l) {
+              return /^(ru|uk|be|kk)\b/i.test(l);
+            });
+        if (!en) return;
+        document.documentElement.lang = 'en';
+        document.title = 'No connection · GameMarket';
+        document.querySelector('h1').textContent = 'No connection';
+        document.querySelector('p').textContent =
+          'Check your internet. The page will open by itself once you’re back online. Money in your deals is safe — the marketplace holds it.';
+        document.querySelector('button').textContent = 'Reload';
+      })();
+
+      // Связь вернулась или сайт снова отвечает — открываем страницу, за которой пришли.
+      const retry = () =>
+        fetch(location.href, { method: 'HEAD', cache: 'no-store' })
+          .then((r) => r.ok && location.reload())
+          .catch(() => {});
+      window.addEventListener('online', retry);
+      setInterval(retry, 10000);
+    </script>
+  </body>
+</html>

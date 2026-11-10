@@ -5,10 +5,11 @@ import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { MockPaymentProvider } from './mock.provider';
 import { PaymentProviderRegistry } from './provider.registry';
+import { YooKassaProvider } from './yookassa.provider';
 
 @Module({
   imports: [AuthModule, OrdersModule],
   controllers: [PaymentsController],
-  providers: [PaymentsService, MockPaymentProvider, PaymentProviderRegistry],
+  providers: [PaymentsService, MockPaymentProvider, YooKassaProvider, PaymentProviderRegistry],
 })
 export class PaymentsModule {}

@@ -41,6 +41,10 @@ export class OrdersSweepService {
       }
     }
 
+    // Истёкшее продвижение — в ноль: иначе в выдаче оно стояло бы выше
+    // лотов, которые не продвигались никогда.
+    await this.prisma.listing.updateMany({ where: { promotedUntil: { lte: now } }, data: { promotedUntil: null } });
+
     const expiredBefore = new Date(now.getTime() - PAYMENT_TTL_MS);
     const toExpire = await this.prisma.order.updateMany({
       where: { status: 'created', createdAt: { lte: expiredBefore } },

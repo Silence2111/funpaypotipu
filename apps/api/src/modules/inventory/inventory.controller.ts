@@ -5,7 +5,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { InventoryService } from './inventory.service';
 
-const keysSchema = z.object({ keys: z.array(z.string().min(1)).min(1).max(1000) });
+// Штука на строку: ключ, код, «логин:пароль», ссылка.
+const keysSchema = z.object({ keys: z.array(z.string().min(1).max(1000)).min(1).max(1000) });
 
 @Controller()
 @UseGuards(JwtAuthGuard)

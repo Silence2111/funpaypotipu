@@ -5,6 +5,7 @@ import { TrendingUp, Package, Clock, Star } from 'lucide-react';
 import { apiFetch } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
 import type { SellerDashboard as Dash } from '@/lib/api';
+import { useT } from '@/lib/i18n/client';
 
 function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
@@ -16,6 +17,7 @@ function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; val
 }
 
 export function SellerDashboard() {
+  const t = useT();
   const [d, setD] = useState<Dash | null>(null);
 
   useEffect(() => {
@@ -31,25 +33,25 @@ export function SellerDashboard() {
   return (
     <section>
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 14 }}>
-        <h2 className="h2" style={{ fontSize: 20 }}>Аналитика продавца</h2>
-        <span className="badge">{d.level.label}</span>
+        <h2 className="h2" style={{ fontSize: 20 }}>{t('Аналитика продавца')}</h2>
+        <span className="badge">{t.d(d.level.label)}</span>
       </div>
 
       <div className="grid cols-auto" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
-        <Kpi icon={<TrendingUp size={14} />} label="Выручка всего" value={formatPrice(d.revenueTotal, 'RUB')} />
-        <Kpi icon={<TrendingUp size={14} />} label="Выручка за 30 дней" value={formatPrice(d.revenue30, 'RUB')} />
-        <Kpi icon={<Package size={14} />} label="Продаж всего" value={String(d.salesCount)} />
-        <Kpi icon={<Clock size={14} />} label="В работе" value={String(d.inProgress)} />
-        <Kpi icon={<Package size={14} />} label="Активных лотов" value={String(d.activeListings)} />
-        <Kpi icon={<Star size={14} />} label="Рейтинг"
-          value={d.ratingCount > 0 ? `${d.ratingAvg.toFixed(1)} · ${d.ratingCount}` : '—'} />
+        <Kpi icon={<TrendingUp size={14} />} label={t('Выручка всего')} value={formatPrice(d.revenueTotal, 'RUB', t)} />
+        <Kpi icon={<TrendingUp size={14} />} label={t('Выручка за 30 дней')} value={formatPrice(d.revenue30, 'RUB', t)} />
+        <Kpi icon={<Package size={14} />} label={t('Продаж всего')} value={t.num(d.salesCount)} />
+        <Kpi icon={<Clock size={14} />} label={t('В работе')} value={t.num(d.inProgress)} />
+        <Kpi icon={<Package size={14} />} label={t('Активных лотов')} value={t.num(d.activeListings)} />
+        <Kpi icon={<Star size={14} />} label={t('Рейтинг')}
+          value={d.ratingCount > 0 ? `${d.ratingAvg.toLocaleString(t.locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} · ${t.num(d.ratingCount)}` : '—'} />
       </div>
 
       <div className="card" style={{ padding: 16, marginTop: 12 }}>
-        <div className="faint" style={{ fontSize: 12, marginBottom: 10 }}>Выручка по дням (14 дней)</div>
+        <div className="faint" style={{ fontSize: 12, marginBottom: 10 }}>{t('Выручка по дням (14 дней)')}</div>
         <div className="row" style={{ gap: 4, alignItems: 'flex-end', height: 64 }}>
           {d.revenueSeries.map((v, i) => (
-            <div key={i} title={formatPrice(String(v), 'RUB')}
+            <div key={i} title={formatPrice(String(v), 'RUB', t)}
               style={{
                 flex: 1, height: `${Math.max(3, Math.round((v / max) * 100))}%`,
                 background: v > 0 ? 'var(--accent)' : 'var(--bg-subtle)',

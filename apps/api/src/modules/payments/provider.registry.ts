@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { PaymentProvider } from './payment.provider';
 import { MockPaymentProvider } from './mock.provider';
+import { YooKassaProvider } from './yookassa.provider';
 
 /**
  * Реестр платёжных провайдеров. Добавление реального провайдера = новый класс,
@@ -10,13 +11,19 @@ import { MockPaymentProvider } from './mock.provider';
 export class PaymentProviderRegistry {
   private readonly providers = new Map<string, PaymentProvider>();
 
-  constructor(mock: MockPaymentProvider) {
+  constructor(mock: MockPaymentProvider, yookassa?: YooKassaProvider) {
     this.register(mock);
-    // сюда добавляются реальные провайдеры: this.register(new SbpProvider(...)), и т.д.
+    // ЮKassa — когда заданы ключи магазина; выбирается PAYMENT_PROVIDER=yookassa.
+    if (yookassa?.enabled) this.register(yookassa);
   }
 
   register(provider: PaymentProvider) {
     this.providers.set(provider.key, provider);
+  }
+
+  /** Провайдер, через который платят сейчас. */
+  get current(): PaymentProvider {
+    return this.get(this.defaultKey);
   }
 
   get(key: string): PaymentProvider {

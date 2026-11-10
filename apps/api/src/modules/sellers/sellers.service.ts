@@ -1,7 +1,9 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@gamemarket/db';
-import { sellerLevel } from '@gamemarket/shared';
+import { MSK_OFFSET_MS, mskDay, replyTime, sellerLevel } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
+import { assetUrl } from '../storage/asset-url';
+import { ONLINE_MS } from '../../common/presence';
 
 @Injectable()
 export class SellersService {
@@ -22,6 +24,8 @@ export class SellersService {
         ratingCount: true,
         salesCount: true,
         onlineAt: true,
+        awaySince: true,
+        replySamples: true,
         createdAt: true,
         user: { select: { status: true } },
       },
@@ -42,7 +46,7 @@ export class SellersService {
       await this.prisma.listing.count({ where: { sellerId, status: 'active' } }),
       Date.now(),
     ];
-    const online = !!profile.onlineAt && now - profile.onlineAt.getTime() < 5 * 60 * 1000;
+    const online = !!profile.onlineAt && now - profile.onlineAt.getTime() < ONLINE_MS;
 
     // Гистограмма рейтинга (сколько отзывов на каждую звезду) — как у FunPay.
     const grouped = await this.prisma.review.groupBy({
@@ -54,12 +58,23 @@ export class SellersService {
       star,
       count: grouped.find((g) => g.rating === star)?._count._all ?? 0,
     }));
+    // Отзывов с фото — для фильтра «С фото».
+    const photoReviews = await this.prisma.review.count({
+      where: { targetId: sellerId, photoCount: { gt: 0 } },
+    });
+    const followers = await this.prisma.sellerFollow.count({ where: { sellerId } });
+    // Как покупатель: завершённые покупки и оценки продавцов — только числа.
+    const [buyerDeals, buyerGood, buyerBad] = await Promise.all([
+      this.prisma.order.count({ where: { buyerId: sellerId, status: 'completed' } }),
+      this.prisma.buyerReview.count({ where: { buyerId: sellerId, good: true } }),
+      this.prisma.buyerReview.count({ where: { buyerId: sellerId, good: false } }),
+    ]);
 
     return {
       id: profile.userId,
       username: profile.username,
       displayName: profile.displayName,
-      avatarUrl: profile.avatarUrl,
+      avatarUrl: assetUrl(profile.avatarUrl),
       bio: profile.bio,
       country: profile.country,
       ratingAvg: profile.ratingAvg,
@@ -69,9 +84,83 @@ export class SellersService {
       memberSince: profile.createdAt,
       onlineAt: profile.onlineAt,
       online,
+      // «Обычно отвечает за …» — по живым ответам; null — ответов мало.
+      replyTime: replyTime(profile.replySamples, now),
+      // В отпуске: лоты сняты до возвращения — покупатель видит почему.
+      away: profile.awaySince !== null,
       verified,
       level: { key: level.key, label: level.label },
       ratingBreakdown,
+      photoReviews,
+      followers,
+      asBuyer: { deals: buyerDeals, good: buyerGood, bad: buyerBad },
+    };
+  }
+
+  /**
+   * «Сегодня» в кабинете продавца: сколько продано и заработано за день по
+   * Москве (как в выписке) против вчера, просмотры лотов и что ждёт его
+   * самого — выдать, споры, сообщения, закончившиеся лоты, скидки, которые
+   * кончаются до полуночи. Продажа — заказ, оплаченный в этот день и не
+   * отменённый и не возвращённый; заработано — выплата продавцу по нему.
+   */
+  async today(sellerId: string, now = new Date()) {
+    const day = mskDay(now);
+    const start = new Date(Date.parse(`${day}T00:00:00Z`) - MSK_OFFSET_MS);
+    const end = new Date(start.getTime() + 86_400_000);
+    const yesterday = new Date(start.getTime() - 86_400_000);
+    const sold = (from: Date, to: Date) =>
+      this.prisma.order.aggregate({
+        where: {
+          sellerId,
+          paidAt: { gte: from, lt: to },
+          status: { notIn: ['refunded', 'cancelled', 'expired'] },
+        },
+        _count: { _all: true },
+        _sum: { sellerPayoutAmount: true },
+      });
+    const [
+      todaySales,
+      yesterdaySales,
+      views,
+      toDeliver,
+      awaitingBuyer,
+      disputes,
+      unreadMessages,
+      soldOut,
+      salesEnding,
+      listings,
+    ] = await Promise.all([
+      sold(start, end),
+      sold(yesterday, start),
+      this.prisma.listingViewDay.aggregate({
+        where: { day: new Date(`${day}T00:00:00Z`), listing: { sellerId } },
+        _sum: { views: true },
+      }),
+      this.prisma.order.count({ where: { sellerId, status: 'paid' } }),
+      this.prisma.order.count({ where: { sellerId, status: 'delivered' } }),
+      this.prisma.order.count({ where: { sellerId, status: 'disputed' } }),
+      this.prisma.message.count({
+        where: { readAt: null, senderId: { not: sellerId }, conversation: { sellerId } },
+      }),
+      this.prisma.listing.count({ where: { sellerId, status: 'sold_out' } }),
+      this.prisma.listing.count({ where: { sellerId, saleUntil: { gt: now, lte: end } } }),
+      this.prisma.listing.count({ where: { sellerId, status: { not: 'archived' } } }),
+    ]);
+    return {
+      day,
+      // Нет ни лотов, ни продаж — сводка не нужна: сайт её не покажет.
+      seller: listings > 0 || (await this.prisma.order.count({ where: { sellerId }, take: 1 })) > 0,
+      sales: {
+        count: todaySales._count._all,
+        earned: (todaySales._sum.sellerPayoutAmount ?? 0n).toString(),
+      },
+      yesterday: {
+        count: yesterdaySales._count._all,
+        earned: (yesterdaySales._sum.sellerPayoutAmount ?? 0n).toString(),
+      },
+      views: views._sum.views ?? 0,
+      waiting: { toDeliver, awaitingBuyer, disputes, unreadMessages, soldOut, salesEnding },
     };
   }
 

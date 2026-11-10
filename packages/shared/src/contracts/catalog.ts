@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { QTY_TIERS_MAX } from '../quantity';
 
 /** Контракты каталога — общие для фронта и бэка. */
 
@@ -7,6 +8,18 @@ const minorString = z
   .union([z.string(), z.number()])
   .transform((v) => String(v))
   .refine((v) => /^\d+$/.test(v), 'ожидается целое число минорных единиц');
+
+/**
+ * Условия лота «на сумму покупателя» (topup.ts): наценка в базисных пунктах,
+ * границы номинала — минорные единицы. Проверяет их `topupTermsError`, цену
+ * такого лота («от») сервер считает сам — переданная `price` не используется.
+ */
+export const topupTermsInputSchema = z.object({
+  markupBps: z.number().int(),
+  min: minorString,
+  max: minorString,
+});
+export type TopupTermsInput = z.infer<typeof topupTermsInputSchema>;
 
 export const createListingSchema = z.object({
   gameId: z.string().uuid(),
@@ -18,6 +31,29 @@ export const createListingSchema = z.object({
   attributes: z.record(z.unknown()).default({}),
   images: z.array(z.string().min(1)).max(12).default([]), // ключи S3 или абсолютные URL
   stock: z.number().int().nonnegative().nullable().default(null),
+  topup: topupTermsInputSchema.nullable().default(null),
+  // Что спросить у покупателя при покупке (buyer-data.ts): до трёх полей с разными названиями.
+  buyerFields: z
+    .array(z.object({ label: z.string().trim().min(2, 'Название поля — от 2 символов').max(40), required: z.boolean().default(true) }))
+    .max(3, 'Не больше трёх полей')
+    .refine((a) => new Set(a.map((f) => f.label.toLowerCase())).size === a.length, 'Названия полей не должны повторяться')
+    .nullable()
+    .optional(),
+  // Продажа поштучно (quantity.ts): единица, цена за пачку, минимум за заказ.
+  unitName: z.string().max(24).nullable().optional(),
+  pricePerUnits: z.number().int().positive().optional(),
+  minQty: z.number().int().positive().optional(),
+  // Скидка за количество (quantity.ts): «от N единиц — X%», до трёх ступеней.
+  qtyDiscounts: z
+    .array(z.object({ from: z.number().int().positive(), pct: z.number().int() }))
+    .max(QTY_TIERS_MAX, `Не больше ${QTY_TIERS_MAX} ступеней скидки`)
+    .nullable()
+    .optional(),
+  // Автовыдача со склада строк у аккаунтов, предметов и услуг: покупатель
+  // сразу получает свою строку, как ключ. У ключей она всегда, у пополнений — нет.
+  autoDelivery: z.boolean().optional(),
+  // Сообщение покупателю в чат заказа сразу после оплаты: как войти, что дальше.
+  deliveryTemplate: z.string().trim().max(2000, 'Сообщение — до 2000 знаков').nullable().optional(),
 });
 export type CreateListingInput = z.infer<typeof createListingSchema>;
 
@@ -36,9 +72,18 @@ export const listingQuerySchema = z.object({
   q: z.string().trim().max(100).optional(),
   minPrice: z.coerce.number().int().nonnegative().optional(),
   maxPrice: z.coerce.number().int().nonnegative().optional(),
-  sort: z.enum(['new', 'price_asc', 'price_desc', 'popular']).default('new'),
+  // drop — сначала большие снижения: скидка или «минимум за 30 дней».
+  sort: z.enum(['new', 'price_asc', 'price_desc', 'popular', 'drop']).default('new'),
+  // Тип товара во всех играх: «все аккаунты», «весь донат» — как строка
+  // категорий на главной Playerok.
+  segment: z.enum(['accounts', 'currency', 'items', 'service', 'key', 'topup']).optional(),
   attrs: z.string().max(2000).optional(), // JSON вида {"rank":"Global Elite"}
-  instant: z.coerce.boolean().optional(), // только мгновенная выдача (авто-ключи/пополнения)
+  // Флаги: «1»/«true» — да, остальное — нет. z.coerce.boolean превращал
+  // «false» в true, и ?instant=false включал фильтр.
+  instant: z.preprocess((v) => v === '1' || v === 'true' || v === true, z.boolean()).optional(), // только мгновенная выдача
+  online: z.preprocess((v) => v === '1' || v === 'true' || v === true, z.boolean()).optional(), // продавец был на сайте 5 минут назад
+  // «Цена снижена»: идёт скидка или цена — самая низкая у лота за 30 дней.
+  drop: z.preprocess((v) => v === '1' || v === 'true' || v === true, z.boolean()).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(60).default(24),
 });

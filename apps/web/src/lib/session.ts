@@ -1,5 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { documentLang } from './i18n/lang';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 const TOKEN_KEY = 'gm_access';
 const USER_KEY = 'gm_user';
@@ -8,7 +11,13 @@ export interface SessionUser {
   id: string;
   username: string;
   email: string | null;
+  /** Роли из ответа входа — чтобы показать ссылку на консоль. Доступ проверяет API. */
+  roles?: string[];
 }
+
+/** Роли сотрудников площадки: у них есть консоль. */
+export const STAFF_ROLES = ['admin', 'moderator', 'agent', 'finance'];
+export const isStaff = (u: SessionUser | null) => !!u?.roles?.some((r) => STAFF_ROLES.includes(r));
 
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -39,6 +48,8 @@ function rawFetch(path: string, opts: RequestInit, token: string | null) {
     credentials: 'include', // отправляем httpOnly refresh-cookie
     headers: {
       'Content-Type': 'application/json',
+      // Ошибки API — на языке сайта, а не браузера.
+      'Accept-Language': documentLang(),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...opts.headers,
     },
@@ -70,23 +81,45 @@ async function tryRefresh(): Promise<string | null> {
   return refreshing;
 }
 
+/** Ответ API как есть (для файлов) — с access-токеном и refresh при 401. */
+export async function apiResponse(path: string, opts: RequestInit = {}): Promise<Response> {
+  const token = getToken();
+  const res = await rawFetch(path, opts, token);
+  if (res.status !== 401 || !token) return res;
+  const next = await tryRefresh();
+  if (next) return rawFetch(path, opts, next);
+  clearSession();
+  return res;
+}
+
 /** Клиентский запрос к API с access-токеном и автоматическим refresh при 401. */
 export async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  let res = await rawFetch(path, opts, token);
-
-  if (res.status === 401 && token) {
-    const next = await tryRefresh();
-    if (next) {
-      res = await rawFetch(path, opts, next);
-    } else {
-      clearSession();
-    }
-  }
+  const res = await apiResponse(path, opts);
 
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `HTTP ${res.status}`);
   }
   return (res.status === 204 ? (null as T) : res.json()) as Promise<T>;
+}
+
+/**
+ * Сессия для отрисовки. Читать localStorage прямо в теле компонента нельзя:
+ * на сервере его нет, страница рисует «Войдите», а в браузере — содержимое,
+ * и React падает на гидратации. Пока `ready` ложно, обе стороны рисуют
+ * одинаковый скелет.
+ */
+export function useSession(): { ready: boolean; token: string | null; user: SessionUser | null } {
+  const [state, setState] = useState<{ ready: boolean; token: string | null; user: SessionUser | null }>({
+    ready: false,
+    token: null,
+    user: null,
+  });
+  useEffect(() => {
+    const sync = () => setState({ ready: true, token: getToken(), user: getUser() });
+    sync();
+    window.addEventListener('gm-auth', sync);
+    return () => window.removeEventListener('gm-auth', sync);
+  }, []);
+  return state;
 }

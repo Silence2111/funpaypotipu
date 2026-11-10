@@ -1,42 +1,88 @@
 :root {
+  /* Система «Спокойный минимализм», референс rollypay (~/.claude/design-refs):
+     серый фон страницы + белые карточки, один акцент, без градиентов.
+     Та же система, что у ЮГС и arka. --bg — поверхность карточек и полей,
+     --page — фон страницы. */
+  --page: #f4f5f7;
   --bg: #ffffff;
-  --bg-subtle: #f5f5f7;
-  --fg: #1d1d1f;
-  --fg-muted: #6e6e73;
-  --fg-faint: #86868b;
-  --border: rgba(0, 0, 0, 0.08);
-  --border-strong: rgba(0, 0, 0, 0.14);
-  --accent: #0071e3;
-  --header-bg: rgba(255, 255, 255, 0.8);
+  --bg-subtle: #f0f1f4;
+  --fg: #0e1116;
+  --fg-muted: #3a3d45;
+  --fg-faint: #676b74;
+  --border: #ececf2;
+  --border-strong: #dcdee6;
+  --accent: #225aea;
+  --accent-hover: #1b49c4;
+  --accent-tint: #eaf0ff;
+  --success: #0f7a38;
+  --success-bg: #e7f6ed;
+  --danger: #c22a30;
+  --danger-bg: #fdecec;
+  --warning: #8a5a00;
+  --warning-bg: #fcf3e1;
+  /* Данные: столбцы графиков (проверено на контраст с фоном карточки). */
+  --data-violet: #6355e6;
+  /* Данные: линии графиков. Светлая — поэтому у графика всегда подписи и таблица. */
+  --data-sky: #7fbff0;
+  --focus-ring: 0 0 0 3px rgba(34, 90, 234, 0.35);
+  --shadow: 0 1px 3px rgba(14, 17, 22, 0.08);
+  --shadow-hover: 0 4px 12px rgba(14, 17, 22, 0.08);
+  --header-bg: rgba(255, 255, 255, 0.86);
   --radius: 16px;
-  --radius-sm: 10px;
-  --maxw: 1040px;
+  --radius-sm: 12px;
+  --maxw: 1080px;
 }
 
 /* Тёмная тема — рабочая (у FunPay нет вообще, у Playerok сломана). */
 :root[data-theme='dark'],
 :root[data-theme='dark'] body {
-  --bg: #0b0b0d;
-  --bg-subtle: #1c1c1e;
-  --fg: #f5f5f7;
-  --fg-muted: #a1a1a6;
-  --fg-faint: #8a8a8f;
-  --border: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.2);
-  --accent: #0a84ff;
-  --header-bg: rgba(20, 20, 22, 0.8);
+  --page: #0b0b0c;
+  --bg: #121317;
+  --bg-subtle: #1b1c21;
+  --fg: #f4f5f7;
+  --fg-muted: #d8d8dd;
+  --fg-faint: #a0a3ad;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --accent: #4e82ff;
+  --accent-hover: #6d97ff;
+  --accent-tint: rgba(78, 130, 255, 0.16);
+  --success: #3ed598;
+  --success-bg: rgba(62, 213, 152, 0.12);
+  --danger: #ff6b7a;
+  --danger-bg: rgba(255, 107, 122, 0.12);
+  --warning: #ffb43d;
+  --warning-bg: rgba(255, 180, 61, 0.12);
+  --data-violet: #7c70f0;
+  --data-sky: #7fbff0;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --header-bg: rgba(18, 19, 23, 0.86);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #0b0b0d;
-    --bg-subtle: #1c1c1e;
-    --fg: #f5f5f7;
-    --fg-muted: #a1a1a6;
-    --fg-faint: #8a8a8f;
-    --border: rgba(255, 255, 255, 0.1);
-    --border-strong: rgba(255, 255, 255, 0.2);
-    --accent: #0a84ff;
-    --header-bg: rgba(20, 20, 22, 0.8);
+    --page: #0b0b0c;
+    --bg: #121317;
+    --bg-subtle: #1b1c21;
+    --fg: #f4f5f7;
+    --fg-muted: #d8d8dd;
+    --fg-faint: #a0a3ad;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --accent: #4e82ff;
+    --accent-hover: #6d97ff;
+    --accent-tint: rgba(78, 130, 255, 0.16);
+    --success: #3ed598;
+    --success-bg: rgba(62, 213, 152, 0.12);
+    --danger: #ff6b7a;
+    --danger-bg: rgba(255, 107, 122, 0.12);
+    --warning: #ffb43d;
+    --warning-bg: rgba(255, 180, 61, 0.12);
+  --data-violet: #7c70f0;
+  --data-sky: #7fbff0;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5);
+    --header-bg: rgba(18, 19, 23, 0.86);
   }
 }
 
@@ -51,13 +97,12 @@ html {
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--page);
   color: var(--fg);
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, system-ui, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
   font-size: 16px;
-  line-height: 1.5;
-  letter-spacing: -0.01em;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
 }
 
 a {
@@ -86,13 +131,14 @@ a {
   border-bottom: 1px solid var(--border);
 }
 .site-header .inner {
-  height: 52px;
+  height: 60px;
   display: flex;
   align-items: center;
   gap: 24px;
 }
 .brand {
-  font-weight: 600;
+  min-height: 44px;
+  font-weight: 800;
   letter-spacing: -0.02em;
   display: inline-flex;
   align-items: center;
@@ -100,9 +146,14 @@ a {
 }
 .nav {
   display: flex;
-  gap: 24px;
+  gap: 20px;
   color: var(--fg-muted);
   font-size: 14px;
+}
+.nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 .nav a:hover {
   color: var(--fg);
@@ -113,15 +164,15 @@ a {
 
 /* Typography */
 .h1 {
-  font-size: 44px;
+  font-size: 46px;
   line-height: 1.08;
-  font-weight: 600;
+  font-weight: 800;
   letter-spacing: -0.03em;
   margin: 0;
 }
 .h2 {
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
 }
@@ -157,11 +208,15 @@ a {
   border-radius: var(--radius);
   background: var(--bg);
   padding: 20px;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  box-shadow: var(--shadow);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.card.flat {
+  box-shadow: none;
 }
 .card.link:hover {
   border-color: var(--border-strong);
-  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
 }
 .card .thumb {
   aspect-ratio: 16 / 10;
@@ -179,7 +234,10 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  min-height: 40px;
+  padding: 6px 14px;
+  font-family: inherit;
+  cursor: pointer;
   border: 1px solid var(--border);
   border-radius: 999px;
   font-size: 14px;
@@ -197,23 +255,123 @@ a {
   font-weight: 600;
   letter-spacing: -0.02em;
 }
+
+/* Способ оплаты: строка — способ и цена по нему. Выбранная — тонкой рамкой акцента. */
+.pay-methods {
+  display: grid;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.pay-methods legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+.pay-method {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  cursor: pointer;
+  transition: border-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pay-method:hover {
+  border-color: var(--border-strong);
+}
+.pay-method:has(input:checked) {
+  border-color: var(--accent);
+}
+.pay-method:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.pay-method:has(input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+.pay-method input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+.pay-method .pm-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.pay-method .pm-note {
+  display: block;
+  font-size: 12px;
+  color: var(--fg-faint);
+}
+.pay-method .pm-price {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  min-height: 44px;
   padding: 11px 22px;
-  border-radius: 980px;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: #fff;
+  font-family: inherit;
   font-size: 15px;
-  font-weight: 500;
-  border: none;
+  font-weight: 600;
+  border: 1px solid transparent;
   cursor: pointer;
+  box-shadow: 0 4px 12px rgba(34, 90, 234, 0.25);
+  transition: background 0.15s ease;
+}
+.btn:hover {
+  background: var(--accent-hover);
+}
+.btn.secondary {
+  background: var(--bg);
+  color: var(--fg);
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+.btn.secondary:hover {
+  background: var(--bg-subtle);
 }
 .btn.ghost {
   background: transparent;
   color: var(--accent);
+  box-shadow: none;
+}
+.btn.ghost:hover {
+  background: var(--accent-tint);
+}
+.btn.lg {
+  min-height: 52px;
+  padding: 14px 28px;
+  font-size: 16px;
+}
+.btn.block {
+  width: 100%;
+}
+.btn:focus-visible,
+.chip:focus-visible,
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 10px;
 }
 
 /* Misc */
@@ -238,6 +396,7 @@ a {
 /* Forms */
 .input {
   width: 100%;
+  min-height: 44px;
   padding: 12px 14px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -250,6 +409,13 @@ a {
 }
 .input:focus {
   border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+.input::placeholder {
+  color: var(--fg-faint);
+}
+.input[aria-invalid='true'] {
+  border-color: var(--danger);
 }
 .stack-form {
   display: flex;
@@ -258,19 +424,173 @@ a {
 }
 .btn:disabled {
   opacity: 0.5;
-  cursor: default;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+.hint {
+  font-size: 13px;
+  color: var(--fg-faint);
+  margin: 0;
+}
+.field-error {
+  font-size: 13px;
+  color: var(--danger);
+  margin: 0;
 }
 
 /* Status badge */
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
-  border-radius: 999px;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   background: var(--bg-subtle);
   color: var(--fg-muted);
+}
+.badge.success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.badge.accent {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.badge.warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.badge.danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+/* Пометка демо-данных: пунктир, чтобы не путали со статусом */
+.demo-mark {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border-strong);
+}
+
+/* Сообщение: успех / ошибка / справка */
+.alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--accent-tint);
+  color: var(--fg-muted);
+}
+.alert.success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.alert.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.alert.warning {
+  background: var(--warning-bg);
+  color: var(--fg);
+}
+.alert svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* Срок ответа в споре — под шапкой на всех страницах */
+.dispute-banner {
+  padding-top: 12px;
+  animation: banner-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dispute-banner .alert {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.dispute-banner-link {
+  flex: none;
+  font-weight: 600;
+  color: var(--accent);
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+.dispute-banner-link:hover {
+  color: var(--accent-hover);
+}
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dispute-banner {
+    animation: none;
+  }
+}
+
+/* Загрузка: скелет вместо пустоты */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-subtle) 0%, var(--border) 50%, var(--bg-subtle) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0ms !important;
+    transition-duration: 0ms !important;
+  }
+}
+
+/* Шаги сделки на странице заказа */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.steps li {
+  font-size: 13px;
+  color: var(--fg-faint);
+  border-top: 3px solid var(--border);
+  padding-top: 8px;
+}
+.steps li.done {
+  color: var(--fg-muted);
+  border-color: var(--accent);
+}
+.steps li.now {
+  color: var(--fg);
+  font-weight: 600;
+  border-color: var(--accent);
 }
 
 /* Notifications */
@@ -293,12 +613,25 @@ a {
   right: 0;
   top: 40px;
   width: 280px;
+  /* Шапка липкая: выпадающий список не прокручивается со страницей —
+     прокручивается сам, низ с «Все уведомления» всегда виден. */
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-  overflow: hidden;
   z-index: 20;
+}
+.notif-footer {
+  position: sticky;
+  bottom: 0;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
 }
 .notif-item {
   display: block;
@@ -313,32 +646,158 @@ a {
   font-family: inherit;
   cursor: pointer;
 }
+/* Над закреплённым низом — одна линия, а не две. */
+.notif-dropdown .notif-item:nth-last-child(2) {
+  border-bottom: 0;
+}
 .notif-item:hover {
   background: var(--bg-subtle);
 }
 
 /* Lot page layout */
-.lot-grid {
+/* Лот: слева название, параметры и описание, справа покупка и продавец.
+   Без «липкой» панели: с продавцом она выше экрана, низ было не увидеть. */
+.lot-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 1fr);
-  gap: 40px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  grid-template-areas: 'head aside' 'main aside';
+  grid-template-rows: auto 1fr;
+  gap: 24px 40px;
   align-items: start;
+  margin-top: 16px;
+}
+.lot-head {
+  grid-area: head;
+}
+.lot-main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  min-width: 0;
+}
+.lot-aside {
+  grid-area: aside;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.lot-sold {
+  align-self: center;
+  margin-left: 4px;
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.lot-title {
+  font-size: 32px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.lot-h2 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--fg-faint);
+}
+.crumbs a:hover {
+  color: var(--fg);
+}
+.params {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0 24px;
+  margin: 0;
+}
+.params > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.params dt {
+  color: var(--fg-faint);
+}
+.params dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+}
+.seller-card {
+  padding: 20px;
+}
+.seller-card-name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.seller-card-name:hover {
+  color: var(--accent);
+}
+.seller-card-seen {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.seller-card-seen[data-online='true'] {
+  color: var(--success);
+}
+.seller-stats {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+.seller-stats > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+.seller-stats dt {
+  color: var(--fg-faint);
+}
+.seller-stats dd {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 860px) {
+  .lot-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'head' 'aside' 'main';
+  }
 }
 
 /* Responsive */
 @media (max-width: 720px) {
-  .lot-grid {
-    grid-template-columns: 1fr;
-    gap: 24px;
+  .lot-title {
+    font-size: 26px !important;
+  }
+  .hide-mobile {
+    display: none !important;
   }
   .nav {
-    display: none;
+    gap: 12px;
+  }
+  .site-header .inner {
+    gap: 10px;
   }
   .h1 {
     font-size: 30px !important;
   }
   .grid.cols-auto {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .grid.cols-auto > .card {
+    padding: 14px;
   }
   .container {
     padding: 0 16px;
@@ -348,18 +807,4489 @@ a {
 /* Chat */
 .bubble {
   max-width: 75%;
-  padding: 9px 13px;
-  border-radius: 14px;
-  font-size: 14px;
-  line-height: 1.4;
+  padding: 8px 12px 6px;
+  border-radius: 16px;
+  font-size: 15px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .bubble.mine {
   align-self: flex-end;
   background: var(--accent);
   color: #fff;
+  border-bottom-right-radius: 6px;
 }
 .bubble.their {
   align-self: flex-start;
   background: var(--bg-subtle);
   color: var(--fg);
+  border-bottom-left-radius: 6px;
+}
+.bubble-text {
+  white-space: pre-wrap;
+}
+.bubble-time {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  text-align: right;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.bubble-img {
+  display: block;
+  max-width: 240px;
+  border-radius: 10px;
+}
+.bubble-file {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.footer-link:hover {
+  color: var(--fg);
+}
+
+/* Юр-страницы */
+.legal {
+  color: var(--fg-muted);
+  line-height: 1.7;
+}
+.legal h2 {
+  font-size: 18px;
+  color: var(--fg);
+  margin: 24px 0 8px;
+}
+.legal h2:first-of-type {
+  margin-top: 16px;
+}
+.legal ul,
+.legal ol {
+  padding-left: 20px;
+}
+.legal dt {
+  font-size: 13px;
+  color: var(--fg-faint);
+  margin-top: 14px;
+}
+.legal dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+  color: var(--fg);
+}
+.fill {
+  background: var(--warning-bg);
+  color: var(--warning);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+/* Первый экран: текст слева, пополнение справа. На телефоне пополнение
+   встаёт сразу под заголовок, а кнопки каталога — под него: иначе до
+   «Оплатить» не долистать с первого экрана. Без предложений пополнения —
+   прежний центрированный экран (.solo), а не пустая колонка. */
+.home {
+  padding-top: 72px;
+}
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  grid-template-areas: 'copy widget' 'actions widget';
+  column-gap: 56px;
+}
+.hero-copy {
+  grid-area: copy;
+  align-self: end;
+}
+.hero-actions {
+  grid-area: actions;
+  align-self: start;
+}
+.hero > .topup-card {
+  grid-area: widget;
+  align-self: center;
+}
+.hero .lead {
+  max-width: 34em;
+}
+.hero.solo {
+  grid-template-columns: minmax(0, 760px);
+  grid-template-areas: 'copy' 'actions';
+  justify-content: center;
+  text-align: center;
+}
+.hero.solo .hero-buttons {
+  justify-content: center;
+}
+.hero.solo .lead {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Пополнение на сумму покупателя */
+.topup-card {
+  padding: 24px;
+  scroll-margin-top: 84px;
+}
+.input-suffix {
+  position: relative;
+}
+.input-suffix .input {
+  padding-right: 34px;
+}
+.input-suffix > span {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-faint);
+  pointer-events: none;
+}
+.topup-amount {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.topup-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.topup-presets .chip {
+  justify-content: center;
+  padding: 6px 4px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.chip[aria-pressed='true'],
+.chip[aria-current='page'] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.topup-summary {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--page);
+  font-variant-numeric: tabular-nums;
+}
+.topup-summary .total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-weight: 600;
+}
+.topup-summary .total strong {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.topup-summary p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.inline-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 860px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'copy' 'widget' 'actions';
+    row-gap: 24px;
+  }
+}
+@media (max-width: 720px) {
+  .home {
+    padding-top: 32px;
+  }
+  .hero .lead {
+    font-size: 17px;
+  }
+  .topup-card {
+    padding: 20px 16px;
+  }
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Служебное: текст для экранного диктора, строки только для телефона. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.only-mobile,
+.only-mobile-flex {
+  display: none;
+}
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Раздел игры: заголовок, вкладки разделов, фильтры. */
+.section-top {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.section-top > div {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.section-top .h1 {
+  font-size: 34px;
+}
+.section-top p {
+  margin: 6px 0 0;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 10px 14px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--fg-muted);
+  font-size: 15px;
+  white-space: nowrap;
+  transition: color 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tab:hover {
+  color: var(--fg);
+}
+.tab[aria-current='page'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.tab .count {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.filters-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.filters-side {
+  flex: 1 1 360px;
+  justify-content: flex-end;
+}
+.filter-select {
+  width: auto;
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 999px;
+  border-color: var(--border);
+  cursor: pointer;
+}
+.filter-select[data-active='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-tint);
+}
+.filter-search {
+  position: relative;
+  flex: 1 1 200px;
+  min-width: 180px;
+  max-width: 400px;
+}
+.filter-search svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-faint);
+  pointer-events: none;
+}
+.filter-search .input {
+  min-height: 40px;
+  padding: 8px 14px 8px 38px;
+  font-size: 14px;
+  border-radius: 999px;
+  border-color: var(--border);
+}
+.dot-online {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--success);
+  flex: none;
+}
+
+/* Таблица предложений: вся строка — ссылка на лот, как на FunPay. */
+.offers {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  overflow: hidden;
+}
+.offer-head,
+.offer-row {
+  display: grid;
+  grid-template-columns: var(--offer-cols);
+  gap: 16px;
+  align-items: center;
+  padding: 14px 20px;
+}
+.offer-head {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.offer-row + .offer-row {
+  border-top: 1px solid var(--border);
+}
+.offer-row {
+  transition: background 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.offer-row:hover {
+  background: var(--bg-subtle);
+}
+.offer-row:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+.offer-desc {
+  min-width: 0;
+}
+.offer-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.offer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.offer-meta:empty {
+  display: none;
+}
+.offer-attr {
+  font-size: 14px;
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+.offer-stock {
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.offer-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  line-height: 1.25;
+}
+.offer-price .faint {
+  font-size: 12px;
+}
+.seller-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.seller-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+.seller-name {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seller-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.star {
+  color: #e8a317;
+  fill: #e8a317;
+}
+.avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  color: var(--fg-muted);
+  font-weight: 700;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+.avatar .presence {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--success);
+  border: 2px solid var(--bg);
+}
+.empty-state {
+  padding: 48px 24px;
+  text-align: center;
+}
+.empty-state p {
+  margin: 0 auto 16px;
+  max-width: 44ch;
+}
+
+@media (max-width: 720px) {
+  .only-mobile {
+    display: inline;
+  }
+  .only-mobile-flex {
+    display: inline-flex;
+  }
+  .section-top .h1 {
+    font-size: 28px !important;
+  }
+  .offer-head {
+    display: none;
+  }
+  .offer-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'desc desc' 'seller price';
+    gap: 10px 12px;
+    padding: 14px 16px;
+  }
+  .offer-desc {
+    grid-area: desc;
+  }
+  .offer-row > .seller-cell {
+    grid-area: seller;
+  }
+  .offer-row:not(:has(> .seller-cell)) {
+    grid-template-areas: 'desc price';
+  }
+  .order-row {
+    grid-template-areas: 'desc desc' 'status price' !important;
+  }
+  .order-row > .order-status {
+    grid-area: status;
+  }
+  .offer-price {
+    grid-area: price;
+  }
+  .offer-attr,
+  .offer-stock {
+    display: none;
+  }
+  /* На телефоне группы растворяются: поиск во всю ширину, остальное — одним потоком. */
+  .filters {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .filters-group {
+    display: contents;
+  }
+  .filter-search {
+    order: -1;
+    flex-basis: 100%;
+    max-width: none;
+  }
+}
+
+/* Поиск по играм с подсказками: на главной крупный, в шапке компактный. */
+.game-search {
+  position: relative;
+  width: 100%;
+}
+.game-search > svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-faint);
+  pointer-events: none;
+}
+.game-search .input {
+  min-height: 40px;
+  padding: 8px 14px 8px 38px;
+  font-size: 14px;
+  border-radius: 999px;
+}
+.game-search.lg > svg {
+  left: 18px;
+}
+.game-search.lg .input {
+  min-height: 56px;
+  padding: 14px 18px 14px 50px;
+  font-size: 17px;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.search-pop {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-hover);
+  max-height: min(420px, 70vh);
+  overflow-y: auto;
+  animation: pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.search-pop li > a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+.search-pop li[aria-selected='true'] > a,
+.search-pop li > a:hover {
+  background: var(--bg-subtle);
+}
+.search-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.search-sub {
+  font-size: 13px;
+  color: var(--fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-empty {
+  padding: 10px 12px 4px;
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.header-search {
+  flex: 1 1 200px;
+  min-width: 140px;
+  max-width: 320px;
+}
+/* Кнопки шапки не сжимаются и не переносят текст: «0 ₽» в две строки
+   ломал шапку — сжимается поиск. */
+.site-header .chip {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Главная: популярные игры плитками. */
+.popular {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.popular-game {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  transition:
+    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.popular-game:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-hover);
+}
+.popular-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex: none;
+}
+.popular-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+.popular-title {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.popular-sub {
+  font-size: 13px;
+  color: var(--fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Продавцы игры в сети — витрина живая, а не склад лотов. */
+.popular-online,
+.section-online {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.popular-online {
+  font-size: 12px;
+  color: var(--success);
+}
+.section-online {
+  color: var(--success);
+}
+
+/* Указатель игр А–Я. */
+.letters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 24px;
+}
+.letters a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+.letters a:hover {
+  background: var(--bg-subtle);
+  color: var(--fg);
+}
+.dir-group {
+  scroll-margin-top: 80px;
+}
+.dir-group + .dir-group {
+  margin-top: 28px;
+}
+.dir-letter {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fg-faint);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.dir-games {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px 24px;
+}
+.dir-title {
+  display: inline-block;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.dir-title:hover,
+.dir-sections a:hover {
+  color: var(--accent);
+}
+.dir-sections {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--fg-faint);
+}
+.dir-sections a {
+  color: var(--fg-muted);
+}
+.dir-sections a[data-empty='true'] {
+  color: var(--fg-faint);
+}
+.kind-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Главная: первый экран — поиск слева, пополнение справа. */
+.home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  gap: 40px;
+  align-items: start;
+}
+.home-hero > div:first-child {
+  padding-top: 40px;
+}
+.home-hero .lead {
+  max-width: 52ch;
+}
+.type-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.trust-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+}
+.trust-row h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+.trust-row p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+@media (max-width: 860px) {
+  .home-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .home-hero > div:first-child {
+    padding-top: 0;
+  }
+}
+@media (max-width: 720px) {
+  .popular {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 16px;
+    margin: 0 -16px;
+    padding: 0 16px 4px;
+    scrollbar-width: none;
+  }
+  .popular::-webkit-scrollbar {
+    display: none;
+  }
+  .popular-game {
+    flex: 0 0 200px;
+    scroll-snap-align: start;
+  }
+  .dir-games {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+  }
+  .game-search.lg .input {
+    min-height: 52px;
+    font-size: 16px;
+  }
+}
+
+/* Профиль продавца. */
+.profile-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 280px);
+  gap: 32px;
+  align-items: start;
+  padding: 28px;
+}
+.profile-id {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.profile-name {
+  font-size: 30px;
+  overflow-wrap: anywhere;
+}
+.profile-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  margin: 20px 0 0;
+}
+.profile-stats dt {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.profile-stats dd {
+  margin: 2px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.profile-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 6px;
+}
+.bar-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+}
+.bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  overflow: hidden;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  background: #e8a317;
+}
+.profile-group + .profile-group {
+  margin-top: 28px;
+}
+.profile-group-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+.profile-group-title:hover {
+  color: var(--accent);
+}
+
+/* Отзывы: игра и раздел сделки, сумма вилкой, ответ продавца. */
+.reviews {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.review {
+  padding: 16px 20px;
+}
+.review + .review {
+  border-top: 1px solid var(--border);
+}
+.review-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 13px;
+}
+.review-deal {
+  color: var(--fg-muted);
+  font-weight: 600;
+}
+.review-deal:hover {
+  color: var(--accent);
+}
+.review-text {
+  margin: 8px 0 0;
+  font-size: 15px;
+  max-width: 72ch;
+}
+.review-reply {
+  margin: 10px 0 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+@media (max-width: 720px) {
+  .profile-head {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 20px 16px;
+    gap: 20px;
+  }
+  .profile-id {
+    flex-direction: column;
+  }
+  .profile-name {
+    font-size: 24px !important;
+  }
+}
+
+/* Мессенджер: слева диалоги, справа открытый. */
+.messenger-wrap {
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+.messenger {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  height: calc(100dvh - 60px - 48px);
+  min-height: 480px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  overflow: hidden;
+}
+.messenger-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+}
+.messenger-list-head {
+  padding: 18px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.conv-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.conv-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  transition: background 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.conv-item + .conv-item {
+  border-top: 1px solid var(--border);
+}
+.conv-more {
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+/* Открытый по ссылке диалог старше загруженных — над списком. */
+.conv-pinned {
+  border-bottom: 1px solid var(--border);
+}
+.conv-pinned-caption {
+  margin: 0;
+  padding: 10px 16px 0;
+  font-size: 12px;
+  color: var(--fg-faint);
+}
+.conv-item:hover {
+  background: var(--bg-subtle);
+}
+.conv-item[aria-current='page'] {
+  background: var(--accent-tint);
+}
+.conv-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.35;
+}
+.conv-name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conv-context {
+  font-size: 12px;
+  color: var(--fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conv-preview {
+  font-size: 13px;
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conv-preview[data-unread='true'] {
+  color: var(--fg);
+  font-weight: 600;
+}
+.conv-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+.conv-unread {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.messenger-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.messenger-empty {
+  margin: auto;
+  max-width: 36ch;
+  text-align: center;
+  color: var(--fg-faint);
+}
+
+/* Диалог. */
+.thread {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.thread.embedded {
+  height: 560px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  overflow: hidden;
+}
+.thread-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.thread-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+.thread-name:hover {
+  color: var(--accent);
+}
+.thread-sub {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.thread-order {
+  font-size: 13px;
+  min-height: 36px;
+  white-space: nowrap;
+}
+.thread-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 20px;
+}
+.day-sep {
+  align-self: center;
+  margin: 10px 0 4px;
+  font-size: 12px;
+  color: var(--fg-faint);
+}
+.sys-msg {
+  align-self: center;
+  max-width: 85%;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: var(--page);
+  color: var(--fg-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.typing {
+  font-size: 12px;
+  color: var(--fg-faint);
+}
+.thread-err {
+  margin: 0;
+  padding: 0 20px 8px;
+}
+.thread-compose {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 16px 6px;
+  border-top: 1px solid var(--border);
+}
+.thread-compose textarea {
+  resize: none;
+  min-height: 44px;
+  max-height: 140px;
+  field-sizing: content;
+}
+.thread-compose .btn {
+  min-width: 44px;
+  padding: 10px 12px;
+}
+.thread-note {
+  margin: 0;
+  padding: 0 16px 10px;
+  font-size: 12px;
+  color: var(--fg-faint);
+}
+/* Кнопки карточки продавца: не влезли в ряд — каждая во всю ширину. */
+.seller-actions {
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.seller-actions .chip {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+/* Чат с продавцом на странице лота — тот же диалог, что в «Сообщениях». */
+.lot-chat {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  overflow: hidden;
+  animation: pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lot-chat-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 4px 4px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 700;
+}
+.lot-chat-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lot-chat-link {
+  flex-shrink: 0;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-faint);
+}
+.lot-chat-link:hover {
+  color: var(--accent);
+}
+.lot-chat-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--fg-faint);
+  cursor: pointer;
+}
+.lot-chat-link + .lot-chat-close {
+  margin-left: 0;
+}
+.lot-chat-close:hover {
+  background: var(--bg-subtle);
+  color: var(--fg);
+}
+.lot-chat .thread.embedded {
+  height: min(440px, 70dvh);
+  border: 0;
+  border-radius: 0;
+}
+.lot-chat .thread-body {
+  padding: 12px 16px;
+}
+.lot-chat-start {
+  padding: 14px 16px 0;
+}
+.lot-chat-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.lot-chat-quick .chip {
+  min-height: 34px;
+  font-size: 13px;
+}
+.lot-chat-start .thread-compose {
+  padding: 12px 0 6px;
+  border-top: 0;
+}
+.lot-chat-start .thread-note {
+  padding: 0 0 12px;
+}
+
+@media (max-width: 720px) {
+  .messenger-wrap {
+    padding: 0;
+  }
+  .messenger {
+    grid-template-columns: minmax(0, 1fr);
+    height: calc(100dvh - 60px);
+    border: 0;
+    border-radius: 0;
+  }
+  .messenger:not([data-open]) .messenger-pane,
+  .messenger[data-open] .messenger-list {
+    display: none;
+  }
+  .messenger-list {
+    border-right: 0;
+  }
+  .thread-head {
+    padding: 10px 12px;
+  }
+  .thread-order {
+    display: none;
+  }
+  .thread-body {
+    padding: 12px;
+  }
+  .bubble {
+    max-width: 85%;
+  }
+}
+
+/* Шапка вошедшего: сообщения, уведомления, баланс, меню профиля. */
+.user-bar {
+  gap: 8px;
+}
+.balance-chip {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.user-menu {
+  position: relative;
+}
+.user-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  width: 272px;
+  padding: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-hover);
+  animation: pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.menu-head {
+  padding: 10px 12px 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.menu-pop [role='menuitem'] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-pop button[role='menuitem'] {
+  justify-content: flex-start;
+  color: var(--fg-muted);
+}
+.menu-pop [role='menuitem']:hover {
+  background: var(--bg-subtle);
+}
+.menu-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.notif-readall {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+@media (max-width: 720px) {
+  .menu-pop {
+    position: fixed;
+    top: 64px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+}
+
+/* Счётчики на иконках шапки — в углу кнопки, а не внутри: иначе каждая
+   цифра раздвигала шапку, и на телефоне она вылезала за экран. */
+.user-bar .chip {
+  position: relative;
+}
+.user-bar .notif-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  margin: 0;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+@media (max-width: 720px) {
+  .user-bar {
+    gap: 6px;
+  }
+  .user-bar .chip,
+  .site-header .inner > .chip {
+    min-width: 40px;
+    padding: 6px 10px;
+    justify-content: center;
+  }
+}
+
+/* «Мои лоты» как «Мои предложения» FunPay: строка — галочка, лот, цена с
+   правкой по клику, переключатель «В продаже», действия. */
+.lots-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.lots-filter,
+.lots-toolbar-side {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.lots-toolbar-side {
+  flex: 1 1 320px;
+  justify-content: flex-end;
+}
+.lots-filter .chip[aria-pressed='true'] {
+  border-color: var(--fg);
+}
+.my-lots-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-bottom: 12px;
+  padding-left: 21px;
+}
+.my-lots-title {
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.my-lots-head-side {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.my-lots-head input[type='checkbox'],
+.my-lot-check {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+/* «Показать ещё» под «Моими лотами»: кнопка и сколько показано из скольких. */
+.my-lots-more {
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 14px;
+}
+.my-lots {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  overflow: hidden;
+}
+.my-lot {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 150px 124px auto;
+  grid-template-areas: 'check main price state actions';
+  gap: 12px 16px;
+  align-items: center;
+  padding: 14px 20px;
+  transition: background 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.my-lot + .my-lot {
+  border-top: 1px solid var(--border);
+}
+.my-lot[data-selected='true'] {
+  background: var(--accent-tint);
+}
+/* Только что изменённый лот после возврата с правки: подсвечен и плавно гаснет. */
+.my-lot[data-glow='on'] {
+  background: var(--accent-tint);
+}
+.my-lot[data-glow='off'] {
+  transition-duration: 0.4s;
+}
+.my-lot-check {
+  grid-area: check;
+}
+.my-lot-main {
+  grid-area: main;
+  min-width: 0;
+}
+.my-lot-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+a.my-lot-title:hover {
+  color: var(--accent);
+}
+.my-lot[data-status='paused'] .my-lot-title,
+.my-lot[data-status='draft'] .my-lot-title,
+.my-lot[data-status='blocked'] .my-lot-title {
+  color: var(--fg-faint);
+}
+.my-lot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.my-lot-meta .badge {
+  padding: 2px 8px;
+}
+/* Подтверждение правки у самого лота, когда к нему прокрутили. */
+.my-lot-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  color: var(--success);
+  animation: banner-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .my-lot-saved {
+    animation: none;
+  }
+}
+.my-lot-price {
+  grid-area: price;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+}
+.my-lot-amount,
+.price-edit {
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.price-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  margin-right: -10px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  cursor: pointer;
+}
+.price-edit svg {
+  color: var(--fg-faint);
+  opacity: 0;
+  transition: opacity 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.price-edit:hover,
+.price-edit:focus-visible {
+  background: var(--bg-subtle);
+}
+.price-edit:hover svg,
+.price-edit:focus-visible svg {
+  opacity: 1;
+}
+.price-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.price-input .input {
+  width: 112px;
+  min-height: 36px;
+  padding: 6px 10px;
+  text-align: right;
+  font-weight: 600;
+}
+.my-lot-pack {
+  font-size: 12px;
+  color: var(--fg-faint);
+  text-align: right;
+}
+.my-lot-state {
+  grid-area: state;
+}
+.my-lot-link {
+  font-size: 14px;
+  color: var(--accent);
+}
+.my-lot-link:hover {
+  text-decoration: underline;
+}
+.my-lot-actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.my-lot-panel {
+  grid-column: 1 / -1;
+}
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.switch-track {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(14, 17, 22, 0.2);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.switch[aria-checked='true'] .switch-track {
+  background: var(--success);
+}
+.switch[aria-checked='true'] .switch-thumb {
+  transform: translateX(16px);
+}
+.switch[aria-checked='false'] .switch-label {
+  color: var(--fg-faint);
+}
+.switch:focus-visible {
+  outline: none;
+}
+.switch:focus-visible .switch-track {
+  box-shadow: var(--focus-ring);
+}
+.switch:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--fg-faint);
+  cursor: pointer;
+}
+.icon-btn:hover {
+  background: var(--bg-subtle);
+  color: var(--fg);
+}
+.icon-btn[aria-expanded='true'] {
+  background: var(--bg-subtle);
+  color: var(--fg);
+}
+.bulk-bar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 8px 8px 8px 20px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--bg);
+  box-shadow: var(--shadow-hover);
+  animation: pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.bulk-count {
+  margin-right: 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+/* «Цена ±%»: проценты, превью «было → станет», применить. */
+.bulk-price {
+  display: grid;
+  flex-basis: 100%;
+  gap: 10px;
+  padding: 12px 12px 4px 0;
+  border-top: 1px solid var(--border);
+}
+.bulk-price-pick {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bulk-price-input {
+  width: 88px;
+}
+.bulk-price-preview {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  list-style: none;
+}
+.bulk-price-preview li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bulk-price-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.away-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  background: var(--accent-tint);
+  color: var(--fg);
+}
+.away-banner > svg {
+  flex: none;
+  color: var(--accent);
+}
+.away-banner p {
+  margin: 2px 0 0;
+  max-width: 60ch;
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+@media (max-width: 720px) {
+  .my-lots-head {
+    padding-left: 17px;
+  }
+  .my-lot {
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'check main main'
+      '. price state'
+      '. actions actions';
+    gap: 8px 12px;
+    padding: 14px 16px;
+  }
+  .my-lot-price {
+    align-items: flex-start;
+  }
+  .price-edit {
+    margin: 0 0 0 -10px;
+  }
+  .my-lot-pack {
+    text-align: left;
+  }
+  .my-lot-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .my-lot:not(:has(.my-lot-actions > *)) {
+    grid-template-areas:
+      'check main main'
+      '. price state';
+  }
+  .lots-toolbar-side {
+    justify-content: flex-start;
+  }
+  .bulk-bar {
+    bottom: calc(var(--tabbar-h, 0px) + 12px);
+    border-radius: var(--radius);
+    padding: 10px 10px 10px 16px;
+  }
+}
+
+/* «Помощь»: карточки статей и статья — текст не шире 60 знаков. */
+.help-group {
+  margin-top: 40px;
+}
+.help-group-title {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-faint);
+}
+.help-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.help-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px 52px 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  transition:
+    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.help-card:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+.help-card-title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.help-card-sum {
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.help-card-go {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: var(--fg-faint);
+}
+.help-card:hover .help-card-go {
+  color: var(--accent);
+}
+.help-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 40px;
+  padding: 20px 24px;
+}
+.help-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 48px;
+  align-items: start;
+}
+.help-article {
+  min-width: 0;
+}
+.help-title {
+  margin-top: 16px;
+}
+.help-lead {
+  max-width: 60ch;
+}
+.help-body {
+  max-width: 64ch;
+  margin-top: 28px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--fg-muted);
+}
+.help-body h2 {
+  margin: 32px 0 10px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+.help-body p {
+  margin: 0 0 12px;
+}
+.help-body ul,
+.help-body ol {
+  margin: 0 0 12px;
+  padding-left: 22px;
+  display: grid;
+  gap: 6px;
+}
+.help-body b {
+  color: var(--fg);
+}
+.help-body a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.help-steps {
+  list-style: none;
+  counter-reset: step;
+  padding-left: 0 !important;
+  gap: 14px !important;
+}
+.help-steps > li {
+  position: relative;
+  padding-left: 44px;
+  counter-increment: step;
+}
+.help-steps > li::before {
+  content: counter(step);
+  position: absolute;
+  top: -2px;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+.help-rules {
+  list-style: none;
+  padding-left: 0 !important;
+  gap: 14px !important;
+}
+.help-rules > li {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+.help-note {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-tint);
+  font-size: 14px;
+}
+.help-table-wrap {
+  overflow-x: auto;
+  margin: 0 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+.help-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.help-table th,
+.help-table td {
+  padding: 10px 14px;
+  text-align: left;
+  vertical-align: top;
+}
+.help-table th {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--fg-faint);
+  border-bottom: 1px solid var(--border);
+}
+.help-table tr + tr td {
+  border-top: 1px solid var(--border);
+}
+.help-table td:first-child {
+  font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.help-aside {
+  position: sticky;
+  top: 88px;
+  padding-top: 40px;
+}
+.help-aside-title {
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-faint);
+}
+.help-aside nav {
+  display: grid;
+  gap: 2px;
+}
+.help-aside a {
+  padding: 8px 12px;
+  margin-left: -12px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.help-aside a:hover {
+  background: var(--bg-subtle);
+  color: var(--fg);
+}
+.help-table td[data-label='От'] {
+  white-space: nowrap;
+}
+/* На телефоне таблица — строками с подписями: колонки не уезжают за край. */
+@media (max-width: 600px) {
+  .help-table thead {
+    display: none;
+  }
+  .help-table tr {
+    display: block;
+    padding: 12px 14px;
+  }
+  .help-table tr + tr {
+    border-top: 1px solid var(--border);
+  }
+  .help-table tr + tr td {
+    border-top: 0;
+  }
+  .help-table td {
+    display: block;
+    padding: 2px 0;
+  }
+  .help-table td:first-child {
+    margin-bottom: 4px;
+  }
+  .help-table td[data-label]::before {
+    content: attr(data-label) ': ';
+    color: var(--fg-faint);
+  }
+}
+@media (max-width: 900px) {
+  .help-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .help-aside {
+    position: static;
+    padding-top: 0;
+  }
+}
+
+/* Телефон как приложение: нижняя панель — главная, каталог, продать,
+   сообщения, профиль. На компьютере её нет. */
+.tabbar {
+  display: none;
+}
+.tab-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg-faint);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab-item[aria-current='page'],
+.tab-item[data-active='true'] {
+  color: var(--fg);
+  font-weight: 700;
+}
+.tab-item:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+  border-radius: 12px;
+}
+.tab-badge {
+  position: absolute;
+  top: 4px;
+  left: calc(50% + 4px);
+  margin: 0;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+@media (max-width: 720px) {
+  .tabbar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: 2px max(4px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(4px, env(safe-area-inset-left));
+    background: var(--header-bg);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-top: 1px solid var(--border);
+  }
+  /* Клавиатура открыта — панель не висит над полем ввода. */
+  html[data-typing] .tabbar {
+    display: none;
+  }
+  body:has(.tabbar) {
+    --tabbar-h: calc(56px + env(safe-area-inset-bottom));
+    padding-bottom: var(--tabbar-h);
+  }
+}
+
+/* Шторка снизу: профиль на телефоне. */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(14, 17, 22, 0.4);
+  animation: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  max-height: 88dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 12px calc(12px + env(safe-area-inset-bottom));
+  border-radius: 20px 20px 0 0;
+  background: var(--bg);
+  outline: none;
+  animation: sheet-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sheet-grip {
+  width: 36px;
+  height: 4px;
+  margin: 6px auto 12px;
+  border-radius: 999px;
+  background: var(--border-strong);
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.sheet-name {
+  font-size: 17px;
+  font-weight: 700;
+}
+.sheet-menu [role='menuitem'] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sheet-menu button[role='menuitem'] {
+  justify-content: flex-start;
+  color: var(--fg-muted);
+}
+.sheet-menu [role='menuitem']:active {
+  background: var(--bg-subtle);
+}
+.sheet-lang {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  padding: 8px 8px 0;
+  margin-top: 6px;
+  border-top: 1px solid var(--border);
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Телефон: поле мельче 16 px iPhone увеличивает при нажатии, и страница
+   уезжает. Цели касания — не меньше 40 px. */
+@media (max-width: 720px) {
+  .input,
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  .site-header {
+    padding-top: env(safe-area-inset-top);
+  }
+  .container {
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-left: max(16px, env(safe-area-inset-left));
+  }
+  .messenger {
+    height: calc(100dvh - 60px - var(--tabbar-h, 0px));
+  }
+  .my-lot-check,
+  .my-lots-head input[type='checkbox'] {
+    width: 22px;
+    height: 22px;
+  }
+  .section-head a,
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+  }
+  .dir-sections a {
+    display: inline-block;
+    padding: 6px 0;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    min-width: 20px;
+    min-height: 20px;
+  }
+}
+
+/* Разделы кабинета: на телефоне одна строка с прокруткой. */
+.cabinet-nav {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+@media (max-width: 720px) {
+  .cabinet-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 -16px;
+    padding: 2px 16px;
+    scroll-padding-inline: 16px;
+    scrollbar-width: none;
+  }
+  .cabinet-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .cabinet-nav .chip {
+    flex-shrink: 0;
+  }
+}
+
+/* Страница «Уведомления»: группы с числом непрочитанных, история по дням */
+.notif-groups {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.notif-group-count {
+  margin-left: 6px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-faint);
+}
+.chip[aria-pressed='true'] .notif-group-count {
+  color: inherit;
+}
+/* «Убрать прочитанные»: вопрос и кнопки в одной строке, на телефоне — друг под другом. */
+.notif-confirm {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 16px;
+  font-size: 14px;
+}
+/* «Вернуть» — ссылка в строке итога, но под палец: зона 44 px без сдвига строки. */
+.link-button.notif-undo {
+  min-height: 44px;
+  margin: -12px -8px;
+  padding: 0 8px;
+}
+.notif-day-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-faint);
+}
+.notif-list {
+  padding: 0;
+  overflow: hidden;
+}
+.notif-row {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 20px;
+  color: var(--fg-muted);
+  text-decoration: none;
+  transition: background 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.notif-row + .notif-row {
+  border-top: 1px solid var(--border);
+}
+.notif-row:hover {
+  background: var(--bg-subtle);
+}
+.notif-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  border-radius: 999px;
+}
+.notif-row.unread .notif-dot {
+  background: var(--accent);
+}
+.notif-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.notif-title {
+  font-size: 15px;
+  line-height: 1.4;
+}
+.notif-row.unread .notif-title {
+  font-weight: 600;
+  color: var(--fg);
+}
+.notif-preview {
+  font-size: 13px;
+  color: var(--fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notif-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--fg-faint);
+  white-space: nowrap;
+}
+.notif-time {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 720px) {
+  .notif-groups {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 -16px;
+    padding: 2px 16px;
+    scrollbar-width: none;
+  }
+  .notif-groups::-webkit-scrollbar {
+    display: none;
+  }
+  .notif-groups .chip {
+    flex-shrink: 0;
+  }
+  .notif-row {
+    padding: 12px 16px;
+  }
+  .notif-group {
+    display: none;
+  }
+}
+
+/* «Споры» в кабинете: строка — лот и стороны слева, состояние и сумма справа */
+.dispute-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding: 16px 20px;
+  color: var(--fg-muted);
+  text-decoration: none;
+  transition: background 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dispute-row + .dispute-row {
+  border-top: 1px solid var(--border);
+}
+.dispute-row:hover {
+  background: var(--bg-subtle);
+}
+.dispute-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.dispute-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dispute-sub {
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+.dispute-reason {
+  font-size: 13px;
+  color: var(--fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dispute-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .dispute-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 14px 16px;
+  }
+  .dispute-side {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+/* «Отзывы» в кабинете: оценка, кто и когда, заказ; текст, фото и ответ */
+.review-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+}
+.review-row + .review-row {
+  border-top: 1px solid var(--border);
+}
+.review-who {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.review-order {
+  font-size: 13px;
+  color: var(--fg-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-text {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--fg);
+  line-height: 1.6;
+}
+.review-reply {
+  margin: 0;
+  padding: 10px 14px;
+  max-width: 60ch;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  font-size: 14px;
+  line-height: 1.5;
+}
+@media (max-width: 720px) {
+  .review-row {
+    padding: 14px 16px;
+  }
+}
+
+/* Фильтры раздела на телефоне — шторкой за кнопкой со счётчиком. */
+.filters-open {
+  display: none;
+}
+.filters-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 12px;
+  font-weight: 700;
+}
+.sheet-title {
+  padding: 0 8px 12px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.filters-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 8px;
+}
+.filters-sheet .filter-select {
+  width: 100%;
+  min-height: 48px;
+  border-radius: var(--radius-sm);
+}
+.filters-sheet .chip {
+  justify-content: flex-start;
+  min-height: 48px;
+  border-radius: var(--radius-sm);
+}
+.filters-sheet-actions {
+  display: flex;
+  gap: 8px;
+  padding: 16px 8px 4px;
+}
+.filters-sheet-actions .btn {
+  flex: 1;
+}
+@media (max-width: 720px) {
+  .filters-inline {
+    display: none;
+  }
+  .filters-open {
+    display: inline-flex;
+  }
+  .filters-side .filter-select {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Лот на телефоне: цена и «Купить» внизу, когда форма ушла с экрана. */
+.buy-bar {
+  display: none;
+}
+.lot-buy {
+  scroll-margin-top: 76px;
+}
+@media (max-width: 720px) {
+  .buy-bar {
+    position: fixed;
+    right: 0;
+    bottom: var(--tabbar-h, 0px);
+    left: 0;
+    z-index: 39;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    animation: buy-bar-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  html[data-typing] .buy-bar {
+    display: none;
+  }
+  /* Панель не закрывает конец страницы. */
+  body:has(.buy-bar) {
+    padding-bottom: calc(var(--tabbar-h, 0px) + 68px);
+  }
+}
+.buy-bar-price {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.buy-bar-price b {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.buy-bar-price span {
+  font-size: 12px;
+  color: var(--fg-faint);
+}
+.buy-bar .btn {
+  flex: none;
+  min-width: 140px;
+}
+@keyframes buy-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Кнопка, которая выглядит ссылкой: «ввести резервный код». */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.link-button:hover {
+  text-decoration: underline;
+}
+.alert .link-button {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* Двухфакторная защита: QR-код всегда на белом — иначе его не считать. */
+.two-factor-setup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+}
+.qr {
+  flex: none;
+  width: 196px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+.qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.secret {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--page);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  word-break: break-all;
+}
+.reserve-codes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+  margin: 0;
+  padding: 14px 16px 14px 36px;
+  border-radius: var(--radius-sm);
+  background: var(--page);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 15px;
+}
+
+/* Настройки уведомлений: каналы строками, группы — таблицей с галочками. */
+.notify-channel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.notify-channel:first-child {
+  padding-top: 0;
+}
+.notify-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 14px;
+}
+.notify-col {
+  width: 84px;
+  font-weight: 500;
+}
+@media (max-width: 640px) {
+  .notify-col {
+    width: 64px;
+  }
+}
+
+/* Вход через сервисы: «или» между формой и кнопками, строки способов входа. */
+.social-login {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+.social-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--fg-faint);
+  font-size: 13px;
+}
+.social-divider::before,
+.social-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.tg-login {
+  display: flex;
+  justify-content: center;
+  min-height: 40px;
+}
+.social-way {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Проверка личности: что даёт — списком с галочками, PDF — значком с именем. */
+.kyc-perks {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+}
+.kyc-perks li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.kyc-perks svg {
+  flex: none;
+  margin-top: 4px;
+  color: var(--success);
+}
+.kyc-file-doc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  padding: 8px;
+  color: var(--fg-muted);
+  font-size: 11px;
+  text-align: center;
+  word-break: break-all;
+}
+
+/* Консоль: документы заявки — крупные миниатюры, по нажатию — оригинал. */
+.kyc-review-files {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.kyc-review-file {
+  display: grid;
+  gap: 4px;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+.kyc-review-file img,
+.kyc-review-file .kyc-file-doc {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-subtle);
+}
+
+/* Склад автовыдачи: строка — одна штука, моноширинно, чтобы видеть опечатки. */
+.store-lines {
+  min-height: 120px;
+  resize: vertical;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  line-height: 1.5;
+}
+
+/* Фото лота: листается пальцем, миниатюры, на весь экран по нажатию. */
+.gallery-main {
+  position: relative;
+}
+.gallery-track {
+  display: flex;
+  aspect-ratio: 16 / 10;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  border-radius: var(--radius);
+  background: var(--bg-subtle);
+}
+.gallery-track::-webkit-scrollbar,
+.lightbox-track::-webkit-scrollbar,
+.gallery-thumbs::-webkit-scrollbar {
+  display: none;
+}
+.gallery-slide {
+  flex: 0 0 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  scroll-snap-align: start;
+  cursor: zoom-in;
+}
+.gallery-slide img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.gallery-count {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(14, 17, 22, 0.6);
+  color: #fff;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px;
+}
+.gallery-nav {
+  position: absolute;
+  top: calc(50% - 20px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--fg);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.gallery-nav.prev {
+  left: 12px;
+}
+.gallery-nav.next {
+  right: 12px;
+}
+.gallery-nav:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+.gallery-thumbs {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.gallery-thumbs button {
+  flex: 0 0 64px;
+  height: 64px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  opacity: 0.7;
+  cursor: pointer;
+}
+.gallery-thumbs button[aria-selected='true'] {
+  border-color: var(--fg);
+  opacity: 1;
+}
+.gallery-thumbs img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+@media (max-width: 720px) {
+  .gallery-nav,
+  .gallery-thumbs {
+    display: none;
+  }
+  .gallery-track {
+    border-radius: var(--radius-sm);
+  }
+}
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: rgba(8, 9, 11, 0.94);
+  animation: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lightbox-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(8px + env(safe-area-inset-top)) 12px 8px 20px;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 14px;
+}
+.lightbox-close,
+.lightbox-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+}
+.lightbox-track {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.lightbox-slide {
+  display: flex;
+  flex: 0 0 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 8px calc(16px + env(safe-area-inset-bottom));
+  scroll-snap-align: start;
+}
+.lightbox-slide img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.lightbox-nav {
+  position: absolute;
+  top: calc(50% - 22px);
+}
+.lightbox-nav.prev {
+  left: 16px;
+}
+.lightbox-nav.next {
+  right: 16px;
+}
+.lightbox-nav:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+@media (max-width: 720px) {
+  .lightbox-nav {
+    display: none;
+  }
+}
+
+/* Миниатюра фото в строке раздела. */
+.offer-desc.with-thumb {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.offer-text {
+  display: block;
+  min-width: 0;
+}
+.offer-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--bg-subtle);
+}
+
+/* Фото в форме лота: обложка первой, «сделать обложкой», убрать. */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.photo-item {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--bg-subtle);
+}
+.photo-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo-cover {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(14, 17, 22, 0.7);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+.photo-btn {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--fg);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.photo-remove {
+  top: 6px;
+  right: 6px;
+}
+.photo-make-cover {
+  bottom: 6px;
+  left: 6px;
+}
+.photo-add {
+  align-self: flex-start;
+  cursor: pointer;
+}
+.photo-add[aria-disabled='true'] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Вывод на карту: форма ЮKassa и выбранная карта — маска, номера у нас нет.
+   В строке формы карта занимает свою строку. */
+.card-slot {
+  flex: 1 0 100%;
+}
+.card-widget {
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+}
+.card-chosen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  max-width: 480px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+.card-mask {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+.card-chosen .chip {
+  margin-left: auto;
+}
+
+/* Инструменты продавца: карточки настроек и список заготовок. */
+.tools-card {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+  padding: 24px;
+}
+.tools-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tools-title {
+  margin: 0;
+  font-size: 18px;
+}
+.tools-text {
+  margin: 0;
+  font-size: 14px;
+  max-width: 60ch;
+}
+.tools-templates {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tools-template {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+/* Узко — кнопки уходят под текст, а не сжимают его в столбик. */
+.tools-template-main {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.tools-template-title {
+  font-weight: 600;
+}
+.tools-template-body {
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--fg-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Заготовки в чате: список над полем ввода, выбор вставляет текст в поле. */
+.tpl-menu {
+  display: grid;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  animation: tpl-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes tpl-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.tpl-item {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--fg);
+  cursor: pointer;
+}
+.tpl-item:hover,
+.tpl-item:focus-visible {
+  background: var(--bg-subtle);
+  outline: none;
+}
+.tpl-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.tpl-body {
+  font-size: 13px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tpl-manage {
+  justify-self: start;
+  margin-top: 4px;
+  font-size: 13px;
+}
+.bubble-auto {
+  font-style: italic;
+}
+/* Команда автоответа («!оплата») — как слаг: моноширинным, тихой плашкой. */
+.cmd {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  color: var(--fg-muted);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  vertical-align: 1px;
+}
+.input-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+/* Подсказка — обычным шрифтом: моноширинный широк и на телефоне обрезается. */
+.input-mono::placeholder {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+}
+
+/* Сохранённый поиск: кнопка под фильтрами раздела и панель сохранения. */
+.save-search-row {
+  display: flex;
+  margin-top: 12px;
+}
+.save-search-done {
+  color: var(--success);
+}
+.save-search {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 520px;
+  padding: 20px;
+  animation: tpl-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.save-search-title {
+  font-weight: 700;
+}
+.save-search-terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.save-search-price {
+  max-width: 200px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.save-search-price::placeholder {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+}
+
+/* «Мои поиски»: условия слева, уведомления и действия справа. */
+.searches {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.searches-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 20px;
+}
+.searches-main {
+  display: grid;
+  gap: 8px;
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.searches-title {
+  font-weight: 700;
+}
+.searches-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+/* Подписки на продавцов: аватар с именем и сводкой; число подписчиков у кнопки. */
+.following-main {
+  display: flex;
+  flex: 1 1 280px;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.follow-count {
+  font-size: 14px;
+}
+.following-tabs {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Выписка по балансу: период, итоги, файлы для Excel, операции. */
+.statement {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+.statement-periods,
+.statement-files {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.statement-periods .chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.statement-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+.statement-totals dt {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.statement-totals dd {
+  margin: 2px 0 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.statement-rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.statement-rows li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.statement-op {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.statement-op .faint {
+  font-size: 12px;
+}
+.statement-order {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: inherit;
+}
+.statement-order:hover {
+  color: var(--accent);
+}
+.statement-sum {
+  flex: none;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.statement-sum.plus {
+  color: var(--success);
+}
+
+/* Выписка: период и тип операций в одну строку, свои даты под ними. */
+.statement-controls {
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+.statement-kind {
+  width: auto;
+  min-width: 180px;
+  max-width: 100%;
+}
+.statement-dates {
+  gap: 8px 16px;
+  flex-wrap: wrap;
+}
+.statement-dates label {
+  gap: 8px;
+}
+.statement-dates .input {
+  width: auto;
+}
+
+/* «Заказы»: поиск по номеру, лоту и нику и период — одной строкой. */
+.orders-search-row {
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.orders-search {
+  position: relative;
+  flex: 1 1 280px;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+}
+.orders-search svg {
+  position: absolute;
+  left: 14px;
+  color: var(--fg-faint);
+  pointer-events: none;
+}
+.orders-search .input {
+  width: 100%;
+  padding-left: 40px;
+}
+.orders-period {
+  width: auto;
+  min-width: 150px;
+}
+
+/* «Кошелёк»: крупное «доступно», тихо — деньги в пути. */
+.wallet-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px 40px;
+  padding: 28px;
+}
+.wallet-balance {
+  display: grid;
+  gap: 6px;
+}
+.wallet-amount {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: clamp(36px, 8vw, 48px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  color: var(--fg);
+}
+.wallet-pending {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 40px;
+  margin: 0;
+}
+.wallet-pending > div {
+  display: grid;
+  gap: 2px;
+  max-width: 260px;
+}
+.wallet-pending dt {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.wallet-pending dd {
+  margin: 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+}
+.wallet-pending .hint {
+  margin: 0;
+}
+.wallet-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.wallet-action {
+  padding: 24px;
+}
+@media (max-width: 900px) {
+  .wallet-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 720px) {
+  .wallet-hero,
+  .wallet-action {
+    padding: 20px;
+  }
+}
+
+/* «Избранное»: фильтр со счётчиками слева, игра и порядок справа; карточка с «убрать». */
+.fav-toolbar {
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.fav-select {
+  width: auto;
+  min-width: 170px;
+}
+.fav-card {
+  position: relative;
+  display: flex;
+  padding: 0;
+}
+.fav-link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding: 20px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: inherit;
+}
+.fav-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-hover);
+}
+.fav-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--fg);
+}
+.fav-game {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.fav-price {
+  margin-top: 6px;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.fav-card.gone .thumb,
+.fav-card.gone .price {
+  opacity: 0.55;
+}
+.fav-remove {
+  position: absolute;
+  top: 28px;
+  right: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition:
+    color 0.12s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fav-remove:hover,
+.fav-remove:focus-visible {
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
+@media (max-width: 720px) {
+  .grid.cols-auto > .fav-card {
+    padding: 0;
+  }
+  .fav-link {
+    padding: 14px;
+  }
+  .fav-remove {
+    top: 20px;
+    right: 20px;
+  }
+}
+
+/* Сохранённые реквизиты в форме вывода: выбрать или ввести другие. */
+.payout-saved {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+.payout-saved-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  font-size: 14px;
+}
+.payout-saved-item label {
+  cursor: pointer;
+  flex-wrap: wrap;
+}
+.payout-saved-hint {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--fg);
+}
+.payout-saved-item .link-button {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.payout-saved-item .link-button:hover {
+  color: var(--fg);
+}
+
+/* Заявка на вывод: сумма и куда — слева, статус — справа. */
+.payout-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding: 14px 20px;
+}
+.payout-row + .payout-row {
+  border-top: 1px solid var(--border);
+}
+.payout-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.payout-amount {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+.payout-sub {
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+.payout-note {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.payout-reason {
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+@media (max-width: 720px) {
+  .payout-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 14px 16px;
+  }
+  .payout-row > .badge {
+    justify-self: start;
+  }
+}
+
+/* Баланс на обзоре кабинета — ссылка в «Кошелёк». */
+.wallet-teaser {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 24px;
+  text-decoration: none;
+  color: inherit;
+}
+.wallet-teaser-main {
+  display: grid;
+  flex: 1;
+  min-width: 140px;
+}
+.wallet-teaser-go {
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.wallet-teaser:hover .wallet-teaser-go {
+  color: var(--accent);
+}
+
+/* Сводка площадки: главное число, график по дням, плитки, деньги. */
+.stats {
+  display: grid;
+  gap: 16px;
+}
+.stats .chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.stats-hero {
+  display: grid;
+  gap: 6px;
+  padding: 24px;
+}
+.stats-label {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.stats-hero-value {
+  font-size: clamp(36px, 8vw, 52px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  font-variant-numeric: proportional-nums;
+}
+.stats-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.stats-tile {
+  padding: 16px;
+}
+.stats-value {
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 18px;
+  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.stats-money {
+  display: grid;
+  gap: 12px;
+  padding: 20px 24px;
+}
+.stats-money dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 24px;
+  margin: 0;
+}
+.stats-money dt {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.stats-money dd {
+  margin: 2px 0 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 17px;
+  font-weight: 600;
+}
+.stats-table summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.stats-table table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.stats-table th,
+.stats-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+.stats-table th:first-child,
+.stats-table td:first-child {
+  text-align: left;
+}
+.stats-table th {
+  font-weight: 500;
+  color: var(--fg-faint);
+}
+
+/* График по дням: столбцы до 24px, скруглённый верх, зазор 2px, ось — волосок. */
+.daily-chart {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+.daily-scale {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 140px;
+  font-size: 11px;
+  color: var(--fg-faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.daily-plot {
+  position: relative;
+  min-width: 0;
+}
+.daily-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 140px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.daily-slot {
+  display: flex;
+  flex: 1 1 0;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+}
+.daily-slot:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 4px;
+}
+.daily-bar {
+  width: 100%;
+  max-width: 24px;
+  border-radius: 4px 4px 0 0;
+  background: var(--data-violet);
+  transition: opacity 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.daily-bars:hover .daily-bar {
+  opacity: 0.55;
+}
+.daily-bars .daily-slot:hover .daily-bar,
+.daily-bars .daily-slot:focus-visible .daily-bar {
+  opacity: 1;
+}
+.daily-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--fg-faint);
+}
+.daily-tip {
+  position: absolute;
+  top: -8px;
+  display: grid;
+  gap: 2px;
+  min-width: 150px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  box-shadow: var(--shadow-hover);
+  font-size: 12px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+.daily-tip b {
+  color: var(--fg);
+}
+@media (max-width: 560px) {
+  /* На телефоне плитки — по две в ряд, а не лентой на два экрана. */
+  .stats-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .stats-value {
+    font-size: 16px;
+  }
+  .stats-hero,
+  .stats-money {
+    padding: 18px;
+  }
+}
+
+/* Скидка у цены: прежняя зачёркнута, рядом «−20%» и срок. */
+.sale-mark {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.offer-price .sale-mark {
+  justify-content: flex-end;
+}
+/* «Сегодня» в кабинете: крупные числа моноширинным, подписи тихие; что ждёт — строки-ссылки со счётчиком. */
+.seller-today {
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+}
+.today-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+.today-kpis dt {
+  font-size: 13px;
+  color: var(--fg-faint);
+}
+.today-kpis dd {
+  margin: 0;
+  text-align: left;
+}
+.today-kpis dd.num {
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.today-kpis dd.faint {
+  font-size: 13px;
+}
+.today-waiting {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  border-top: 1px solid var(--border);
+}
+.today-waiting a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+}
+.today-waiting a span {
+  flex: 1;
+}
+.today-waiting a:hover span {
+  color: var(--accent);
+}
+/* Оценка покупателя в заказе: сведения о нём одной строкой, вердикт — с иконкой цвета смысла. */
+.buyer-rating {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+.buyer-rating-stats,
+.buyer-rating-comment {
+  margin: 0;
+  font-size: 14px;
+}
+.buyer-rating-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-weight: 600;
+}
+.buyer-rating-verdict[data-good='true'] svg {
+  color: var(--success);
+}
+.buyer-rating-verdict[data-good='false'] svg {
+  color: var(--danger);
+}
+.buyer-rating-form {
+  display: grid;
+  gap: 10px;
+}
+/* «Убрать оценку?» — вопрос в карточке, без всплывающего окна. */
+.buyer-rating-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+/* Загрузка из таблицы: шаги карточками, предпросмотр строк, ошибки — красным текстом без плашек. */
+.import-step {
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+}
+.import-pickers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.import-columns {
+  display: grid;
+  gap: 10px;
+}
+.import-values {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.import-file {
+  justify-self: start;
+  gap: 8px;
+  cursor: pointer;
+}
+.import-summary {
+  margin: 0;
+  font-weight: 600;
+}
+.import-bad,
+.import-row-bad td,
+.import-failed {
+  color: var(--danger);
+}
+.import-bad {
+  font-weight: 500;
+}
+.import-table {
+  overflow-x: auto;
+}
+.import-table th:nth-child(2),
+.import-table td:nth-child(2) {
+  text-align: left;
+}
+.import-failed {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+/* «Сообщить о поступлении» у закончившегося лота: кнопка во всю ширину, пояснение под ней. */
+.stock-watch {
+  display: grid;
+  gap: 8px;
+}
+.stock-watch .btn {
+  width: 100%;
+  justify-content: center;
+  gap: 8px;
+}
+.stock-watch .hint {
+  margin: 0;
+}
+/* «Минимум за 30 дней»: тихая строка под ценой — без плашки, её место у скидки. */
+.price-low {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--success);
+  white-space: nowrap;
+}
+.offer-price .price-low {
+  font-size: 12px;
+}
+/* Промокоды продавца: код — моноширинным, форма — код и процент в строку. */
+.promo-code {
+  margin-right: 6px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.tools-template-title .badge {
+  margin-left: 8px;
+}
+.promo-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.promo-form-row > .input {
+  flex: 1 1 200px;
+}
+.promo-applied {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--success);
+}
+
+/* Скидка за количество: ступени в форме лота и подсказки у количества. */
+.qty-tiers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px 40px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.qty-tiers-head {
+  font-size: 13px;
+}
+.qty-deal {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Панель скидки под строкой «Моих лотов». */
+.sale-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: var(--page);
+}
+.sale-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.sale-row .label {
+  min-width: 56px;
+}
+.sale-pct {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.sale-pct .input {
+  width: 64px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  text-align: right;
+}
+.icon-btn[data-on='true'] {
+  color: var(--success);
+}
+
+/* Статистика лотов: таблица лотов листается вбок внутри карточки, не страница. */
+.lot-stats {
+  padding: 8px 0;
+  overflow-x: auto;
+}
+.lot-stats table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.lot-stats th,
+.lot-stats td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.lot-stats tr:last-child td {
+  border-bottom: 0;
+}
+.lot-stats th {
+  font-weight: 500;
+  color: var(--fg-faint);
+}
+.lot-stats th:first-child,
+.lot-stats td:first-child {
+  width: 40%;
+  text-align: left;
+  white-space: normal;
+}
+.lot-stats tr[aria-selected='true'] td {
+  background: var(--accent-tint);
+}
+.lot-stats-name {
+  margin-right: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+}
+.lot-stats-name:hover,
+.lot-stats-name[aria-pressed='true'] {
+  color: var(--accent);
+}
+/* На телефоне строка лота — карточкой: название сверху, цифры парами. */
+@media (max-width: 640px) {
+  .lot-stats {
+    padding: 0;
+    overflow: visible;
+  }
+  .lot-stats table {
+    min-width: 0;
+  }
+  .lot-stats thead {
+    display: none;
+  }
+  .lot-stats tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 20px;
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .lot-stats tr:last-child {
+    border-bottom: 0;
+  }
+  .lot-stats td {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+  }
+  .lot-stats td::before {
+    content: attr(data-label);
+    color: var(--fg-faint);
+  }
+  .lot-stats th:first-child,
+  .lot-stats td:first-child {
+    display: block;
+    grid-column: 1 / -1;
+    width: auto;
+    margin-bottom: 4px;
+  }
+  .lot-stats td:first-child::before {
+    content: none;
+  }
+}
+
+/* Фото к отзыву: миниатюры под текстом, в форме — с кнопкой «убрать». */
+.review-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.review-photo {
+  position: relative;
+  display: block;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-subtle);
+  cursor: zoom-in;
+}
+.review-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.review-photo .photo-remove {
+  top: 4px;
+  right: 4px;
+  width: 26px;
+  height: 26px;
+}
+.review-photo-picker {
+  display: grid;
+  gap: 6px;
+}
+.review-photo-picker .review-photo {
+  cursor: default;
+}
+.review-photo-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-style: dashed;
+  border-color: var(--border-strong);
+  background: none;
+  color: var(--fg-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.review-photo-add[aria-disabled='true'] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* История цены: ступенчатая линия 2px, точки изменений 8px с кольцом фона,
+   подсказка и подписи — как у графика по дням. */
+.price-history {
+  display: grid;
+  gap: 12px;
+}
+.price-chart {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.price-scale {
+  height: 120px;
+}
+.price-plot {
+  position: relative;
+  min-width: 0;
+}
+.price-area {
+  position: relative;
+  height: 120px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.price-area svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.price-line {
+  fill: none;
+  stroke: var(--data-sky);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.price-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--data-sky);
+  box-shadow: 0 0 0 2px var(--bg);
+  transform: translate(-50%, -50%);
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.price-dot[data-active='true'] {
+  transform: translate(-50%, -50%) scale(1.3);
+}
+.price-cross {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-strong);
+  pointer-events: none;
+}
+.price-hit {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+}
+.price-hit:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 4px;
+}
+.price-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--fg-muted);
+}
+.price-summary b {
+  color: var(--fg);
+}
+.price-table summary {
+  min-height: 32px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.price-table table {
+  margin-top: 8px;
+}
+
+/* Безопасность: сеансы и вопрос «Это были вы?» после входа с нового устройства */
+.session-row {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.session-row.flagged {
+  padding: 10px 12px;
+  border-top-color: transparent;
+  border-radius: 12px;
+  background: var(--accent-tint);
+}
+.new-login {
+  animation: pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Консоль: заявки «Не могу войти» */
+.recovery-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.recovery-detail {
+  display: grid;
+  gap: 20px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.recovery-h {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.recovery-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  list-style: none;
+}
+.recovery-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px;
+}
+.recovery-compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+.recovery-sub {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+/* «Опишите сделки» и «Подтверждение сделок» */
+.deal-entry {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.deal-entry > legend {
+  padding: 0 6px;
+}
+.deal-quote {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.deal-answers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

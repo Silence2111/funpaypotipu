@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { getGames, type Game } from '@/lib/api';
+import { useT } from '@/lib/i18n/client';
 
 export function SearchBar({ initial = '', game }: { initial?: string; game?: string }) {
+  const t = useT();
   const router = useRouter();
   const [q, setQ] = useState(initial);
   const [games, setGames] = useState<Game[]>([]);
@@ -25,7 +27,12 @@ export function SearchBar({ initial = '', game }: { initial?: string; game?: str
   }, []);
 
   const term = q.trim().toLowerCase();
-  const matches = term ? games.filter((g) => g.title.toLowerCase().includes(term)).slice(0, 6) : [];
+  // Ищем и по русскому названию, и по показанному: «мир танков» и «mir tankov».
+  const matches = term
+    ? games
+        .filter((g) => g.title.toLowerCase().includes(term) || t.d(g.title).toLowerCase().includes(term))
+        .slice(0, 6)
+    : [];
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,10 +46,10 @@ export function SearchBar({ initial = '', game }: { initial?: string; game?: str
   return (
     <div ref={boxRef} style={{ position: 'relative' }}>
       <form onSubmit={submit} className="row" style={{ gap: 8 }}>
-        <input className="input" placeholder="Поиск лотов и игр…" value={q}
+        <input className="input" placeholder={t('Поиск лотов и игр…')} value={q}
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)} />
-        <button className="btn" type="submit" aria-label="Искать">
+        <button className="btn" type="submit" aria-label={t('Искать')}>
           <Search size={16} strokeWidth={1.75} />
         </button>
       </form>
@@ -52,7 +59,7 @@ export function SearchBar({ initial = '', game }: { initial?: string; game?: str
           {matches.map((g) => (
             <button key={g.id} type="button" className="notif-item"
               onClick={() => { router.push(`/catalog?game=${g.slug}`); setOpen(false); }}>
-              {g.title}
+              {t.d(g.title)}
             </button>
           ))}
         </div>
