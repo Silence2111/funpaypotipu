@@ -1,12 +1,18 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
-import type { ListingStatus, ReportStatus, UserStatus } from '@gamemarket/db';
+import type { ReportStatus, UserStatus } from '@gamemarket/db';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
-import { ModerationService, type ReportAction, type ReportTarget } from './moderation.service';
+import {
+  LISTING_FILTERS,
+  ModerationService,
+  USER_FILTERS,
+  type ReportAction,
+  type ReportTarget,
+} from './moderation.service';
 import { RateLimit } from '../../common/rate-limit';
 import { timeCursor } from '../../common/cursor';
 
@@ -24,11 +30,25 @@ const handleSchema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 
-const LISTING_STATUSES = ['draft', 'active', 'paused', 'sold_out', 'blocked', 'archived'] as const;
 const USER_STATUSES = ['active', 'frozen', 'banned'] as const;
 const REPORT_STATUSES = ['open', 'reviewing', 'resolved', 'rejected'] as const;
-const pick = <T extends string>(v: string | undefined, allowed: readonly T[]): T | undefined =>
-  allowed.includes(v as T) ? (v as T) : undefined;
+/** Лоты в консоли: ?status, ?seller — лоты одного продавца, ?q — название, ник или id; дальше — ?cursor. */
+const listingsQuery = z.object({
+  status: z.enum(LISTING_FILTERS).optional(),
+  seller: z.string().uuid().optional(),
+  q: z.string().trim().max(100).optional(),
+  cursor: timeCursor('Список лотов устарел — обновите страницу'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+type ListingsParams = z.infer<typeof listingsQuery>;
+/** Пользователи в консоли: ?status — статус или staff, ?q — ник, почта или id; дальше — ?cursor. */
+const usersQuery = z.object({
+  status: z.enum(USER_FILTERS).optional(),
+  q: z.string().trim().max(100).optional(),
+  cursor: timeCursor('Список пользователей устарел — обновите страницу'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+type UsersParams = z.infer<typeof usersQuery>;
 const reportsQuery = z.object({
   status: z.enum(REPORT_STATUSES).optional(),
   cursor: timeCursor('Список жалоб устарел — обновите страницу'),
@@ -75,15 +95,15 @@ export class ModerationController {
   @Get('moderation/listings')
   @UseGuards(RolesGuard)
   @Roles('moderator')
-  listings(@Query('q') q?: string, @Query('status') status?: string) {
-    return this.moderation.searchListings(q, pick<ListingStatus>(status, LISTING_STATUSES));
+  listings(@Query(new ZodValidationPipe(listingsQuery)) q: ListingsParams) {
+    return this.moderation.listListings(q);
   }
 
   @Get('moderation/users')
   @UseGuards(RolesGuard)
   @Roles('moderator')
-  users(@Query('q') q?: string, @Query('status') status?: string) {
-    return this.moderation.searchUsers(q, pick<UserStatus>(status, USER_STATUSES));
+  users(@Query(new ZodValidationPipe(usersQuery)) q: UsersParams) {
+    return this.moderation.listUsers(q);
   }
 
   @Post('moderation/listings/:id/status')

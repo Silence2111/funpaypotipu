@@ -45,11 +45,6 @@ const ratesSchema = z.object({ USD: z.number().min(10).max(1000), EUR: z.number(
 export class AdminController {
   constructor(private readonly admin: AdminService) {}
 
-  @Get('users')
-  users() {
-    return this.admin.listUsers();
-  }
-
   @Get('roles')
   roles() {
     return this.admin.listRoles();

@@ -312,20 +312,4 @@ export class AdminService {
     const last = page[ids.length - 1];
     return { items, next: page.length > limit && last ? nextCursor(last.created_at, last.id) : null };
   }
-
-  // ── Пользователи ──
-  listUsers(limit = 100) {
-    return this.prisma.user.findMany({
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        status: true,
-        createdAt: true,
-        profile: { select: { username: true, ratingAvg: true, salesCount: true } },
-        roles: { select: { role: { select: { key: true } } } },
-      },
-    });
-  }
 }

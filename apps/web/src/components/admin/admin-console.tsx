@@ -87,7 +87,7 @@ export function AdminConsole() {
       ) : tab.key === 'recovery' ? (
         <RecoverySection />
       ) : tab.key === 'listings' ? (
-        <ListingsSection />
+        <ListingsSection isAdmin={isAdmin} />
       ) : tab.key === 'users' ? (
         <UsersSection isAdmin={isAdmin} meId={me?.userId ?? null} />
       ) : tab.key === 'payouts' ? (

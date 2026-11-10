@@ -7,7 +7,8 @@
  * аккаунт (чёрный список, профиль, пароль, сеансы), вход с кодом из приложения и защита от подбора,
  * подписка на пуш-уведомления, проверка личности, вход через Google и VK ID,
  * поддержка, ошибки на языке сайта, выплаты (с холдом и ролью finance), оплата через ЮKassa
- * (второй API с PAYMENT_PROVIDER=yookassa против тестового сервера ЮKassa).
+ * (второй API с PAYMENT_PROVIDER=yookassa против тестового сервера ЮKassa), консоль: пользователи
+ * и лоты по страницам, со счётчиками, поиском и причиной блокировки.
  * Выход 0 — все проверки пройдены, иначе 1.
  */
 import { spawn } from 'node:child_process';
@@ -391,6 +392,114 @@ async function scenarioModeration(rnd) {
 async function signIn(prefix, rnd, password = 'password123') {
   const r = await j('/auth/login', { method: 'POST', body: JSON.stringify({ email: `${prefix}${rnd}@e2e.local`, password }) });
   return { status: r.status, token: r.body.accessToken };
+}
+
+/** Все страницы списка консоли по `next`. */
+async function allPages(path, token) {
+  const items = [];
+  let first = null;
+  let cursor = null;
+  do {
+    const page = await j(`${path}${path.includes('?') ? '&' : '?'}limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { token });
+    first ??= page.body;
+    items.push(...(page.body.items ?? []));
+    cursor = page.body.next;
+  } while (cursor && items.length < 5000);
+  return { items, first };
+}
+
+async function scenarioConsoleLists(rnd) {
+  console.log('\n— Консоль: пользователи и лоты —');
+  const mod = await register('clm', rnd);
+  const seller = await register('cls', rnd);
+  const buyer = await register('clb', rnd);
+  await grant(mod.id, 'moderator');
+  const lots = [];
+  for (const price of ['100000', '110000', '120000']) lots.push(await createListing(seller.token, 'accounts', price));
+  const desc = (rows) => rows.every((r, i) => i === 0 || r.createdAt <= rows[i - 1].createdAt);
+
+  // Пользователи: раньше — 50 последних без продолжения и счётчиков.
+  const all = await allPages(`/moderation/users?q=${encodeURIComponent(`@${rnd}`)}`, mod.token);
+  check(
+    'Пользователи: поиск по нику — все найденные по страницам, без повторов, новые сверху; счётчик сходится',
+    all.items.length > 50 && all.items.length === all.first.counts?.all &&
+      new Set(all.items.map((u) => u.id)).size === all.items.length && desc(all.items) &&
+      all.items.every((u) => u.profile?.username?.includes(String(rnd)) || u.email?.includes(String(rnd))),
+    JSON.stringify([all.items.length, all.first.counts]),
+  );
+  const one = await j(`/moderation/users?q=cls${rnd}`, { token: mod.token });
+  check('У пользователя — лоты в продаже и последний вход', one.body.items?.[0]?.activeListings === 3 && 'lastLoginAt' in one.body.items[0],
+    JSON.stringify(one.body.items?.[0] && { lots: one.body.items[0].activeListings, login: one.body.items[0].lastLoginAt }));
+  await j(`/moderation/users/${seller.id}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'banned', reason: 'Спам в лотах' }) });
+  const banned = await j(`/moderation/users?status=banned&q=cls${rnd}`, { token: mod.token });
+  const b = banned.body.items?.[0];
+  check(
+    'Забаненный — в «Забаненных» с тем, кто и за что; лоты сняты; счётчики по найденному',
+    b?.id === seller.id && b.restriction?.reason === 'Спам в лотах' && b.restriction?.by === `clm${rnd}` && b.activeListings === 0 &&
+      banned.body.counts?.banned === 1 && banned.body.counts?.active === 0 && banned.body.counts?.all === 1,
+    JSON.stringify({ restriction: b?.restriction, lots: b?.activeListings, counts: banned.body.counts }),
+  );
+  await j(`/moderation/users/${seller.id}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'active' }) });
+  const back = (await j(`/moderation/users?q=cls${rnd}`, { token: mod.token })).body.items?.[0];
+  check('Снятое ограничение без подписи, лоты вернулись', back?.status === 'active' && back.restriction === null && back.activeListings === 3,
+    JSON.stringify(back && { status: back.status, restriction: back.restriction, lots: back.activeListings }));
+  const staff = await j(`/moderation/users?status=staff&q=clm${rnd}`, { token: mod.token });
+  const notStaff = await j(`/moderation/users?status=staff&q=clb${rnd}`, { token: mod.token });
+  check(
+    '«Сотрудники» — только с ролью сотрудника',
+    staff.body.items?.[0]?.roles?.includes('moderator') && staff.body.counts?.staff === 1 && notStaff.body.items?.length === 0 && notStaff.body.counts?.all === 1,
+    JSON.stringify([staff.body.counts, notStaff.body.counts]),
+  );
+  const p1 = await j('/moderation/users?limit=3', { token: mod.token });
+  const p2 = await j(`/moderation/users?limit=3&cursor=${encodeURIComponent(p1.body.next)}`, { token: mod.token });
+  check(
+    'Все пользователи — следующая страница продолжает первую',
+    p1.body.items?.length === 3 && p2.body.items?.length === 3 && !p2.body.items.some((u) => p1.body.items.some((x) => x.id === u.id)) &&
+      p2.body.items[0].createdAt <= p1.body.items[2].createdAt,
+  );
+
+  // Лоты: продавец, статусы, блокировка с причиной.
+  const mine = await j(`/moderation/listings?seller=${seller.id}`, { token: mod.token });
+  check(
+    'Лоты продавца — все его, с ником для фильтра и счётчиками',
+    mine.body.items?.length === 3 && mine.body.seller?.username === `cls${rnd}` && mine.body.counts?.all === 3 && mine.body.counts?.active === 3 && desc(mine.body.items),
+    JSON.stringify([mine.body.items?.length, mine.body.seller, mine.body.counts]),
+  );
+  await j(`/moderation/listings/${lots[0]}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'blocked', reason: 'Просит оплату на карту' }) });
+  const blocked = await j(`/moderation/listings?seller=${seller.id}&status=blocked`, { token: mod.token });
+  check(
+    'Заблокированный — когда, кто и за что; счётчики сдвинулись',
+    blocked.body.items?.length === 1 && blocked.body.items[0].id === lots[0] && blocked.body.items[0].block?.reason === 'Просит оплату на карту' &&
+      blocked.body.items[0].block?.by === `clm${rnd}` && blocked.body.counts?.active === 2 && blocked.body.counts?.blocked === 1,
+    JSON.stringify([blocked.body.items?.[0]?.block, blocked.body.counts]),
+  );
+  const l1 = await j(`/moderation/listings?seller=${seller.id}&limit=2`, { token: mod.token });
+  const l2 = await j(`/moderation/listings?seller=${seller.id}&limit=2&cursor=${encodeURIComponent(l1.body.next)}`, { token: mod.token });
+  check(
+    'Лоты по страницам — без повторов, вторая продолжает первую',
+    l1.body.items?.length === 2 && l2.body.items?.length === 1 && l2.body.next === null &&
+      new Set([...l1.body.items, ...l2.body.items].map((l) => l.id)).size === 3,
+  );
+  const byId = await j(`/moderation/listings?q=${lots[1]}`, { token: mod.token });
+  const byNick = await j(`/moderation/listings?q=${encodeURIComponent(`@cls${rnd}`)}&status=active`, { token: mod.token });
+  check(
+    'Поиск лота по id и по нику продавца',
+    byId.body.items?.length === 1 && byId.body.items[0].id === lots[1] && byNick.body.items?.length === 2 && byNick.body.counts?.blocked === 1,
+    JSON.stringify([byId.body.items?.length, byNick.body.counts]),
+  );
+  await j(`/moderation/listings/${lots[0]}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'active' }) });
+  const unblocked = (await j(`/moderation/listings?q=${lots[0]}`, { token: mod.token })).body.items?.[0];
+  check('Разблокированный — в продаже, без подписи о блокировке', unblocked?.status === 'active' && unblocked.block === null,
+    JSON.stringify(unblocked && { status: unblocked.status, block: unblocked.block }));
+
+  check(
+    'Не модератору списки закрыты; битый курсор и неизвестный фильтр — 400',
+    (await j('/moderation/users', { token: buyer.token })).status === 403 &&
+      (await j('/moderation/listings', { token: buyer.token })).status === 403 &&
+      (await j('/moderation/users?cursor=x', { token: mod.token })).status === 400 &&
+      (await j('/moderation/listings?cursor=x', { token: mod.token })).status === 400 &&
+      (await j('/moderation/listings?status=nope', { token: mod.token })).status === 400,
+  );
 }
 
 async function scenarioAccount(rnd) {
@@ -3769,6 +3878,8 @@ async function scenarioTelegramBot(rnd) {
   await scenarioSecurity(rnd);
   await scenarioYooKassa(rnd);
   await scenarioTelegramBot(rnd);
+  // В конце: поиск по нику находит всех, кого зарегистрировал этот прогон.
+  await scenarioConsoleLists(rnd);
 
   const passed = results.filter(Boolean).length;
   console.log(`\n=== E2E: ${passed}/${results.length} проверок пройдено ===`);

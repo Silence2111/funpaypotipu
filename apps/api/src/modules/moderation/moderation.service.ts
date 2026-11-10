@@ -3,6 +3,7 @@ import {
   Prisma,
   PrismaClient,
   type ListingStatus,
+  type ModerationActionType,
   type Report,
   type ReportStatus,
   type UserStatus,
@@ -40,6 +41,58 @@ type ReportGroup = {
   last_at: Date;
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Фильтры лотов в консоли. «Сняты» — как в кабинете продавца: снятые и черновики. */
+export const LISTING_FILTERS = ['active', 'paused', 'sold_out', 'blocked', 'archived'] as const;
+export type ListingFilter = (typeof LISTING_FILTERS)[number];
+const LISTING_FILTER: Record<ListingFilter, ListingStatus[]> = {
+  active: ['active'],
+  paused: ['paused', 'draft'],
+  sold_out: ['sold_out'],
+  blocked: ['blocked'],
+  archived: ['archived'],
+};
+/** «Все» — без архива: удалённые продавцом лоты модератору не нужны. */
+const NOT_ARCHIVED: ListingStatus[] = ['draft', 'active', 'paused', 'sold_out', 'blocked'];
+
+/** Фильтры пользователей: статусы и «Сотрудники» — у кого есть роль сотрудника. */
+export const USER_FILTERS = ['active', 'frozen', 'banned', 'staff'] as const;
+export type UserFilter = (typeof USER_FILTERS)[number];
+const STAFF_WHERE: Prisma.UserWhereInput = { roles: { some: { role: { key: { in: STAFF_ROLES } } } } };
+
+/** Страница лотов: статус, продавец, поиск, с какого лота продолжать. */
+export interface ListingsQuery {
+  status?: ListingFilter;
+  seller?: string;
+  q?: string;
+  cursor?: { at: Date; id: string };
+  limit?: number;
+}
+
+/** Страница пользователей: статус или «Сотрудники», поиск, с кого продолжать. */
+export interface UsersQuery {
+  status?: UserFilter;
+  q?: string;
+  cursor?: { at: Date; id: string };
+  limit?: number;
+}
+
+/** Решение модератора по лоту или пользователю: что, когда, кто, почему. */
+type Decision = { action: ModerationActionType; at: Date; by: string | null; reason: string | null };
+
+/** Сколько найденных по нику людей подставляется в запрос списком id. */
+const FEW_PEOPLE = 200;
+
+/** Текст поиска: «@» перед ником и «#» перед номером не мешают. */
+const searchText = (q?: string) => q?.trim().replace(/^[#@]+/, '') || undefined;
+
+/**
+ * Строки старше курсора — для списков «свежие сверху». Лишнее
+ * `createdAt <= …` даёт базе границу по индексу: без него она листает
+ * список с самого начала до курсора.
+ */
+const olderThan = (c?: { at: Date; id: string }) =>
+  c ? { createdAt: { lte: c.at }, OR: [{ createdAt: { lt: c.at } }, { id: { lt: c.id } }] } : {};
 
 @Injectable()
 export class ModerationService {
@@ -299,60 +352,210 @@ export class ModerationService {
     return m?.senderId ?? null;
   }
 
-  // ── Поиск для консоли ──
+  // ── Лоты и пользователи в консоли ──
 
-  searchListings(q?: string, status?: ListingStatus) {
-    const where: Prisma.ListingWhereInput = { status: status ?? { not: 'archived' } };
-    const text = q?.trim();
+  /**
+   * Лоты для модератора — по 50 и «Показать ещё», свежие сверху. Фильтры
+   * по статусу со счётчиками, лоты одного продавца, поиск по названию, нику
+   * продавца и id. У заблокированного — когда, кто и за что. Раньше
+   * приходили 50 последних без продолжения и без счётчиков: лот старше
+   * пятидесяти свежих находился только поиском, а за что его
+   * заблокировали, в консоли не было.
+   */
+  async listListings(q: ListingsQuery = {}) {
+    const limit = q.limit ?? 50;
+    const text = searchText(q.q);
+    const scope: Prisma.ListingWhereInput[] = [];
+    if (q.seller) scope.push({ sellerId: q.seller });
     if (text) {
-      where.OR = [
-        ...(UUID.test(text) ? [{ id: text }] : []),
-        { title: containsText(text) },
-        { seller: { profile: { username: containsText(text) } } },
-      ];
+      scope.push({
+        OR: [
+          ...(UUID.test(text) ? [{ id: text.toLowerCase() }] : []),
+          { title: containsText(text) },
+          await this.sellersNamed(text),
+        ],
+      });
     }
-    return this.prisma.listing.findMany({
-      where,
-      take: 50,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        price: true,
-        currency: true,
-        createdAt: true,
-        game: { select: { title: true } },
-        category: { select: { title: true } },
-        seller: { select: { id: true, status: true, profile: { select: { username: true } } } },
+    const status: Prisma.ListingWhereInput = q.status
+      ? { status: { in: LISTING_FILTER[q.status] } }
+      : { status: { not: 'archived' } };
+    const [page, grouped, seller] = await Promise.all([
+      this.prisma.listing.findMany({
+        where: { AND: [...scope, status, olderThan(q.cursor)] },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: limit + 1,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          price: true,
+          currency: true,
+          stock: true,
+          createdAt: true,
+          game: { select: { title: true } },
+          category: { select: { title: true } },
+          seller: { select: { id: true, status: true, profile: { select: { username: true } } } },
+        },
+      }),
+      this.prisma.listing.groupBy({ by: ['status'], where: { AND: scope }, _count: { _all: true } }),
+      q.seller
+        ? this.prisma.profile.findUnique({ where: { userId: q.seller }, select: { username: true } })
+        : null,
+    ]);
+    const rows = page.slice(0, limit);
+    const blocks = await this.lastDecisions(
+      'listing',
+      rows.filter((l) => l.status === 'blocked').map((l) => l.id),
+      ['block', 'unblock'],
+    );
+    const n = (s: ListingStatus) => grouped.find((g) => g.status === s)?._count._all ?? 0;
+    const last = rows[rows.length - 1];
+    return {
+      items: rows.map((l) => {
+        const d = blocks.get(l.id);
+        return { ...l, block: d?.action === 'block' ? { at: d.at, by: d.by, reason: d.reason } : null };
+      }),
+      next: page.length > limit && last ? nextCursor(last.createdAt, last.id) : null,
+      counts: {
+        all: NOT_ARCHIVED.reduce((sum, s) => sum + n(s), 0),
+        active: n('active'),
+        paused: n('paused') + n('draft'),
+        sold_out: n('sold_out'),
+        blocked: n('blocked'),
+        archived: n('archived'),
       },
-    });
+      seller: q.seller ? { id: q.seller, username: seller?.username ?? null } : null,
+    };
   }
 
-  async searchUsers(q?: string, status?: UserStatus) {
-    const where: Prisma.UserWhereInput = status ? { status } : {};
-    const text = q?.trim();
-    if (text) {
-      where.OR = [
-        ...(UUID.test(text) ? [{ id: text }] : []),
-        { email: containsText(text) },
-        { profile: { username: containsText(text) } },
-      ];
-    }
-    const rows = await this.prisma.user.findMany({
-      where,
-      take: 50,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        status: true,
-        createdAt: true,
-        profile: { select: { username: true, salesCount: true, ratingAvg: true, ratingCount: true } },
-        roles: { select: { role: { select: { key: true } } } },
+  /**
+   * Пользователи — по 50 и «Показать ещё», новые сверху. Фильтры по
+   * статусу и «Сотрудники» со счётчиками, поиск по нику, почте и id. У
+   * замороженного и забаненного — когда, кто и за что; у каждого — когда
+   * заходил и сколько лотов в продаже. Раньше — 50 последних
+   * зарегистрированных без продолжения и счётчиков.
+   */
+  async listUsers(q: UsersQuery = {}) {
+    const limit = q.limit ?? 50;
+    const text = searchText(q.q);
+    const match: Prisma.UserWhereInput = text
+      ? {
+          OR: [
+            ...(UUID.test(text) ? [{ id: text.toLowerCase() }] : []),
+            { email: containsText(text) },
+            await this.peopleNamed(text),
+          ],
+        }
+      : {};
+    const filter: Prisma.UserWhereInput =
+      q.status === 'staff' ? STAFF_WHERE : q.status ? { status: q.status } : {};
+    const [page, grouped, staff] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { AND: [match, filter, olderThan(q.cursor)] },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: limit + 1,
+        select: {
+          id: true,
+          email: true,
+          status: true,
+          createdAt: true,
+          lastLoginAt: true,
+          profile: { select: { username: true, salesCount: true, ratingAvg: true, ratingCount: true } },
+          roles: { select: { role: { select: { key: true } } } },
+        },
+      }),
+      this.prisma.user.groupBy({ by: ['status'], where: match, _count: { _all: true } }),
+      this.prisma.user.count({ where: { AND: [match, STAFF_WHERE] } }),
+    ]);
+    const rows = page.slice(0, limit);
+    const [decisions, lots] = await Promise.all([
+      this.lastDecisions(
+        'user',
+        rows.filter((u) => u.status !== 'active').map((u) => u.id),
+        ['block', 'ban', 'unblock'],
+      ),
+      rows.length
+        ? this.prisma.listing.groupBy({
+            by: ['sellerId'],
+            where: { sellerId: { in: rows.map((u) => u.id) }, status: 'active' },
+            _count: { _all: true },
+          })
+        : [],
+    ]);
+    const active = new Map(lots.map((l) => [l.sellerId, l._count._all]));
+    const n = (s: UserStatus) => grouped.find((g) => g.status === s)?._count._all ?? 0;
+    const last = rows[rows.length - 1];
+    return {
+      items: rows.map(({ roles, ...u }) => {
+        const d = decisions.get(u.id);
+        // Ограничение — последнее решение модератора, если статус ему и
+        // соответствует: заморозка — `block`, бан — `ban`.
+        const current = d && ((u.status === 'frozen' && d.action === 'block') || (u.status === 'banned' && d.action === 'ban'));
+        return {
+          ...u,
+          roles: roles.map((r) => r.role.key),
+          activeListings: active.get(u.id) ?? 0,
+          restriction: current ? { at: d.at, by: d.by, reason: d.reason } : null,
+        };
+      }),
+      next: page.length > limit && last ? nextCursor(last.createdAt, last.id) : null,
+      counts: {
+        all: n('active') + n('frozen') + n('banned'),
+        active: n('active'),
+        frozen: n('frozen'),
+        banned: n('banned'),
+        staff,
       },
+    };
+  }
+
+  /**
+   * Пользователи с ником, в котором есть текст. Нашлось немного — списком
+   * id: база берёт их по ключу. Нашлись тысячи — условием по профилю,
+   * чтобы не передавать в запрос тысячи id.
+   */
+  private async peopleNamed(text: string): Promise<Prisma.UserWhereInput> {
+    const ids = await this.idsNamed(text);
+    return ids ? { id: { in: ids } } : { profile: { username: containsText(text) } };
+  }
+
+  /** То же для лотов: по продавцам с таким ником. */
+  private async sellersNamed(text: string): Promise<Prisma.ListingWhereInput> {
+    const ids = await this.idsNamed(text);
+    return ids ? { sellerId: { in: ids } } : { seller: { profile: { username: containsText(text) } } };
+  }
+
+  private async idsNamed(text: string): Promise<string[] | null> {
+    const found = await this.prisma.profile.findMany({
+      where: { username: containsText(text) },
+      select: { userId: true },
+      take: FEW_PEOPLE + 1,
     });
-    return rows.map(({ roles, ...u }) => ({ ...u, roles: roles.map((r) => r.role.key) }));
+    return found.length > FEW_PEOPLE ? null : found.map((p) => p.userId);
+  }
+
+  /** Последнее из решений модератора по каждой цели — когда, кто и с какой причиной. */
+  private async lastDecisions(targetType: 'listing' | 'user', ids: string[], actions: ModerationActionType[]) {
+    if (!ids.length) return new Map<string, Decision>();
+    const rows = await this.prisma.moderationAction.findMany({
+      where: { targetType, targetId: { in: ids }, action: { in: actions } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { targetId: true, action: true, actorId: true, reason: true, createdAt: true },
+    });
+    const latest = new Map<string, (typeof rows)[number]>();
+    for (const r of rows) if (!latest.has(r.targetId)) latest.set(r.targetId, r);
+    const actorIds = [...new Set([...latest.values()].map((r) => r.actorId).filter((v): v is string => !!v))];
+    const names = new Map(
+      (
+        await this.prisma.profile.findMany({ where: { userId: { in: actorIds } }, select: { userId: true, username: true } })
+      ).map((p) => [p.userId, p.username]),
+    );
+    return new Map<string, Decision>(
+      [...latest].map(([id, r]) => [
+        id,
+        { action: r.action, at: r.createdAt, by: r.actorId ? (names.get(r.actorId) ?? null) : null, reason: r.reason },
+      ]),
+    );
   }
 
   // ── Действия над лотами ──
