@@ -251,6 +251,7 @@ export class KycService {
       action: `kyc.${decision}`,
       entityType: 'kyc',
       entityId: id,
+      ...(note && decision === 'reject' ? { after: { reason: note } } : {}),
     });
     await this.notifications.notify(
       kyc.userId,

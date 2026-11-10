@@ -960,6 +960,36 @@ async function scenarioRates(rnd) {
   await j('/admin/rates', { method: 'PUT', token: admin.token, body: JSON.stringify({ USD: 92.5, EUR: 100.1 }) });
   const pub = await j('/fees/public');
   check('Курсы видны витрине', pub.body.rates?.USD === 92.5 && pub.body.rates?.EUR === 100.1, JSON.stringify(pub.body.rates));
+
+  // Журнал: смена комиссии в нём — что было и что стало; фильтры и страницы.
+  // Правило выключено — на комиссии других сценариев не влияет.
+  const rule = await j('/admin/fee-rules', {
+    method: 'POST',
+    token: admin.token,
+    body: JSON.stringify({ scope: 'global', feeBuyerPct: 0, feeSellerPct: 0.05, currency: 'RUB', priority: -100, active: false }),
+  });
+  await j(`/admin/fee-rules/${rule.body.id}`, { method: 'PATCH', token: admin.token, body: JSON.stringify({ feeSellerPct: 0.06 }) });
+  const byNick = await j(`/admin/audit?q=@rta${rnd}`, { token: admin.token });
+  const acts = (byNick.body.items ?? []).map((e) => e.action);
+  const upd = (byNick.body.items ?? []).find((e) => e.action === 'fee.update');
+  check(
+    'Журнал: поиск по нику сотрудника — курсы и комиссия; у правки комиссии — что было и что стало',
+    byNick.status === 200 && acts.join(',') === 'fee.update,fee.create,rates.set' && byNick.body.items.every((e) => e.actor === `rta${rnd}`) &&
+      upd?.before?.feeSellerPct === 0.05 && upd?.after?.feeSellerPct === 0.06,
+    `${byNick.status} ${acts.join(',')}`,
+  );
+  const history = await j(`/admin/audit?entity=fee_rule:${rule.body.id}`, { token: admin.token });
+  const mine = await j(`/admin/audit?kind=settings&actor=${admin.id}&limit=2`, { token: admin.token });
+  const older = mine.body.next ? await j(`/admin/audit?kind=settings&actor=${admin.id}&limit=2&cursor=${encodeURIComponent(mine.body.next)}`, { token: admin.token }) : null;
+  check(
+    'Журнал: история объекта, раздел и сотрудник, следующая страница — без повторов',
+    history.body.items?.map((e) => e.action).join(',') === 'fee.update,fee.create' &&
+      mine.body.items?.length === 2 && !!mine.body.next && older?.body.items?.map((e) => e.action).join(',') === 'rates.set' && older.body.next === null,
+    JSON.stringify({ h: history.body.items?.length, m: mine.body.items?.map((e) => e.action), o: older?.body.items?.map((e) => e.action) }),
+  );
+  const denied = await j('/admin/audit', { token: user.token });
+  const badAuditCursor = await j('/admin/audit?cursor=zzz', { token: admin.token });
+  check('Журнал — только администратору; битый курсор — 400', denied.status === 403 && badAuditCursor.status === 400, `${denied.status}/${badAuditCursor.status}`);
 }
 
 async function scenarioPayout(rnd) {

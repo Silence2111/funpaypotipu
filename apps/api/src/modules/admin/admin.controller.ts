@@ -5,7 +5,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
-import { AdminService, type FeeRuleInput } from './admin.service';
+import { AUDIT_KIND_KEYS, AdminService, type FeeRuleInput } from './admin.service';
+import { timeCursor } from '../../common/cursor';
 
 const feeRuleSchema = z.object({
   scope: z.enum(['global', 'category', 'seller_tier']),
@@ -17,6 +18,23 @@ const feeRuleSchema = z.object({
   priority: z.number().int().optional(),
   active: z.boolean().optional(),
 });
+/**
+ * Журнал: ?kind — раздел, ?actor — сотрудник, ?entity=тип:id — история
+ * объекта, ?q — ник, почта или id; дальше — ?cursor.
+ */
+const auditSchema = z.object({
+  kind: z.enum(AUDIT_KIND_KEYS).optional(),
+  actor: z.string().uuid().optional(),
+  entity: z
+    .string()
+    .regex(/^[a-z_]{2,20}:[\w.-]{1,64}$/)
+    .optional()
+    .transform((v) => (v ? { type: v.slice(0, v.indexOf(':')), id: v.slice(v.indexOf(':') + 1) } : undefined)),
+  q: z.string().trim().max(100).optional(),
+  cursor: timeCursor('Журнал устарел — обновите страницу'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+type AuditParams = z.infer<typeof auditSchema>;
 const roleSchema = z.object({ roleKey: z.string().min(2) });
 // Рублей за единицу валюты; границы ловят опечатку на порядок.
 const ratesSchema = z.object({ USD: z.number().min(10).max(1000), EUR: z.number().min(10).max(1000) });
@@ -43,8 +61,8 @@ export class AdminController {
   }
 
   @Get('audit')
-  audit(@Query('limit') limit?: string) {
-    return this.admin.auditLog(Number(limit) || 100);
+  audit(@Query(new ZodValidationPipe(auditSchema)) q: AuditParams) {
+    return this.admin.auditLog(q);
   }
 
   @Get('fee-rules')
@@ -53,16 +71,17 @@ export class AdminController {
   }
 
   @Post('fee-rules')
-  createFee(@Body(new ZodValidationPipe(feeRuleSchema)) body: FeeRuleInput) {
-    return this.admin.createFeeRule(body);
+  createFee(@CurrentUser() actor: AuthUser, @Body(new ZodValidationPipe(feeRuleSchema)) body: FeeRuleInput) {
+    return this.admin.createFeeRule(actor.userId, body);
   }
 
   @Patch('fee-rules/:id')
   updateFee(
+    @CurrentUser() actor: AuthUser,
     @Param('id') id: string,
     @Body(new ZodValidationPipe(feeRuleSchema.partial())) body: Partial<FeeRuleInput>,
   ) {
-    return this.admin.updateFeeRule(id, body);
+    return this.admin.updateFeeRule(actor.userId, id, body);
   }
 
   @Post('users/:id/roles')
