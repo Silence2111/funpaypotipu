@@ -2108,11 +2108,24 @@ async function scenarioSale(rnd) {
   const end = await j(`/listings/${lot}/sale`, { method: 'DELETE', token: seller.token });
   const endAgain = await j(`/listings/${lot}/sale`, { method: 'DELETE', token: seller.token });
   const back = (await j(`/listings/${lot}`)).body;
+  // Время, записанное сырым запросом, — в UTC при любом поясе базы:
+  // раньше при московском поясе «изменён» уезжал на 3 часа вперёд.
+  const touched = await prisma.listing.findUnique({ where: { id: lot }, select: { updatedAt: true } });
   // Новая скидка, срок которой уже вышел, — цену возвращает фоновая задача.
   // −30%: прошлая скидка (1 200 ₽) была на этой неделе, и честная скидка
   // считается от неё (часть 45) — 1 050 ₽ это −12%, а −10% (1 350 ₽) не скидка.
   const again2 = await sale({ percent: 30, days: 1 });
   if (again2.status !== 201) throw new Error(`Вторая скидка не началась: ${JSON.stringify(again2.body)}`);
+  // До срока час — фоновая задача (раз в 2 с) скидку не трогает. При поясе
+  // базы не UTC она кончалась на 3 часа раньше срока.
+  await prisma.listing.update({ where: { id: lot }, data: { saleUntil: new Date(Date.now() + 3600_000) } });
+  await wait(4500);
+  const early = (await j(`/listings/${lot}`)).body;
+  check(
+    'Скидка до срока не кончается, «изменён» — по UTC',
+    early.price !== '150000' && !!early.saleUntil && Math.abs(Date.now() - touched.updatedAt.getTime()) < 120_000,
+    JSON.stringify({ price: early.price, saleUntil: early.saleUntil, updatedAt: touched.updatedAt }),
+  );
   await prisma.listing.update({ where: { id: lot }, data: { saleUntil: new Date(Date.now() - 1000) } });
   let expired = null;
   for (let i = 0; i < 20; i++) {
