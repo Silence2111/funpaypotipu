@@ -42,5 +42,12 @@ type="$(curl -sf -o "$TMP/got.png" -w '%{content_type}' "$URL/api/assets?key=$(p
 cmp -s "$TMP/shot.png" "$TMP/got.png" || fail "фото отдаётся не тем файлом"
 ok "фото лота: загрузка и чтение ($key)"
 
+# Превью ссылки на лот рисуется на сервере шрифтом из node_modules: без него
+# ссылки в Telegram и VK — без картинки. Несуществующий лот — та же картинка.
+og="$(curl -sf -o "$TMP/og.png" -w '%{content_type}' "$URL/lot/00000000-0000-4000-8000-000000000000/opengraph-image")" \
+  || fail "превью ссылки на лот не рисуется"
+[ "$og" = image/png ] && [ "$(wc -c < "$TMP/og.png")" -gt 5000 ] || fail "превью ссылки на лот: $og"
+ok "превью ссылки на лот"
+
 echo "$key" > "${SMOKE_KEY_FILE:-/dev/null}"
 echo "smoke ok: $URL"

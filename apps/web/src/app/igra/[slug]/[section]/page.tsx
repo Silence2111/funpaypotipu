@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getGame } from '@/lib/api';
-import { offersCount } from '@/lib/format';
+import { formatPrice, offersCount } from '@/lib/format';
 import { SectionView, type SectionSearch } from '@/components/section-view';
 import { getT } from '@/lib/i18n/server';
 
@@ -17,7 +17,14 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     title: t('{category} {game} — купить у продавцов', names),
     description: t(
       '{category} {game}: {offers} от продавцов с рейтингом и отзывами. Деньги у площадки, пока вы не подтвердите получение.',
-      { ...names, offers: offersCount(cat.listingCount ?? 0, t) },
+      {
+        ...names,
+        // «от 450 ₽, 12 предложений» — цена в сниппете, когда она есть.
+        offers:
+          cat.minPrice && (cat.listingCount ?? 0) > 0
+            ? `${t('от {price}', { price: formatPrice(cat.minPrice, 'RUB', t) })}, ${offersCount(cat.listingCount ?? 0, t)}`
+            : offersCount(cat.listingCount ?? 0, t),
+      },
     ),
     alternates: { canonical: `/igra/${slug}/${section}` },
   };

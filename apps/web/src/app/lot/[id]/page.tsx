@@ -56,15 +56,22 @@ export async function generateMetadata({
   const [listing, t] = await Promise.all([getListing(id), getT()]);
   if (!listing) return { title: t('Лот не найден') };
   const desc = listing.description.slice(0, 160);
+  // Цена — и в тексте превью: Telegram и VK показывают его под картинкой.
+  const price =
+    listing.topupMarkupBps != null && listing.topupMin
+      ? t('от {price}', { price: formatPrice(listing.topupMin, listing.currency, t) })
+      : formatPrice(listing.price, listing.currency, t);
+  const where = `${t.d(listing.game.title)} · ${t.d(listing.category.title)}`;
   return {
     title: listing.title,
     description: desc,
+    // Картинка — opengraph-image.tsx рядом: название, цена и продавец.
     openGraph: {
-      title: listing.title,
-      description: desc,
-      images: listing.images?.length ? listing.images : undefined,
+      title: `${listing.title} — ${price}`,
+      description: `${where}. ${desc}`,
       type: 'website',
     },
+    twitter: { card: 'summary_large_image', title: `${listing.title} — ${price}`, description: where },
     alternates: { canonical: `/lot/${id}` },
   };
 }

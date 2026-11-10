@@ -610,6 +610,13 @@ async function scenarioSellEstimate() {
       k.body.ours?.feePct === 0.07 && est.body.competitors?.playerok?.net === '74000' && est.body.competitors?.funpay?.net === '88000',
     JSON.stringify({ ours: est.body.ours, keys: k.body.ours?.feePct }),
   );
+  // «от N ₽» у раздела — самая низкая цена в продаже; у валюты и пополнений её нет.
+  const low = await prisma.listing.aggregate({ where: { categoryId: acc.id, status: 'active' }, _min: { price: true } });
+  check(
+    'У раздела — «цена от»: самая низкая в продаже',
+    acc.minPrice === low._min.price?.toString() && game.body.categories.every((c) => c.segment !== 'topup' && c.segment !== 'currency' || c.minPrice === null),
+    JSON.stringify({ api: acc.minPrice, db: low._min.price?.toString() }),
+  );
   const missing = await j('/fees/estimate?categoryId=00000000-0000-4000-8000-000000000000&price=100000');
   const zero = await j(`/fees/estimate?categoryId=${acc.id}&price=0`);
   check('Калькулятор: нет раздела — 404, цена 0 — 400', missing.status === 404 && zero.status === 400, `${missing.status} / ${zero.status}`);

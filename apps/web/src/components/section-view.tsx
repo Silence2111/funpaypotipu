@@ -97,6 +97,22 @@ export async function SectionView({
           [t.d(section.title), base],
         ])}
       />
+      {/* Цена от и число предложений — для сниппета поиска. */}
+      {section.minPrice && (section.listingCount ?? 0) > 0 && (
+        <JsonLd
+          data={{
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: `${t.d(section.title)} ${t.d(game.title)}`,
+            offers: {
+              '@type': 'AggregateOffer',
+              priceCurrency: 'RUB',
+              lowPrice: (Number(section.minPrice) / 100).toFixed(2),
+              offerCount: section.listingCount,
+            },
+          }}
+        />
+      )}
       <Link href="/igry" className="faint back-link" style={{ fontSize: 14 }}>
         ← {t('Все игры')}
       </Link>
@@ -104,7 +120,11 @@ export async function SectionView({
         <div>
           <h1 className="h1">{t.d(game.title)}</h1>
           <p className="muted section-meta">
-            {t.d(section.title)} · {offersCount(section.listingCount ?? total, t)}
+            {t.d(section.title)}
+            {section.minPrice && (section.listingCount ?? 0) > 0 && (
+              <> · {t('от {price}', { price: formatPrice(section.minPrice, 'RUB', t) })}</>
+            )}{' '}
+            · {offersCount(section.listingCount ?? total, t)}
             {people && people.sellers > 0 && <> · {sellersCount(people.sellers, t)}</>}
             {people && people.online > 0 && (
               <>
