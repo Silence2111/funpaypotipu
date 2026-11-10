@@ -1,5 +1,5 @@
-# Сборка из корня монорепо: docker build -f apps/api/Dockerfile .
 # syntax=docker/dockerfile:1
+# Сборка из корня монорепо: docker build -f apps/api/Dockerfile .
 FROM node:22-slim AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH
 RUN corepack enable && apt-get update \

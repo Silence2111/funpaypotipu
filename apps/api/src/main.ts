@@ -1,4 +1,7 @@
 import 'reflect-metadata';
+// Окружение — первым: модули ниже читают process.env при загрузке, и .env
+// и очистка пустых переменных должны успеть раньше них.
+import { loadEnv } from './config/env';
 // BigInt (деньги в минорных единицах) не сериализуется в JSON штатно — отдаём строкой.
 (BigInt.prototype as unknown as { toJSON: () => string }).toJSON = function () {
   return this.toString();
@@ -8,7 +11,6 @@ import { Logger } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
-import { loadEnv } from './config/env';
 import { corsOrigin, securityHeaders, trustProxySetting } from './common/http-security';
 import { apiCompression } from './common/compression';
 

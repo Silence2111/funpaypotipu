@@ -1,65 +1,214 @@
 name: gamemarket-prod
 
-# Прод на одном VPS: образы тянутся из registry (не собираются локально).
-# Запуск: IMAGE_OWNER=you IMAGE_TAG=v1.0.0 docker compose -f infra/compose.prod.yaml --env-file .env.production up -d
-# Для managed-инфры вынесите postgres/redis/minio/meilisearch наружу и уберите их отсюда.
+# Прод на одном VPS — с нуля, без внешних сервисов. Инструкция — docs/12-deploy.md.
+#
+#   cp infra/.env.production.example infra/.env.production   # заполнить
+#   docker compose -f infra/compose.prod.yaml --env-file infra/.env.production up -d --build
+#
+# Наружу открыт только caddy (80 и 443): сам получает и продлевает HTTPS
+# для PUBLIC_URL, /api и /socket.io отдаёт API, остальное — сайту. База и
+# файлы — в томах на этом сервере; бэкап — каждую ночь в BACKUP_DIR.
+#
+# Redis, MinIO, Meilisearch и воркер здесь не нужны: API их не требует
+# (поиск — по Postgres, файлы — на диске под подписанными ссылками API,
+# фоновые задачи — в самом API), а воркер пока заглушка. Для нескольких
+# серверов — infra/k8s.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
 
 x-app-env: &app-env
   NODE_ENV: production
-  DATABASE_URL: ${DATABASE_URL}
-  REDIS_URL: ${REDIS_URL}
-  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-  DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY}
-  MOCK_WEBHOOK_SECRET: ${MOCK_WEBHOOK_SECRET}
-  # Платежи — ЮKassa; адрес сайта — для возврата после оплаты, писем и CORS.
+  # .env на сервере не читается: всё — из окружения ниже.
+  SKIP_DOTENV: "1"
+  DATABASE_URL: postgresql://gamemarket:${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD}@postgres:5432/gamemarket?schema=public
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?задайте JWT_ACCESS_SECRET}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?задайте JWT_REFRESH_SECRET}
+  DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?задайте DATA_ENCRYPTION_KEY}
+  STORAGE_SIGNING_SECRET: ${STORAGE_SIGNING_SECRET:-}
+  # Один адрес на сайт и API: ссылки в письмах, Telegram, файлы, возврат после оплаты и входа.
+  WEB_URL: ${PUBLIC_URL:?задайте PUBLIC_URL}
+  API_URL: ${PUBLIC_URL}
+  API_PUBLIC_URL: ${PUBLIC_URL}
+  PUBLIC_ASSET_BASE: ${PUBLIC_URL}
+  CORS_ORIGINS: ${CORS_ORIGINS:-}
+  # Файлы — на томе uploads; S3 подключается S3_ENDPOINT (тогда том не нужен).
+  STORAGE_DIR: /data/uploads
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+  S3_BUCKET: ${S3_BUCKET:-gamemarket}
+  # Платежи. Заглушка в бою — только PAYMENT_PROVIDER=mock явно.
   PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-yookassa}
+  MOCK_WEBHOOK_SECRET: ${MOCK_WEBHOOK_SECRET:-}
   YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID:-}
   YOOKASSA_SECRET_KEY: ${YOOKASSA_SECRET_KEY:-}
-  WEB_URL: ${WEB_URL}
-  CORS_ORIGINS: ${CORS_ORIGINS:-}
-  TRUST_PROXY: ${TRUST_PROXY:-}
-  S3_ENDPOINT: ${S3_ENDPOINT}
-  S3_ACCESS_KEY: ${S3_ACCESS_KEY}
-  S3_SECRET_KEY: ${S3_SECRET_KEY}
-  S3_BUCKET: ${S3_BUCKET}
-  MEILI_URL: ${MEILI_URL}
-  MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
-  SMTP_HOST: ${SMTP_HOST}
-  SMTP_PORT: ${SMTP_PORT}
-  SMTP_USER: ${SMTP_USER}
-  SMTP_PASS: ${SMTP_PASS}
-  SMTP_FROM: ${SMTP_FROM}
+  YOOKASSA_RECEIPTS: ${YOOKASSA_RECEIPTS:-}
+  YOOKASSA_VAT_CODE: ${YOOKASSA_VAT_CODE:-}
+  YOOKASSA_PAYMENT_SUBJECT: ${YOOKASSA_PAYMENT_SUBJECT:-}
+  PAYOUT_PROVIDER: ${PAYOUT_PROVIDER:-}
+  YOOKASSA_PAYOUT_AGENT_ID: ${YOOKASSA_PAYOUT_AGENT_ID:-}
+  YOOKASSA_PAYOUT_SECRET_KEY: ${YOOKASSA_PAYOUT_SECRET_KEY:-}
+  YOOKASSA_PAYOUT_CARDS: ${YOOKASSA_PAYOUT_CARDS:-}
+  YOOKASSA_PAYOUT_WIDGET_URL: ${YOOKASSA_PAYOUT_WIDGET_URL:-}
+  # Почта — ящик help@<домен> в Яндекс 360 (_система/почта).
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-465}
+  SMTP_SECURE: ${SMTP_SECURE:-true}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASS: ${SMTP_PASS:-}
+  SMTP_FROM: ${SMTP_FROM:-}
+  # Telegram: уведомления, вход, бот продавца.
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+  TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+  TELEGRAM_LOGIN: ${TELEGRAM_LOGIN:-}
+  # Вход через Яндекс ID и VK ID (Google нельзя — 149-ФЗ, ст. 10.6).
+  YANDEX_CLIENT_ID: ${YANDEX_CLIENT_ID:-}
+  YANDEX_CLIENT_SECRET: ${YANDEX_CLIENT_SECRET:-}
+  VK_CLIENT_ID: ${VK_CLIENT_ID:-}
+  VK_CLIENT_SECRET: ${VK_CLIENT_SECRET:-}
+  # Пуши: без ключей создаются при первом запуске и хранятся в базе.
+  VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+  VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+  VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+  # Антивирус вложений: без ClamAV — проверка по сигнатурам в самом API.
   CLAMAV_HOST: ${CLAMAV_HOST:-}
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gamemarket
+      POSTGRES_DB: gamemarket
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD}
+      # Время в базе — UTC; код от пояса не зависит (часть 103), но так проще читать журнал.
+      TZ: UTC
+      PGTZ: UTC
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gamemarket -d gamemarket"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    logging: *logging
+
+  # Миграции и роли, правила комиссий, каталог — один раз при каждом выкате.
+  # Сид повторяем: правила и роли не задваиваются.
   migrate:
-    image: ghcr.io/${IMAGE_OWNER}/gamemarket-api:${IMAGE_TAG}
-    working_dir: /app
+    image: ${IMAGE_PREFIX:-gamemarket}-api:${IMAGE_TAG:-local}
+    build: { context: .., dockerfile: apps/api/Dockerfile }
+    working_dir: /app/packages/db
     environment: *app-env
-    command: sh -c "pnpm --filter @gamemarket/db exec prisma migrate deploy && pnpm --filter @gamemarket/db seed"
+    # Без pnpm при запуске: corepack скачивал бы его в каждом новом контейнере.
+    command: sh -c "node_modules/.bin/prisma migrate deploy && node_modules/.bin/tsx prisma/seed.ts"
+    depends_on:
+      postgres: { condition: service_healthy }
     restart: "no"
+    logging: *logging
 
   api:
-    image: ghcr.io/${IMAGE_OWNER}/gamemarket-api:${IMAGE_TAG}
+    image: ${IMAGE_PREFIX:-gamemarket}-api:${IMAGE_TAG:-local}
+    build: { context: .., dockerfile: apps/api/Dockerfile }
     environment:
       <<: *app-env
       API_PORT: 4000
-    ports: ["4000:4000"]
-    depends_on: [migrate]
+    volumes: [uploads:/data/uploads]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
     restart: unless-stopped
-
-  worker:
-    image: ghcr.io/${IMAGE_OWNER}/gamemarket-worker:${IMAGE_TAG}
-    environment: *app-env
-    depends_on: [migrate]
-    restart: unless-stopped
+    logging: *logging
 
   web:
-    image: ghcr.io/${IMAGE_OWNER}/gamemarket-web:${IMAGE_TAG}
+    image: ${IMAGE_PREFIX:-gamemarket}-web:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      # Адреса для браузера вшиваются в сборку сайта.
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_URL}
+        NEXT_PUBLIC_SITE_URL: ${PUBLIC_URL}
     environment:
       NODE_ENV: production
       API_URL_INTERNAL: http://api:4000
-    ports: ["3000:3000"]
-    depends_on: [api]
+      ANDROID_PACKAGE_NAME: ${ANDROID_PACKAGE_NAME:-}
+      ANDROID_CERT_SHA256: ${ANDROID_CERT_SHA256:-}
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
     restart: unless-stopped
+    logging: *logging
+
+  caddy:
+    image: caddy:2.8-alpine
+    environment:
+      # https://домен — сертификат Let's Encrypt сам; http://localhost — без HTTPS (проверка в CI).
+      SITE_ADDRESS: ${PUBLIC_URL}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_healthy }
+    restart: unless-stopped
+    logging: *logging
+
+  # Каждую ночь в 03:00 по Москве — дамп базы и архив файлов в BACKUP_DIR,
+  # старше BACKUP_KEEP_DAYS — удаляются. Копию вне сервера — см. docs/12-deploy.md.
+  backup:
+    image: postgres:16-alpine
+    environment:
+      PGHOST: postgres
+      PGUSER: gamemarket
+      PGDATABASE: gamemarket
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      TZ: Europe/Moscow
+    volumes:
+      - ./ops:/ops:ro
+      # Не только чтение: тем же сервисом файлы восстанавливаются (ops/restore.sh).
+      - uploads:/data/uploads
+      - ${BACKUP_DIR:-./backups}:/backups
+    entrypoint: ["/bin/sh", "-c", "echo '0 3 * * * /ops/backup.sh' | crontab - && exec crond -f -l 6"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: unless-stopped
+    logging: *logging
+
+  # Раз в минуту — API и сайт; упал или поднялся — сообщение в Telegram
+  # (ALERT_BOT_TOKEN, ALERT_CHAT_ID) и строка в журнале.
+  healthwatch:
+    image: alpine:3.20
+    environment:
+      ALERT_BOT_TOKEN: ${ALERT_BOT_TOKEN:-}
+      ALERT_CHAT_ID: ${ALERT_CHAT_ID:-}
+      PUBLIC_URL: ${PUBLIC_URL}
+      HEALTH_INTERVAL: ${HEALTH_INTERVAL:-60}
+    volumes: [./ops:/ops:ro]
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache curl >/dev/null && exec /ops/healthwatch.sh"]
+    depends_on: [api, web]
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:

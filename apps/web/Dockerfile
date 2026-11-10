@@ -1,6 +1,6 @@
+# syntax=docker/dockerfile:1
 # Сборка из корня монорепо: docker build -f apps/web/Dockerfile .
 # NEXT_PUBLIC_* инлайнятся на этапе сборки → передаём их build-аргументами.
-# syntax=docker/dockerfile:1
 FROM node:22-slim AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH
 RUN corepack enable
@@ -20,4 +20,5 @@ ENV NODE_ENV=production
 COPY --from=build /app /app
 WORKDIR /app/apps/web
 EXPOSE 3000
-CMD ["pnpm", "start"]
+# Без pnpm при запуске: corepack скачивал бы его в каждом новом контейнере.
+CMD ["node", "node_modules/next/dist/bin/next", "start", "-p", "3000"]
