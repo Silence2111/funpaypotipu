@@ -162,9 +162,11 @@ jobs:
           # Восстановление — в отдельную базу рядом: те же пользователи и лоты, что в рабочей.
           $C exec -T -e RESTORE_DB=gamemarket_check backup /ops/restore.sh "/backups/$(basename "$dump")"
           q() { $C exec -T postgres psql -U gamemarket -d "$1" -tAc "$2"; }
-          for t in users profiles listings categories fee_rules; do
+          # Сид и проверка заполняют эти таблицы — они не пустые; остальные сверяются числом.
+          for t in users profiles games categories fee_rules roles listings orders; do
             a=$(q gamemarket "SELECT count(*) FROM $t"); b=$(q gamemarket_check "SELECT count(*) FROM $t")
-            echo "$t: $a → $b"; [ "$a" = "$b" ] && [ "$a" -gt 0 ]
+            echo "$t: $a → $b"; [ "$a" = "$b" ]
+            case $t in listings|orders) ;; *) [ "$a" -gt 0 ] ;; esac
           done
           # Пользователь из проверки — и в восстановленной базе.
           q gamemarket_check "SELECT count(*) FROM profiles WHERE username LIKE 'smoke%'" | grep -qx 1
