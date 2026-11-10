@@ -111,9 +111,19 @@ export const CATALOG: Record<string, string> = {
   'Предложения: {category}': 'Offers: {category}',
   'По этим условиям предложений нет.': 'No offers match these filters.',
   'Сбросить фильтры': 'Reset filters',
-  'В разделе «{category}» пока нет предложений. Выставьте своё — покупатели этого раздела увидят его первым.':
-    'There are no offers in “{category}” yet. List yours — buyers in this category will see it first.',
-  'Продать первым': 'Be the first to sell',
+  // Пустой раздел и пустой каталог (часть 114)
+  'Предложений пока нет': 'No offers yet',
+  'В разделе «{category}» ещё никто не продаёт. Выставьте лот первым — покупатели раздела увидят его сразу. Покупаете? Сохраните поиск — сообщим о первом предложении.':
+    'Nobody sells in “{category}” yet. List the first item — buyers in this category will see it right away. Buying? Save the search and we’ll let you know about the first offer.',
+  'Выставить лот первым': 'List the first item',
+  '{category} {game}: покупка у продавцов с рейтингом и отзывами. Деньги у площадки, пока вы не подтвердите получение.':
+    '{category} {game}: buy from sellers with ratings and reviews. The money stays with the marketplace until you confirm receipt.',
+  'Покупаете? Откройте игру и сохраните поиск — сообщим о первом предложении.':
+    'Buying? Open the game and save the search — we’ll let you know about the first offer.',
+  'По запросу «{q}» предложений нет — загляните в раздел игры:':
+    'No offers for “{q}” — check the game’s category:',
+  'Площадка только открылась — выставьте лот первым: покупатели увидят его сразу.':
+    'The marketplace has just opened — list the first item and buyers will see it right away.',
 
   // Фильтры раздела
   'Сначала дешёвые': 'Cheapest first',

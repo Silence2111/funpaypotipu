@@ -8,6 +8,7 @@ import { SiteHeader } from '@/components/site-header';
 import { TabBar } from '@/components/tab-bar';
 import { DisputeBanner } from '@/components/dispute-banner';
 import { LangSwitch } from '@/components/lang-switch';
+import { getPublicPricing } from '@/lib/api';
 import { LangProvider } from '@/lib/i18n/client';
 import { dictOf, getLang, getT } from '@/lib/i18n/server';
 import './globals.css';
@@ -47,8 +48,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const lang = await getLang();
-  const t = await getT();
+  const [lang, t, pricing] = await Promise.all([getLang(), getT(), getPublicPricing()]);
   return (
     <html lang={lang}>
       <head>
@@ -76,7 +76,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <hr className="divider" style={{ marginBottom: 20 }} />
           <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <p className="faint" style={{ fontSize: 13, margin: 0 }}>
-              © {new Date().getFullYear()} GameMarket · {t('лоты с пометкой «Пример» — демонстрационные')}
+              © {new Date().getFullYear()} GameMarket
+              {/* Только на демо-стенде: на настоящем запуске демо-лотов нет. */}
+              {pricing?.paymentsDemo && <> · {t('лоты с пометкой «Пример» — демонстрационные')}</>}
             </p>
             <nav className="row faint" style={{ gap: '0 16px', fontSize: 13, flexWrap: 'wrap' }} aria-label={t('Документы')}>
               <Link href="/prodavat" className="footer-link">{t('Продавать на GameMarket')}</Link>

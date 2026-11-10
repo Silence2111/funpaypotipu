@@ -149,6 +149,10 @@ jobs:
           for i in $(seq 1 90); do curl -sf http://localhost/api/health/ready >/dev/null && curl -sf http://localhost/ >/dev/null && break; sleep 2; done
           $C ps
 
+      # Стек с нуля — как первый запуск на сервере: только сид каталога, лотов нет.
+      - name: Пустой каталог
+        run: bash infra/ops/empty-catalog.sh http://localhost
+
       - name: Проверка снаружи
         run: SMOKE_KEY_FILE=/tmp/smoke-key bash infra/ops/smoke.sh http://localhost
 

@@ -78,6 +78,8 @@ export async function SectionView({
   const total = browse?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const filtered = Object.keys(values).some((k) => k !== 'sort');
+  // В разделе нет ни одного предложения — не «по фильтрам», а вовсе.
+  const empty = !filtered && total === 0;
   const base = `/igra/${game.slug}/${section.slug}`;
   const pageHref = (n: number) => {
     const p = new URLSearchParams(values as Record<string, string>);
@@ -123,8 +125,8 @@ export async function SectionView({
             {t.d(section.title)}
             {section.minPrice && (section.listingCount ?? 0) > 0 && (
               <> · {t('от {price}', { price: formatPrice(section.minPrice, 'RUB', t) })}</>
-            )}{' '}
-            · {offersCount(section.listingCount ?? total, t)}
+            )}
+            {(section.listingCount ?? total) > 0 && <> · {offersCount(section.listingCount ?? total, t)}</>}
             {people && people.sellers > 0 && <> · {sellersCount(people.sellers, t)}</>}
             {people && people.online > 0 && (
               <>
@@ -150,12 +152,16 @@ export async function SectionView({
             aria-current={c.id === section.id ? 'page' : undefined}
           >
             {t.d(c.title)}
-            <span className="count">{c.listingCount ?? 0}</span>
+            {/* Ноль у каждой вкладки на старте площадки читается как «здесь мёртво». */}
+            {(c.listingCount ?? 0) > 0 && <span className="count">{c.listingCount}</span>}
           </Link>
         ))}
       </nav>
 
       <div style={{ marginTop: 20 }}>
+        {/* В пустом разделе фильтровать и сортировать нечего: только «Сохранить
+            поиск» — он и сообщит о первом предложении. */}
+        {!empty && (
         <SectionFilters
           key={base}
           attributes={filterable}
@@ -163,6 +169,7 @@ export async function SectionView({
           defaultSort={defaultSort}
           maxLabel={maxRub ? t('до {price}', { price: formatPrice(String(maxRub * 100), 'RUB', t) }) : undefined}
         />
+        )}
         <div className="save-search-row">
           <SaveSearch
             categoryId={section.id}
@@ -193,13 +200,14 @@ export async function SectionView({
               </>
             ) : (
               <>
+                <h2 className="h2" style={{ fontSize: 20, margin: 0 }}>{t('Предложений пока нет')}</h2>
                 <p className="muted">
-                  {t('В разделе «{category}» пока нет предложений. Выставьте своё — покупатели этого раздела увидят его первым.', {
+                  {t('В разделе «{category}» ещё никто не продаёт. Выставьте лот первым — покупатели раздела увидят его сразу. Покупаете? Сохраните поиск — сообщим о первом предложении.', {
                     category: t.d(section.title),
                   })}
                 </p>
-                <Link href={sellHref} className="btn secondary">
-                  {t('Продать первым')}
+                <Link href={sellHref} className="btn">
+                  {t('Выставить лот первым')}
                 </Link>
               </>
             )}

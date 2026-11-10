@@ -11,18 +11,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE}/prodavat`, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${SITE}/podbor`, changeFrequency: 'weekly', priority: 0.3 },
     { url: `${SITE}/pomosch`, changeFrequency: 'monthly', priority: 0.4 },
-    ...HELP_ARTICLES.map((a) => ({ url: `${SITE}/pomosch/${a.slug}`, changeFrequency: 'monthly' as const, priority: 0.4 })),
+    ...HELP_ARTICLES.map((a) => ({
+      url: `${SITE}/pomosch/${a.slug}`,
+      changeFrequency: 'monthly' as const,
+      priority: 0.4,
+    })),
   ];
   try {
     // Игры и их разделы: «аккаунты CS2» ищут чаще, чем просто «CS2».
     const games = (await getGameIndex()) ?? [];
     const gameUrls: MetadataRoute.Sitemap = games.flatMap((g) => [
       { url: `${SITE}/igra/${g.slug}`, changeFrequency: 'daily' as const, priority: 0.8 },
-      ...g.categories.map((c) => ({
-        url: `${SITE}/igra/${g.slug}/${c.slug}`,
-        changeFrequency: 'daily' as const,
-        priority: 0.7,
-      })),
+      // Пустой раздел — тонкая страница: в карту попадает с первым лотом.
+      ...g.categories
+        .filter((c) => c.listingCount > 0)
+        .map((c) => ({
+          url: `${SITE}/igra/${g.slug}/${c.slug}`,
+          changeFrequency: 'daily' as const,
+          priority: 0.7,
+        })),
     ]);
     const browse = await browseListings({ limit: 60, sort: 'new' });
     const lotUrls: MetadataRoute.Sitemap = (browse?.items ?? []).map((l) => ({
