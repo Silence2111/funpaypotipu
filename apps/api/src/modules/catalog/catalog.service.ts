@@ -40,6 +40,7 @@ export class CatalogService {
         by: ['categoryId'],
         where: { gameId: game.id, status: 'active' },
         _count: { _all: true },
+        _min: { price: true },
       }),
       this.prisma.$queryRaw<Array<{ category_id: string | null; sellers: bigint; online: bigint }>>`
         SELECT l.category_id,
@@ -50,9 +51,15 @@ export class CatalogService {
         GROUP BY ROLLUP (l.category_id)`,
     ]);
     const countMap = new Map(counts.map((c) => [c.categoryId, c._count._all]));
+    const minMap = new Map(counts.map((c) => [c.categoryId, c._min.price]));
     const people = new Map(
       sellers.map((r) => [r.category_id, { sellers: Number(r.sellers), online: Number(r.online) }]),
     );
+    // «от 450 ₽» у раздела — для выдачи поиска и разметки цен. У валюты цена
+    // — за пачку разного размера, у пополнения — наценка на сумму покупателя:
+    // одной «цены от» у них нет.
+    const minPrice = (c: { id: string; segment: string }) =>
+      c.segment === 'currency' || c.segment === 'topup' ? null : (minMap.get(c.id)?.toString() ?? null);
     return {
       ...game,
       coverUrl: assetUrl(game.coverUrl),
@@ -60,6 +67,7 @@ export class CatalogService {
       categories: game.categories.map((c) => ({
         ...c,
         listingCount: countMap.get(c.id) ?? 0,
+        minPrice: minPrice(c),
         sellers: people.get(c.id) ?? { sellers: 0, online: 0 },
       })),
     };

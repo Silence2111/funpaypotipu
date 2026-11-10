@@ -37,6 +37,8 @@ export interface Category {
   segment: string;
   fulfillmentType: string;
   listingCount?: number;
+  /** Самая низкая цена в продаже, копейки; null — у валюты и пополнений «цены от» нет. */
+  minPrice?: string | null;
   /** Сколько продавцов торгует в разделе и сколько из них в сети. */
   sellers?: SellersNow;
   /** Общая пачка раздела валюты: «за 1 000 золота». */

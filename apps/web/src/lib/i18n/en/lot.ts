@@ -226,4 +226,7 @@ export const LOT: Record<string, string> = {
     'Cut from {price} and lower than this offer has been at any time in the last {n} days',
   'Цена ниже, чем когда-либо у этого лота за последние {n} дней':
     'Lower than this offer has been at any time in the last {n} days',
+  // Превью ссылки на лот (часть 113)
+  'Продавец {name} · ★ {rating}': 'Seller {name} · ★ {rating}',
+  'Деньги у площадки до подтверждения': 'Money is held until the buyer confirms',
 };
