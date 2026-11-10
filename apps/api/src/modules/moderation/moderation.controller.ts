@@ -51,6 +51,8 @@ const usersQuery = z.object({
 type UsersParams = z.infer<typeof usersQuery>;
 const reportsQuery = z.object({
   status: z.enum(REPORT_STATUSES).optional(),
+  /** Ник нарушителя или пожаловавшегося, название лота, id цели или жалобы. */
+  q: z.string().trim().max(100).optional(),
   cursor: timeCursor('Список жалоб устарел — обновите страницу'),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });

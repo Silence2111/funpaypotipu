@@ -9,7 +9,7 @@ import {
   type UserStatus,
 } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
-import { containsText } from '../../common/like';
+import { containsText, likeText } from '../../common/like';
 import { nextCursor } from '../../common/cursor';
 import { AuditService } from '../access/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -28,6 +28,8 @@ export interface ReportsQuery {
   status?: ReportStatus;
   /** Из `next` прошлой страницы: время (первой жалобы или решения) и цель последней карточки. */
   cursor?: { at: Date; id: string };
+  /** Ник нарушителя или пожаловавшегося, название лота, id цели или жалобы. */
+  q?: string;
   limit?: number;
 }
 
@@ -164,7 +166,13 @@ export class ModerationService {
     const decided = q.status === 'resolved' || q.status === 'rejected';
     const limit = q.limit ?? 50;
     const statuses: ReportStatus[] = q.status ? [q.status] : OPEN;
-    const inStatus = Prisma.sql`r.status::text = ANY(${statuses}::text[])`;
+    const text = searchText(q.q);
+    const targets = text ? await this.reportTargets(text) : null;
+    // Поиск отбирает цели, а карточка — все жалобы цели в этом статусе: иначе
+    // найденная по пожаловавшемуся карточка показала бы одну его жалобу.
+    const found = (among: ReportStatus[]) =>
+      targets ? Prisma.sql`AND (r.target_type, r.target_id) IN (${targets(among)})` : Prisma.empty;
+    const inStatus = Prisma.sql`r.status::text = ANY(${statuses}::text[]) ${found(statuses)}`;
     const c = q.cursor;
     // Время в базе — UTC без пояса; id в курсоре — цель последней карточки.
     const at = c ? Prisma.sql`(${c.at.toISOString()}::timestamptz AT TIME ZONE 'UTC')` : Prisma.empty;
@@ -217,10 +225,11 @@ export class ModerationService {
         where: { id: { in: idsOf('message').filter((id) => UUID.test(id)) } },
         select: { id: true, body: true, conversationId: true, createdAt: true, sender: person },
       }),
-      // Сколько ждёт решения — всегда; решённые — вся история, их не считаем.
+      // Сколько ждёт решения — всегда, в поиске — найденных; решённые — вся
+      // история, их не считаем.
       this.prisma.$queryRaw<Array<{ targets: number; reports: number }>>`
-        SELECT count(DISTINCT (target_type, target_id))::int AS targets, count(*)::int AS reports
-        FROM reports WHERE status::text = ANY(${OPEN}::text[])`,
+        SELECT count(DISTINCT (r.target_type, r.target_id))::int AS targets, count(*)::int AS reports
+        FROM reports r WHERE r.status::text = ANY(${OPEN}::text[]) ${found(OPEN)}`,
     ]);
     const reporters = await this.prisma.user.findMany({
       where: { id: { in: [...new Set(latest.map((r) => r.reporter_id))] } },
@@ -523,6 +532,46 @@ export class ModerationService {
   private async sellersNamed(text: string): Promise<Prisma.ListingWhereInput> {
     const ids = await this.idsNamed(text);
     return ids ? { sellerId: { in: ids } } : { seller: { profile: { username: containsText(text) } } };
+  }
+
+  /**
+   * Цели жалоб, подходящие под поиск, — пары «тип, цель»: аккаунт с таким
+   * ником; лот с таким названием или от такого продавца; сообщение такого
+   * автора; цели, на которые жаловался человек с таким ником; цель или
+   * жалоба с таким id. Каждая ветка берётся по своему индексу, и только
+   * потом — жалобы этих целей. Раньше условие проверялось у каждой жалобы
+   * подзапросами: на 100 тыс. решённых — 1–2 с на поиск.
+   */
+  private async reportTargets(text: string): Promise<(among: ReportStatus[]) => Prisma.Sql> {
+    const like = `%${likeText(text)}%`;
+    const ids = await this.idsNamed(text);
+    const who = ids
+      ? Prisma.sql`SELECT unnest(${ids}::uuid[]) AS id`
+      : Prisma.sql`SELECT p.user_id AS id FROM profiles p WHERE p.username ILIKE ${like}`;
+    const id = UUID.test(text) ? text.toLowerCase() : null;
+    return (among) => {
+      const inStatus = Prisma.sql`r3.status::text = ANY(${among}::text[])`;
+      const parts = [
+        Prisma.sql`SELECT 'user'::text, w.id::text FROM who w`,
+        Prisma.sql`SELECT 'listing'::text, l.id::text FROM listings l
+          WHERE l.title ILIKE ${like} OR l.seller_id IN (SELECT id FROM who)`,
+        Prisma.sql`SELECT r3.target_type, r3.target_id FROM reports r3
+          WHERE r3.reporter_id IN (SELECT id FROM who) AND ${inStatus}`,
+        // Индекса по автору у сообщений нет — от жалоб на сообщения, их мало.
+        // Цель — строка: в uuid переводится, только если она им и выглядит.
+        Prisma.sql`SELECT r3.target_type, r3.target_id FROM reports r3
+          JOIN messages m ON m.id = (CASE WHEN r3.target_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            THEN r3.target_id::uuid END)
+          WHERE r3.target_type = 'message' AND ${inStatus} AND m.sender_id IN (SELECT id FROM who)`,
+      ];
+      if (id) {
+        parts.push(
+          Prisma.sql`SELECT t, ${id}::text FROM unnest(ARRAY['listing', 'user', 'message']) t`,
+          Prisma.sql`SELECT r3.target_type, r3.target_id FROM reports r3 WHERE r3.id = ${id}::uuid`,
+        );
+      }
+      return Prisma.sql`WITH who AS MATERIALIZED (${who}) ${Prisma.join(parts, ' UNION ')}`;
+    };
   }
 
   private async idsNamed(text: string): Promise<string[] | null> {

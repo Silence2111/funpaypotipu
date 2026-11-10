@@ -199,9 +199,11 @@ describe('очередь жалоб', () => {
         ]),
       },
       message: { findMany: vi.fn(async () => []) },
+      // Поиск по нику: найденные люди.
+      profile: { findMany: vi.fn(async () => [{ userId: U1 }]) },
     };
     const svc = new ModerationService(prisma as never, {} as never, {} as never);
-    return { svc, raw };
+    return { svc, raw, prisma };
   }
 
   const group = (type: string, id: string, n: number, first: number, handled: Date | null = null) => ({
@@ -245,5 +247,40 @@ describe('очередь жалоб', () => {
     expect(groups).toContain('GROUP BY r.handled_at, r.target_type, r.target_id');
     expect(groups).toContain('(r.handled_at, r.target_id) <');
     expect(groups).toContain('ORDER BY r.handled_at DESC NULLS LAST, r.target_id DESC');
+  });
+
+  it('поиск отбирает цели, а не жалобы: карточка — со всеми жалобами цели; счётчики — по найденному', async () => {
+    const { svc, raw, prisma } = queueSetup([group('user', U1, 250, 1)]);
+    const res = await svc.listReports({ q: '@ba_d' });
+    expect(res.items[0]).toMatchObject({ reports: 250 });
+    expect(prisma.profile.findMany.mock.calls[0]![0]).toMatchObject({
+      where: { username: { contains: 'ba\\_d', mode: 'insensitive' } },
+    });
+    const groups = raw.find((t) => t.includes('AS first_at'))!;
+    // Отбор — по паре «тип, цель»: сначала цели по своим индексам, потом их жалобы.
+    expect(groups).toContain('AND (r.target_type, r.target_id) IN (WITH who AS MATERIALIZED (SELECT unnest(');
+    for (const part of [
+      "SELECT 'user'::text, w.id::text FROM who w",
+      'l.title ILIKE',
+      'l.seller_id IN (SELECT id FROM who)',
+      'r3.reporter_id IN (SELECT id FROM who)',
+      'JOIN messages m',
+    ]) {
+      expect(groups).toContain(part);
+    }
+    // id ищется, только если это uuid.
+    expect(groups).not.toContain('r3.id =');
+    // Счётчик — шаблоном: условие поиска приходит в него вложенным фрагментом.
+    const counter = prisma.$queryRaw.mock.calls.find(([q]) => !('text' in q) && q.join('?').includes('count(DISTINCT'))!;
+    const nested = counter.slice(1).map((v) => (v as { text?: string })?.text ?? '').join(' ');
+    expect(nested).toContain('r3.reporter_id IN (SELECT id FROM who)');
+  });
+
+  it('поиск по id — цель или жалоба; ник при этом тоже ищется', async () => {
+    const { svc, raw } = queueSetup([]);
+    await svc.listReports({ q: L1.toUpperCase() });
+    const groups = raw.find((t) => t.includes('AS first_at'))!;
+    expect(groups).toContain("unnest(ARRAY['listing', 'user', 'message'])");
+    expect(groups).toContain('r3.id = ');
   });
 });

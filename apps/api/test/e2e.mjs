@@ -338,6 +338,21 @@ async function scenarioModeration(rnd) {
     JSON.stringify([cards.length, first.counts]),
   );
   check('Битый курсор жалоб — 400', (await j('/moderation/reports?cursor=x', { token: mod.token })).status === 400);
+  // Поиск по очереди: раньше жалобы на человека находились, только если
+  // листать всю очередь. Находится цель — с всеми её жалобами.
+  const rq = (q) => j(`/moderation/reports?q=${encodeURIComponent(q)}`, { token: mod.token });
+  const bySeller = await rq(`@mds${rnd}`);
+  const byReporter = await rq(`mda${rnd}`);
+  const byLot = await rq(bad);
+  const none = await rq(`нет такого ${rnd}`);
+  const card = (res) => res.body.items?.find?.((r) => r.targetId === bad);
+  check(
+    'Поиск жалоб: по нику продавца, по нику пожаловавшегося — карточка со всеми жалобами цели; по id лота; счётчик — по найденному',
+    card(bySeller)?.reports === 2 && card(byReporter)?.reports === 2 && card(byLot)?.reports === 2 &&
+      byLot.body.items.length === 1 && byLot.body.counts?.open === 1 && byLot.body.counts?.openReports === 2 &&
+      none.body.items?.length === 0 && none.body.counts?.open === 0,
+    JSON.stringify({ seller: card(bySeller)?.reports, reporter: card(byReporter)?.reports, lot: byLot.body.counts, none: none.body.counts }),
+  );
 
   await j(`/moderation/reports/${item?.id ?? r1.body.id}/handle`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'resolved', action: 'block_listing' }) });
   const decided = await j('/moderation/reports?status=resolved&limit=1', { token: mod.token });
