@@ -241,7 +241,8 @@ export class ListingsController {
    * номер строки и причина на языке сайта.
    */
   @Post('import')
-  @RateLimit('imports', 10, 600)
+  // Порция — 200 строк, таблица — до 1 000: две таблицы за 10 минут.
+  @RateLimit('imports', 20, 600)
   @UseGuards(JwtAuthGuard)
   async importLots(
     @CurrentUser() user: AuthUser,

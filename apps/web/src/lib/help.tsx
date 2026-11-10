@@ -8,7 +8,7 @@ import {
   WITHDRAWAL_METHODS,
   bumpCooldownHours,
   DISPUTE_RESPONSE_HOURS,
-  IMPORT_MAX_ROWS,
+  IMPORT_MAX_FILE_ROWS,
   PRICE_DROP_MIN_PCT,
   PRICE_LOW_DAYS,
   PRICE_LOW_MIN_PCT,
@@ -276,7 +276,7 @@ const RU_BODIES: Record<HelpSlug, (t: Terms) => ReactNode> = {
         </li>
         <li>
           Много лотов разом — «Из таблицы» в «Моих лотах»: выберите раздел, скачайте шаблон, заполните в Excel или
-          Google Таблицах и загрузите CSV или вставьте строки. До {IMPORT_MAX_ROWS} лотов за раз; строки с ошибками
+          Google Таблицах и загрузите CSV или вставьте строки. До {IMPORT_MAX_FILE_ROWS} лотов в одной таблице; строки с ошибками
           видно до загрузки. Ключи, пополнения и валюта — по одному, через форму лота. «Выгрузить мои лоты» там же
           отдаёт ваши лоты таблицей со столбцом ID: поправьте цены и описания и загрузите обратно — строка с ID меняет
           лот, без ID — выставляет новый.

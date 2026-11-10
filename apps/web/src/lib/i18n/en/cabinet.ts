@@ -306,6 +306,24 @@ export const CABINET: Record<string, string> = {
   // Загрузка из таблицы
   'Из таблицы': 'From a table',
   'Загрузить из таблицы': 'Upload from a table',
+  // «Продавать»: переезд таблицей (часть 117)
+  'Уже продаёте на другой площадке? Перенесите лоты за 10 минут': 'Already selling elsewhere? Move your listings in 10 minutes',
+  'Выберите игру и раздел и скачайте шаблон — в нём столбцы раздела и две строки-примера.':
+    'Pick a game and a category and download the template — it has the category’s columns and two example rows.',
+  'Откройте его в Excel или Google Таблицах и вставьте свои лоты: название, описание, цену, наличие и параметры. Строки-примеры удалите — как есть они не выставятся.':
+    'Open it in Excel or Google Sheets and paste your listings: title, description, price, stock and details. Delete the example rows — as they are, they won’t be listed.',
+  'Загрузите таблицу — до {n} лотов разом. Строки с ошибками сайт покажет до загрузки, остальные выставятся сразу.':
+    'Upload the table — up to {n} listings at once. The site shows rows with errors before uploading; the rest go live right away.',
+  'Таблицей — только разделы с ручной выдачей': 'Tables work only for manually delivered categories',
+  'Загрузить таблицу': 'Upload the table',
+  'Ключи, пополнения и валюта выставляются по одному — через форму лота: у них склад или пачка.':
+    'Keys, top-ups and currency are listed one by one through the listing form: they have a stock or a pack size.',
+  'Загружено строк: {done} из {total}. Остальные не ушли: {reason} Загрузите таблицу со строки {line} — уже загруженные строки уберите.':
+    'Rows uploaded: {done} of {total}. The rest didn’t go through: {reason} Upload the table from row {line} — remove the rows already uploaded.',
+  'Не получилось.': 'It didn’t work.',
+  'Загружаем: {done} из {total}': 'Uploading: {done} of {total}',
+  'Не выставлены строки с ошибками: {lines} — исправьте их и загрузите только эти строки.':
+    'Rows with errors were not listed: {lines} — fix them and upload only those rows.',
   'Не удалось загрузить игры.': 'Couldn’t load the games.',
   'Много лотов разом: строка таблицы — лот. Подойдёт CSV из Excel или Google Таблиц или строки, скопированные прямо из таблицы. Один раздел за раз, до {n} лотов; ключи, пополнения и валюта — по одному, через форму лота.':
     'Many listings at once: one table row is one listing. A CSV from Excel or Google Sheets works, or rows copied straight from the table. One category at a time, up to {n} listings; keys, top-ups and currency go one by one through the listing form.',

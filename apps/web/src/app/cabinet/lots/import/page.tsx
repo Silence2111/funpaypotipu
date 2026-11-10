@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Download, FileUp } from 'lucide-react';
 import {
-  IMPORT_MAX_ROWS,
+  IMPORT_MAX_FILE_ROWS,
   exportLots,
+  importBatches,
   importTemplate,
   parseCsv,
   readImport,
@@ -57,8 +58,20 @@ const PREVIEW = 30;
  * остальными. API проверяет каждую строку заново и выставляет годные.
  */
 export default function ImportLotsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ImportLots />
+    </Suspense>
+  );
+}
+
+function ImportLots() {
   const t = useT();
   const router = useRouter();
+  // С «Продавать» приходят с ?game=…&category=… — раздел уже выбран.
+  const sp = useSearchParams();
+  const presetGame = sp.get('game');
+  const presetCategory = sp.get('category');
   const [games, setGames] = useState<Game[]>([]);
   const [game, setGame] = useState<Game | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -70,6 +83,11 @@ export default function ImportLotsPage() {
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Большая таблица уходит порциями: сколько строк уже загружено.
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  // Строки с ошибками из таблицы: после загрузки таблица очищается, а продавцу
+  // надо знать, какие строки исправить и догрузить.
+  const [skipped, setSkipped] = useState<Array<{ line: number; message: string }>>([]);
 
   useEffect(() => {
     if (!getToken()) {
@@ -81,7 +99,15 @@ export default function ImportLotsPage() {
       .catch(() => setError(t('Не удалось загрузить игры.')));
   }, [router, t]);
 
-  async function pickGame(id: string) {
+  // Раздел из адреса — когда игры загрузились.
+  useEffect(() => {
+    if (!presetGame || game || !games.length) return;
+    const g = games.find((x) => x.slug === presetGame);
+    if (g) void pickGame(g.id, presetCategory);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [games, presetGame, presetCategory]);
+
+  async function pickGame(id: string, categorySlug?: string | null) {
     const g = games.find((x) => x.id === id) ?? null;
     setGame(g);
     setCategory(null);
@@ -91,11 +117,14 @@ export default function ImportLotsPage() {
     const full = await apiFetch<{ categories: Category[] }>(`/catalog/games/${g.slug}`).catch(
       () => null,
     );
-    setCategories(full?.categories ?? []);
+    const list = full?.categories ?? [];
+    setCategories(list);
+    const c = categorySlug ? list.find((x) => x.slug === categorySlug && importable(x)) : null;
+    if (c) await pickCategory(c.id, list);
   }
 
-  async function pickCategory(id: string) {
-    const c = categories.find((x) => x.id === id) ?? null;
+  async function pickCategory(id: string, list: Category[] = categories) {
+    const c = list.find((x) => x.id === id) ?? null;
     setCategory(c);
     setAttrs([]);
     setResult(null);
@@ -120,7 +149,11 @@ export default function ImportLotsPage() {
 
   function downloadTemplate() {
     if (!game || !category) return;
-    save(importTemplate(attrs, t.lang), `gamemarket-${game.slug}-${category.slug}.csv`);
+    // С двумя строками-примерами: как заполнять. Сами примеры не выставятся.
+    save(
+      importTemplate(attrs, t.lang, { what: `${t.d(category.title)} ${t.d(game.title)}` }),
+      `gamemarket-${game.slug}-${category.slug}.csv`,
+    );
   }
 
   async function exportMine() {
@@ -138,24 +171,61 @@ export default function ImportLotsPage() {
     }
   }
 
+  /**
+   * Порциями по 200 строк, по очереди: таблица на 1 000 лотов — пять
+   * запросов, продавец видит, сколько уже загружено. Оборвалось посередине
+   * — загруженное остаётся, сайт говорит, с какой строки продолжить.
+   */
   async function submit() {
     if (!game || !category || !read?.lots.length) return;
     setBusy(true);
     setError(null);
+    const all: Result = { created: [], updated: [], unchanged: [], failed: [] };
+    const parts = importBatches(read.lots);
+    setSkipped(read.errors);
+    let done = 0;
+    setProgress({ done: 0, total: read.lots.length });
     try {
-      const r = await apiFetch<Result>('/listings/import', {
-        method: 'POST',
-        body: JSON.stringify({ gameId: game.id, categoryId: category.id, lots: read.lots }),
-      });
-      setResult(r);
-      if (r.created.length || r.updated.length) {
+      for (const lots of parts) {
+        const r = await apiFetch<Result>('/listings/import', {
+          method: 'POST',
+          body: JSON.stringify({ gameId: game.id, categoryId: category.id, lots }),
+        });
+        all.created.push(...r.created);
+        all.updated.push(...r.updated);
+        all.unchanged.push(...r.unchanged);
+        all.failed.push(...r.failed);
+        done += lots.length;
+        setProgress({ done, total: read.lots.length });
+      }
+      setResult(all);
+      if (all.created.length || all.updated.length) {
         setText('');
         setFileName(null);
       }
     } catch (e) {
-      setError(apiErrorMessage(e, t('Не получилось. Попробуйте ещё раз.')));
+      const next = read.lots[done]?.line;
+      if (done) {
+        setResult(all);
+        setText('');
+        setFileName(null);
+      }
+      setError(
+        done && next
+          ? t(
+              'Загружено строк: {done} из {total}. Остальные не ушли: {reason} Загрузите таблицу со строки {line} — уже загруженные строки уберите.',
+              {
+                done,
+                total: read.lots.length,
+                line: next,
+                reason: apiErrorMessage(e, t('Не получилось.')),
+              },
+            )
+          : apiErrorMessage(e, t('Не получилось. Попробуйте ещё раз.')),
+      );
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }
 
@@ -193,7 +263,7 @@ export default function ImportLotsPage() {
         <p className="muted" style={{ margin: '8px 0 0', maxWidth: '60ch' }}>
           {t(
             'Много лотов разом: строка таблицы — лот. Подойдёт CSV из Excel или Google Таблиц или строки, скопированные прямо из таблицы. Один раздел за раз, до {n} лотов; ключи, пополнения и валюта — по одному, через форму лота.',
-            { n: IMPORT_MAX_ROWS },
+            { n: IMPORT_MAX_FILE_ROWS.toLocaleString(t.locale) },
           )}
         </p>
       </div>
@@ -388,13 +458,15 @@ export default function ImportLotsPage() {
                   disabled={busy || !read.lots.length}
                   onClick={() => void submit()}
                 >
-                  {edits
-                    ? t('Сохранить: {lots}', {
-                        lots: t.n(read.lots.length, 'лот', 'лота', 'лотов'),
-                      })
-                    : t('Выставить {lots}', {
-                        lots: t.n(read.lots.length, 'лот', 'лота', 'лотов'),
-                      })}
+                  {progress
+                    ? t('Загружаем: {done} из {total}', progress)
+                    : edits
+                      ? t('Сохранить: {lots}', {
+                          lots: t.n(read.lots.length, 'лот', 'лота', 'лотов'),
+                        })
+                      : t('Выставить {lots}', {
+                          lots: t.n(read.lots.length, 'лот', 'лота', 'лотов'),
+                        })}
                 </button>
                 {errorsByLine.size > 0 && (
                   <span className="hint">
@@ -418,6 +490,20 @@ export default function ImportLotsPage() {
                 })
               : t('Выставлено: {n}', { n: result.created.length })}
           </h2>
+          {skipped.length > 0 && (
+            <p className="import-bad" style={{ margin: 0 }}>
+              {t(
+                'Не выставлены строки с ошибками: {lines} — исправьте их и загрузите только эти строки.',
+                {
+                  lines:
+                    skipped
+                      .slice(0, 20)
+                      .map((e) => e.line)
+                      .join(', ') + (skipped.length > 20 ? ` … (${skipped.length})` : ''),
+                },
+              )}
+            </p>
+          )}
           {result.failed.length > 0 && (
             <ul className="import-failed">
               {result.failed.map((f) => (

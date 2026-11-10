@@ -10,8 +10,27 @@
  * характеристика у строки с ID — «оставить как есть».
  */
 
-/** Столько лотов за одну загрузку — больше разбивайте на несколько файлов. */
+/**
+ * Столько лотов уходит в API одним запросом. Таблица бывает больше: сайт сам
+ * режет её на порции и загружает по очереди (часть 117) — продавцу при
+ * переезде не нужно делить файл.
+ */
 export const IMPORT_MAX_ROWS = 200;
+/** Столько лотов в одной таблице: пять порций, в пределах лимита загрузок. */
+export const IMPORT_MAX_FILE_ROWS = 1000;
+
+/** Порции для API: строки таблицы по `size`, номера строк сохраняются. */
+export function importBatches<T>(lots: T[], size: number = IMPORT_MAX_ROWS): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < lots.length; i += size) out.push(lots.slice(i, i + size));
+  return out;
+}
+
+/**
+ * Строки-примеры в шаблоне начинаются с этого: загруженный как есть шаблон
+ * не выставит «пример» на витрину — такая строка всегда с ошибкой.
+ */
+export const IMPORT_EXAMPLE_PREFIX = { ru: 'Пример:', en: 'Example:' } as const;
 
 /** Характеристика раздела, как её отдаёт `GET /catalog/categories/:id/attributes`. */
 export interface ImportAttr {
@@ -129,6 +148,9 @@ export function importPrice(raw: string): string | null {
  */
 export function lotImportError(lot: ImportLot, attrs: ImportAttr[]): string | null {
   const title = lot.title.trim();
+  if (Object.values(IMPORT_EXAMPLE_PREFIX).some((p) => title.toLowerCase().startsWith(p.toLowerCase()))) {
+    return 'Строка-пример из шаблона — удалите её или замените своим лотом';
+  }
   if (lot.id !== undefined && !UUID.test(lot.id))
     return 'Неверный ID — оставьте его как в выгрузке или очистите';
   if (title.length < 3 || title.length > 120) return 'Название — от 3 до 120 знаков';
@@ -195,8 +217,8 @@ export function readImport(table: string[][], attrs: ImportAttr[]): ImportRead {
   const rows = body
     .map((cells, i) => ({ cells, line: i + 2 }))
     .filter((r) => r.cells.some((c) => c.trim()));
-  if (rows.length > IMPORT_MAX_ROWS) {
-    out.fatal = `Не больше ${IMPORT_MAX_ROWS} лотов за раз — разделите таблицу`;
+  if (rows.length > IMPORT_MAX_FILE_ROWS) {
+    out.fatal = `Не больше ${IMPORT_MAX_FILE_ROWS} лотов в одной таблице — разделите её`;
     return out;
   }
   for (const { cells, line } of rows) {
@@ -251,14 +273,48 @@ export function readImport(table: string[][], attrs: ImportAttr[]): ImportRead {
   return out;
 }
 
-/** Строка заголовков для шаблона: основные столбцы и характеристики раздела, через «;». */
-export function importTemplate(attrs: ImportAttr[], lang: 'ru' | 'en' = 'ru'): string {
+/**
+ * Шаблон раздела, через «;»: строка заголовков — основные столбцы и
+ * характеристики раздела. С `example` — ещё две строки-примера, как
+ * заполнять: значения характеристик — допустимые, название — с «Пример:»,
+ * поэтому сами примеры не выставятся (`lotImportError`).
+ */
+export function importTemplate(
+  attrs: ImportAttr[],
+  lang: 'ru' | 'en' = 'ru',
+  example?: { what: string },
+): string {
   const base =
     lang === 'en'
       ? ['title', 'description', 'price', 'stock']
       : ['Название', 'Описание', 'Цена, ₽', 'Наличие'];
   const cols = [...base, ...attrs.map((a) => (lang === 'en' ? a.key : a.label))];
-  return `${cols.map((c) => (/[;"\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(';')}\r\n`;
+  const line = (cells: string[]) => `${cells.map((c) => (/[;"\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(';')}\r\n`;
+  if (!example) return line(cols);
+  const yes = lang === 'en' ? 'yes' : 'да';
+  const value = (a: ImportAttr, second: boolean) =>
+    a.type === 'enum' && a.options?.length
+      ? (a.options[second ? Math.min(1, a.options.length - 1) : 0] ?? '')
+      : a.type === 'bool'
+        ? second ? '' : yes
+        : a.type === 'number'
+          ? second ? '' : '100'
+          : '';
+  const p = IMPORT_EXAMPLE_PREFIX[lang];
+  const rows =
+    lang === 'en'
+      ? [
+          [`${p} ${example.what}`, 'What the buyer gets, how you hand it over and how fast', '1000', '1'],
+          [`${p} ${example.what}, second`, 'Empty stock — no limit', '2490', ''],
+        ]
+      : [
+          [`${p} ${example.what}`, 'Что получит покупатель, как передаёте и как быстро', '1000', '1'],
+          [`${p} ${example.what}, второй`, 'Пустое наличие — без ограничения', '2490', ''],
+        ];
+  return (
+    line(cols) +
+    rows.map((r, i) => line([...r, ...attrs.map((a) => value(a, i === 1))])).join('')
+  );
 }
 
 /** Ячейка CSV: с «;», кавычкой или переносом — в кавычках, кавычки удваиваются. */

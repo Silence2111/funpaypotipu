@@ -4,6 +4,7 @@ import { Clock, Percent, ShieldCheck, Zap } from 'lucide-react';
 import { apiTry, getGameIndex, getPublicPricing } from '@/lib/api';
 import { getT } from '@/lib/i18n/server';
 import { SellCalculator, type SellEstimate } from '@/components/sell-calculator';
+import { MoveLots } from '@/components/move-lots';
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 /** С чего калькулятор начинает: аккаунт CS2 за 1 000 ₽ — самая частая продажа. */
@@ -62,6 +63,8 @@ export default async function SellPage() {
       ) : (
         <p className="muted">{t('Калькулятор сейчас недоступен — попробуйте обновить страницу.')}</p>
       )}
+
+      {start && <MoveLots games={games} initialGame={start.slug} />}
 
       <section aria-labelledby="sell-how">
         <h2 className="h2" id="sell-how" style={{ fontSize: 22, marginBottom: 16 }}>{t('Как устроена продажа')}</h2>

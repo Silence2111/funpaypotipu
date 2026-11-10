@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  IMPORT_MAX_FILE_ROWS,
   IMPORT_MAX_ROWS,
+  importBatches,
   exportLots,
   importPrice,
   importTemplate,
@@ -84,13 +86,42 @@ describe('лоты из таблицы', () => {
     expect(readImport(parseCsv('title;description;price;rank\n'), ATTRS).fatal).toBe(
       'В таблице нет строк с лотами',
     );
-    const many = [
+    // Больше порции API — не ошибка: сайт загрузит по частям; больше таблицы — да.
+    const rows = (n: number) => [
       'title;description;price;rank',
-      ...Array.from({ length: IMPORT_MAX_ROWS + 1 }, (_, i) => `Лот ${i};О;1;Silver`),
+      ...Array.from({ length: n }, (_, i) => `Лот ${i};О;1;Silver`),
     ];
-    expect(readImport(parseCsv(many.join('\n')), ATTRS).fatal).toBe(
-      `Не больше ${IMPORT_MAX_ROWS} лотов за раз — разделите таблицу`,
+    const big = readImport(parseCsv(rows(IMPORT_MAX_ROWS + 50).join('\n')), ATTRS);
+    expect(big.fatal).toBeNull();
+    expect(big.lots).toHaveLength(IMPORT_MAX_ROWS + 50);
+    expect(readImport(parseCsv(rows(IMPORT_MAX_FILE_ROWS + 1).join('\n')), ATTRS).fatal).toBe(
+      `Не больше ${IMPORT_MAX_FILE_ROWS} лотов в одной таблице — разделите её`,
     );
+  });
+
+  it('порции по 200 — номера строк на месте', () => {
+    const lots = Array.from({ length: 450 }, (_, i) => ({ line: i + 2 }));
+    const parts = importBatches(lots);
+    expect(parts.map((p) => p.length)).toEqual([200, 200, 50]);
+    expect(parts[2]![0]!.line).toBe(402);
+    expect(importBatches([])).toEqual([]);
+  });
+
+  it('шаблон с примерами: значения допустимые, но сами примеры не выставятся', () => {
+    const csv = importTemplate(ATTRS, 'ru', { what: 'Аккаунты Counter-Strike 2' });
+    const lines = csv.trim().split('\r\n');
+    expect(lines).toHaveLength(3);
+    expect(lines[1]).toMatch(/^Пример: Аккаунты Counter-Strike 2;/);
+    const read = readImport(parseCsv(csv), ATTRS);
+    expect(read.lots).toHaveLength(0);
+    expect(read.errors.map((e) => e.message)).toEqual([
+      'Строка-пример из шаблона — удалите её или замените своим лотом',
+      'Строка-пример из шаблона — удалите её или замените своим лотом',
+    ]);
+    // Свой лот вместо примера — выставляется.
+    const mine = csv.replace('Пример: Аккаунты Counter-Strike 2;', 'Аккаунт Global Elite;');
+    expect(readImport(parseCsv(mine), ATTRS).lots).toHaveLength(1);
+    expect(importTemplate(ATTRS, 'en', { what: 'CS2 accounts' })).toMatch(/\r\nExample: CS2 accounts;/);
   });
 
   it('шаблон — заголовки раздела; по-английски — ключи, и их таблица понимает', () => {
