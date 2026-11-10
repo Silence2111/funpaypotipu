@@ -96,9 +96,22 @@ TAG=v1.0.0 envsubst < infra/k8s/migrate-job.yaml | kubectl apply -f -
 «успешным». Руками: `$C exec backup /ops/backup.sh`.
 
 **Копия вне сервера — обязательно**: сервер умирает вместе со своими
-бэкапами. С другой машины раз в сутки:
-`rsync -a root@сервер:/opt/gamemarket/infra/backups/ ./gamemarket-backups/`
-— или выгрузка в объектное хранилище.
+бэкапами. Проще всего — S3-совместимое хранилище (Яндекс Object Storage,
+Timeweb, Selectel): приватный бакет, ключ с доступом только к нему, и в
+`infra/.env.production` — `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`,
+`BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`. Каждую
+ночь пара файлов уходит туда и сверяется по размеру, хранится
+`BACKUP_S3_KEEP_DAYS` (30). Без хранилища — с другой машины раз в сутки:
+`rsync -a root@сервер:/opt/gamemarket/infra/backups/ ./gamemarket-backups/`.
+Сторож сообщает, если удачного бэкапа не было больше суток.
+
+Достать копию из хранилища на новый сервер:
+```bash
+docker run --rm -v "$PWD/infra/backups:/b" \
+  -e RCLONE_CONFIG_S_TYPE=s3 -e RCLONE_CONFIG_S_PROVIDER=Other \
+  -e RCLONE_CONFIG_S_ENDPOINT=https://… -e RCLONE_CONFIG_S_ACCESS_KEY_ID=… \
+  -e RCLONE_CONFIG_S_SECRET_ACCESS_KEY=… rclone/rclone copy s:бакет/gamemarket /b
+```
 
 **Проверка бэкапа — без остановки прода:** восстановить в отдельную базу
 рядом и сравнить.
@@ -127,6 +140,22 @@ $C up -d
 
 **Обновление.** `git pull && $C up -d --build` — `migrate` применит новые
 миграции до старта нового API.
+
+**Выкат готовыми образами — без сборки на сервере** (хватает 2 ГБ памяти).
+Образы собирает GitHub по тегу (`.github/workflows/deploy.yml`):
+1. Settings → Secrets and variables → Actions → Variables: `PUBLIC_URL`
+   (`https://домен` — вшивается в сборку сайта) и `DEPLOY_TARGET=vps`.
+2. Secrets: `VPS_HOST`, `VPS_USER` (по умолчанию root), `VPS_SSH_KEY` —
+   закрытый ключ, открытый — в `~/.ssh/authorized_keys` сервера.
+3. Сервер готов по шагам 1–3 (Docker, код в `/opt/gamemarket`,
+   `infra/.env.production`).
+4. `git tag v1.0.0 && git push origin v1.0.0` — GitHub собирает образы
+   `ghcr.io/<владелец>/<репозиторий>-api` и `-web`, заходит на сервер,
+   переключает код на тег, скачивает образы, поднимает стек и проверяет
+   его `smoke.sh` в режиме только чтения (без тестового пользователя).
+Откат — тот же выкат предыдущего тега (Actions → Deploy → Run workflow).
+Без `DEPLOY_TARGET` GitHub только публикует образы; руками на сервере:
+`IMAGE_PREFIX=ghcr.io/<владелец>/<репозиторий> IMAGE_TAG=v1.0.0 $C pull && $C up -d --no-build`.
 
 ## Управляемые сервисы (рекомендация для прода)
 

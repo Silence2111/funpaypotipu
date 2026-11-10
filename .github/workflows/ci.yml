@@ -171,6 +171,38 @@ jobs:
           # Пользователь из проверки — и в восстановленной базе.
           q gamemarket_check "SELECT count(*) FROM profiles WHERE username LIKE 'smoke%'" | grep -qx 1
 
+      - name: Копия бэкапа вне сервера
+        run: |
+          # Хранилище S3 — временный «rclone serve s3» в той же сети (образов MinIO на
+          # Docker Hub больше нет); проверяет его отдельный клиент — официальный aws-cli.
+          net=$(docker network ls --format '{{.Name}}' | grep 'gamemarket-prod_default')
+          # Ключи — в формате AWS (20 и 40 знаков): короткие rclone serve s3 не принимает.
+          AK=AKIAGAMEMARKETCI0001; SK=gamemarketcisecretkey0000000000000000001
+          docker run -d --name s3 --network "$net" rclone/rclone:1.69.1 serve s3 --auth-key "$AK,$SK" --addr :8080 /data
+          aws() {
+            docker run --rm --network "$net" -e AWS_ACCESS_KEY_ID=$AK -e AWS_SECRET_ACCESS_KEY=$SK -e AWS_DEFAULT_REGION=us-east-1 \
+              --entrypoint sh amazon/aws-cli:latest -c "aws configure set default.s3.addressing_style path && aws --endpoint-url http://s3:8080 $*"
+          }
+          for i in $(seq 1 30); do aws s3 mb s3://gm-backups && break; sleep 2; done
+          $C exec -T -e BACKUP_S3_ENDPOINT=http://s3:8080 -e BACKUP_S3_BUCKET=gm-backups \
+            -e BACKUP_S3_ACCESS_KEY=$AK -e BACKUP_S3_SECRET_KEY=$SK backup /ops/backup.sh | tee /tmp/offsite.log
+          grep -q 'вне сервера: offsite:gm-backups/gamemarket' /tmp/offsite.log
+          aws s3 ls s3://gm-backups/gamemarket/ | tee /tmp/offsite-ls.txt
+          grep -q 'db-.*\.dump' /tmp/offsite-ls.txt && grep -q 'uploads-.*\.tar\.gz' /tmp/offsite-ls.txt
+
+      - name: Сторож видит старый бэкап
+        run: |
+          sudo touch -d '2 days ago' infra/backups/.last-ok
+          for i in $(seq 1 12); do $C logs healthwatch | grep -q 'бэкапа не было' && break; sleep 5; done
+          $C logs healthwatch | grep 'бэкапа не было'
+
+      - name: Проверка выката — только чтение
+        run: |
+          before=$($C exec -T postgres psql -U gamemarket -d gamemarket -tAc 'SELECT count(*) FROM users')
+          SMOKE_READONLY=1 bash infra/ops/smoke.sh http://localhost
+          after=$($C exec -T postgres psql -U gamemarket -d gamemarket -tAc 'SELECT count(*) FROM users')
+          echo "users: $before → $after"; [ "$before" = "$after" ]
+
       - name: Сторож видит падение
         run: |
           $C stop web
@@ -185,6 +217,11 @@ jobs:
             -e DATABASE_URL=postgresql://u:p@127.0.0.1:5432/db gamemarket-api:local node dist/main.js
           code=$?
           echo "exit $code"; test "$code" -ne 0
+
+      # Сколько памяти занимает стек под нагрузкой проверок: по нему — размер сервера.
+      - name: Память стека
+        if: always()
+        run: docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}'
 
       - name: Журналы
         if: always()

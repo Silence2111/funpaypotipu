@@ -180,13 +180,22 @@ services:
       PGDATABASE: gamemarket
       PGPASSWORD: ${POSTGRES_PASSWORD}
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      # Копия вне сервера — любое S3-совместимое хранилище; пусто — только на сервере.
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-}
+      BACKUP_S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY:-}
+      BACKUP_S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY:-}
+      BACKUP_S3_KEEP_DAYS: ${BACKUP_S3_KEEP_DAYS:-30}
       TZ: Europe/Moscow
     volumes:
       - ./ops:/ops:ro
       # Не только чтение: тем же сервисом файлы восстанавливаются (ops/restore.sh).
       - uploads:/data/uploads
       - ${BACKUP_DIR:-./backups}:/backups
-    entrypoint: ["/bin/sh", "-c", "echo '0 3 * * * /ops/backup.sh' | crontab - && exec crond -f -l 6"]
+    # rclone — для копии вне сервера; ставится при запуске контейнера.
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache rclone >/dev/null && echo '0 3 * * * /ops/backup.sh' | crontab - && exec crond -f -l 6"]
     depends_on:
       postgres: { condition: service_healthy }
     restart: unless-stopped
@@ -201,7 +210,11 @@ services:
       ALERT_CHAT_ID: ${ALERT_CHAT_ID:-}
       PUBLIC_URL: ${PUBLIC_URL}
       HEALTH_INTERVAL: ${HEALTH_INTERVAL:-60}
-    volumes: [./ops:/ops:ro]
+      BACKUP_MAX_AGE_H: ${BACKUP_MAX_AGE_H:-26}
+    volumes:
+      - ./ops:/ops:ro
+      # Только чтение — сторож смотрит время последнего бэкапа.
+      - ${BACKUP_DIR:-./backups}:/backups:ro
     entrypoint: ["/bin/sh", "-c", "apk add --no-cache curl >/dev/null && exec /ops/healthwatch.sh"]
     depends_on: [api, web]
     restart: unless-stopped
