@@ -161,7 +161,9 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async me(@CurrentUser() user: AuthUser) {
-    return { ...user, roles: await this.auth.rolesOf(user.userId) };
+    // twoFactor — консоли: сотруднику без входа с кодом она показывает, где его включить.
+    const [roles, tf] = await Promise.all([this.auth.rolesOf(user.userId), this.twoFactor.status(user.userId)]);
+    return { ...user, roles, twoFactor: tf.enabled };
   }
 
   // ── Двухфакторная аутентификация ──

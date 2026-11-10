@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { Prisma, PrismaClient } from '@gamemarket/db';
-import { suggestUsername, usernameSchema } from '@gamemarket/shared';
+import { PD_CONSENT_REQUIRED, PD_CONSENT_VERSION, suggestUsername, usernameSchema } from '@gamemarket/shared';
 import { PRISMA } from '../../../prisma/prisma.module';
 import { AuthService, type IssuedAuth, type RequestCtx } from '../auth.service';
 import { TokenService } from '../token.service';
@@ -216,7 +216,7 @@ export class SocialService {
   /** Завершение входа по билету: ник для нового аккаунта, код — если включена защита. */
   async complete(
     ticketCookie: string | undefined,
-    input: { code?: string; username?: string },
+    input: { code?: string; username?: string; pdConsent?: boolean },
     ctx: RequestCtx,
   ): Promise<IssuedAuth> {
     let profile: SocialProfile;
@@ -225,11 +225,18 @@ export class SocialService {
     } catch {
       throw ticketError(401, 'social_expired', 'Вход через сервис устарел — начните заново');
     }
-    const userId = await this.resolve(profile, input.username?.trim().toLowerCase());
+    const userId = await this.resolve(profile, input.username?.trim().toLowerCase(), {
+      consent: input.pdConsent === true,
+      ctx,
+    });
     return this.auth.loginVerified(userId, input.code?.trim(), ctx);
   }
 
-  private async resolve(p: SocialProfile, username?: string): Promise<string> {
+  private async resolve(
+    p: SocialProfile,
+    username: string | undefined,
+    consent: { consent: boolean; ctx: RequestCtx },
+  ): Promise<string> {
     const linked = await this.prisma.socialAccount.findUnique({
       where: { provider_subject: { provider: p.provider, subject: p.subject } },
     });
@@ -271,11 +278,15 @@ export class SocialService {
         );
       }
     }
-    return this.create(p, username);
+    return this.create(p, username, consent);
   }
 
   /** Новый аккаунт: ник выбирает человек, подсказка — из имени в сервисе. */
-  private async create(p: SocialProfile, username?: string): Promise<string> {
+  private async create(
+    p: SocialProfile,
+    username: string | undefined,
+    consent: { consent: boolean; ctx: RequestCtx },
+  ): Promise<string> {
     const suggested = await this.freeUsername(
       suggestUsername(p.nick, p.name, p.email?.split('@')[0]),
     );
@@ -297,6 +308,11 @@ export class SocialService {
     if (await this.prisma.profile.findUnique({ where: { username }, select: { userId: true } })) {
       throw ticketError(409, 'username_taken', 'Этот ник занят', { suggested });
     }
+    // Отдельное согласие на обработку ПД (часть 120): без него аккаунт не
+    // заводится и через Яндекс ID, VK ID или Telegram.
+    if (!consent.consent) {
+      throw ticketError(400, 'consent_required', PD_CONSENT_REQUIRED, { provider: p.provider });
+    }
     const telegram =
       p.provider === 'telegram' &&
       !(await this.prisma.user.findUnique({
@@ -314,6 +330,14 @@ export class SocialService {
           emailVerified: email && p.emailVerified ? new Date() : null,
           telegramId: telegram ? p.subject : null,
           profile: { create: { username, displayName: name } },
+          consents: {
+            create: {
+              version: PD_CONSENT_VERSION,
+              method: p.provider,
+              ip: consent.ctx.ip?.slice(0, 64) ?? null,
+              userAgent: consent.ctx.userAgent?.slice(0, 300) ?? null,
+            },
+          },
           socialAccounts: {
             create: {
               provider: p.provider,

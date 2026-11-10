@@ -14,8 +14,8 @@ describe('isDemoSeller', () => {
 describe('ник демо-продавца при регистрации', () => {
   it('занят: иначе живой продавец получил бы пометку «Пример» на всех лотах', async () => {
     const { registerSchema } = await import('./contracts/auth');
-    const r = registerSchema.safeParse({ email: 'a@b.ru', password: 'password123', username: 'goldsmith' });
+    const r = registerSchema.safeParse({ email: 'a@b.ru', password: 'password123', username: 'goldsmith', pdConsent: true });
     expect(r.success).toBe(false);
-    expect(registerSchema.safeParse({ email: 'a@b.ru', password: 'password123', username: 'goldsmith2' }).success).toBe(true);
+    expect(registerSchema.safeParse({ email: 'a@b.ru', password: 'password123', username: 'goldsmith2', pdConsent: true }).success).toBe(true);
   });
 });

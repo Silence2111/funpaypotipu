@@ -76,6 +76,8 @@ function setup() {
     },
     order: { findUnique: vi.fn(async () => order) },
     userRole: { findMany: vi.fn(async () => []), count: vi.fn(async () => 0) },
+    // Роли и вход с кодом (часть 119): участники спора — не сотрудники.
+    user: { findUnique: vi.fn(async () => ({ roles: [], twoFactor: null })) },
     profile: { findMany: vi.fn(async () => []) },
   };
   const orders = {

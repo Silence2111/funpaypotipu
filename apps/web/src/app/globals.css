@@ -4207,6 +4207,15 @@ a.my-lot-title:hover {
   gap: 6px 12px;
 }
 
+/* Плашка согласия на обработку ПД (часть 120): текст, кнопки — справа или ниже. */
+.consent-banner {
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+.consent-banner > span:first-of-type {
+  flex: 1 1 280px;
+}
+
 /* «Продавать»: переезд таблицей (часть 117). */
 .import-table td.num {
   white-space: nowrap;

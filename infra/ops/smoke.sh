@@ -28,7 +28,7 @@ ok "главная с каталогом — с сервера"
 if [ "${SMOKE_READONLY:-}" != 1 ]; then
 name="smoke_$(date +%s)"
 reg="$(curl -sf -X POST "$URL/api/auth/register" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$name@smoke.local\",\"password\":\"smoke-password-123\",\"username\":\"$name\"}")" \
+  -d "{\"email\":\"$name@smoke.local\",\"password\":\"smoke-password-123\",\"username\":\"$name\",\"pdConsent\":true}")" \
   || fail "регистрация не прошла"
 token="$(echo "$reg" | sed -n 's/.*"accessToken":"\([^"]*\)".*/\1/p')"
 [ -n "$token" ] || fail "регистрация без токена: $reg"

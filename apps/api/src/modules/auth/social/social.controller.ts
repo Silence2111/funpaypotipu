@@ -47,6 +47,8 @@ const telegramSchema = z
 const completeSchema = z.object({
   code: z.string().trim().max(20).optional(),
   username: z.string().trim().max(32).optional(),
+  // Новый аккаунт — только с отдельным согласием на обработку ПД (часть 120).
+  pdConsent: z.boolean().optional(),
 });
 
 const cookies = (req: Request) => (req.cookies ?? {}) as Record<string, string | undefined>;
@@ -128,7 +130,7 @@ export class SocialController {
   @RateLimit('auth-social', 20, 600)
   @HttpCode(200)
   async complete(
-    @Body(new ZodValidationPipe(completeSchema)) body: { code?: string; username?: string },
+    @Body(new ZodValidationPipe(completeSchema)) body: { code?: string; username?: string; pdConsent?: boolean },
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {

@@ -498,6 +498,9 @@ export const EN_API: Phrasebook = {
   'Это ваш запрос': 'This is your request',
   'На свой запрос жаловаться не нужно': 'No need to report your own request',
   'Снять можно только запрос покупателя': 'Only a buyer request can be removed',
+  // Сотрудники — только с входом с кодом (часть 119)
+  'Включите вход с кодом: консоль и действия сотрудника — только с ним':
+    'Turn on sign-in with a code: the console and staff actions require it',
   // Партнёрская программа
   'Чтобы включить программу, задайте долю и срок больше нуля':
     'To turn the program on, set a share and a term above zero',

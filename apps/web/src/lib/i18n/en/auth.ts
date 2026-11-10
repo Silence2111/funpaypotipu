@@ -26,8 +26,6 @@ export const AUTH: Record<string, string> = {
   'Мне есть 18 лет, я принимаю': 'I’m 18 or older, I accept the',
   правила: 'rules',
   оферту: 'terms of service',
-  'и согласен на': 'and agree to the',
-  'обработку персональных данных': 'processing of personal data',
   'Без согласия с правилами аккаунт не создать':
     'You can’t create an account without accepting the rules',
   'Создаём аккаунт…': 'Creating account…',
@@ -216,4 +214,36 @@ export const AUTH: Record<string, string> = {
   'Почту аккаунта сменили на {email}. Если это сделали не вы — верните прежнюю до {until}: задайте новый пароль, все устройства выйдут, вход с кодом и входы через сервисы отключатся.':
     'The account email was changed to {email}. If it wasn’t you, restore the previous one by {until}: set a new password, and all devices will be signed out, with the sign-in code and service sign-ins turned off.',
   'Вернуть почту': 'Restore email',
+  // Согласие на обработку ПД — отдельно (часть 120)
+  Даю: 'I give',
+  и: 'and',
+  'согласие на обработку персональных данных': 'consent to the processing of personal data',
+  'Согласие на обработку персональных данных': 'Consent to the processing of personal data',
+  'Без согласия на обработку персональных данных аккаунт не создать':
+    'You can’t create an account without consent to the processing of personal data',
+  'Не удалось загрузить согласие.': 'Couldn’t load the consent.',
+  'Согласие дано — спасибо.': 'Consent given — thank you.',
+  'Согласие отозвано. Данные, без которых не исполнить заключённые сделки и требования закона, храним в установленные сроки; остальные не обрабатываем.':
+    'Consent withdrawn. Data needed to fulfil completed deals and legal requirements is kept for the required periods; the rest is no longer processed.',
+  дано: 'given',
+  'не дано': 'not given',
+  '{date}, {how}': '{date}, {how}',
+  'по прежней редакции': 'under the previous version',
+  'Без согласия мы обрабатываем только то, без чего не исполнить сделки и требования закона.':
+    'Without consent we process only what is needed to fulfil deals and legal requirements.',
+  'Текст согласия': 'Consent text',
+  'редакция от {v}': 'version of {v}',
+  'Даю согласие': 'I give consent',
+  'Да, отозвать': 'Yes, withdraw',
+  'Отозвать согласие': 'Withdraw consent',
+  'Отзыв записывается с датой. Заключённые сделки и расчёты сохранятся; сайт будет просить согласие снова, пока вы его не дадите.':
+    'The withdrawal is recorded with a date. Completed deals and payments stay; the site will keep asking for consent until you give it.',
+  'Подтвердите согласие на обработку персональных данных — теперь оно оформляется отдельно от оферты.':
+    'Please confirm your consent to the processing of personal data — it is now given separately from the offer.',
+  Позже: 'Later',
+  'при регистрации по почте': 'when signing up by email',
+  'при входе через Яндекс ID': 'when signing in with Yandex ID',
+  'при входе через VK ID': 'when signing in with VK ID',
+  'при входе через Telegram': 'when signing in with Telegram',
+  'в кабинете': 'in your account',
 };

@@ -324,10 +324,15 @@ describe('завершение входа', () => {
     await expect(svc.complete(t, { username: 'miroslava_kim' }, {})).rejects.toMatchObject({
       response: { error: 'username_taken' },
     });
-    await svc.complete(t, { username: 'mirka_vk' }, {});
+    // Без отдельного согласия на обработку ПД аккаунт не заводится (часть 120).
+    await expect(svc.complete(t, { username: 'mirka_vk' }, {})).rejects.toMatchObject({
+      response: { error: 'consent_required' },
+    });
+    await svc.complete(t, { username: 'mirka_vk', pdConsent: true }, { ip: '10.0.0.5' });
     expect(created[0]).toMatchObject({
       profile: { create: { username: 'mirka_vk', displayName: 'Мирослава Ким' } },
       socialAccounts: { create: { provider: 'vk', subject: 'vk-5' } },
+      consents: { create: { method: 'vk', ip: '10.0.0.5' } },
     });
   });
 
@@ -335,10 +340,10 @@ describe('завершение входа', () => {
     const { svc, created } = service({});
     await svc.complete(
       ticketFor({ provider: 'telegram', subject: '888', nick: 'tg_user' }),
-      { username: 'tg_user' },
+      { username: 'tg_user', pdConsent: true },
       {},
     );
-    expect(created[0]).toMatchObject({ telegramId: '888' });
+    expect(created[0]).toMatchObject({ telegramId: '888', consents: { create: { method: 'telegram' } } });
   });
 
   it('билета нет или он чужого назначения — вход не начинается', async () => {

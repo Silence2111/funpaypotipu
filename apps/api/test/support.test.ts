@@ -19,6 +19,14 @@ function setup(opts: { ticket?: Record<string, unknown>; staff?: boolean; open?:
     },
     supportMessage: { create: vi.fn(async () => ({})) },
     userRole: { count: vi.fn(async () => (opts.staff ? 1 : 0)) },
+    // Сотрудник — роль поддержки и вход с кодом (часть 119).
+    user: {
+      findUnique: vi.fn(async () =>
+        opts.staff
+          ? { roles: [{ role: { key: 'agent' } }], twoFactor: { enabledAt: new Date() } }
+          : { roles: [], twoFactor: null },
+      ),
+    },
   };
   const notifications = { notify: vi.fn(async () => undefined) };
   return { svc: new SupportService(prisma as never, notifications as never), state, prisma, notifications };

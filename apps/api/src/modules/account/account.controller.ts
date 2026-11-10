@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Put, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
@@ -6,6 +7,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { BlocksService } from '../access/blocks.service';
 import { AccountService } from './account.service';
+import { ConsentService } from './consent.service';
+import { ctxOf } from '../auth/auth-http';
 import { PushService, type PushSubscriptionInput } from '../notifications/push.service';
 import { NOTIFY_GROUPS } from '@gamemarket/shared';
 import { RateLimit } from '../../common/rate-limit';
@@ -41,7 +44,26 @@ export class AccountController {
     private readonly account: AccountService,
     private readonly blocks: BlocksService,
     private readonly push: PushService,
+    private readonly consent: ConsentService,
   ) {}
+
+  /** Согласие на обработку ПД (часть 120): действующее, история, текущая редакция. */
+  @Get('consent')
+  consentStatus(@CurrentUser() user: AuthUser) {
+    return this.consent.status(user.userId);
+  }
+
+  @Post('consent')
+  @HttpCode(200)
+  giveConsent(@CurrentUser() user: AuthUser, @Req() req: Request) {
+    return this.consent.give(user.userId, ctxOf(req));
+  }
+
+  @Post('consent/revoke')
+  @HttpCode(200)
+  revokeConsent(@CurrentUser() user: AuthUser, @Req() req: Request) {
+    return this.consent.revoke(user.userId, ctxOf(req));
+  }
 
   @Get('profile')
   profile(@CurrentUser() user: AuthUser) {

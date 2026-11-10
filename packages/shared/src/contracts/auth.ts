@@ -17,6 +17,9 @@ export const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128),
   username: usernameSchema,
+  // Отдельное согласие на обработку персональных данных (часть 120): без него
+  // аккаунт не создаётся; факт согласия API записывает с версией и адресом.
+  pdConsent: z.literal(true, { errorMap: () => ({ message: 'Нужно согласие на обработку персональных данных' }) }),
 });
 
 const TRANSLIT: Record<string, string> = {

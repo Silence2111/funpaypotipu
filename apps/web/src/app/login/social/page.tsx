@@ -34,6 +34,8 @@ function Complete() {
   const [name, setName] = useState<string | null>(null);
   const [username, setUsername] = useState('');
   const [agreed, setAgreed] = useState(false);
+  // Согласие на обработку ПД — отдельной галочкой (часть 120).
+  const [pdConsent, setPdConsent] = useState(false);
   const [code, setCode] = useState('');
   const [recovery, setRecovery] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -41,7 +43,7 @@ function Complete() {
   const started = useRef(false);
 
   const send = useCallback(
-    async (extra: { username?: string; code?: string }) => {
+    async (extra: { username?: string; code?: string; pdConsent?: boolean }) => {
       setBusy(true);
       setMsg(null);
       try {
@@ -65,6 +67,10 @@ function Complete() {
             setProvider(body.provider ?? null);
             setName(body.name ?? null);
             setUsername((u) => u || body.suggested || '');
+            break;
+          case 'consent_required':
+            setPhase('username');
+            setMsg(t('Без согласия на обработку персональных данных аккаунт не создать'));
             break;
           case 'username_taken':
             setMsg(
@@ -105,7 +111,8 @@ function Complete() {
     if (!USERNAME_RE.test(u))
       return setMsg(t('Ник — строчные латинские буквы, цифры и _, от 3 символов'));
     if (!agreed) return setMsg(t('Без согласия с правилами аккаунт не создать'));
-    void send({ username: u });
+    if (!pdConsent) return setMsg(t('Без согласия на обработку персональных данных аккаунт не создать'));
+    void send({ username: u, pdConsent: true });
   }
 
   function submitCode(e: FormEvent) {
@@ -189,14 +196,40 @@ function Complete() {
               {t('Мне есть 18 лет, я принимаю')}{' '}
               <Link href="/rules" style={{ color: 'var(--accent)' }}>
                 {t('правила')}
-              </Link>
-              ,{' '}
+              </Link>{' '}
+              {t('и')}{' '}
               <Link href="/oferta" style={{ color: 'var(--accent)' }}>
                 {t('оферту')}
-              </Link>{' '}
-              {t('и согласен на')}{' '}
-              <Link href="/privacy" style={{ color: 'var(--accent)' }}>
-                {t('обработку персональных данных')}
+              </Link>
+            </span>
+          </label>
+          {/* Согласие на обработку ПД — отдельно от оферты (152-ФЗ, ст. 9). */}
+          <label
+            className="row muted"
+            style={{
+              gap: 10,
+              fontSize: 14,
+              alignItems: 'flex-start',
+              minHeight: 44,
+              cursor: 'pointer',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={pdConsent}
+              onChange={(e) => setPdConsent(e.target.checked)}
+              style={{
+                marginTop: 3,
+                width: 18,
+                height: 18,
+                accentColor: 'var(--accent)',
+                flex: 'none',
+              }}
+            />
+            <span>
+              {t('Даю')}{' '}
+              <Link href="/soglasie" style={{ color: 'var(--accent)' }}>
+                {t('согласие на обработку персональных данных')}
               </Link>
             </span>
           </label>
