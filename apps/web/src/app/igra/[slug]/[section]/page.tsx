@@ -15,18 +15,26 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const names = { category: t.d(cat.title), game: t.d(game.title) };
   return {
     title: t('{category} {game} — купить у продавцов', names),
-    description: t(
-      '{category} {game}: {offers} от продавцов с рейтингом и отзывами. Деньги у площадки, пока вы не подтвердите получение.',
-      {
-        ...names,
-        // «от 450 ₽, 12 предложений» — цена в сниппете, когда она есть.
-        offers:
-          cat.minPrice && (cat.listingCount ?? 0) > 0
-            ? `${t('от {price}', { price: formatPrice(cat.minPrice, 'RUB', t) })}, ${offersCount(cat.listingCount ?? 0, t)}`
-            : offersCount(cat.listingCount ?? 0, t),
-      },
-    ),
+    // Пустой раздел — без «0 предложений» в сниппете и превью ссылки.
+    description: !cat.listingCount
+      ? t(
+          '{category} {game}: покупка у продавцов с рейтингом и отзывами. Деньги у площадки, пока вы не подтвердите получение.',
+          names,
+        )
+      : t(
+          '{category} {game}: {offers} от продавцов с рейтингом и отзывами. Деньги у площадки, пока вы не подтвердите получение.',
+          {
+            ...names,
+            // «от 450 ₽, 12 предложений» — цена в сниппете, когда она есть.
+            offers: cat.minPrice
+              ? `${t('от {price}', { price: formatPrice(cat.minPrice, 'RUB', t) })}, ${offersCount(cat.listingCount, t)}`
+              : offersCount(cat.listingCount, t),
+          },
+        ),
     alternates: { canonical: `/igra/${slug}/${section}` },
+    // Пустой раздел не индексируем: сотня пустых страниц на старте — «малоценные»
+    // для поиска. С первым лотом запрет снимается сам.
+    ...(!cat.listingCount && { robots: { index: false, follow: true } }),
   };
 }
 

@@ -3,10 +3,17 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { TrendingDown } from 'lucide-react';
 import { PRICE_LOW_DAYS } from '@gamemarket/shared/price-history';
-import { browseListings, getGameIndex, getCategoryAttributes, SEGMENTS, type Attribute } from '@/lib/api';
+import {
+  browseListings,
+  getGameIndex,
+  getCategoryAttributes,
+  SEGMENTS,
+  type Attribute,
+} from '@/lib/api';
 import { OfferTable } from '@/components/offers';
 import { SearchBar } from '@/components/search-bar';
 import { ParamSelect } from '@/components/param-select';
+import { hitHref, searchGames } from '@/lib/game-search';
 import { getT } from '@/lib/i18n/server';
 import { msg } from '@/lib/i18n/lang';
 
@@ -14,7 +21,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return {
     title: t('Все предложения — поиск игровых товаров'),
-    description: t('Поиск по предложениям продавцов: аккаунты, валюта, предметы, ключи, донат и услуги во всех играх.'),
+    description: t(
+      'Поиск по предложениям продавцов: аккаунты, валюта, предметы, ключи, донат и услуги во всех играх.',
+    ),
   };
 }
 
@@ -38,13 +47,19 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const t = await getT();
   if (sp.game && sp.category && !sp.q) {
     const rest = new URLSearchParams();
-    for (const [k, v] of Object.entries(sp)) if (v && (k.startsWith('f_') || k === 'online' || k === 'drop' || k === 'sort')) rest.set(k, v);
+    for (const [k, v] of Object.entries(sp))
+      if (v && (k.startsWith('f_') || k === 'online' || k === 'drop' || k === 'sort'))
+        rest.set(k, v);
     const s = rest.toString();
-    redirect(`/igra/${encodeURIComponent(sp.game)}/${encodeURIComponent(sp.category)}${s ? `?${s}` : ''}`);
+    redirect(
+      `/igra/${encodeURIComponent(sp.game)}/${encodeURIComponent(sp.category)}${s ? `?${s}` : ''}`,
+    );
   }
 
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
-  const sort = ['price_asc', 'price_desc', 'popular', 'drop'].includes(sp.sort ?? '') ? sp.sort! : 'new';
+  const sort = ['price_asc', 'price_desc', 'popular', 'drop'].includes(sp.sort ?? '')
+    ? sp.sort!
+    : 'new';
   const segment = SEGMENTS.find(([k]) => k === sp.segment);
 
   // Значения фасетов приходят как f_<key>=value.
@@ -77,6 +92,11 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const items = browse?.items ?? [];
   const total = browse?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // Пустая выдача: площадка пуста целиком (тогда «уберите фильтры» — неправда)
+  // или пуст только запрос — и тогда игра, которую назвали, всё равно есть.
+  const marketEmpty =
+    index != null && games.every((g) => g.categories.every((c) => !c.listingCount));
+  const hits = !items.length && sp.q ? searchGames(games, sp.q, 4, t.d) : [];
 
   // Сборка URL: текущие параметры + патч (undefined убирает ключ).
   const qs = (patch: SP) => {
@@ -104,88 +124,152 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         <SearchBar initial={sp.q ?? ''} game={sp.game} />
       </div>
 
-      <nav className="type-chips" aria-label={t('Тип товара')} style={{ marginTop: 20 }}>
-        <Link href={qs({ segment: undefined })} className="chip" aria-current={!segment ? 'page' : undefined}>
-          {t('Все типы')}
-        </Link>
-        {SEGMENTS.map(([key, label]) => (
-          <Link key={key} href={qs({ segment: key })} className="chip" aria-current={segment?.[0] === key ? 'page' : undefined}>
-            {t(label)}
-          </Link>
-        ))}
-      </nav>
-
-      <div className="filters" style={{ marginTop: 16 }}>
-        <div className="filters-group">
-          <ParamSelect
-            name="game"
-            label={t('Игра')}
-            value={game?.slug}
-            options={games
-              .map((g): [string, string] => [g.slug, t.d(g.title)])
-              .sort((a, b) => a[1].localeCompare(b[1], t.locale))}
-            reset={['category']}
-          />
-          <Link
-            href={qs({ online: sp.online === '1' ? undefined : '1' })}
-            className="chip"
-            aria-pressed={sp.online === '1'}
-          >
-            <span className="dot-online" aria-hidden />
-            {t('Продавец в сети')}
-          </Link>
-          <Link
-            href={qs({ drop: sp.drop === '1' ? undefined : '1' })}
-            className="chip"
-            aria-pressed={sp.drop === '1'}
-            title={t('Идёт скидка или цена — самая низкая у лота за {n} дней', { n: PRICE_LOW_DAYS })}
-          >
-            <TrendingDown size={14} strokeWidth={1.75} aria-hidden />
-            {t('Цена снижена')}
-          </Link>
-        </div>
-        <div className="filters-group filters-side">
-          {SORTS.map(([v, label]) => (
+      {/* На пустой площадке фильтровать нечего: типы, игра и сортировки — лишний шум. */}
+      {!marketEmpty && (
+        <>
+          <nav className="type-chips" aria-label={t('Тип товара')} style={{ marginTop: 20 }}>
             <Link
-              key={v}
-              href={qs({ sort: v === 'new' ? undefined : v })}
+              href={qs({ segment: undefined })}
               className="chip"
-              aria-current={sort === v ? 'page' : undefined}
+              aria-current={!segment ? 'page' : undefined}
             >
-              {t(label)}
+              {t('Все типы')}
             </Link>
-          ))}
-        </div>
-      </div>
+            {SEGMENTS.map(([key, label]) => (
+              <Link
+                key={key}
+                href={qs({ segment: key })}
+                className="chip"
+                aria-current={segment?.[0] === key ? 'page' : undefined}
+              >
+                {t(label)}
+              </Link>
+            ))}
+          </nav>
 
-      {game && game.categories.length > 0 && (
-        <nav className="tabs" aria-label={t('Разделы: {game}', { game: t.d(game.title) })} style={{ marginTop: 20 }}>
-          {game.categories.map((c) => (
-            <Link key={c.id} href={`/igra/${game.slug}/${c.slug}`} className="tab">
-              {t.d(c.title)}
-              <span className="count">{c.listingCount}</span>
-            </Link>
-          ))}
-        </nav>
+          <div className="filters" style={{ marginTop: 16 }}>
+            <div className="filters-group">
+              <ParamSelect
+                name="game"
+                label={t('Игра')}
+                value={game?.slug}
+                options={games
+                  .map((g): [string, string] => [g.slug, t.d(g.title)])
+                  .sort((a, b) => a[1].localeCompare(b[1], t.locale))}
+                reset={['category']}
+              />
+              <Link
+                href={qs({ online: sp.online === '1' ? undefined : '1' })}
+                className="chip"
+                aria-pressed={sp.online === '1'}
+              >
+                <span className="dot-online" aria-hidden />
+                {t('Продавец в сети')}
+              </Link>
+              <Link
+                href={qs({ drop: sp.drop === '1' ? undefined : '1' })}
+                className="chip"
+                aria-pressed={sp.drop === '1'}
+                title={t('Идёт скидка или цена — самая низкая у лота за {n} дней', {
+                  n: PRICE_LOW_DAYS,
+                })}
+              >
+                <TrendingDown size={14} strokeWidth={1.75} aria-hidden />
+                {t('Цена снижена')}
+              </Link>
+            </div>
+            <div className="filters-group filters-side">
+              {SORTS.map(([v, label]) => (
+                <Link
+                  key={v}
+                  href={qs({ sort: v === 'new' ? undefined : v })}
+                  className="chip"
+                  aria-current={sort === v ? 'page' : undefined}
+                >
+                  {t(label)}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {game && game.categories.length > 0 && (
+            <nav
+              className="tabs"
+              aria-label={t('Разделы: {game}', { game: t.d(game.title) })}
+              style={{ marginTop: 20 }}
+            >
+              {game.categories.map((c) => (
+                <Link key={c.id} href={`/igra/${game.slug}/${c.slug}`} className="tab">
+                  {t.d(c.title)}
+                  {c.listingCount > 0 && <span className="count">{c.listingCount}</span>}
+                </Link>
+              ))}
+            </nav>
+          )}
+
+          <p className="faint" style={{ fontSize: 13, margin: '20px 0 12px' }}>
+            {t('Найдено: {n}', { n: total })}
+          </p>
+        </>
       )}
-
-      <p className="faint" style={{ fontSize: 13, margin: '20px 0 12px' }}>
-        {t('Найдено: {n}', { n: total })}
-      </p>
       {items.length ? (
         // Без выбранного раздела в выдаче смешаны разделы: пишем их в строке.
         <OfferTable items={items} attributes={columns} showSection={!selectedCat} t={t} />
       ) : (
-        <div className="card flat empty-state">
-          <p className="muted">{t('Ничего не нашлось. Попробуйте другие слова или уберите фильтры.')}</p>
-          <Link href="/catalog" className="btn secondary">
-            {t('Сбросить')}
-          </Link>
+        <div className="card flat empty-state" style={marketEmpty ? { marginTop: 20 } : undefined}>
+          {marketEmpty ? (
+            <>
+              <h2 className="h2" style={{ fontSize: 20, margin: 0 }}>
+                {t('Предложений пока нет')}
+              </h2>
+              <p className="muted">
+                {t(
+                  'Площадка только открылась — выставьте лот первым: покупатели увидят его сразу.',
+                )}
+              </p>
+              {hits.length > 0 && (
+                <p className="muted">
+                  {t('Покупаете? Откройте игру и сохраните поиск — сообщим о первом предложении.')}
+                </p>
+              )}
+            </>
+          ) : hits.length ? (
+            <p className="muted">
+              {t('По запросу «{q}» предложений нет — загляните в раздел игры:', { q: sp.q! })}
+            </p>
+          ) : (
+            <p className="muted">
+              {t('Ничего не нашлось. Попробуйте другие слова или уберите фильтры.')}
+            </p>
+          )}
+          {hits.length > 0 && (
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {hits.map((h) => (
+                <Link key={h.game.id} href={hitHref(h)} className="chip">
+                  {t.d(h.game.title)}
+                  {h.section && <> · {t.d(h.section.title)}</>}
+                </Link>
+              ))}
+            </div>
+          )}
+          {marketEmpty ? (
+            <Link href="/prodavat" className="btn">
+              {t('Выставить лот первым')}
+            </Link>
+          ) : (
+            <Link href="/catalog" className="btn secondary">
+              {t('Сбросить')}
+            </Link>
+          )}
         </div>
       )}
 
       {pages > 1 && (
-        <nav className="row" aria-label={t('Страницы')} style={{ justifyContent: 'center', gap: 8, marginTop: 24 }}>
+        <nav
+          className="row"
+          aria-label={t('Страницы')}
+          style={{ justifyContent: 'center', gap: 8, marginTop: 24 }}
+        >
           {page > 1 && (
             <Link href={qs({ page: String(page - 1) })} className="chip">
               ← {t('Назад')}
