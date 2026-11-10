@@ -25,6 +25,10 @@
       "types": "./dist/quantity.d.ts",
       "default": "./dist/quantity.js"
     },
+    "./partner": {
+      "types": "./dist/partner.d.ts",
+      "default": "./dist/partner.js"
+    },
     "./buy-request": {
       "types": "./dist/buy-request.d.ts",
       "default": "./dist/buy-request.js"

@@ -238,7 +238,7 @@ export const EN_SHARED: Phrasebook = {
   Отзывы: 'Reviews',
   'новый отзыв, ответ продавца, оценка вас как покупателя': 'new review, seller’s reply, a rating of you as a buyer',
   Деньги: 'Money',
-  'кэшбэк и выплаты': 'cashback and payouts',
+  'кэшбэк, выплаты и партнёрские начисления': 'cashback, payouts and partner rewards',
   Поддержка: 'Support',
   'ответы на ваши обращения': 'replies to your requests',
   'Поиски, избранное и подписки': 'Searches, favorites and follows',
@@ -297,6 +297,9 @@ export const EN_SHARED: Phrasebook = {
   'Вход с кодом из приложения выключен': 'Sign-in code turned off',
   'Новые лоты у продавца из подписок': 'New listings from a seller you follow',
   'Скидка у продавца из подписок': 'A discount from a seller you follow',
+  'Партнёрское вознаграждение зачислено на баланс': 'Partner reward credited to your balance',
+  'Партнёрское вознаграждение': 'Partner reward',
+  'Партнёрская программа': 'Partner program',
   'Покупатель ищет в вашем разделе': 'A buyer is looking in your category',
   'Продавец ответил лотом на ваш запрос': 'A seller answered your request with a listing',
   // Промокод продавца
