@@ -69,7 +69,7 @@ flowchart TB
         Pay["Платёжные провайдеры\n(вебхуки)"]
         TopUp["Провайдеры пополнений\n(Steam/донат)"]
         Mail["Email / SMS / Push"]
-        OAuth["OAuth (Google/VK/Telegram)"]
+        OAuth["OAuth (Яндекс ID/VK ID/Telegram)"]
     end
 
     Web --> CDN

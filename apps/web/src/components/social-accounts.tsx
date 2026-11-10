@@ -17,18 +17,17 @@ export interface LoginWays {
   email: string | null;
   providers: SocialProviders;
   accounts: Array<{
-    provider: 'google' | 'vk' | 'telegram';
+    provider: 'yandex' | 'vk' | 'telegram';
     name: string | null;
     email: string | null;
     since: string;
   }>;
 }
 
-const ORDER = ['telegram', 'vk', 'google'] as const;
-const LABEL = { google: 'Google', vk: 'VK ID', telegram: 'Telegram' } as const;
+const ORDER = ['yandex', 'vk', 'telegram'] as const;
 
 /**
- * Способы входа: Telegram, VK ID, Google — подключить и отключить. Сервис
+ * Способы входа: Яндекс ID, VK ID, Telegram — подключить и отключить. Сервис
  * без ключей на сервере не показывается, если он не подключён раньше.
  * Последний способ входа без пароля не отключается — сначала пароль.
  */
@@ -40,6 +39,8 @@ export function SocialAccounts({
   onChange: (w: LoginWays) => void;
 }) {
   const t = useT();
+  // «Яндекс ID» на английском сайте — Yandex ID.
+  const LABEL = { yandex: t('Яндекс ID'), vk: 'VK ID', telegram: 'Telegram' } as const;
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -63,8 +64,8 @@ export function SocialAccounts({
     }
   }
 
-  // Google и VK: намерение привязать — в cookie API, потом страница сервиса.
-  async function connect(provider: 'google' | 'vk') {
+  // Яндекс и VK: намерение привязать — в cookie API, потом страница сервиса.
+  async function connect(provider: 'yandex' | 'vk') {
     setBusy(true);
     try {
       await apiFetch('/auth/social/link-intent', { method: 'POST' });
@@ -92,7 +93,7 @@ export function SocialAccounts({
         <Link2 size={18} strokeWidth={1.75} /> {t('Вход через сервисы')}
       </h2>
       <p className="muted" style={{ fontSize: 14, margin: '8px 0 6px' }}>
-        {t('Входить в один аккаунт по паролю, через Telegram, VK ID или Google — как удобнее.')}
+        {t('Входить в один аккаунт по паролю, через Яндекс ID, VK ID или Telegram — как удобнее.')}
       </p>
       {msg && (
         <div

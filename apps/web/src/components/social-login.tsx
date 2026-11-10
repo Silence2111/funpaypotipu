@@ -9,7 +9,7 @@ import { useT } from '@/lib/i18n/client';
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 export interface SocialProviders {
-  google: boolean;
+  yandex: boolean;
   vk: boolean;
   telegram: { bot: string } | null;
 }
@@ -17,7 +17,7 @@ export interface SocialProviders {
 export type TelegramData = Record<string, string | number>;
 
 /** Адрес начала входа через сервис: дальше — страница сервиса и возврат на API. */
-export const oauthStart = (provider: 'google' | 'vk', next: string) =>
+export const oauthStart = (provider: 'yandex' | 'vk', next: string) =>
   `${API_URL}/api/auth/oauth/${provider}/start?next=${encodeURIComponent(next)}`;
 
 let widgets = 0;
@@ -69,7 +69,7 @@ export function TelegramButton({
 }
 
 /**
- * Вход через Telegram, VK ID и Google под формой входа и регистрации.
+ * Вход через Яндекс ID, VK ID и Telegram под формой входа и регистрации.
  * Кнопки — только у сервисов, ключи которых заданы на сервере.
  */
 export function SocialLogin({ next }: { next: string }) {
@@ -84,7 +84,7 @@ export function SocialLogin({ next }: { next: string }) {
       .catch(() => setProviders(null));
   }, []);
 
-  if (!providers || (!providers.google && !providers.vk && !providers.telegram)) return null;
+  if (!providers || (!providers.yandex && !providers.vk && !providers.telegram)) return null;
 
   async function telegram(data: TelegramData) {
     setErr(null);
@@ -101,18 +101,18 @@ export function SocialLogin({ next }: { next: string }) {
       <div className="social-divider">
         <span>{t('или')}</span>
       </div>
-      {providers.telegram && (
-        <TelegramButton bot={providers.telegram.bot} onAuth={(d) => void telegram(d)} />
+      {providers.yandex && (
+        <a className="btn secondary block" href={oauthStart('yandex', next)}>
+          {t('Войти через Яндекс ID')}
+        </a>
       )}
       {providers.vk && (
         <a className="btn secondary block" href={oauthStart('vk', next)}>
           {t('Войти через VK ID')}
         </a>
       )}
-      {providers.google && (
-        <a className="btn secondary block" href={oauthStart('google', next)}>
-          {t('Войти через Google')}
-        </a>
+      {providers.telegram && (
+        <TelegramButton bot={providers.telegram.bot} onAuth={(d) => void telegram(d)} />
       )}
       {err && (
         <p className="field-error" role="alert">

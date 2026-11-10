@@ -1,5 +1,5 @@
 /**
- * Тестовый сервер входа для e2e: ведёт себя как Google и VK ID. Проверяет
+ * Тестовый сервер входа для e2e: ведёт себя как Яндекс ID и VK ID. Проверяет
  * то же, что настоящие: ключ приложения, адрес возврата, state и PKCE
  * (S256) — код без верного code_verifier на токен не меняется.
  *
@@ -10,7 +10,7 @@ import { createServer } from 'node:http';
 import { createHash, randomBytes } from 'node:crypto';
 
 const CLIENTS = {
-  google: { id: process.env.GOOGLE_CLIENT_ID, secret: process.env.GOOGLE_CLIENT_SECRET },
+  yandex: { id: process.env.YANDEX_CLIENT_ID, secret: process.env.YANDEX_CLIENT_SECRET },
   vk: { id: process.env.VK_CLIENT_ID },
 };
 
@@ -71,8 +71,10 @@ export function startOAuthMock(issuer) {
           .update(f.code_verifier ?? '')
           .digest('base64url') === saved.challenge;
       const clientOk =
-        f.client_id === client.id && (provider !== 'google' || f.client_secret === client.secret);
-      if (!saved || !verifierOk || !clientOk || f.redirect_uri !== saved.redirect)
+        f.client_id === client.id && (provider !== 'yandex' || f.client_secret === client.secret);
+      // Яндекс адрес возврата при обмене кода не спрашивает, VK ID — сверяет.
+      const redirectOk = provider === 'yandex' ? f.redirect_uri === undefined : f.redirect_uri === saved?.redirect;
+      if (!saved || !verifierOk || !clientOk || !redirectOk)
         return send(res, 400, { error: 'invalid_grant' });
       if (provider === 'vk' && f.device_id !== 'device-1')
         return send(res, 400, { error: 'invalid_device' });
@@ -82,8 +84,10 @@ export function startOAuthMock(issuer) {
     }
 
     if (step === 'userinfo') {
-      if (provider === 'google') {
-        const user = tokens.get((req.headers.authorization ?? '').replace(/^Bearer /, ''));
+      if (provider === 'yandex') {
+        // Как login.yandex.ru/info: токен — в заголовке «OAuth <токен>».
+        const auth = req.headers.authorization ?? '';
+        const user = auth.startsWith('OAuth ') ? tokens.get(auth.slice(6)) : null;
         return user ? send(res, 200, user) : send(res, 401, { error: 'invalid_token' });
       }
       const f = await form(req);

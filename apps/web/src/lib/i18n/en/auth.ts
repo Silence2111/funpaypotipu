@@ -59,7 +59,8 @@ export const AUTH: Record<string, string> = {
   // Вход через сервисы
   или: 'or',
   'Войти через VK ID': 'Sign in with VK ID',
-  'Войти через Google': 'Sign in with Google',
+  'Войти через Яндекс ID': 'Sign in with Yandex ID',
+  'Яндекс ID': 'Yandex ID',
   'Telegram не подтвердил вход. Попробуйте ещё раз.': 'Telegram didn’t confirm sign-in. Try again.',
   'Вход через сервис занял больше 10 минут. Начните заново.':
     'Signing in with the service took more than 10 minutes. Start again.',

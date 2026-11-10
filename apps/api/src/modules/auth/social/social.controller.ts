@@ -51,7 +51,7 @@ const completeSchema = z.object({
 
 const cookies = (req: Request) => (req.cookies ?? {}) as Record<string, string | undefined>;
 
-/** Вход через Telegram, VK и Google, подключение и отключение сервисов. */
+/** Вход через Telegram, VK ID и Яндекс ID, подключение и отключение сервисов. */
 @Controller('auth')
 export class SocialController {
   constructor(private readonly social: SocialService) {}

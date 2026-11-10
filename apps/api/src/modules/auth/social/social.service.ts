@@ -64,7 +64,7 @@ const ticketError = (
 ) => new HttpException({ statusCode: status, message, error, ...extra }, status);
 
 /**
- * Вход через Telegram, VK и Google. Сервис подтверждает личность, площадка
+ * Вход через Telegram, VK ID и Яндекс ID. Сервис подтверждает личность, площадка
  * находит аккаунт: привязанный, по Telegram из уведомлений, по почте,
  * которую подтвердили и сервис, и площадка, — или заводит новый, спросив
  * ник. Дальше — тот же вход, что по паролю: блокировка, код из приложения,
@@ -94,7 +94,7 @@ export class SocialService {
   providers() {
     const bot = this.telegramBot;
     return {
-      google: !!oauthConfig('google'),
+      yandex: !!oauthConfig('yandex'),
       vk: !!oauthConfig('vk'),
       telegram: bot ? { bot } : null,
     };

@@ -460,7 +460,7 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
         account was signed in from and end all sessions except the current one.
       </li>
       <li>
-        <b>Sign in with Telegram, VK ID or Google</b> — if the buttons are shown under the sign-in
+        <b>Sign in with Yandex ID, VK ID or Telegram</b> — if the buttons are shown under the sign-in
         form. Connect or disconnect a service in the same place, under “Security”. The authenticator
         code is asked for with this kind of sign-in too.
       </li>

@@ -1,11 +1,16 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-export type SocialProvider = 'google' | 'vk' | 'telegram';
-export const OAUTH_PROVIDERS = ['google', 'vk'] as const;
+/**
+ * Сервисы входа. Google нет: российский сайт пускает россиян только через
+ * российские системы входа (149-ФЗ, ст. 10.6, с 01.12.2023), — поэтому
+ * Яндекс ID и VK ID, как на остальных проектах владельца.
+ */
+export type SocialProvider = 'yandex' | 'vk' | 'telegram';
+export const OAUTH_PROVIDERS = ['yandex', 'vk'] as const;
 export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
 
 export const PROVIDER_LABEL: Record<SocialProvider, string> = {
-  google: 'Google',
+  yandex: 'Яндекс ID',
   vk: 'VK ID',
   telegram: 'Telegram',
 };
@@ -31,7 +36,7 @@ interface Endpoints {
 
 /**
  * Адреса сервисов. Вне прода OAUTH_TEST_ISSUER подменяет их тестовым
- * сервером — так e2e проходит весь обмен кодом, не ходя в Google и VK.
+ * сервером — так e2e проходит весь обмен кодом, не ходя в Яндекс и VK.
  */
 function endpoints(provider: OAuthProvider): Endpoints {
   const test = process.env.NODE_ENV !== 'production' ? process.env.OAUTH_TEST_ISSUER : undefined;
@@ -42,11 +47,11 @@ function endpoints(provider: OAuthProvider): Endpoints {
       userInfoUrl: `${test}/${provider}/userinfo`,
     };
   }
-  return provider === 'google'
+  return provider === 'yandex'
     ? {
-        authorizeUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-        tokenUrl: 'https://oauth2.googleapis.com/token',
-        userInfoUrl: 'https://openidconnect.googleapis.com/v1/userinfo',
+        authorizeUrl: 'https://oauth.yandex.ru/authorize',
+        tokenUrl: 'https://oauth.yandex.ru/token',
+        userInfoUrl: 'https://login.yandex.ru/info?format=json',
       }
     : {
         authorizeUrl: 'https://id.vk.com/authorize',
@@ -64,19 +69,20 @@ export interface OAuthConfig extends Endpoints {
 
 /**
  * Настройки сервиса из окружения; null — сервис не подключён, кнопки нет.
- * Google — GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET; VK ID — VK_CLIENT_ID
- * (обмен кода защищён PKCE, секрет не нужен).
+ * Яндекс ID — YANDEX_CLIENT_ID и YANDEX_CLIENT_SECRET (приложение на
+ * oauth.yandex.ru, доступы «почта» и «имя»); VK ID — VK_CLIENT_ID (обмен
+ * кода защищён PKCE, секрет не нужен).
  */
 export function oauthConfig(provider: OAuthProvider): OAuthConfig | null {
-  if (provider === 'google') {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (provider === 'yandex') {
+    const clientId = process.env.YANDEX_CLIENT_ID;
+    const clientSecret = process.env.YANDEX_CLIENT_SECRET;
     if (!clientId || !clientSecret) return null;
     return {
       provider,
       clientId,
       clientSecret,
-      scope: 'openid email profile',
+      scope: 'login:email login:info',
       ...endpoints(provider),
     };
   }
@@ -112,7 +118,6 @@ export function authorizeUrl(
     state: p.state,
     code_challenge: p.challenge,
     code_challenge_method: 'S256',
-    ...(c.provider === 'google' ? { prompt: 'select_account' } : {}),
   });
   return `${c.authorizeUrl}?${q}`;
 }
@@ -140,29 +145,36 @@ export async function fetchProfile(
   c: OAuthConfig,
   p: { code: string; verifier: string; redirectUri: string; state: string; deviceId?: string },
 ): Promise<SocialProfile> {
-  if (c.provider === 'google') {
+  if (c.provider === 'yandex') {
     const token = await postForm(c.tokenUrl, {
       grant_type: 'authorization_code',
       code: p.code,
       code_verifier: p.verifier,
-      redirect_uri: p.redirectUri,
       client_id: c.clientId,
       client_secret: c.clientSecret ?? '',
     });
-    if (typeof token.access_token !== 'string') throw new OAuthError('Google не выдал токен');
+    if (typeof token.access_token !== 'string') throw new OAuthError('Яндекс ID не выдал токен');
+    // Профиль Яндекса — с заголовком «OAuth <токен>», не Bearer.
     const res = await fetch(c.userInfoUrl, {
-      headers: { Authorization: `Bearer ${token.access_token}` },
+      headers: { Authorization: `OAuth ${token.access_token}` },
       signal: AbortSignal.timeout(10_000),
     });
     const u = (await res.json().catch(() => null)) as Record<string, unknown> | null;
-    if (!res.ok || !u || typeof u.sub !== 'string') throw new OAuthError('Google не отдал профиль');
+    if (!res.ok || !u || (typeof u.id !== 'string' && typeof u.id !== 'number')) {
+      throw new OAuthError('Яндекс ID не отдал профиль');
+    }
+    const email = typeof u.default_email === 'string' && u.default_email ? u.default_email.toLowerCase() : null;
+    const name = [u.real_name, u.display_name].find((x): x is string => typeof x === 'string' && !!x.trim());
     return {
-      provider: 'google',
-      subject: u.sub,
-      email: typeof u.email === 'string' ? u.email.toLowerCase() : null,
-      emailVerified: u.email_verified === true,
-      name: typeof u.name === 'string' ? u.name : null,
-      nick: null,
+      provider: 'yandex',
+      subject: String(u.id),
+      email,
+      // Основная почта Яндекс ID — подтверждённая: ящик Яндекса или адрес,
+      // который человек подтвердил в Яндекс ID.
+      emailVerified: !!email,
+      name: name ?? null,
+      // Логин Яндекса — подсказка для ника на площадке.
+      nick: typeof u.login === 'string' && u.login ? u.login : null,
     };
   }
   if (!p.deviceId) throw new OAuthError('VK ID не передал устройство');

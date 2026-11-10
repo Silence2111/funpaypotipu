@@ -73,10 +73,10 @@ jobs:
       FOLLOW_INTERVAL_MS: 2000
       # Ожидание поступления раз в 2 с: e2e ждёт уведомления, что лот снова в продаже.
       STOCK_WATCH_INTERVAL_MS: 2000
-      # Вход через Google и VK ID — против тестового сервера из e2e (apps/api/test/oauth-mock.mjs).
+      # Вход через Яндекс ID и VK ID — против тестового сервера из e2e (apps/api/test/oauth-mock.mjs).
       OAUTH_TEST_ISSUER: http://localhost:4999
-      GOOGLE_CLIENT_ID: ci-google
-      GOOGLE_CLIENT_SECRET: ci-google-secret
+      YANDEX_CLIENT_ID: ci-yandex
+      YANDEX_CLIENT_SECRET: ci-yandex-secret
       VK_CLIENT_ID: ci-vk
     steps:
       - uses: actions/checkout@v4
