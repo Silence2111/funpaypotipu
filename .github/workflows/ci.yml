@@ -115,3 +115,77 @@ jobs:
 
       - name: E2E (money paths)
         run: node apps/api/test/e2e.mjs
+
+  # Боевой стек с нуля, как на чистом VPS (docs/12-deploy.md): образы по
+  # apps/*/Dockerfile, infra/compose.prod.yaml, проверка снаружи через Caddy,
+  # бэкап и восстановление из него. Раньше образы не собирались ни разу.
+  stack:
+    runs-on: ubuntu-latest
+    env:
+      C: docker compose -f infra/compose.prod.yaml --env-file infra/.env.production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Окружение прода для проверки
+        run: |
+          cat > infra/.env.production <<EOF
+          PUBLIC_URL=http://localhost
+          POSTGRES_PASSWORD=$(openssl rand -hex 16)
+          JWT_ACCESS_SECRET=$(openssl rand -hex 32)
+          JWT_REFRESH_SECRET=$(openssl rand -hex 32)
+          DATA_ENCRYPTION_KEY=$(openssl rand -hex 32)
+          PAYMENT_PROVIDER=mock
+          MOCK_WEBHOOK_SECRET=$(openssl rand -hex 16)
+          BACKUP_DIR=./backups
+          HEALTH_INTERVAL=5
+          EOF
+
+      - name: Сборка образов
+        run: $C build
+
+      - name: Запуск с нуля
+        run: |
+          $C up -d
+          for i in $(seq 1 90); do curl -sf http://localhost/api/health/ready >/dev/null && curl -sf http://localhost/ >/dev/null && break; sleep 2; done
+          $C ps
+
+      - name: Проверка снаружи
+        run: SMOKE_KEY_FILE=/tmp/smoke-key bash infra/ops/smoke.sh http://localhost
+
+      - name: Бэкап и восстановление
+        run: |
+          $C exec -T backup /ops/backup.sh
+          dump=$(ls infra/backups/db-*.dump | tail -n1)
+          files=$(ls infra/backups/uploads-*.tar.gz | tail -n1)
+          # В архиве файлов — фото из проверки.
+          tar -tzf "$files" | grep -q "$(cat /tmp/smoke-key)"
+          # Восстановление — в отдельную базу рядом: те же пользователи и лоты, что в рабочей.
+          $C exec -T -e RESTORE_DB=gamemarket_check backup /ops/restore.sh "/backups/$(basename "$dump")"
+          q() { $C exec -T postgres psql -U gamemarket -d "$1" -tAc "$2"; }
+          # Сид и проверка заполняют эти таблицы — они не пустые; остальные сверяются числом.
+          for t in users profiles games categories fee_rules roles listings orders; do
+            a=$(q gamemarket "SELECT count(*) FROM $t"); b=$(q gamemarket_check "SELECT count(*) FROM $t")
+            echo "$t: $a → $b"; [ "$a" = "$b" ]
+            case $t in listings|orders) ;; *) [ "$a" -gt 0 ] ;; esac
+          done
+          # Пользователь из проверки — и в восстановленной базе.
+          q gamemarket_check "SELECT count(*) FROM profiles WHERE username LIKE 'smoke%'" | grep -qx 1
+
+      - name: Сторож видит падение
+        run: |
+          $C stop web
+          for i in $(seq 1 12); do $C logs healthwatch | grep -q 'сайт не отвечает' && break; sleep 5; done
+          $C logs healthwatch | grep 'сайт не отвечает'
+          $C start web
+
+      - name: Прод без секретов не стартует
+        run: |
+          set +e
+          docker run --rm -e NODE_ENV=production -e SKIP_DOTENV=1 \
+            -e DATABASE_URL=postgresql://u:p@127.0.0.1:5432/db gamemarket-api:local node dist/main.js
+          code=$?
+          echo "exit $code"; test "$code" -ne 0
+
+      - name: Журналы
+        if: always()
+        run: $C logs --tail 150

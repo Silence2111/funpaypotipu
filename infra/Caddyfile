@@ -1,0 +1,22 @@
+# Один адрес на сайт и API. SITE_ADDRESS — PUBLIC_URL из .env.production:
+# https://домен — Caddy сам получает и продлевает сертификат Let's Encrypt
+# (нужны DNS-запись A на этот сервер и открытые 80 и 443); http://localhost —
+# без HTTPS, так стек проверяется в CI.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# API, файлы (/api/assets), вебхуки ЮKassa и Telegram, вход через сервисы, чат.
+	@api path /api/* /socket.io/*
+	handle @api {
+		reverse_proxy api:4000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

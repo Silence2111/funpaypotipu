@@ -30,7 +30,21 @@ const loadRootEnv = (): void => {
   }
 };
 
+/**
+ * Пустая переменная — не задана. compose передаёт незаполненное пустой
+ * строкой, а значения по умолчанию в коде стоят через `??`, который пустую
+ * строку не ловит: ссылки на файлы подписывались бы пустым ключом
+ * (STORAGE_SIGNING_SECRET=''), ставка НДС в чеке становилась 0, адрес
+ * отправителя писем — пустым.
+ */
+const dropEmpty = (): void => {
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined && value.trim() === '') delete process.env[key];
+  }
+};
+
 loadRootEnv();
+dropEmpty();
 
 /** Типобезопасная загрузка и валидация конфигурации при старте. */
 const envSchema = z.object({
@@ -47,12 +61,52 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(8).default('change-me-refresh'),
   JWT_ACCESS_TTL: z.coerce.number().default(900),
   JWT_REFRESH_TTL: z.coerce.number().default(2592000),
+  DATA_ENCRYPTION_KEY: z.string().optional(),
+});
+
+/** Значения для разработки: с ними прод не запускается. */
+const DEV_SECRETS = new Set(['change-me-access', 'change-me-refresh', 'dev-insecure-key']);
+/** Секрет прода — не короче 32 знаков: `openssl rand -hex 32`. */
+const MIN_SECRET = 32;
+
+/**
+ * В проде секреты обязательны. Раньше без них API молча стартовал со
+ * значениями для разработки: JWT подписывался известным «change-me-access» —
+ * любой выпускал себе вход под чужим аккаунтом, — а ключи товаров и
+ * реквизиты выплат шифровались известным «dev-insecure-key».
+ */
+const productionSchema = envSchema.superRefine((env, ctx) => {
+  if (env.NODE_ENV !== 'production') return;
+  const secrets = {
+    JWT_ACCESS_SECRET: env.JWT_ACCESS_SECRET,
+    JWT_REFRESH_SECRET: env.JWT_REFRESH_SECRET,
+    DATA_ENCRYPTION_KEY: env.DATA_ENCRYPTION_KEY,
+  };
+  for (const [name, value] of Object.entries(secrets)) {
+    if (!value || DEV_SECRETS.has(value) || value.length < MIN_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [name],
+        message: `в проде — свой секрет от ${MIN_SECRET} знаков (openssl rand -hex 32)`,
+      });
+    }
+  }
+  if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['JWT_REFRESH_SECRET'],
+      message: 'должен отличаться от JWT_ACCESS_SECRET',
+    });
+  }
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
 
+/** Проверка окружения без выхода из процесса — для тестов и loadEnv. */
+export const parseEnv = (source: NodeJS.ProcessEnv) => productionSchema.safeParse(source);
+
 export const loadEnv = (): AppEnv => {
-  const parsed = envSchema.safeParse(process.env);
+  const parsed = parseEnv(process.env);
   if (!parsed.success) {
     // eslint-disable-next-line no-console
     console.error('❌ Некорректная конфигурация окружения:', parsed.error.flatten().fieldErrors);

@@ -36,17 +36,97 @@ TAG=v1.0.0 envsubst < infra/k8s/migrate-job.yaml | kubectl apply -f -
 
 Дальнейшие релизы — пуш тега `vX.Y.Z`, остальное делает `deploy.yml`.
 
-## Docker Compose на VPS
+## Один VPS с нуля — `infra/compose.prod.yaml`
 
+Всё на одном сервере: Postgres, API, сайт, Caddy с HTTPS, ночной бэкап и
+сторож. Redis, MinIO, Meilisearch и воркер не нужны: поиск — по Postgres,
+файлы — на томе сервера под подписанными ссылками API, фоновые задачи — в
+самом API. Тот же путь каждый прогон проходит CI (задание `stack`): сборка
+образов, запуск с нуля, проверка снаружи, бэкап и восстановление.
+
+**Сервер:** Ubuntu 24.04, от 2 CPU и 4 ГБ памяти (сборка сайта занимает
+около 2 ГБ), 40 ГБ диска. Открыты 22, 80 и 443.
+
+1. **Домен.** Запись A на IP сервера; дождаться, пока `dig +short домен`
+   вернёт этот IP, — иначе Caddy не получит сертификат.
+2. **Docker.**
+   ```bash
+   curl -fsSL https://get.docker.com | sh
+   ```
+   Если образы с Docker Hub не качаются (бывает с российских адресов) —
+   зеркало реестра хостера в `/etc/docker/daemon.json`
+   (`{"registry-mirrors": ["https://…"]}`) и `systemctl restart docker`.
+3. **Код и настройки.**
+   ```bash
+   git clone https://github.com/Silence2111/funpaypotipu.git /opt/gamemarket && cd /opt/gamemarket
+   cp infra/.env.production.example infra/.env.production
+   for k in POSTGRES_PASSWORD JWT_ACCESS_SECRET JWT_REFRESH_SECRET DATA_ENCRYPTION_KEY; do
+     sed -i "s|^$k=.*|$k=$(openssl rand -hex 32)|" infra/.env.production
+   done
+   nano infra/.env.production   # PUBLIC_URL=https://домен, ЮKassa, почта, вход, Telegram
+   ```
+   Секреты — копию в надёжное место: без `DATA_ENCRYPTION_KEY` ключи товаров
+   и реквизиты выплат из бэкапа не расшифровать. С пустыми или короткими
+   секретами API в проде не запускается.
+4. **Запуск.**
+   ```bash
+   C="docker compose -f infra/compose.prod.yaml --env-file infra/.env.production"
+   $C up -d --build      # первая сборка — 5–10 минут
+   $C ps                 # migrate — Exited (0), остальные — healthy / running
+   ```
+   `migrate` применяет миграции и сид (роли, правила комиссий, каталог) и
+   завершается; API ждёт его, сайт ждёт API, Caddy — их обоих.
+5. **Проверка снаружи.**
+   ```bash
+   bash infra/ops/smoke.sh https://домен
+   ```
+   API с базой, главная с каталогом с сервера, регистрация, фото лота —
+   загрузка и чтение. Пользователь `smoke_…` остаётся — его можно
+   заморозить в консоли.
+6. **Первый администратор.** Зарегистрироваться на сайте, затем
+   ```bash
+   $C exec postgres psql -U gamemarket -c "INSERT INTO user_roles (user_id, role_id)
+     SELECT p.user_id, r.id FROM profiles p, roles r WHERE p.username = 'ваш_ник' AND r.key = 'admin'"
+   ```
+   Остальным ролям — в консоли, раздел «Пользователи».
+
+**Бэкап.** Каждую ночь в 03:00 по Москве сервис `backup` кладёт в
+`infra/backups` дамп базы и архив файлов, старше `BACKUP_KEEP_DAYS` (14)
+удаляются. Дамп после записи читается обратно — битый файл не останется
+«успешным». Руками: `$C exec backup /ops/backup.sh`.
+
+**Копия вне сервера — обязательно**: сервер умирает вместе со своими
+бэкапами. С другой машины раз в сутки:
+`rsync -a root@сервер:/opt/gamemarket/infra/backups/ ./gamemarket-backups/`
+— или выгрузка в объектное хранилище.
+
+**Проверка бэкапа — без остановки прода:** восстановить в отдельную базу
+рядом и сравнить.
 ```bash
-cp .env.example .env.production   # заполнить боевыми значениями
-IMAGE_OWNER=you IMAGE_TAG=v1.0.0 \
-  docker compose -f infra/compose.prod.yaml --env-file .env.production up -d
+$C exec -e RESTORE_DB=gamemarket_check backup /ops/restore.sh /backups/db-YYYYMMDD-HHMM.dump
+$C exec postgres psql -U gamemarket -d gamemarket_check -c "SELECT count(*) FROM users"
 ```
 
-`migrate` применяет миграции и сид, затем стартуют `api`/`web`/`worker`. Datastore'ы
-(Postgres/Redis/MinIO/Meilisearch) — либо managed (адреса в `.env.production`), либо
-добавьте их в этот compose.
+**Восстановление после аварии:**
+```bash
+$C stop api web
+$C run --rm --entrypoint /ops/restore.sh backup \
+  /backups/db-YYYYMMDD-HHMM.dump /backups/uploads-YYYYMMDD-HHMM.tar.gz
+$C up -d
+```
+На новом сервере — шаги 1–4 с тем же `infra/.env.production` (тот же
+`DATA_ENCRYPTION_KEY`!), бэкапы — в `infra/backups`, затем восстановление.
+
+**Сторож.** Раз в минуту — готовность API (с базой) и главная сайта;
+упало или поднялось — сообщение в Telegram (`ALERT_BOT_TOKEN`,
+`ALERT_CHAT_ID`) и строка в `$C logs healthwatch`. Docker сам перезапускает
+упавшие контейнеры (`restart: unless-stopped`).
+
+**Журналы.** `$C logs -f api` (или `web`, `caddy`, `backup`); у каждого
+контейнера — до 5 файлов по 10 МБ, старые удаляются сами.
+
+**Обновление.** `git pull && $C up -d --build` — `migrate` применит новые
+миграции до старта нового API.
 
 ## Управляемые сервисы (рекомендация для прода)
 
