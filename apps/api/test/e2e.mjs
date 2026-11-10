@@ -518,6 +518,83 @@ async function scenarioConsoleLists(rnd) {
   );
 }
 
+/** Каталог в консоли: игру под пришедшего продавца — за минуты, без выката. */
+async function scenarioCatalogAdmin(rnd) {
+  console.log('\n— Каталог в консоли —');
+  const admin = await register('cta', rnd);
+  const seller = await register('cts', rnd);
+  await grant(admin.id, 'admin');
+  const A = { token: admin.token };
+  const post = (path, body) => j(path, { method: 'POST', ...A, body: JSON.stringify(body) });
+  const patch = (path, body) => j(path, { method: 'PATCH', ...A, body: JSON.stringify(body) });
+  const slug = `tl${rnd}`;
+  const game = await post('/admin/catalog/games', { slug, title: `Throne ${rnd}`, kind: 'game', aliases: ['тл'] });
+  const dup = await post('/admin/catalog/games', { slug, title: 'Другая', kind: 'game' });
+  const cat = await post(`/admin/catalog/games/${game.body.id}/categories`, { slug: 'accounts', title: 'Аккаунты', segment: 'accounts', fulfillmentType: 'manual' });
+  const gold = await post(`/admin/catalog/games/${game.body.id}/categories`, { slug: 'gold', title: 'Золото', segment: 'currency', fulfillmentType: 'manual', unitName: 'шт', pricePerUnits: 1000 });
+  const attr = await post(`/admin/catalog/categories/${cat.body.id}/attributes`, { key: 'server', label: 'Сервер', type: 'enum', options: ['EU', 'NA'], isRequired: true });
+  const badEnum = await post(`/admin/catalog/categories/${cat.body.id}/attributes`, { key: 'class', label: 'Класс', type: 'enum', options: ['Маг'] });
+  check(
+    'Игра, два раздела и обязательное поле — из консоли; занятый адрес — 409; выбор из одного варианта — 400',
+    game.status === 201 && dup.status === 409 && cat.status === 201 && gold.status === 201 && attr.status === 201 && badEnum.status === 400,
+    JSON.stringify([game.status, dup.status, cat.status, gold.status, attr.status, badEnum.status]),
+  );
+
+  const pub = await j(`/catalog/games/${slug}`);
+  const attrs = await j(`/catalog/categories/${cat.body.id}/attributes`);
+  check(
+    'Сразу на витрине: игра с разделами по порядку, у раздела — поле «Сервер»',
+    pub.status === 200 && pub.body.categories?.map((c) => c.slug).join() === 'accounts,gold' && attrs.body?.[0]?.key === 'server',
+    JSON.stringify({ s: pub.status, cats: pub.body.categories?.map((c) => c.slug), attrs: attrs.body?.map?.((a) => a.key) }),
+  );
+  // Продавец выставляет лот в новом разделе: обязательное поле спрашивается.
+  const lot = (attributes) => j('/listings', {
+    method: 'POST', token: seller.token,
+    body: JSON.stringify({ gameId: game.body.id, categoryId: cat.body.id, title: `Аккаунт ${rnd}`, description: 'test', price: '50000', currency: 'RUB', attributes }),
+  });
+  const without = await lot({});
+  const withServer = await lot({ server: 'EU' });
+  check('Продавец выставляет лот в новом разделе; без обязательного поля — 400', without.status === 400 && withServer.status === 201, `${without.status} / ${withServer.status}`);
+
+  const order = await j(`/admin/catalog/games/${game.body.id}/categories/order`, { method: 'PUT', ...A, body: JSON.stringify({ ids: [gold.body.id, cat.body.id] }) });
+  const stale = await j(`/admin/catalog/games/${game.body.id}/categories/order`, { method: 'PUT', ...A, body: JSON.stringify({ ids: [gold.body.id] }) });
+  const lockKind = await patch(`/admin/catalog/categories/${cat.body.id}`, { segment: 'key' });
+  const reordered = await j(`/catalog/games/${slug}`);
+  check(
+    'Порядок разделов меняется; неполный список — 400; у раздела с лотом тип товара не меняется',
+    order.status === 200 && stale.status === 400 && lockKind.status === 400 && reordered.body.categories?.[0]?.slug === 'gold',
+    JSON.stringify([order.status, stale.status, lockKind.status, reordered.body.categories?.map((c) => c.slug)]),
+  );
+
+  const form = new FormData();
+  const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001', 'hex');
+  form.append('file', new Blob([png], { type: 'image/png' }), 'cover.png');
+  const cover = await fetch(`${API}/api/admin/catalog/games/${game.body.id}/cover`, { method: 'POST', headers: { Authorization: 'Bearer ' + admin.token }, body: form }).then((r) => r.json());
+  const withCover = await j(`/catalog/games/${slug}`);
+  const img = withCover.body.coverUrl ? await fetch(withCover.body.coverUrl.startsWith('http') ? withCover.body.coverUrl : `${API}${withCover.body.coverUrl}`) : null;
+  check('Обложка из консоли — на витрине и открывается', !!cover.coverUrl && img?.status === 200 && img.headers.get('content-type') === 'image/png', JSON.stringify({ cover: cover.coverUrl, img: img?.status }));
+
+  await patch(`/admin/catalog/games/${game.body.id}`, { isActive: false });
+  const hidden = await j(`/catalog/games/${slug}`);
+  const idx = await j('/catalog/index');
+  await patch(`/admin/catalog/games/${game.body.id}`, { isActive: true });
+  check('Скрытая игра — 404 и нет в указателе; показали — снова есть', hidden.status === 404 && !idx.body.some?.((g) => g.slug === slug) && (await j(`/catalog/games/${slug}`)).status === 200);
+
+  const log = await j(`/admin/audit?kind=catalog&entity=${encodeURIComponent(`game:${game.body.id}`)}`, A);
+  const actions = (log.body.items ?? []).map((r) => r.action);
+  const hide = log.body.items?.find?.((r) => r.action === 'catalog.game.update' && r.after?.isActive === false);
+  check(
+    'Журнал «Каталог»: создание, порядок, обложка, скрытие — с тем, что было и стало',
+    ['catalog.game.create', 'catalog.category.order', 'catalog.game.cover', 'catalog.game.update'].every((a) => actions.includes(a)) && hide?.before?.isActive === true,
+    JSON.stringify(actions),
+  );
+  check(
+    'Не администратору каталог закрыт',
+    (await j('/admin/catalog', { token: seller.token })).status === 403 &&
+      (await j('/admin/catalog/games', { method: 'POST', token: seller.token, body: JSON.stringify({ slug: `x${rnd}`, title: 'X', kind: 'game' }) })).status === 403,
+  );
+}
+
 /** «Продавать на GameMarket»: сколько на руки — без входа, по правилу раздела. */
 async function scenarioSellEstimate() {
   console.log('\n— Калькулятор продавца —');
@@ -3876,6 +3953,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioSupport(rnd);
   await scenarioCatalog(rnd);
   await scenarioSellEstimate();
+  await scenarioCatalogAdmin(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

@@ -20,6 +20,7 @@ export const AUDIT_KINDS = {
   recovery: ['recovery.'],
   access: ['role.', 'email.'],
   settings: ['rates.', 'fee.'],
+  catalog: ['catalog.'],
 } as const;
 export type AuditKind = keyof typeof AUDIT_KINDS;
 export const AUDIT_KIND_KEYS = Object.keys(AUDIT_KINDS) as [AuditKind, ...AuditKind[]];

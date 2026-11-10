@@ -1015,13 +1015,22 @@ export const CATALOG: GameSpec[] = [
 export const RETIRED: Array<{ game: string; slug: string; into: string }> = [{ game: 'cs2', slug: 'items', into: 'skins' }];
 
 /** Кладёт справочник в базу. Повторный запуск ничего не дублирует. */
+/**
+ * Справочник из кода — в базу. Каталог ведётся в консоли (часть 110), а сид
+ * запускается при каждом выкате, поэтому изменённое в консоли (`editedAt`)
+ * он не перезаписывает и не удаляет: игра, раздел или поле, которые
+ * переименовали, скрыли, переставили или добавили в консоли, остаются как
+ * есть. Нетронутое обновляется из кода, как раньше; нового — добавляется.
+ */
 export async function seedCatalog(prisma: PrismaClient) {
   for (const g of CATALOG) {
-    const game = await prisma.game.upsert({
-      where: { slug: g.slug },
-      update: { title: g.title, kind: g.kind, aliases: g.aliases, sortOrder: g.popular ?? 100, isActive: true },
-      create: { slug: g.slug, title: g.title, kind: g.kind, aliases: g.aliases, sortOrder: g.popular ?? 100 },
-    });
+    const gameData = { title: g.title, kind: g.kind, aliases: g.aliases, sortOrder: g.popular ?? 100 };
+    const found = await prisma.game.findUnique({ where: { slug: g.slug } });
+    const game = !found
+      ? await prisma.game.create({ data: { slug: g.slug, ...gameData } })
+      : found.editedAt
+        ? found
+        : await prisma.game.update({ where: { id: found.id }, data: { ...gameData, isActive: true } });
     for (const [si, s] of g.sections.entries()) {
       const common = {
         title: s.title,
@@ -1031,13 +1040,15 @@ export async function seedCatalog(prisma: PrismaClient) {
         pricePerUnits: s.pack?.per ?? null,
         isActive: true,
       };
-      const category = await prisma.category.upsert({
-        where: { gameId_slug: { gameId: game.id, slug: s.slug } },
-        // Способ выдачи существующего раздела не трогаем: по нему уже
-        // выставлены лоты, и ключи не станут ручной выдачей задним числом.
-        update: common,
-        create: { gameId: game.id, slug: s.slug, fulfillmentType: s.fulfillment, ...common },
-      });
+      const where = { gameId_slug: { gameId: game.id, slug: s.slug } };
+      const had = await prisma.category.findUnique({ where });
+      // Способ выдачи существующего раздела не трогаем: по нему уже
+      // выставлены лоты, и ключи не станут ручной выдачей задним числом.
+      const category = !had
+        ? await prisma.category.create({ data: { gameId: game.id, slug: s.slug, fulfillmentType: s.fulfillment, ...common } })
+        : had.editedAt
+          ? had
+          : await prisma.category.update({ where: { id: had.id }, data: common });
       const keys = new Set<string>();
       for (const [ai, a] of (s.attrs ?? []).entries()) {
         keys.add(a.key);
@@ -1049,14 +1060,16 @@ export async function seedCatalog(prisma: PrismaClient) {
           isFilter: a.type !== 'string',
           sortOrder: ai + 1,
         };
-        await prisma.attribute.upsert({
-          where: { categoryId_key: { categoryId: category.id, key: a.key } },
-          update: data,
-          create: { categoryId: category.id, key: a.key, ...data },
-        });
+        const attrWhere = { categoryId_key: { categoryId: category.id, key: a.key } };
+        const attr = await prisma.attribute.findUnique({ where: attrWhere });
+        if (!attr) await prisma.attribute.create({ data: { categoryId: category.id, key: a.key, ...data } });
+        else if (!attr.editedAt) await prisma.attribute.update({ where: { id: attr.id }, data });
       }
-      // Параметр убрали из справочника — из формы и фильтров он уходит.
-      await prisma.attribute.deleteMany({ where: { categoryId: category.id, key: { notIn: [...keys] } } });
+      // Параметр убрали из справочника — из формы и фильтров он уходит;
+      // добавленные и изменённые в консоли остаются.
+      await prisma.attribute.deleteMany({
+        where: { categoryId: category.id, key: { notIn: [...keys] }, editedAt: null },
+      });
     }
   }
 
@@ -1067,7 +1080,8 @@ export async function seedCatalog(prisma: PrismaClient) {
       prisma.category.findUnique({ where: { gameId_slug: { gameId: game.id, slug: r.slug } } }),
       prisma.category.findUnique({ where: { gameId_slug: { gameId: game.id, slug: r.into } } }),
     ]);
-    if (!from || !into) continue;
+    // Раздел вернули в консоли — сид его больше не прячет.
+    if (!from || !into || from.editedAt) continue;
     await prisma.listing.updateMany({ where: { categoryId: from.id }, data: { categoryId: into.id } });
     await prisma.category.update({ where: { id: from.id }, data: { isActive: false } });
   }

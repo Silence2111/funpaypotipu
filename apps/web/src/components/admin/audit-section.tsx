@@ -36,7 +36,7 @@ interface Page {
   next: string | null;
 }
 
-type Kind = 'payouts' | 'moderation' | 'disputes' | 'kyc' | 'recovery' | 'access' | 'settings';
+type Kind = 'payouts' | 'moderation' | 'disputes' | 'kyc' | 'recovery' | 'access' | 'settings' | 'catalog';
 const KINDS: Array<{ key: Kind | null; label: string }> = [
   { key: null, label: 'Все' },
   { key: 'payouts', label: 'Выплаты' },
@@ -46,6 +46,7 @@ const KINDS: Array<{ key: Kind | null; label: string }> = [
   { key: 'recovery', label: 'Восстановление' },
   { key: 'access', label: 'Роли и почта' },
   { key: 'settings', label: 'Комиссии и курсы' },
+  { key: 'catalog', label: 'Каталог' },
 ];
 const readKind = (v: string | null): Kind | null => KINDS.find((k) => k.key === v)?.key ?? null;
 
@@ -82,7 +83,33 @@ const ACTION: Record<string, string> = {
   'rates.set': 'курсы для показа цен',
   'fee.create': 'новое правило комиссии',
   'fee.update': 'правило комиссии изменено',
+  'catalog.game.create': 'новая игра',
+  'catalog.game.update': 'игра изменена',
+  'catalog.game.cover': 'обложка игры',
+  'catalog.category.create': 'новый раздел',
+  'catalog.category.update': 'раздел изменён',
+  'catalog.category.order': 'порядок разделов',
+  'catalog.attribute.create': 'новое поле',
+  'catalog.attribute.update': 'поле изменено',
+  'catalog.attribute.delete': 'поле убрано',
+  'catalog.attribute.order': 'порядок полей',
 };
+/** Что сравнивать у игры, раздела и поля каталога: было → стало. */
+const CATALOG_FIELD: Record<string, string> = {
+  title: 'название',
+  label: 'подпись',
+  kind: 'вид',
+  sortOrder: 'место в популярных',
+  isActive: 'на витрине',
+  segment: 'тип товара',
+  fulfillmentType: 'выдача',
+  isRequired: 'обязательное',
+  isFilter: 'в фильтрах',
+  unitName: 'единица',
+  pricePerUnits: 'цена за',
+};
+const catalogValue = (v: unknown) =>
+  typeof v === 'boolean' ? (v ? 'да' : 'нет') : Array.isArray(v) ? v.join(', ') : v === null || v === undefined ? '—' : String(v);
 
 const SIDE: Record<string, string> = { buyer: 'покупателя', seller: 'продавца' };
 const PROOF: Record<string, string> = { card: 'по карте', documents: 'по документам', deals: 'по сделкам' };
@@ -145,6 +172,13 @@ function details(r: Entry): string[] {
   if (r.action === 'dispute.request' && side) out.push(`ответа ждём от ${SIDE[side] ?? side}`);
   const ext = str(a.externalId);
   if (ext) out.push(`№ ${ext} у ЮKassa`);
+  if (r.action.startsWith('catalog.') && r.before && r.after) {
+    for (const [k, label] of Object.entries(CATALOG_FIELD)) {
+      if (k in a && JSON.stringify(b[k]) !== JSON.stringify(a[k])) out.push(`${label}: ${catalogValue(b[k])} → ${catalogValue(a[k])}`);
+    }
+    if (JSON.stringify(b.aliases) !== JSON.stringify(a.aliases) && 'aliases' in a) out.push('синонимы изменены');
+    if (JSON.stringify(b.options) !== JSON.stringify(a.options) && 'options' in a) out.push(`варианты: ${catalogValue(a.options)}`);
+  }
   if (r.action.startsWith('report.')) {
     const act = str(a.action);
     if (act) out.push(REPORT_ACTION[act] ?? act);
@@ -174,6 +208,15 @@ function targetLabel(r: Entry) {
       return r.entityId === 'display_rates' ? 'курсы валют' : r.entityId;
     case 'fee_rule':
       return `правило ${short}`;
+    case 'game':
+    case 'category':
+    case 'attribute': {
+      // Название — из снимка в самой записи: так видно и убранное поле.
+      const snap = (r.after ?? r.before ?? {}) as Record<string, unknown>;
+      const name = str(snap.title) ?? str(snap.label);
+      const what = r.entityType === 'game' ? 'игра' : r.entityType === 'category' ? 'раздел' : 'поле';
+      return name ? `${what} «${name}»` : `${what} ${short}`;
+    }
     default:
       return `${r.entityType} ${short}`;
   }

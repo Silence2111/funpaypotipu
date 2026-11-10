@@ -3,16 +3,19 @@ import { PrismaClient } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import { ONLINE_MS } from '../../common/presence';
 import { utc } from '../../common/sql-time';
+import { assetUrl } from '../storage/asset-url';
 
 @Injectable()
 export class CatalogService {
   constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
 
-  listGames() {
-    return this.prisma.game.findMany({
+  // Обложка в базе — ключ хранилища (загружена в консоли), наружу — адрес.
+  async listGames() {
+    const games = await this.prisma.game.findMany({
       where: { isActive: true },
       orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
     });
+    return games.map((g) => ({ ...g, coverUrl: assetUrl(g.coverUrl) }));
   }
 
   async getGameBySlug(slug: string) {
@@ -52,6 +55,7 @@ export class CatalogService {
     );
     return {
       ...game,
+      coverUrl: assetUrl(game.coverUrl),
       sellers: people.get(null) ?? { sellers: 0, online: 0 },
       categories: game.categories.map((c) => ({
         ...c,
@@ -80,6 +84,7 @@ export class CatalogService {
           kind: true,
           aliases: true,
           sortOrder: true,
+          coverUrl: true,
           categories: {
             where: { isActive: true },
             orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
@@ -102,6 +107,7 @@ export class CatalogService {
       .sort((a, b) => a.title.localeCompare(b.title))
       .map((g) => ({
         ...g,
+        coverUrl: assetUrl(g.coverUrl),
         onlineSellers: onlineMap.get(g.id) ?? 0,
         categories: g.categories.map((c) => ({ ...c, listingCount: countMap.get(c.id) ?? 0 })),
       }));

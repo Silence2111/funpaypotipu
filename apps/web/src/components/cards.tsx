@@ -7,8 +7,16 @@ import { tileFor } from '@/lib/tile';
  * как сломанная страница, а чужие обложки игр брать нельзя. Цвет выводится
  * из названия, поэтому у одной игры он всегда одинаковый.
  */
-export function GameTile({ title, size }: { title: string; size: number }) {
+/** Плитка игры: обложка из консоли, а без неё — инициалы на цвете игры. */
+export function GameTile({ title, size, cover }: { title: string; size: number; cover?: string | null }) {
   const t = tileFor(title);
+  if (cover) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={cover} alt="" aria-hidden loading="lazy"
+        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit', display: 'block' }} />
+    );
+  }
   return (
     <div
       aria-hidden

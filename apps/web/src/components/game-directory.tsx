@@ -92,7 +92,7 @@ export async function PopularGames({ games, limit = 12 }: { games: GameIndexEntr
         return (
           <Link key={g.id} href={`/igra/${g.slug}`} className="popular-game">
             <span className="popular-icon">
-              <GameTile title={t.d(g.title)} size={16} />
+              <GameTile title={t.d(g.title)} size={16} cover={g.coverUrl} />
             </span>
             <span className="popular-text">
               <span className="popular-title">{t.d(g.title)}</span>
