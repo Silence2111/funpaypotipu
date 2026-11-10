@@ -93,6 +93,16 @@ jobs:
       - run: pnpm --filter @gamemarket/shared --filter @gamemarket/db build
       - run: pnpm --filter @gamemarket/api build
 
+      # База — в московском поясе, как бывает у управляемого Postgres в России:
+      # время в сыром SQL без utc() уезжает на 3 часа, и e2e это ловит. В UTC
+      # такие ошибки не видны (часть 103 в ПРОДУКТ/ДОВОДКА.md).
+      - name: Пояс базы — Europe/Moscow
+        env:
+          PGPASSWORD: gamemarket
+        run: |
+          psql -h localhost -U gamemarket -d gamemarket -c "ALTER DATABASE gamemarket SET timezone TO 'Europe/Moscow'"
+          test "$(psql -h localhost -U gamemarket -d gamemarket -tAc 'SHOW timezone')" = "Europe/Moscow"
+
       - name: Migrate + seed
         run: |
           pnpm --filter @gamemarket/db exec prisma migrate deploy

@@ -338,6 +338,21 @@ async function scenarioModeration(rnd) {
     JSON.stringify([cards.length, first.counts]),
   );
   check('Битый курсор жалоб — 400', (await j('/moderation/reports?cursor=x', { token: mod.token })).status === 400);
+  // Поиск по очереди: раньше жалобы на человека находились, только если
+  // листать всю очередь. Находится цель — с всеми её жалобами.
+  const rq = (q) => j(`/moderation/reports?q=${encodeURIComponent(q)}`, { token: mod.token });
+  const bySeller = await rq(`@mds${rnd}`);
+  const byReporter = await rq(`mda${rnd}`);
+  const byLot = await rq(bad);
+  const none = await rq(`нет такого ${rnd}`);
+  const card = (res) => res.body.items?.find?.((r) => r.targetId === bad);
+  check(
+    'Поиск жалоб: по нику продавца, по нику пожаловавшегося — карточка со всеми жалобами цели; по id лота; счётчик — по найденному',
+    card(bySeller)?.reports === 2 && card(byReporter)?.reports === 2 && card(byLot)?.reports === 2 &&
+      byLot.body.items.length === 1 && byLot.body.counts?.open === 1 && byLot.body.counts?.openReports === 2 &&
+      none.body.items?.length === 0 && none.body.counts?.open === 0,
+    JSON.stringify({ seller: card(bySeller)?.reports, reporter: card(byReporter)?.reports, lot: byLot.body.counts, none: none.body.counts }),
+  );
 
   await j(`/moderation/reports/${item?.id ?? r1.body.id}/handle`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'resolved', action: 'block_listing' }) });
   const decided = await j('/moderation/reports?status=resolved&limit=1', { token: mod.token });
@@ -2108,11 +2123,24 @@ async function scenarioSale(rnd) {
   const end = await j(`/listings/${lot}/sale`, { method: 'DELETE', token: seller.token });
   const endAgain = await j(`/listings/${lot}/sale`, { method: 'DELETE', token: seller.token });
   const back = (await j(`/listings/${lot}`)).body;
+  // Время, записанное сырым запросом, — в UTC при любом поясе базы:
+  // раньше при московском поясе «изменён» уезжал на 3 часа вперёд.
+  const touched = await prisma.listing.findUnique({ where: { id: lot }, select: { updatedAt: true } });
   // Новая скидка, срок которой уже вышел, — цену возвращает фоновая задача.
   // −30%: прошлая скидка (1 200 ₽) была на этой неделе, и честная скидка
   // считается от неё (часть 45) — 1 050 ₽ это −12%, а −10% (1 350 ₽) не скидка.
   const again2 = await sale({ percent: 30, days: 1 });
   if (again2.status !== 201) throw new Error(`Вторая скидка не началась: ${JSON.stringify(again2.body)}`);
+  // До срока час — фоновая задача (раз в 2 с) скидку не трогает. При поясе
+  // базы не UTC она кончалась на 3 часа раньше срока.
+  await prisma.listing.update({ where: { id: lot }, data: { saleUntil: new Date(Date.now() + 3600_000) } });
+  await wait(4500);
+  const early = (await j(`/listings/${lot}`)).body;
+  check(
+    'Скидка до срока не кончается, «изменён» — по UTC',
+    early.price !== '150000' && !!early.saleUntil && Math.abs(Date.now() - touched.updatedAt.getTime()) < 120_000,
+    JSON.stringify({ price: early.price, saleUntil: early.saleUntil, updatedAt: touched.updatedAt }),
+  );
   await prisma.listing.update({ where: { id: lot }, data: { saleUntil: new Date(Date.now() - 1000) } });
   let expired = null;
   for (let i = 0; i < 20; i++) {

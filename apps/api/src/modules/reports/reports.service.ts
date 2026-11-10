@@ -17,6 +17,7 @@ import {
 import { PRISMA } from '../../prisma/prisma.module';
 import { say } from '../../i18n/texts';
 import type { Lang } from '../../i18n/lang';
+import { utc } from '../../common/sql-time';
 
 const CURRENCY = 'RUB';
 /** Сколько строк выписки отдавать за раз; дальше — «Показать ещё», в файле — все. */
@@ -334,7 +335,7 @@ export class ReportsService {
         SELECT to_char(completed_at + interval '3 hours', 'YYYY-MM-DD') AS day,
                count(*) AS orders, sum(amount)::text AS gmv
         FROM orders
-        WHERE status = 'completed' AND completed_at >= ${p.from} AND completed_at < ${p.to}
+        WHERE status = 'completed' AND completed_at >= ${utc(p.from)} AND completed_at < ${utc(p.to)}
         GROUP BY 1`,
       revenueIds.length
         ? this.prisma.$queryRaw<Array<{ day: string; net: string | null }>>`
@@ -342,7 +343,7 @@ export class ReportsService {
                    sum(CASE WHEN direction = 'credit' THEN amount ELSE -amount END)::text AS net
             FROM ledger_entries
             WHERE account_id = ANY(${revenueIds}::uuid[])
-              AND created_at >= ${p.from} AND created_at < ${p.to}
+              AND created_at >= ${utc(p.from)} AND created_at < ${utc(p.to)}
             GROUP BY 1`
         : Promise.resolve([] as Array<{ day: string; net: string | null }>),
     ]);

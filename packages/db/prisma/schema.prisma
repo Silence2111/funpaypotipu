@@ -839,6 +839,8 @@ model Report {
   @@index([targetType, targetId])
   @@index([status, createdAt])
   @@index([status, handledAt])
+  // Поиск в очереди: на что жаловался человек.
+  @@index([reporterId])
   @@map("reports")
 }
 

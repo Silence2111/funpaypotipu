@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import { ONLINE_MS } from '../../common/presence';
+import { utc } from '../../common/sql-time';
 
 @Injectable()
 export class CatalogService {
@@ -40,7 +41,7 @@ export class CatalogService {
       this.prisma.$queryRaw<Array<{ category_id: string | null; sellers: bigint; online: bigint }>>`
         SELECT l.category_id,
                COUNT(DISTINCT l.seller_id) AS sellers,
-               COUNT(DISTINCT l.seller_id) FILTER (WHERE p.online_at >= ${since}) AS online
+               COUNT(DISTINCT l.seller_id) FILTER (WHERE p.online_at >= ${utc(since)}) AS online
         FROM listings l JOIN profiles p ON p.user_id = l.seller_id
         WHERE l.game_id = ${game.id}::uuid AND l.status = 'active'
         GROUP BY ROLLUP (l.category_id)`,
@@ -90,7 +91,7 @@ export class CatalogService {
       this.prisma.$queryRaw<Array<{ game_id: string; online: bigint }>>`
         SELECT l.game_id, COUNT(DISTINCT l.seller_id) AS online
         FROM listings l JOIN profiles p ON p.user_id = l.seller_id
-        WHERE l.status = 'active' AND p.online_at >= ${since}
+        WHERE l.status = 'active' AND p.online_at >= ${utc(since)}
         GROUP BY l.game_id`,
     ]);
     const countMap = new Map(counts.map((c) => [c.categoryId, c._count._all]));

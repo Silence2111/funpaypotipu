@@ -49,6 +49,7 @@ import { LedgerService } from '../ledger/ledger.service';
 import { assetUrl } from '../storage/asset-url';
 import { ONLINE_MS } from '../../common/presence';
 import { containsText } from '../../common/like';
+import { utc } from '../../common/sql-time';
 
 const BOOST_MS = 24 * 3600 * 1000; // лот держится в топе сутки
 /** Как часто проверять автоподнятие: лот поднимется не позже чем через столько после конца паузы. */
@@ -754,7 +755,7 @@ export class ListingsService {
   async endSale(sellerId: string, id: string) {
     const n = await this.prisma.$executeRaw`
       UPDATE listings
-      SET price = sale_list_price, sale_list_price = NULL, sale_ref_price = NULL, sale_until = NULL, sale_started_at = NULL, updated_at = ${new Date()}
+      SET price = sale_list_price, sale_list_price = NULL, sale_ref_price = NULL, sale_until = NULL, sale_started_at = NULL, updated_at = ${utc(new Date())}
       WHERE id = ${id}::uuid AND seller_id = ${sellerId}::uuid AND sale_until IS NOT NULL`;
     if (!n) throw new NotFoundException('Скидки на этом лоте нет');
     await this.search.indexListing(id);
@@ -764,7 +765,9 @@ export class ListingsService {
   /** Срок скидки вышел — прежняя цена возвращается одним запросом; заодно снимаются истёкшие «минимумы за 30 дней». */
   @Interval('sales', SALE_SWEEP_MS)
   async endExpiredSales(): Promise<number> {
-    const now = new Date();
+    // Время сырым запросом — через utc(): иначе при поясе базы не UTC скидки
+    // кончались на 3 часа раньше срока.
+    const now = utc(new Date());
     // Срок без прежней цены — данные испорчены: такой строке ставить нечего,
     // а в общем запросе она уронила бы возврат цены всем остальным лотам.
     await this.prisma.$executeRaw`

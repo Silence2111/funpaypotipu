@@ -1,10 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
 import { Empty, LISTING_STATUS, StatusBadge, USER_STATUS, when } from './shared';
+import { usePaged } from './use-paged';
 
 interface Person { id: string; username: string | null; status: string }
 /** Карточка очереди — одна цель и все её жалобы (у решённых — одно решение). */
@@ -25,19 +28,17 @@ interface Row {
   target: { title?: string; listingStatus?: string; text?: string; user: Person | null } | null;
 }
 
-interface Page {
-  items: Row[];
-  /** С какой карточки продолжать «Показать ещё»; null — показаны все. */
-  next: string | null;
-  /** Сколько целей и жалоб ждут решения; решённые не считаются. */
-  counts: { open: number; openReports: number };
-}
+/** Сколько целей и жалоб ждут решения (в поиске — найденных); решённые не считаются. */
+type Counts = { open: number; openReports: number };
 
 const FILTERS = [
   { key: '', label: 'Открытые' },
   { key: 'resolved', label: 'Решённые' },
   { key: 'rejected', label: 'Отклонённые' },
 ];
+const readFilter = (v: string | null) => FILTERS.find((f) => f.key === v)?.key ?? '';
+/** Адрес очереди с фильтром и поиском — ссылкой открывается тот же список. */
+const reportsUrl = (status: string, q: string) => withQuery('/admin', { tab: 'reports', status, q: q.trim() });
 const KIND = { listing: 'Лот', user: 'Пользователь', message: 'Сообщение в чате' };
 
 /** «1 жалоба», «3 жалобы», «250 жалоб». */
@@ -52,68 +53,49 @@ function complaints(n: number) {
  * Очередь жалоб: одна карточка на цель — сколько жалоб и по каким
  * причинам, что писали последние, кто нарушитель — и решение одной кнопкой
  * для всех её жалоб. Открытые — по первой жалобе, от старых к новым,
- * решённые — свежие решения сверху; по 50 и «Показать ещё».
+ * решённые — свежие решения сверху; по 50 и «Показать ещё». Поиск — по нику
+ * нарушителя или пожаловавшегося, названию лота, id цели или жалобы:
+ * находится цель, и в карточке — все её жалобы. Раньше поиска не было, и
+ * жалобы на конкретного человека находились, только если листать очередь.
+ * Фильтр и поиск — в адресе страницы.
  */
 export function ReportsSection() {
-  const [filter, setFilter] = useState('');
-  const [rows, setRows] = useState<Row[] | null>(null);
-  const [next, setNext] = useState<string | null>(null);
-  const [open, setOpen] = useState<Page['counts'] | null>(null);
+  const params = useSearchParams();
+  const [filter, setFilter] = useState(readFilter(params.get('status')));
+  const [text, setText] = useState(params.get('q') ?? '');
+  const [query, setQuery] = useState(params.get('q') ?? '');
   const [busy, setBusy] = useState<string | null>(null);
-  const [more, setMore] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  // Ответ на прежний фильтр новый список не перетирает.
-  const current = useRef('');
 
-  const url = useCallback(
-    (cursor?: string) => {
-      const p = new URLSearchParams();
-      if (filter) p.set('status', filter);
-      if (cursor) p.set('cursor', cursor);
-      return `/moderation/reports?${p}`;
-    },
-    [filter],
-  );
+  const p = new URLSearchParams();
+  if (filter) p.set('status', filter);
+  if (query) p.set('q', query);
+  const s = p.toString();
+  const {
+    rows,
+    setRows,
+    next,
+    counts: open,
+    setCounts: setOpen,
+    busy: more,
+    err,
+    setErr,
+    more: loadMore,
+  } = usePaged<Row, Counts>(s ? `/moderation/reports?${s}` : '/moderation/reports', 'Не удалось загрузить жалобы.');
 
+  // Адрес сменили снаружи (ссылкой) — список за ним.
   useEffect(() => {
-    const key = url();
-    current.current = key;
-    setRows(null);
-    setErr(null);
-    apiFetch<Page>(key)
-      .then((p) => {
-        if (current.current !== key) return;
-        setRows(p.items);
-        setNext(p.next);
-        setOpen(p.counts);
-      })
-      .catch((e) => {
-        if (current.current !== key) return;
-        setRows([]);
-        setNext(null);
-        setErr(apiErrorMessage(e, 'Не удалось загрузить жалобы.'));
-      });
-  }, [url]);
+    if (!isCurrentQuery(params)) return;
+    setFilter(readFilter(params.get('status')));
+    setQuery(params.get('q') ?? '');
+    setText(params.get('q') ?? '');
+  }, [params]);
 
-  async function loadMore() {
-    if (!next || more) return;
-    const key = current.current;
-    setMore(true);
-    setErr(null);
-    try {
-      const p = await apiFetch<Page>(url(next));
-      if (current.current !== key) return;
-      setRows((prev) => {
-        const seen = new Set((prev ?? []).map((r) => r.id));
-        return [...(prev ?? []), ...p.items.filter((r) => !seen.has(r.id))];
-      });
-      setNext(p.next);
-      setOpen(p.counts);
-    } catch (e) {
-      setErr(apiErrorMessage(e, 'Не удалось загрузить жалобы.'));
-    } finally {
-      setMore(false);
-    }
+  function go(change: { status?: string; q?: string }) {
+    const st = change.status ?? filter;
+    const q = (change.q ?? query).trim();
+    setFilter(st);
+    setQuery(q);
+    replaceUrl(reportsUrl(st, q));
   }
 
   async function handle(r: Row, status: 'resolved' | 'rejected', action?: 'block_listing' | 'freeze_user' | 'ban_user') {
@@ -137,9 +119,21 @@ export function ReportsSection() {
 
   return (
     <section className="stack-form" style={{ gap: 16 }}>
+      <form
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          go({ q: text });
+        }}
+        className="row"
+        style={{ gap: 8, flexWrap: 'wrap' }}
+      >
+        <input className="input" style={{ flex: 1, minWidth: 200 }} placeholder="Ник нарушителя или пожаловавшегося, название лота, id"
+          value={text} onChange={(e) => setText(e.target.value)} aria-label="Поиск жалоб" />
+        <button className="btn secondary" type="submit">Найти</button>
+      </form>
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
         {FILTERS.map((f) => (
-          <button key={f.key} type="button" className="chip" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>
+          <button key={f.key || 'open'} type="button" className="chip" aria-pressed={filter === f.key} onClick={() => go({ status: f.key })}>
             {f.label}
             {f.key === '' && open !== null && <span className="notif-group-count">{open.open}</span>}
           </button>
@@ -149,7 +143,7 @@ export function ReportsSection() {
       {rows === null ? (
         <div className="skeleton" style={{ height: 120 }} aria-busy="true" />
       ) : rows.length === 0 ? (
-        err ? null : <Empty>{filter ? 'Таких жалоб нет.' : 'Открытых жалоб нет.'}</Empty>
+        err ? null : <Empty>{query ? 'Ничего не нашлось.' : filter ? 'Таких жалоб нет.' : 'Открытых жалоб нет.'}</Empty>
       ) : (
         rows.map((r) => {
           const t = r.target;
