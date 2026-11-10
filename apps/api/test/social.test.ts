@@ -3,7 +3,10 @@ import { createHash, createHmac } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import { TokenService } from '../src/modules/auth/token.service';
 import {
+  OAUTH_PROVIDERS,
   authorizeUrl,
+  fetchProfile,
+  isOAuthProvider,
   oauthConfig,
   pkce,
   verifyTelegramLogin,
@@ -11,7 +14,7 @@ import {
 import { SocialService, safeNext } from '../src/modules/auth/social/social.service';
 
 /**
- * Вход через Telegram, VK и Google. Ошибка здесь отдаёт чужой аккаунт,
+ * Вход через Telegram, VK ID и Яндекс ID. Ошибка здесь отдаёт чужой аккаунт,
  * поэтому проверяется прежде всего то, что запрещено: поддельные данные
  * Telegram, чужой state, вход в аккаунт по неподтверждённой почте, уход
  * на чужой адрес после входа.
@@ -35,8 +38,8 @@ const now = () => Math.floor(Date.now() / 1000);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  delete process.env.GOOGLE_CLIENT_ID;
-  delete process.env.GOOGLE_CLIENT_SECRET;
+  delete process.env.YANDEX_CLIENT_ID;
+  delete process.env.YANDEX_CLIENT_SECRET;
   delete process.env.VK_CLIENT_ID;
   process.env.TELEGRAM_BOT_TOKEN = BOT;
   process.env.TELEGRAM_BOT_USERNAME = 'gm_test_bot';
@@ -79,7 +82,7 @@ describe('данные виджета Telegram', () => {
 
 describe('обмен кодом', () => {
   it('без ключей сервиса кнопки нет', () => {
-    expect(oauthConfig('google')).toBeNull();
+    expect(oauthConfig('yandex')).toBeNull();
     expect(oauthConfig('vk')).toBeNull();
   });
 
@@ -93,6 +96,62 @@ describe('обмен кодом', () => {
     expect(url.searchParams.get('state')).toBe('s1');
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
     expect(url.searchParams.get('code_challenge')).toBe(challenge);
+  });
+
+  it('Google нет: ни кнопки, ни начала входа — только российские сервисы (149-ФЗ)', () => {
+    process.env.GOOGLE_CLIENT_ID = 'g';
+    process.env.GOOGLE_CLIENT_SECRET = 's';
+    expect(isOAuthProvider('google')).toBe(false);
+    expect(OAUTH_PROVIDERS).toEqual(['yandex', 'vk']);
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
+  });
+
+  it('Яндекс ID: код — с секретом и PKCE, профиль — с «OAuth <токен>»; логин — подсказка ника, основная почта подтверждена', async () => {
+    process.env.YANDEX_CLIENT_ID = 'ya-app';
+    process.env.YANDEX_CLIENT_SECRET = 'ya-secret';
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      calls.push({ url: String(url), init });
+      const body = String(url).includes('/token')
+        ? { access_token: 'ya-token', token_type: 'bearer' }
+        : { id: '1130000012345678', login: 'anna.smirnova', default_email: 'Anna@Yandex.ru', real_name: 'Анна Смирнова', display_name: 'anna' };
+      return new Response(JSON.stringify(body), { status: 200 });
+    });
+    const c = oauthConfig('yandex')!;
+    expect(c.authorizeUrl).toBe('https://oauth.yandex.ru/authorize');
+    const profile = await fetchProfile(c, { code: 'c1', verifier: 'v1', redirectUri: 'http://api/cb', state: 's1' });
+    fetchMock.mockRestore();
+    expect(profile).toEqual({
+      provider: 'yandex',
+      subject: '1130000012345678',
+      email: 'anna@yandex.ru',
+      emailVerified: true,
+      name: 'Анна Смирнова',
+      nick: 'anna.smirnova',
+    });
+    const form = new URLSearchParams(String(calls[0]!.init!.body));
+    expect(calls[0]!.url).toBe('https://oauth.yandex.ru/token');
+    expect(Object.fromEntries(form)).toEqual({
+      grant_type: 'authorization_code',
+      code: 'c1',
+      code_verifier: 'v1',
+      client_id: 'ya-app',
+      client_secret: 'ya-secret',
+    });
+    expect(calls[1]!.url).toBe('https://login.yandex.ru/info?format=json');
+    expect((calls[1]!.init!.headers as Record<string, string>).Authorization).toBe('OAuth ya-token');
+  });
+
+  it('Яндекс ID без почты — почты нет и она не «подтверждена»', async () => {
+    process.env.YANDEX_CLIENT_ID = 'ya-app';
+    process.env.YANDEX_CLIENT_SECRET = 'ya-secret';
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) =>
+      new Response(JSON.stringify(String(url).includes('/token') ? { access_token: 't' } : { id: 42, login: 'x' }), { status: 200 }),
+    );
+    const profile = await fetchProfile(oauthConfig('yandex')!, { code: 'c', verifier: 'v', redirectUri: 'r', state: 's' });
+    fetchMock.mockRestore();
+    expect(profile).toMatchObject({ subject: '42', email: null, emailVerified: false, name: null });
   });
 
   it('после входа — только путь на этом сайте', () => {
@@ -212,9 +271,9 @@ const ticketFor = (p: Record<string, unknown>) =>
 describe('завершение входа', () => {
   it('аккаунт сервиса привязан — вход в него, с той же проверкой кода, что у пароля', async () => {
     const { svc, auth } = service({
-      links: [{ id: 'l1', userId: 'u1', provider: 'google', subject: 'g-1' }],
+      links: [{ id: 'l1', userId: 'u1', provider: 'yandex', subject: 'g-1' }],
     });
-    await svc.complete(ticketFor({ provider: 'google', subject: 'g-1' }), { code: '123456' }, {});
+    await svc.complete(ticketFor({ provider: 'yandex', subject: 'g-1' }), { code: '123456' }, {});
     expect(auth.loginVerified).toHaveBeenCalledWith('u1', '123456', {});
   });
 
@@ -225,12 +284,12 @@ describe('завершение входа', () => {
     expect(links).toMatchObject([{ userId: 'u2', provider: 'telegram', subject: '777' }]);
   });
 
-  it('почту подтвердили и Google, и площадка — аккаунт находится', async () => {
+  it('почту подтвердили и Яндекс ID, и площадка — аккаунт находится', async () => {
     const { svc, auth } = service({
       users: [{ id: 'u3', email: 'kim@mail.ru', emailVerified: new Date() }],
     });
     await svc.complete(
-      ticketFor({ provider: 'google', subject: 'g-3', email: 'kim@mail.ru', emailVerified: true }),
+      ticketFor({ provider: 'yandex', subject: 'g-3', email: 'kim@mail.ru', emailVerified: true }),
       {},
       {},
     );
@@ -244,7 +303,7 @@ describe('завершение входа', () => {
     await expect(
       svc.complete(
         ticketFor({
-          provider: 'google',
+          provider: 'yandex',
           subject: 'g-4',
           email: 'kim@mail.ru',
           emailVerified: true,
@@ -297,21 +356,21 @@ describe('завершение входа', () => {
 
 describe('возврат от сервиса', () => {
   it('state не совпал с cookie браузера — ни входа, ни привязки', async () => {
-    process.env.GOOGLE_CLIENT_ID = 'g';
-    process.env.GOOGLE_CLIENT_SECRET = 's';
+    process.env.YANDEX_CLIENT_ID = 'g';
+    process.env.YANDEX_CLIENT_SECRET = 's';
     const { svc } = service({});
-    const { stateCookie } = svc.start('google', '/lot/1');
-    const r = await svc.callback('google', { code: 'c', state: 'чужой' }, stateCookie);
+    const { stateCookie } = svc.start('yandex', '/lot/1');
+    const r = await svc.callback('yandex', { code: 'c', state: 'чужой' }, stateCookie);
     expect(r.redirect).toMatch(/social_error=state$/);
     expect(r.ticket).toBeUndefined();
   });
 
   it('куда вернуть — из state, чужой адрес не проходит', () => {
-    process.env.GOOGLE_CLIENT_ID = 'g';
-    process.env.GOOGLE_CLIENT_SECRET = 's';
+    process.env.YANDEX_CLIENT_ID = 'g';
+    process.env.YANDEX_CLIENT_SECRET = 's';
     const { svc } = service({});
     const st = tokens.verifyData<{ next: string }>(
-      svc.start('google', '//evil.com').stateCookie,
+      svc.start('yandex', '//evil.com').stateCookie,
       'oauth_state',
     );
     expect(st.next).toBe('/');
@@ -322,9 +381,9 @@ describe('способы входа в «Безопасности»', () => {
   it('единственный способ входа без пароля не отключается', async () => {
     const { svc } = service({
       users: [{ id: 'u6', passwordHash: null }],
-      links: [{ id: 'l6', userId: 'u6', provider: 'google', subject: 'g-6' }],
+      links: [{ id: 'l6', userId: 'u6', provider: 'yandex', subject: 'g-6' }],
     });
-    await expect(svc.unlink('u6', 'google')).rejects.toThrow(/единственный способ входа/);
+    await expect(svc.unlink('u6', 'yandex')).rejects.toThrow(/единственный способ входа/);
   });
 
   it('чужой аккаунт сервиса к себе не привязать', async () => {

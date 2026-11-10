@@ -12,9 +12,11 @@
 // Словари — TypeScript; Node 22 читает их сам, без сборки.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const SRC = new URL('../src/', import.meta.url).pathname;
+// fileURLToPath, а не .pathname: в пути папки с кириллицей .pathname
+// остаётся закодированным (%D0%BC…), и проверка не находила словари.
+const SRC = fileURLToPath(new URL('../src/', import.meta.url));
 const DICT = join(SRC, 'lib/i18n/en');
 
 // Остаются русскими: консоль сотрудников и юридические документы — их

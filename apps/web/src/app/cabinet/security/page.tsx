@@ -37,7 +37,7 @@ interface Session {
 const when = (iso: string, t: T) =>
   new Date(iso).toLocaleString(t.locale, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
-/** Чем закончилось подключение Google или VK — адрес возврата от API. */
+/** Чем закончилось подключение Яндекс ID или VK — адрес возврата от API. */
 const LINKED: Record<string, { ok: boolean; text: string }> = {
   linked: { ok: true, text: msg('Сервис подключён: теперь можно входить через него.') },
   conflict: { ok: false, text: msg('Этот аккаунт сервиса уже привязан к другому пользователю площадки.') },
@@ -100,7 +100,7 @@ function Security() {
     }
   }
 
-  // Аккаунт из Telegram, VK или Google: пароля нет, его задают без текущего.
+  // Аккаунт из Яндекс ID, VK или Telegram: пароля нет, его задают без текущего.
   const firstPassword = ways !== null && !ways.hasPassword;
 
   function changePassword(e: FormEvent) {

@@ -12,7 +12,6 @@ interface AuthResponse {
   accessToken: string;
 }
 
-const LABEL: Record<string, string> = { google: 'Google', vk: 'VK ID', telegram: 'Telegram' };
 const USERNAME_RE = /^[a-z0-9_]{3,32}$/;
 
 const safeNext = (raw: string | null) =>
@@ -21,12 +20,13 @@ const safeNext = (raw: string | null) =>
 type Phase = 'loading' | 'username' | 'code' | 'error';
 
 /**
- * Завершение входа через Telegram, VK ID или Google. Сервис уже подтвердил
+ * Завершение входа через Яндекс ID, VK ID или Telegram. Сервис уже подтвердил
  * личность (билет — в cookie API). Новому человеку — выбрать ник и принять
  * правила, как при регистрации; с защитой входа — код из приложения.
  */
 function Complete() {
   const t = useT();
+  const LABEL: Record<string, string> = { yandex: t('Яндекс ID'), vk: 'VK ID', telegram: 'Telegram' };
   const router = useRouter();
   const next = safeNext(useSearchParams().get('next'));
   const [phase, setPhase] = useState<Phase>('loading');

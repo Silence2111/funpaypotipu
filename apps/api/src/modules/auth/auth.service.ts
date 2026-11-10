@@ -206,9 +206,9 @@ export class AuthService {
   }
 
   /**
-   * Вход, когда личность уже подтвердил сервис (Telegram, VK, Google): те же
+   * Вход, когда личность уже подтвердил сервис (Telegram, VK ID, Яндекс ID): те же
    * блокировка и код из приложения, что у входа по паролю, — иначе кнопка
-   * «Войти через Google» обходила бы двухфакторную защиту.
+   * «Войти через Яндекс ID» обходила бы двухфакторную защиту.
    */
   async loginVerified(userId: string, code: string | undefined, ctx: RequestCtx): Promise<IssuedAuth> {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { profile: true } });
@@ -369,7 +369,7 @@ export class AuthService {
   /**
    * Смена пароля: нужен текущий. Остальные устройства выходят сразу —
    * смену пароля делают, когда подозревают чужой вход. Аккаунт, заведённый
-   * через Telegram, VK или Google, пароля не имеет — его задают без текущего.
+   * через Telegram, VK ID или Яндекс ID, пароля не имеет — его задают без текущего.
    */
   async changePassword(
     userId: string,

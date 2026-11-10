@@ -186,8 +186,8 @@ export const ACCOUNT: Record<string, string> = {
     'Telegram connected: you can now sign in with it.',
   'Telegram не подключился.': 'Telegram didn’t connect.',
   'Вход через сервисы': 'Sign in with services',
-  'Входить в один аккаунт по паролю, через Telegram, VK ID или Google — как удобнее.':
-    'Sign in to one account with a password, Telegram, VK ID or Google — whichever is easier.',
+  'Входить в один аккаунт по паролю, через Яндекс ID, VK ID или Telegram — как удобнее.':
+    'Sign in to one account with a password, Yandex ID, VK ID or Telegram — whichever is easier.',
   'Не подключён': 'Not connected',
   '{name} отключён.': '{name} disconnected.',
   'Не удалось отключить.': 'Couldn’t disconnect.',

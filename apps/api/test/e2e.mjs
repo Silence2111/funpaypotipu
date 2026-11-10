@@ -5,7 +5,7 @@
  * продажа поштучно (наличие, перепродажа последней штуки), способы оплаты (надбавка карты,
  * второй платёж по заказу), модерация (жалобы, бан, заморозка, спор у арбитра),
  * аккаунт (чёрный список, профиль, пароль, сеансы), вход с кодом из приложения и защита от подбора,
- * подписка на пуш-уведомления, проверка личности, вход через Google и VK ID,
+ * подписка на пуш-уведомления, проверка личности, вход через Яндекс ID и VK ID,
  * поддержка, ошибки на языке сайта, выплаты (с холдом и ролью finance), оплата через ЮKassa
  * (второй API с PAYMENT_PROVIDER=yookassa против тестового сервера ЮKassa), консоль: пользователи
  * и лоты по страницам, со счётчиками, поиском и причиной блокировки.
@@ -956,11 +956,11 @@ async function scenarioKyc(rnd) {
   );
 }
 
-// Вход через Google и VK ID — весь обмен кодом против тестового сервера
+// Вход через Яндекс ID и VK ID — весь обмен кодом против тестового сервера
 // (oauth-mock.mjs): state, PKCE, выбор ника, привязка в «Безопасности»,
 // код из приложения и для входа через сервис.
 async function scenarioSocial(rnd, mock) {
-  console.log('\n— Вход через Google и VK ID —');
+  console.log('\n— Вход через Яндекс ID и VK ID —');
   const cookieOf = (res, name) =>
     res.headers.getSetCookie().map((c) => c.split(';')[0]).find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
   const go = (url, cookie) => fetch(url, { redirect: 'manual', headers: cookie ? { cookie } : {} });
@@ -982,26 +982,27 @@ async function scenarioSocial(rnd, mock) {
   };
 
   const on = await j('/auth/social');
-  check('Кнопки — у подключённых сервисов: Google и VK есть, Telegram без бота нет', on.body.google && on.body.vk && on.body.telegram === null, JSON.stringify(on.body));
+  check('Кнопки — у подключённых сервисов: Яндекс и VK есть, Telegram без бота и Google нет', on.body.yandex && on.body.vk && on.body.telegram === null && !('google' in on.body), JSON.stringify(on.body));
 
-  mock.as('google', { sub: `g-${rnd}`, email: `anna${rnd}@gmail.test`, email_verified: true, name: 'Анна Смирнова' });
-  const first = await signIn('google', '/lot/abc');
-  check('Google вернул в браузер билет и страницу завершения с адресом возврата', !!first.ticket && first.location.endsWith('/login/social?next=%2Flot%2Fabc'), first.location);
+  // Как login.yandex.ru/info: id, логин, основная почта, имя.
+  mock.as('yandex', { id: `y-${rnd}`, login: 'anna.smirnova', default_email: `anna${rnd}@yandex.test`, real_name: 'Анна Смирнова', display_name: 'anna.smirnova' });
+  const first = await signIn('yandex', '/lot/abc');
+  check('Яндекс вернул в браузер билет и страницу завершения с адресом возврата', !!first.ticket && first.location.endsWith('/login/social?next=%2Flot%2Fabc'), first.location);
   const nick = await complete(first.ticket);
-  check('Новый человек — сначала ник, подсказка из имени', nick.status === 400 && nick.body.error === 'username_required' && nick.body.suggested === 'anna_smirnova', JSON.stringify(nick.body));
+  check('Новый человек — сначала ник, подсказка из логина Яндекса', nick.status === 400 && nick.body.error === 'username_required' && nick.body.suggested === 'anna_smirnova', JSON.stringify(nick.body));
   const made = await complete(first.ticket, { username: `anna_${rnd}` });
-  check('С ником — вход, почта от Google подтверждена', made.status === 200 && !!made.body.accessToken && made.body.user.email === `anna${rnd}@gmail.test`, String(made.status));
-  const again = await complete((await signIn('google')).ticket);
-  check('Второй вход через Google — тот же аккаунт без вопросов', again.status === 200 && again.body.user.id === made.body.user.id, String(again.status));
+  check('С ником — вход, основная почта Яндекс ID подтверждена', made.status === 200 && !!made.body.accessToken && made.body.user.email === `anna${rnd}@yandex.test`, String(made.status));
+  const again = await complete((await signIn('yandex')).ticket);
+  check('Второй вход через Яндекс — тот же аккаунт без вопросов', again.status === 200 && again.body.user.id === made.body.user.id, String(again.status));
   const ways = await j('/auth/social/accounts', { token: made.body.accessToken });
-  check('В «Безопасности»: Google подключён, пароля нет', ways.body.hasPassword === false && ways.body.accounts?.[0]?.provider === 'google', JSON.stringify(ways.body));
-  const lastWay = await j('/auth/social/google', { method: 'DELETE', token: made.body.accessToken });
+  check('В «Безопасности»: Яндекс ID подключён, пароля нет', ways.body.hasPassword === false && ways.body.accounts?.[0]?.provider === 'yandex', JSON.stringify(ways.body));
+  const lastWay = await j('/auth/social/yandex', { method: 'DELETE', token: made.body.accessToken });
   check('Единственный способ входа без пароля не отключается', lastWay.status === 400, String(lastWay.status));
-  const pwd = await j('/auth/password', { method: 'POST', token: made.body.accessToken, body: JSON.stringify({ next: 'password-from-google' }) });
-  const off = await j('/auth/social/google', { method: 'DELETE', token: made.body.accessToken });
-  check('Задал пароль — Google отключается', pwd.status === 200 && off.status === 200 && off.body.accounts.length === 0, `${pwd.status} / ${off.status}`);
+  const pwd = await j('/auth/password', { method: 'POST', token: made.body.accessToken, body: JSON.stringify({ next: 'password-from-yandex' }) });
+  const off = await j('/auth/social/yandex', { method: 'DELETE', token: made.body.accessToken });
+  check('Задал пароль — Яндекс ID отключается', pwd.status === 200 && off.status === 200 && off.body.accounts.length === 0, `${pwd.status} / ${off.status}`);
 
-  const forged = await signIn('google');
+  const forged = await signIn('yandex');
   const tampered = await go(forged.back.replace(/state=[^&]+/, 'state=forged'), `gm_oauth=${forged.state}`);
   check('Чужой state — ни входа, ни билета', /social_error=state$/.test(tampered.headers.get('location') ?? '') && !cookieOf(tampered, 'gm_social'), tampered.headers.get('location'));
 
@@ -3899,7 +3900,7 @@ async function scenarioTelegramBot(rnd) {
     await scenarioSocial(rnd, mock);
     mock.close();
   } else {
-    console.log('\n— Вход через Google и VK ID — пропущен: нет OAUTH_TEST_ISSUER —');
+    console.log('\n— Вход через Яндекс ID и VK ID — пропущен: нет OAUTH_TEST_ISSUER —');
   }
   await scenarioLanguage(rnd);
   await scenarioRates(rnd);
