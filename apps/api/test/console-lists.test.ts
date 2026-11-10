@@ -19,8 +19,7 @@ const user = (id: string, h: number, extra: Record<string, unknown> = {}) => ({
   email: `${id}@e.x`,
   status: 'active',
   createdAt: at(h),
-  lastLoginAt: null,
-  profile: { username: id, salesCount: 0, ratingAvg: 0, ratingCount: 0 },
+  profile: { username: id, salesCount: 0, ratingAvg: 0, ratingCount: 0, onlineAt: null },
   roles: [] as Array<{ role: { key: string } }>,
   ...extra,
 });

@@ -459,8 +459,8 @@ export class ModerationService {
           email: true,
           status: true,
           createdAt: true,
-          lastLoginAt: true,
-          profile: { select: { username: true, salesCount: true, ratingAvg: true, ratingCount: true } },
+          // Когда был на сайте: время входа не пишется, а «в сети» отмечает каждый запрос.
+          profile: { select: { username: true, salesCount: true, ratingAvg: true, ratingCount: true, onlineAt: true } },
           roles: { select: { role: { select: { key: true } } } },
         },
       }),

@@ -428,8 +428,9 @@ async function scenarioConsoleLists(rnd) {
     JSON.stringify([all.items.length, all.first.counts]),
   );
   const one = await j(`/moderation/users?q=cls${rnd}`, { token: mod.token });
-  check('У пользователя — лоты в продаже и последний вход', one.body.items?.[0]?.activeListings === 3 && 'lastLoginAt' in one.body.items[0],
-    JSON.stringify(one.body.items?.[0] && { lots: one.body.items[0].activeListings, login: one.body.items[0].lastLoginAt }));
+  const seen = one.body.items?.[0]?.profile?.onlineAt;
+  check('У пользователя — лоты в продаже и когда был на сайте', one.body.items?.[0]?.activeListings === 3 && !!seen && Date.now() - new Date(seen).getTime() < 600_000,
+    JSON.stringify(one.body.items?.[0] && { lots: one.body.items[0].activeListings, onlineAt: seen }));
   await j(`/moderation/users/${seller.id}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'banned', reason: 'Спам в лотах' }) });
   const banned = await j(`/moderation/users?status=banned&q=cls${rnd}`, { token: mod.token });
   const b = banned.body.items?.[0];

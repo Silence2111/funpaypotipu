@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
+import { presenceText } from '@/lib/presence';
 import { Empty, ROLE_LABEL, StatusBadge, USER_STATUS, when } from './shared';
 import { usePaged, type Paged } from './use-paged';
 
@@ -18,11 +19,11 @@ interface Row {
   email: string | null;
   status: UserStatus;
   createdAt: string;
-  lastLoginAt: string | null;
   roles: string[];
   /** Сколько лотов сейчас в продаже. */
   activeListings: number;
-  profile: { username: string; salesCount: number; ratingAvg: number; ratingCount: number } | null;
+  /** `onlineAt` — когда последний раз был на сайте. */
+  profile: { username: string; salesCount: number; ratingAvg: number; ratingCount: number; onlineAt: string | null } | null;
   /** У замороженного и забаненного — когда, кто и за что. */
   restriction: { at: string; by: string | null; reason: string | null } | null;
 }
@@ -195,7 +196,7 @@ export function UsersSection({ isAdmin, meId }: { isAdmin: boolean; meId: string
                       {[
                         u.email ?? 'без почты',
                         `с ${new Date(u.createdAt).toLocaleDateString('ru-RU')}`,
-                        u.lastLoginAt ? `последний вход ${when(u.lastLoginAt)}` : 'входов не было',
+                        presenceText(u.profile?.onlineAt) ?? 'активности ещё не было',
                         u.profile ? `продаж ${u.profile.salesCount}` : null,
                         u.profile?.ratingCount ? `рейтинг ${u.profile.ratingAvg.toFixed(1)}` : null,
                       ]
