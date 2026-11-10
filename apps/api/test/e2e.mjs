@@ -2353,6 +2353,64 @@ async function scenarioPartners(rnd) {
 }
 
 /**
+ * Переезд продавца (часть 117): таблица на 600 лотов из шаблона с
+ * примерами — сайт режет её на порции по 200 и загружает по очереди.
+ * Строки с ошибками видны до загрузки, примеры не выставляются даже в
+ * обход сайта. Время каждой порции — в выводе.
+ */
+async function scenarioMoveLots(rnd) {
+  console.log('\n— Переезд продавца таблицей —');
+  const seller = await register('mvs', rnd);
+  const game = (await j('/catalog/games/cs2')).body;
+  const cat = game.categories.find((c) => c.slug === 'accounts');
+  const attrs = (await j(`/catalog/categories/${cat.id}/attributes`)).body;
+  const template = shared.importTemplate(attrs, 'ru', { what: 'Аккаунты Counter-Strike 2' });
+  const [head, ...examples] = template.trim().split('\r\n');
+  const cols = head.split(';');
+  const N = 600;
+  const rows = [];
+  for (let i = 0; i < N; i++) {
+    const v = { 'Название': `Переезд ${rnd} №${i + 1}`, 'Описание': 'Полный доступ, почта в комплекте', 'Цена, ₽': String(5000 + i), 'Наличие': '1' };
+    for (const a of attrs) v[a.label] = a.type === 'enum' ? a.options[0] : a.type === 'bool' ? 'да' : '';
+    if (i % 100 === 7) v['Цена, ₽'] = 'договорная'; // 6 строк с ошибкой цены
+    if (i % 100 === 42) v[attrs.find((a) => a.isRequired).label] = ''; // 6 — без обязательной характеристики
+    rows.push(cols.map((c) => v[c] ?? '').join(';'));
+  }
+  const csv = [head, ...examples, ...rows].join('\r\n');
+  const read = shared.readImport(shared.parseCsv(csv), attrs);
+  const batches = shared.importBatches(read.lots);
+  const times = [];
+  const all = { created: 0, failed: 0 };
+  for (const lots of batches) {
+    const t0 = Date.now();
+    const r = await j('/listings/import', { method: 'POST', token: seller.token, body: JSON.stringify({ gameId: game.id, categoryId: cat.id, lots }) });
+    times.push(Date.now() - t0);
+    all.created += r.body.created?.length ?? 0;
+    all.failed += r.body.failed?.length ?? 0;
+  }
+  const lines = read.errors.map((e) => e.line);
+  check(
+    'Таблица на 600 лотов: примеры и 12 строк с ошибками видны до загрузки с номерами строк; 588 выставлены тремя порциями по 200',
+    read.fatal === null && read.errors.length === 14 && read.lots.length === 588 &&
+      read.errors.filter((e) => e.message.startsWith('Строка-пример')).length === 2 && lines.includes(2) && lines.includes(3) &&
+      batches.length === 3 && all.created === 588 && all.failed === 0,
+    JSON.stringify({ fatal: read.fatal, errors: read.errors.length, lots: read.lots.length, batches: batches.map((b) => b.length), created: all.created, ms: times }),
+  );
+
+  // Примеры в обход сайта — API их тоже не выставит; больше 200 строк одним запросом — 400.
+  const exampleLot = { line: 2, title: 'Пример: Аккаунты Counter-Strike 2', description: 'x', price: '100000', stock: 1, attributes: read.lots[0].attributes };
+  const direct = await j('/listings/import', { method: 'POST', token: seller.token, body: JSON.stringify({ gameId: game.id, categoryId: cat.id, lots: [exampleLot] }) });
+  const tooBig = await j('/listings/import', { method: 'POST', token: seller.token, body: JSON.stringify({ gameId: game.id, categoryId: cat.id, lots: read.lots.slice(0, 201) }) });
+  const counts = (await j('/listings/mine/counts', { token: seller.token })).body;
+  check(
+    'Пример в обход сайта — «строка-пример», не выставлен; 201 строка одним запросом — 400; в «Моих лотах» — 588 в продаже',
+    direct.body.created?.length === 0 && direct.body.failed?.[0]?.message?.startsWith('Строка-пример') && tooBig.status === 400 &&
+      (counts.active ?? counts.all ?? 0) === 588,
+    JSON.stringify({ direct: direct.body, tooBig: tooBig.status, counts }),
+  );
+}
+
+/**
  * Снижение цены в избранном: меньше 5% — молчит, 5% и больше — одно
  * уведомление «было — стало»; подорожал и вернулся к прежней — не повод,
  * новый минимум — снова уведомление; «было» в избранном.
@@ -4328,6 +4386,8 @@ async function scenarioTelegramBot(rnd) {
   await scenarioTelegramBot(rnd);
   // В конце: поиск по нику находит всех, кого зарегистрировал этот прогон.
   await scenarioConsoleLists(rnd);
+  // Последним: 588 лотов в «Аккаунтах» не должны мешать подсчётам других сценариев.
+  await scenarioMoveLots(rnd);
 
   const passed = results.filter(Boolean).length;
   console.log(`\n=== E2E: ${passed}/${results.length} проверок пройдено ===`);
