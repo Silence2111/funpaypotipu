@@ -1,10 +1,18 @@
 import Link from 'next/link';
-import { browseListings, getCategoryAttributes, type Category, type GameWithCategories } from '@/lib/api';
+import {
+  browseListings,
+  getBuyRequests,
+  getCategoryAttributes,
+  type Category,
+  type GameWithCategories,
+} from '@/lib/api';
 import { formatPrice, offersCount, sellersCount } from '@/lib/format';
 import { getT } from '@/lib/i18n/server';
 import { OfferTable } from './offers';
 import { SectionFilters } from './section-filters';
 import { SaveSearch } from './save-search';
+import { RequestForm } from './buy-requests';
+import { SectionRequests } from './section-requests';
 import { JsonLd, breadcrumbLd } from './json-ld';
 
 /** Параметры адреса раздела: f_<ключ>, online, drop, q, max (цена до, ₽), sort, page. */
@@ -62,18 +70,21 @@ export async function SectionView({
   if (maxRub) values.max = String(maxRub);
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
 
-  const browse = await browseListings({
-    gameSlug: game.slug,
-    categorySlug: section.slug,
-    q,
-    sort,
-    attrs: Object.keys(attrs).length ? JSON.stringify(attrs) : undefined,
-    online: values.online === '1',
-    drop: values.drop === '1',
-    maxPrice: maxRub ? maxRub * 100 : undefined,
-    limit: PAGE_SIZE,
-    page,
-  });
+  const [browse, requests] = await Promise.all([
+    browseListings({
+      gameSlug: game.slug,
+      categorySlug: section.slug,
+      q,
+      sort,
+      attrs: Object.keys(attrs).length ? JSON.stringify(attrs) : undefined,
+      online: values.online === '1',
+      drop: values.drop === '1',
+      maxPrice: maxRub ? maxRub * 100 : undefined,
+      limit: PAGE_SIZE,
+      page,
+    }),
+    getBuyRequests(section.id),
+  ]);
   const items = browse?.items ?? [];
   const total = browse?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -126,13 +137,16 @@ export async function SectionView({
             {section.minPrice && (section.listingCount ?? 0) > 0 && (
               <> · {t('от {price}', { price: formatPrice(section.minPrice, 'RUB', t) })}</>
             )}
-            {(section.listingCount ?? total) > 0 && <> · {offersCount(section.listingCount ?? total, t)}</>}
+            {(section.listingCount ?? total) > 0 && (
+              <> · {offersCount(section.listingCount ?? total, t)}</>
+            )}
             {people && people.sellers > 0 && <> · {sellersCount(people.sellers, t)}</>}
             {people && people.online > 0 && (
               <>
                 {' · '}
                 <span className="section-online">
-                  <span className="dot-online" aria-hidden /> {t('{n} в сети', { n: people.online })}
+                  <span className="dot-online" aria-hidden />{' '}
+                  {t('{n} в сети', { n: people.online })}
                 </span>
               </>
             )}
@@ -162,15 +176,21 @@ export async function SectionView({
         {/* В пустом разделе фильтровать и сортировать нечего: только «Сохранить
             поиск» — он и сообщит о первом предложении. */}
         {!empty && (
-        <SectionFilters
-          key={base}
-          attributes={filterable}
-          values={values}
-          defaultSort={defaultSort}
-          maxLabel={maxRub ? t('до {price}', { price: formatPrice(String(maxRub * 100), 'RUB', t) }) : undefined}
-        />
+          <SectionFilters
+            key={base}
+            attributes={filterable}
+            values={values}
+            defaultSort={defaultSort}
+            maxLabel={
+              maxRub
+                ? t('до {price}', { price: formatPrice(String(maxRub * 100), 'RUB', t) })
+                : undefined
+            }
+          />
         )}
         <div className="save-search-row">
+          {/* В пустом разделе «Оставить запрос» — у карточки ниже, крупной кнопкой. */}
+          {!empty && <RequestForm categoryId={section.id} />}
           <SaveSearch
             categoryId={section.id}
             attrs={attrs}
@@ -179,14 +199,21 @@ export async function SectionView({
             summary={[
               ...filterable
                 .filter((a) => a.key in attrs)
-                .map((a) => (attrs[a.key] === true ? t.d(a.label) : `${t.d(a.label)}: ${t.d(String(attrs[a.key]))}`)),
+                .map((a) =>
+                  attrs[a.key] === true
+                    ? t.d(a.label)
+                    : `${t.d(a.label)}: ${t.d(String(attrs[a.key]))}`,
+                ),
               ...(q ? [t('«{q}»', { q })] : []),
             ]}
           />
         </div>
       </div>
 
-      <section style={{ marginTop: 20 }} aria-label={t('Предложения: {category}', { category: t.d(section.title) })}>
+      <section
+        style={{ marginTop: 20 }}
+        aria-label={t('Предложения: {category}', { category: t.d(section.title) })}
+      >
         {items.length > 0 ? (
           <OfferTable items={items} attributes={attributes} t={t} />
         ) : (
@@ -200,15 +227,23 @@ export async function SectionView({
               </>
             ) : (
               <>
-                <h2 className="h2" style={{ fontSize: 20, margin: 0 }}>{t('Предложений пока нет')}</h2>
+                <h2 className="h2" style={{ fontSize: 20, margin: 0 }}>
+                  {t('Предложений пока нет')}
+                </h2>
                 <p className="muted">
-                  {t('В разделе «{category}» ещё никто не продаёт. Выставьте лот первым — покупатели раздела увидят его сразу. Покупаете? Сохраните поиск — сообщим о первом предложении.', {
-                    category: t.d(section.title),
-                  })}
+                  {t(
+                    'В разделе «{category}» ещё никто не продаёт. Выставьте лот первым — покупатели раздела увидят его сразу. Покупаете? Оставьте запрос — продавцы предложат лоты, или сохраните поиск.',
+                    {
+                      category: t.d(section.title),
+                    },
+                  )}
                 </p>
-                <Link href={sellHref} className="btn">
-                  {t('Выставить лот первым')}
-                </Link>
+                <div className="row" style={{ gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <Link href={sellHref} className="btn">
+                    {t('Выставить лот первым')}
+                  </Link>
+                  <RequestForm categoryId={section.id} primary />
+                </div>
               </>
             )}
           </div>
@@ -216,7 +251,11 @@ export async function SectionView({
       </section>
 
       {pages > 1 && (
-        <nav className="row" aria-label={t('Страницы')} style={{ justifyContent: 'center', gap: 8, marginTop: 24 }}>
+        <nav
+          className="row"
+          aria-label={t('Страницы')}
+          style={{ justifyContent: 'center', gap: 8, marginTop: 24 }}
+        >
           {page > 1 && (
             <Link href={pageHref(page - 1)} className="chip">
               ← {t('Назад')}
@@ -232,6 +271,12 @@ export async function SectionView({
           )}
         </nav>
       )}
+
+      <SectionRequests
+        total={requests?.total ?? 0}
+        items={requests?.items ?? []}
+        sellHref={sellHref}
+      />
     </div>
   );
 }

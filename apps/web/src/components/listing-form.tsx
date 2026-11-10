@@ -98,8 +98,11 @@ export function ListingForm({
    * правка: исходный лот не меняется, склад ключей и строк не копируется.
    */
   copyOf?: EditableListing;
-  /** «Продать в разделе»: игра и раздел (слаги) уже выбраны. */
-  preset?: { game: string; category?: string };
+  /**
+   * «Продать в разделе»: игра и раздел (слаги) уже выбраны. С `request` —
+   * ответ на запрос покупателя: созданный лот сразу уходит ему.
+   */
+  preset?: { game: string; category?: string; request?: string };
 }) {
   const t = useT();
   const router = useRouter();
@@ -451,7 +454,19 @@ export function ListingForm({
           ...(withNote && cleanTemplate ? { deliveryTemplate: cleanTemplate } : {}),
         }),
       });
-      router.push(`/lot/${created.id}?created=1`);
+      // Ответ на запрос покупателя: лот — ему сразу. Не ушёл (лот ещё без
+      // наличия) — страница лота подскажет предложить его из «Запросов».
+      let offered = '';
+      if (preset?.request) {
+        offered = await apiFetch(`/buy-requests/${preset.request}/offers`, {
+          method: 'POST',
+          body: JSON.stringify({ listingId: created.id }),
+        }).then(
+          () => '&offered=1',
+          () => '&offered=0',
+        );
+      }
+      router.push(`/lot/${created.id}?created=1${offered}`);
     } catch (e) {
       setErr(apiErrorMessage(e, t('Не удалось опубликовать лот. Попробуйте ещё раз через минуту.')));
       setBusy(false);

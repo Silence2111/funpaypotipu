@@ -246,6 +246,66 @@ export interface SavedSearch {
   path: string | null;
 }
 
+/** Запрос покупателя «Хочу купить» в разделе — как его видят все. */
+export interface BuyRequestPublic {
+  id: string;
+  text: string;
+  /** Копейки строкой; null — без предела. */
+  maxPrice: string | null;
+  createdAt: string;
+  expiresAt: string;
+  buyer: { id: string; username: string | null };
+  /** Сколько лотов предложили продавцы. */
+  offers: number;
+}
+
+/** Открытые запросы раздела (часть 115). */
+export const getBuyRequests = (categoryId: string) =>
+  apiTry<{ total: number; items: BuyRequestPublic[] }>(`/buy-requests?categoryId=${categoryId}`);
+
+export type BuyRequestState = 'open' | 'expired' | 'closed' | 'removed';
+
+/** Свой запрос — с лотами, которыми ответили продавцы. */
+export interface MyBuyRequest {
+  id: string;
+  text: string;
+  maxPrice: string | null;
+  state: BuyRequestState;
+  expiresAt: string;
+  createdAt: string;
+  closedAt: string | null;
+  notified: number;
+  category: { slug: string; title: string };
+  game: { slug: string; title: string } | null;
+  offers: Array<{
+    at: string;
+    listing: {
+      id: string;
+      title: string;
+      price: string;
+      currency: string;
+      active: boolean;
+      withinBudget: boolean;
+      seller: { username: string; ratingAvg: number; ratingCount: number } | null;
+    };
+  }>;
+}
+
+/** Запрос для продавца в кабинете. */
+export interface SellerBuyRequest {
+  id: string;
+  text: string;
+  maxPrice: string | null;
+  createdAt: string;
+  expiresAt: string;
+  category: { id: string; slug: string; title: string };
+  game: { slug: string; title: string } | null;
+  buyer: string | null;
+  offers: number;
+  /** Свои лоты, уже предложенные на этот запрос. */
+  myOffers: string[];
+}
+
 export const getCategoryAttributes = (categoryId: string) =>
   apiTry<Attribute[]>(`/catalog/categories/${categoryId}/attributes`);
 

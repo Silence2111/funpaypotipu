@@ -204,6 +204,10 @@ function targetLabel(r: Entry) {
       return t.title ? `лот «${t.title}»` : `лот ${short}`;
     case 'report':
       return `жалоба ${short}`;
+    case 'buy_request': {
+      const text = str(((r.after ?? r.before ?? {}) as Record<string, unknown>).text);
+      return text ? `запрос «${text.length > 60 ? `${text.slice(0, 60)}…` : text}»` : `запрос ${short}`;
+    }
     case 'setting':
       return r.entityId === 'display_rates' ? 'курсы валют' : r.entityId;
     case 'fee_rule':

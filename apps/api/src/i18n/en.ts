@@ -482,4 +482,20 @@ export const EN_API: Phrasebook = {
     'You already have five open requests — wait for replies to them',
   'Обращение не найдено': 'Request not found',
   'Это не ваше обращение': 'This isn’t your request',
+  // Запросы покупателей «Хочу купить»
+  'Опишите, что ищете, — от 10 символов': 'Describe what you are looking for — at least 10 characters',
+  'Запрос — до 300 символов': 'A request can be up to 300 characters',
+  'Не больше {n} открытых запросов — закройте найденные':
+    'No more than {n} open requests — close the ones you have found',
+  'Не больше {n} запросов в сутки': 'No more than {n} requests a day',
+  'Такой запрос в разделе уже открыт': 'You already have the same open request in this category',
+  'Запрос не найден': 'Request not found',
+  'Предложить можно только лот в продаже': 'Only a listing that is on sale can be offered',
+  'Лот — из другого раздела': 'The listing is from another category',
+  'На один запрос — не больше {n} лотов': 'No more than {n} listings per request',
+  'Этот лот уже предложен': 'This listing has already been offered',
+  'Запрос закрыт или истёк': 'The request is closed or has expired',
+  'Это ваш запрос': 'This is your request',
+  'На свой запрос жаловаться не нужно': 'No need to report your own request',
+  'Снять можно только запрос покупателя': 'Only a buyer request can be removed',
 };

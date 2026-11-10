@@ -83,6 +83,8 @@ export default async function ListingPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{
     created?: string;
+    /** Лот выставлен в ответ на запрос покупателя: 1 — ушёл ему, 0 — нет. */
+    offered?: string;
     updated?: string;
     stock?: string;
     account?: string;
@@ -91,7 +93,7 @@ export default async function ListingPage({
   }>;
 }) {
   const { id } = await params;
-  const { created, updated, stock, account, amount, qty } = await searchParams;
+  const { created, offered, updated, stock, account, amount, qty } = await searchParams;
   // «Купить снова» из заказа — с тем же количеством.
   const initialQty = /^\d{1,9}$/.test(qty ?? '') ? Number(qty) : undefined;
   const [listing, pricing, t] = await Promise.all([getListing(id), getPublicPricing(), getT()]);
@@ -214,6 +216,21 @@ export default async function ListingPage({
                   ? t('Лот создан. Загрузите ключи на склад ниже — с первым ключом он появится в каталоге.')
                   : t('Лот создан. Загрузите товар на склад ниже — с первой строкой он появится в каталоге.')
                 : t('Лот создан. Наличие — ноль: лот появится в каталоге, когда вы его пополните.')}
+          </span>
+        </div>
+      )}
+      {created && offered && (
+        <div className={offered === '1' ? 'alert success' : 'alert'} role="status" style={{ marginBottom: 20 }}>
+          <ShieldCheck size={18} strokeWidth={1.75} />
+          <span>
+            {offered === '1' ? (
+              t('Лот отправлен покупателю в ответ на его запрос — ему пришла ссылка.')
+            ) : (
+              <>
+                {t('Покупателю лот пока не ушёл: предложить можно лот в продаже.')}{' '}
+                <Link href="/cabinet/requests">{t('Запросы покупателей')}</Link>
+              </>
+            )}
           </span>
         </div>
       )}

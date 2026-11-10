@@ -244,6 +244,9 @@ export const EN_SHARED: Phrasebook = {
   'Поиски, избранное и подписки': 'Searches, favorites and follows',
   'новые предложения по сохранённым поискам, снижение цены в избранном, поступление закончившихся лотов, новые лоты и скидки продавцов, на которых вы подписаны':
     'new offers for saved searches, price drops in favorites, sold-out listings back in stock, new listings and discounts from sellers you follow',
+  'Запросы покупателей': 'Buyer requests',
+  'покупатель ищет в разделе, где вы продаёте; продавец ответил лотом на ваш запрос':
+    'a buyer is looking for something in a category you sell in; a seller answered your request with a listing',
   'Решения модерации': 'Moderation decisions',
   'жалобы, блокировки, проверка документов — письмом всегда':
     'reports, blocks, ID checks — always by email',
@@ -294,6 +297,8 @@ export const EN_SHARED: Phrasebook = {
   'Вход с кодом из приложения выключен': 'Sign-in code turned off',
   'Новые лоты у продавца из подписок': 'New listings from a seller you follow',
   'Скидка у продавца из подписок': 'A discount from a seller you follow',
+  'Покупатель ищет в вашем разделе': 'A buyer is looking in your category',
+  'Продавец ответил лотом на ваш запрос': 'A seller answered your request with a listing',
   // Промокод продавца
   'Код — 4–20 латинских букв и цифр': 'A code must be 4–20 Latin letters and digits',
 

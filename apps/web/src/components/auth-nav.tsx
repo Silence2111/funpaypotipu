@@ -123,6 +123,9 @@ export function ProfileLinks({ user, sum, extra }: { user: SessionUser; sum: Sum
       <Link role="menuitem" href="/cabinet/searches">
         {t('Сохранённые поиски')}
       </Link>
+      <Link role="menuitem" href="/cabinet/requests">
+        {t('Запросы покупателей')}
+      </Link>
       <Link role="menuitem" href="/cabinet/following">
         {t('Подписки на продавцов')}
       </Link>

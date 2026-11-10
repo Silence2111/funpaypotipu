@@ -62,7 +62,10 @@ function NewListing() {
   const copy = sp.get('copy');
   if (copy) return <CopyListing key={copy} id={copy} />;
   const game = sp.get('game');
-  return <ListingForm preset={game ? { game, category: sp.get('category') ?? undefined } : undefined} />;
+  // Ответ на запрос покупателя: созданный лот сразу уходит ему.
+  const request = sp.get('request');
+  const forRequest = request && /^[0-9a-f-]{36}$/i.test(request) ? { request } : {};
+  return <ListingForm preset={game ? { game, category: sp.get('category') ?? undefined, ...forRequest } : undefined} />;
 }
 
 export default function NewListingPage() {

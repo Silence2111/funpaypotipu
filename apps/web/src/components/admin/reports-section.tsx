@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
+import { formatPrice } from '@/lib/format';
 import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
 import { Empty, LISTING_STATUS, StatusBadge, USER_STATUS, when } from './shared';
 import { usePaged } from './use-paged';
@@ -14,7 +15,7 @@ interface Person { id: string; username: string | null; status: string }
 interface Row {
   /** Последняя жалоба карточки: решение по ней закрывает их все. */
   id: string;
-  targetType: 'listing' | 'user' | 'message';
+  targetType: 'listing' | 'user' | 'message' | 'buy_request';
   targetId: string;
   status: string;
   /** Когда решили или отклонили. */
@@ -25,7 +26,16 @@ interface Row {
   reasons: Array<{ reason: string; count: number }>;
   /** Три последние жалобы: кто, по какой причине и что написал. */
   latest: Array<{ reporter: string | null; reason: string; details: string | null; createdAt: string }>;
-  target: { title?: string; listingStatus?: string; text?: string; user: Person | null } | null;
+  target: {
+    title?: string;
+    listingStatus?: string;
+    text?: string;
+    /** Запрос покупателя: «до» в копейках, состояние и раздел. */
+    maxPrice?: string | null;
+    requestState?: 'open' | 'expired' | 'closed' | 'removed';
+    section?: { slug: string; title: string; game: { slug: string; title: string } | null };
+    user: Person | null;
+  } | null;
 }
 
 /** Сколько целей и жалоб ждут решения (в поиске — найденных); решённые не считаются. */
@@ -39,7 +49,8 @@ const FILTERS = [
 const readFilter = (v: string | null) => FILTERS.find((f) => f.key === v)?.key ?? '';
 /** Адрес очереди с фильтром и поиском — ссылкой открывается тот же список. */
 const reportsUrl = (status: string, q: string) => withQuery('/admin', { tab: 'reports', status, q: q.trim() });
-const KIND = { listing: 'Лот', user: 'Пользователь', message: 'Сообщение в чате' };
+const KIND = { listing: 'Лот', user: 'Пользователь', message: 'Сообщение в чате', buy_request: 'Запрос покупателя' };
+const REQUEST_STATE = { open: 'открыт', expired: 'истёк', closed: 'закрыт автором', removed: 'снят модератором' };
 
 /** «1 жалоба», «3 жалобы», «250 жалоб». */
 function complaints(n: number) {
@@ -98,7 +109,7 @@ export function ReportsSection() {
     replaceUrl(reportsUrl(st, q));
   }
 
-  async function handle(r: Row, status: 'resolved' | 'rejected', action?: 'block_listing' | 'freeze_user' | 'ban_user') {
+  async function handle(r: Row, status: 'resolved' | 'rejected', action?: 'block_listing' | 'remove_request' | 'freeze_user' | 'ban_user') {
     const who = r.target?.user?.username ?? 'пользователя';
     if (action === 'ban_user' && !window.confirm(`Забанить ${who}? Он не сможет войти, его лоты уйдут из каталога.`)) return;
     if (action === 'freeze_user' && !window.confirm(`Заморозить ${who}? Покупки, продажи и вывод станут недоступны.`)) return;
@@ -194,9 +205,26 @@ export function ReportsSection() {
                     {r.targetType === 'message' && (
                       <p style={{ margin: '4px 0 0', fontSize: 14, whiteSpace: 'pre-wrap' }}>«{t.text}»</p>
                     )}
+                    {r.targetType === 'buy_request' && (
+                      <>
+                        <p style={{ margin: '4px 0 0', fontSize: 14, whiteSpace: 'pre-wrap' }}>
+                          «{t.text}»{t.maxPrice ? ` — до ${formatPrice(t.maxPrice)}` : ''}
+                        </p>
+                        <p className="faint" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                          {t.section?.game ? (
+                            <Link href={`/igra/${t.section.game.slug}/${t.section.slug}`}>
+                              {t.section.game.title} · {t.section.title}
+                            </Link>
+                          ) : (
+                            t.section?.title
+                          )}
+                          {t.requestState ? ` · ${REQUEST_STATE[t.requestState]}` : ''}
+                        </p>
+                      </>
+                    )}
                     {t.user && (
                       <div className="row" style={{ gap: 8, marginTop: 6, fontSize: 14, flexWrap: 'wrap' }}>
-                        <span className="faint">{r.targetType === 'listing' ? 'Продавец' : r.targetType === 'message' ? 'Автор' : 'Аккаунт'}</span>
+                        <span className="faint">{r.targetType === 'listing' ? 'Продавец' : r.targetType === 'message' ? 'Автор' : r.targetType === 'buy_request' ? 'Покупатель' : 'Аккаунт'}</span>
                         <Link href={`/prodavec/${t.user.id}`}>{t.user.username ?? t.user.id.slice(0, 8)}</Link>
                         <StatusBadge status={t.user.status} labels={USER_STATUS} />
                       </div>
@@ -210,6 +238,11 @@ export function ReportsSection() {
                   {r.targetType === 'listing' && t && t.listingStatus !== 'blocked' && (
                     <button type="button" className="btn" disabled={busy === r.id} onClick={() => void handle(r, 'resolved', 'block_listing')}>
                       Заблокировать лот
+                    </button>
+                  )}
+                  {r.targetType === 'buy_request' && t && t.requestState !== 'removed' && (
+                    <button type="button" className="btn" disabled={busy === r.id} onClick={() => void handle(r, 'resolved', 'remove_request')}>
+                      Снять запрос
                     </button>
                   )}
                   {t?.user && t.user.status === 'active' && (

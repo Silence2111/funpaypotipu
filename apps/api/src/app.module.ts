@@ -39,6 +39,7 @@ import { AccountModule } from './modules/account/account.module';
 import { SupportModule } from './modules/support/support.module';
 import { SellerToolsModule } from './modules/seller-tools/seller-tools.module';
 import { SavedSearchesModule } from './modules/saved-searches/saved-searches.module';
+import { BuyRequestsModule } from './modules/buy-requests/buy-requests.module';
 import { FollowsModule } from './modules/follows/follows.module';
 import { StockWatchesModule } from './modules/stock-watches/stock-watches.module';
 import { LotStatsModule } from './modules/lot-stats/lot-stats.module';
@@ -84,6 +85,7 @@ import { TelegramActionsModule } from './modules/telegram-actions/telegram-actio
     SupportModule,
     SellerToolsModule,
     SavedSearchesModule,
+    BuyRequestsModule,
     FollowsModule,
     StockWatchesModule,
     LotStatsModule,

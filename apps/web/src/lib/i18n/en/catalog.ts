@@ -113,8 +113,69 @@ export const CATALOG: Record<string, string> = {
   'Сбросить фильтры': 'Reset filters',
   // Пустой раздел и пустой каталог (часть 114)
   'Предложений пока нет': 'No offers yet',
-  'В разделе «{category}» ещё никто не продаёт. Выставьте лот первым — покупатели раздела увидят его сразу. Покупаете? Сохраните поиск — сообщим о первом предложении.':
-    'Nobody sells in “{category}” yet. List the first item — buyers in this category will see it right away. Buying? Save the search and we’ll let you know about the first offer.',
+  'В разделе «{category}» ещё никто не продаёт. Выставьте лот первым — покупатели раздела увидят его сразу. Покупаете? Оставьте запрос — продавцы предложат лоты, или сохраните поиск.':
+    'Nobody sells in “{category}” yet. List the first item — buyers in this category will see it right away. Buying? Post a request and sellers will offer their listings, or save the search.',
+  // Запросы покупателей «Хочу купить» (часть 115)
+  'Оставить запрос': 'Post a request',
+  'Что вы ищете?': 'What are you looking for?',
+  'Продавцы раздела получат уведомление и предложат свои лоты. Запрос виден {days} дней; контакты в тексте скрываются — договориться можно в чате лота.':
+    'Sellers in this category will be notified and offer their listings. The request stays up for {days} days; contacts in the text are hidden — you can agree on details in the listing chat.',
+  Запрос: 'Request',
+  'Что нужно: параметры, регион, к какому сроку': 'What you need: details, region, by when',
+  'До какой цены, ₽ — необязательно': 'Up to what price, ₽ — optional',
+  'Опишите, что ищете, — от 10 символов': 'Describe what you are looking for — at least 10 characters',
+  'Не удалось отправить запрос.': 'Couldn’t send the request.',
+  'Запрос отправлен продавцам раздела — ответы в «Запросах»': 'Request sent to sellers in this category — replies are in “Requests”',
+  'Покупатели ищут': 'Buyers are looking for',
+  'Запросы покупателей этого раздела. Есть подходящий лот — предложите: покупателю придёт ссылка на него.':
+    'Buyer requests in this category. Have a matching listing? Offer it — the buyer will get a link to it.',
+  '{date}, открыт до {until}': '{date}, open until {until}',
+  'Предложено лотов: {n}': 'Listings offered: {n}',
+  'Предложить лот': 'Offer a listing',
+  'Вы предложили: {n}': 'You offered: {n}',
+  'Не удалось загрузить ваши лоты.': 'Couldn’t load your listings.',
+  'Лот отправлен покупателю — ему пришла ссылка.': 'Listing sent to the buyer — they got a link.',
+  'Не удалось предложить лот.': 'Couldn’t offer the listing.',
+  'У вас нет лотов в продаже в этом разделе. Выставьте лот — он сразу уйдёт покупателю.':
+    'You have no listings on sale in this category. List one — it will go to the buyer right away.',
+  Предложен: 'Offered',
+  'Дороже, чем хочет покупатель': 'Above the buyer’s price',
+  Предложить: 'Offer',
+  'Выставить новый лот': 'List a new item',
+  'Лот отправлен покупателю в ответ на его запрос — ему пришла ссылка.':
+    'The listing was sent to the buyer in reply to their request — they got a link.',
+  'Покупателю лот пока не ушёл: предложить можно лот в продаже.':
+    'The listing hasn’t been sent to the buyer yet: only a listing on sale can be offered.',
+  'Запросы покупателей': 'Buyer requests',
+  // Кабинет: «Запросы»
+  Запросы: 'Requests',
+  'Покупатели пишут в разделе, что ищут и до какой цены. Продавцам раздела приходит уведомление, они отвечают своими лотами.':
+    'Buyers post in a category what they are looking for and up to what price. Sellers in the category are notified and reply with their listings.',
+  'Мои запросы': 'My requests',
+  'В моих разделах': 'In my categories',
+  'Во всех разделах': 'In all categories',
+  'У вас пока нет лотов в продаже — показываем запросы всех разделов.':
+    'You have no listings on sale yet — showing requests from all categories.',
+  'В ваших разделах открытых запросов нет. Новый придёт уведомлением.':
+    'No open requests in your categories. A new one will come as a notification.',
+  'Открытых запросов пока нет.': 'No open requests yet.',
+  'Не удалось загрузить запросы.': 'Couldn’t load requests.',
+  'Запрос закрыт — продавцы его больше не видят.': 'Request closed — sellers no longer see it.',
+  'Не удалось закрыть запрос.': 'Couldn’t close the request.',
+  'Запросов нет. Не нашли нужное? Откройте раздел игры и нажмите «Оставить запрос» — продавцы предложат свои лоты.':
+    'No requests. Didn’t find what you need? Open a game category and click “Post a request” — sellers will offer their listings.',
+  Открыт: 'Open',
+  Истёк: 'Expired',
+  Закрыт: 'Closed',
+  'Снят модератором': 'Removed by a moderator',
+  'Уведомление ушло продавцам: {n}': 'Sellers notified: {n}',
+  'Ответы продавцов': 'Seller replies',
+  '{name} · ★ {rating}': '{name} · ★ {rating}',
+  'Снят с продажи': 'No longer on sale',
+  'Дороже вашей цены': 'Above your price',
+  'Продавцы ещё не ответили — ответ придёт уведомлением.': 'No replies from sellers yet — a reply will come as a notification.',
+  'Закрыть запрос': 'Close the request',
+  'Что не так с запросом': 'What’s wrong with the request',
   'Выставить лот первым': 'List the first item',
   '{category} {game}: покупка у продавцов с рейтингом и отзывами. Деньги у площадки, пока вы не подтвердите получение.':
     '{category} {game}: buy from sellers with ratings and reviews. The money stays with the marketplace until you confirm receipt.',

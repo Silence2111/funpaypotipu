@@ -157,6 +157,10 @@ export const EN_TEXTS: Record<string, string> = {
 
   // Сохранённые поиски: превью уведомления
   '«{title}» — {price}': '“{title}” — {price}',
+  // Запросы покупателей: продавцу — что ищут, покупателю — чем ответили
+  '{where}: «{text}» — до {price}': '{where}: “{text}” — up to {price}',
+  '{where}: «{text}»': '{where}: “{text}”',
+  '«{title}» — {price}, продавец {seller}': '“{title}” — {price}, seller {seller}',
   '«{title}» — {price} и ещё {n}': '“{title}” — {price} and {n} more',
   // Скидка у продавца из подписок
   '«{title}» — {price} вместо {old}': '“{title}” — {price} instead of {old}',
