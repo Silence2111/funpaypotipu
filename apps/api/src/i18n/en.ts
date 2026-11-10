@@ -385,6 +385,22 @@ export const EN_API: Phrasebook = {
   'Список заявок устарел — обновите страницу': 'The request list is out of date — refresh the page',
   'Журнал устарел — обновите страницу': 'The log is out of date — refresh the page',
   'Список лотов устарел — обновите страницу': 'The listing list is out of date — refresh the page',
+  // Каталог в консоли (часть 110)
+  'Адрес — латиница, цифры и дефис': 'The address — Latin letters, digits and hyphens',
+  'Название — от 2 символов': 'The name — at least 2 characters',
+  'Ключ поля — латиница, цифры и «_», с буквы': 'The field key — Latin letters, digits and “_”, starting with a letter',
+  'Подпись — от 2 символов': 'The label — at least 2 characters',
+  'Игра с таким адресом уже есть': 'A game with this address already exists',
+  'Обложка — PNG, JPEG или WebP': 'The cover must be PNG, JPEG or WebP',
+  'Обложка больше 2 МБ': 'The cover is larger than 2 MB',
+  'Раздел с таким адресом в этой игре уже есть': 'This game already has a category with this address',
+  'В разделе уже есть лоты — тип товара и способ выдачи не меняются':
+    'The category already has listings — its item type and delivery method can’t change',
+  'Поле с таким ключом в разделе уже есть': 'The category already has a field with this key',
+  'Поле не найдено': 'Field not found',
+  'У выбора из списка — от двух разных вариантов': 'A choice list needs at least two different options',
+  'Список разделов устарел — обновите страницу': 'The category list is out of date — refresh the page',
+  'Список полей устарел — обновите страницу': 'The field list is out of date — refresh the page',
   // Проверка окружения при старте прода — пишется в журнал запуска.
   'в проде — свой секрет от {0} знаков (openssl rand -hex 32)':
     'in production — your own secret of at least {0} characters (openssl rand -hex 32)',

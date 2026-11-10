@@ -145,6 +145,8 @@ export interface GameIndexEntry {
   aliases: string[];
   /** Место в «Популярных»; 100 — не в них. */
   sortOrder: number;
+  /** Обложка из консоли — адрес картинки; без неё — инициалы. */
+  coverUrl?: string | null;
   /** Продавцов игры в сети прямо сейчас. */
   onlineSellers?: number;
   categories: Array<{ id: string; slug: string; title: string; listingCount: number }>;

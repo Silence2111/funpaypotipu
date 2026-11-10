@@ -21,6 +21,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       sections: sections || t('предложения продавцов'),
     }),
     alternates: { canonical: `/igra/${slug}` },
+    // Обложка из консоли — в превью ссылки в Telegram и VK.
+    ...(game.coverUrl ? { openGraph: { images: [{ url: game.coverUrl }] } } : {}),
   };
 }
 

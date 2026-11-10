@@ -395,6 +395,8 @@ model Game {
   // Чем меньше, тем выше в «Популярных»; у остальных игр — 100.
   sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
+  /// Изменено в консоли: сид каталога больше не перезаписывает и не удаляет.
+  editedAt  DateTime? @map("edited_at")
 
   categories Category[]
   listings   Listing[]
@@ -418,6 +420,8 @@ model Category {
   isActive        Boolean         @default(true) @map("is_active")
   sortOrder       Int             @default(0) @map("sort_order")
   createdAt       DateTime        @default(now()) @map("created_at")
+  /// Изменено в консоли: сид каталога больше не перезаписывает и не удаляет.
+  editedAt        DateTime?       @map("edited_at")
 
   game       Game?       @relation(fields: [gameId], references: [id])
   parent     Category?   @relation("CategoryTree", fields: [parentId], references: [id])
@@ -441,6 +445,8 @@ model Attribute {
   isFilter   Boolean  @default(true) @map("is_filter")
   isRequired Boolean  @default(false) @map("is_required")
   sortOrder  Int      @default(0) @map("sort_order")
+  /// Изменено или добавлено в консоли: сид каталога больше не перезаписывает и не удаляет.
+  editedAt   DateTime? @map("edited_at")
 
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
