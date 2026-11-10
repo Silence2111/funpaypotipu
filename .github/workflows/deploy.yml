@@ -1,14 +1,31 @@
 name: Deploy
 
-# Собирает и публикует образы в GHCR по тегу vX.Y.Z, затем деплоит в Kubernetes.
+# Выкат по тегу vX.Y.Z (или руками — workflow_dispatch с тегом).
+#
+# 1. Образы api и web — в реестр GitHub (ghcr.io/<владелец>/<репозиторий>-api…).
+#    Сервер их только скачивает: собирать на нём не нужно, и хватает 2 ГБ
+#    памяти (сборка сайта сама съедает около 2 ГБ).
+#    Адрес сайта вшивается в сборку сайта — переменная репозитория PUBLIC_URL
+#    (Settings → Secrets and variables → Actions → Variables), например
+#    https://gamemarket.ru. Без неё образ сайта не собирается: со ссылками на
+#    localhost он был бы нерабочим.
+# 2. Выкат — по переменной DEPLOY_TARGET:
+#    vps — на сервер по SSH (секреты VPS_HOST, VPS_USER, VPS_SSH_KEY; код в
+#          /opt/gamemarket, настройки в infra/.env.production — docs/12-deploy.md);
+#    k8s — в Kubernetes (секрет KUBECONFIG, infra/k8s);
+#    пусто — только образы, выкат руками.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Тег для выката (vX.Y.Z)
+        required: true
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository }}
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
 
 jobs:
   build-push:
@@ -18,9 +35,20 @@ jobs:
       packages: write
     strategy:
       matrix:
-        app: [api, web, worker]
+        app: [api, web]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      # Имя образа в реестре — только строчными: Silence2111/… → silence2111/….
+      - name: Имя образа
+        run: echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY,,}-${{ matrix.app }}" >> "$GITHUB_ENV"
+
+      - name: Адрес сайта задан
+        if: matrix.app == 'web'
+        run: |
+          test -n "${{ vars.PUBLIC_URL }}" || { echo "Задайте переменную репозитория PUBLIC_URL (https://домен)"; exit 1; }
 
       - uses: docker/setup-buildx-action@v3
 
@@ -30,27 +58,62 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push ${{ matrix.app }}
+      - name: Сборка и публикация ${{ matrix.app }}
         uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/${{ matrix.app }}/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.app }}:${{ github.ref_name }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.app }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ env.IMAGE }}:${{ env.TAG }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
-            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_API_URL=${{ vars.PUBLIC_URL }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.PUBLIC_URL }}
 
-  deploy:
+  vps:
     needs: build-push
+    if: vars.DEPLOY_TARGET == 'vps'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Ключ SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Выкат на сервер
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          prefix="${REGISTRY}/${GITHUB_REPOSITORY,,}"
+          ssh_run() { ssh -i ~/.ssh/id_deploy "${{ secrets.VPS_USER || 'root' }}@${{ secrets.VPS_HOST }}" "$@"; }
+          # Вход в реестр — токеном этого запуска, через stdin: в командной строке сервера его нет.
+          echo "$TOKEN" | ssh_run "docker login ${REGISTRY} -u $ACTOR --password-stdin"
+          ssh_run "set -e
+            cd /opt/gamemarket
+            git fetch --tags --quiet && git checkout --quiet $TAG
+            C='docker compose -f infra/compose.prod.yaml --env-file infra/.env.production'
+            export IMAGE_PREFIX=$prefix IMAGE_TAG=$TAG
+            \$C pull --quiet api web migrate
+            \$C up -d --no-build
+            docker logout ${REGISTRY} >/dev/null
+            for i in \$(seq 1 60); do \$C ps --format '{{.Service}} {{.Health}}' | grep -q 'web healthy' && break; sleep 5; done
+            SMOKE_READONLY=1 bash infra/ops/smoke.sh \$(sed -n 's/^PUBLIC_URL=//p' infra/.env.production)"
+
+  k8s:
+    needs: build-push
+    if: vars.DEPLOY_TARGET == 'k8s'
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
 
       - name: Configure kubeconfig
         run: |
@@ -59,11 +122,9 @@ jobs:
 
       - name: Apply manifests & migrate
         run: |
-          export TAG=${{ github.ref_name }}
-          # подставляем тег образов и применяем
-          kubectl -n gamemarket set image deployment/api      api=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api:$TAG
-          kubectl -n gamemarket set image deployment/worker   worker=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-worker:$TAG
-          kubectl -n gamemarket set image deployment/web      web=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-web:$TAG
+          prefix="${REGISTRY}/${GITHUB_REPOSITORY,,}"
+          kubectl -n gamemarket set image deployment/api api=$prefix-api:$TAG
+          kubectl -n gamemarket set image deployment/web web=$prefix-web:$TAG
           # миграции — одноразовым Job
           kubectl -n gamemarket delete job migrate --ignore-not-found
           TAG=$TAG envsubst < infra/k8s/migrate-job.yaml | kubectl apply -f -

@@ -4,6 +4,8 @@
 # API с базой, главная собрана на сервере с каталогом, регистрация, фото лота
 # загружается и открывается по ссылке (том файлов и адрес файлов верны).
 # Оставляет в базе пользователя smoke_<время> и фото — для проверки бэкапа.
+# SMOKE_READONLY=1 — без регистрации и загрузки: так проверяется каждый выкат
+# на проде, чтобы не плодить в боевой базе пользователей smoke_….
 set -euo pipefail
 
 URL="${1:?адрес сайта, например https://gamemarket.ru}"
@@ -23,6 +25,7 @@ grep -q 'GameMarket' "$TMP/home.html" || fail "главная без назва�
 grep -q 'Counter-Strike' "$TMP/home.html" || fail "в HTML главной нет игр каталога"
 ok "главная с каталогом — с сервера"
 
+if [ "${SMOKE_READONLY:-}" != 1 ]; then
 name="smoke_$(date +%s)"
 reg="$(curl -sf -X POST "$URL/api/auth/register" -H 'Content-Type: application/json' \
   -d "{\"email\":\"$name@smoke.local\",\"password\":\"smoke-password-123\",\"username\":\"$name\"}")" \
@@ -41,6 +44,8 @@ type="$(curl -sf -o "$TMP/got.png" -w '%{content_type}' "$URL/api/assets?key=$(p
 [ "$type" = image/png ] || fail "фото отдаётся как $type"
 cmp -s "$TMP/shot.png" "$TMP/got.png" || fail "фото отдаётся не тем файлом"
 ok "фото лота: загрузка и чтение ($key)"
+echo "$key" > "${SMOKE_KEY_FILE:-/dev/null}"
+fi
 
 # Превью ссылки на лот рисуется на сервере шрифтом из node_modules: без него
 # ссылки в Telegram и VK — без картинки. Несуществующий лот — та же картинка.
@@ -49,5 +54,4 @@ og="$(curl -sf -o "$TMP/og.png" -w '%{content_type}' "$URL/lot/00000000-0000-400
 [ "$og" = image/png ] && [ "$(wc -c < "$TMP/og.png")" -gt 5000 ] || fail "превью ссылки на лот: $og"
 ok "превью ссылки на лот"
 
-echo "$key" > "${SMOKE_KEY_FILE:-/dev/null}"
 echo "smoke ok: $URL"

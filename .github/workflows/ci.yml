@@ -171,6 +171,32 @@ jobs:
           # Пользователь из проверки — и в восстановленной базе.
           q gamemarket_check "SELECT count(*) FROM profiles WHERE username LIKE 'smoke%'" | grep -qx 1
 
+      - name: Копия бэкапа вне сервера
+        run: |
+          # Хранилище S3 — временный MinIO в той же сети; проверяет его отдельный клиент mc.
+          net=$(docker network ls --format '{{.Name}}' | grep 'gamemarket-prod_default')
+          docker run -d --name s3 --network "$net" -e MINIO_ROOT_USER=ci -e MINIO_ROOT_PASSWORD=ci-secret-123 minio/minio:latest server /data
+          mc() { docker run --rm --network "$net" --entrypoint sh minio/mc:latest -c "mc alias set s http://s3:9000 ci ci-secret-123 >/dev/null && mc $*"; }
+          for i in $(seq 1 30); do mc mb -p s/gm && break; sleep 2; done
+          $C exec -T -e BACKUP_S3_ENDPOINT=http://s3:9000 -e BACKUP_S3_BUCKET=gm \
+            -e BACKUP_S3_ACCESS_KEY=ci -e BACKUP_S3_SECRET_KEY=ci-secret-123 backup /ops/backup.sh | tee /tmp/offsite.log
+          grep -q 'вне сервера: offsite:gm/gamemarket' /tmp/offsite.log
+          mc ls s/gm/gamemarket/ | tee /tmp/offsite-ls.txt
+          grep -q 'db-.*\.dump' /tmp/offsite-ls.txt && grep -q 'uploads-.*\.tar\.gz' /tmp/offsite-ls.txt
+
+      - name: Сторож видит старый бэкап
+        run: |
+          sudo touch -d '2 days ago' infra/backups/.last-ok
+          for i in $(seq 1 12); do $C logs healthwatch | grep -q 'бэкапа не было' && break; sleep 5; done
+          $C logs healthwatch | grep 'бэкапа не было'
+
+      - name: Проверка выката — только чтение
+        run: |
+          before=$($C exec -T postgres psql -U gamemarket -d gamemarket -tAc 'SELECT count(*) FROM users')
+          SMOKE_READONLY=1 bash infra/ops/smoke.sh http://localhost
+          after=$($C exec -T postgres psql -U gamemarket -d gamemarket -tAc 'SELECT count(*) FROM users')
+          echo "users: $before → $after"; [ "$before" = "$after" ]
+
       - name: Сторож видит падение
         run: |
           $C stop web
@@ -185,6 +211,11 @@ jobs:
             -e DATABASE_URL=postgresql://u:p@127.0.0.1:5432/db gamemarket-api:local node dist/main.js
           code=$?
           echo "exit $code"; test "$code" -ne 0
+
+      # Сколько памяти занимает стек под нагрузкой проверок: по нему — размер сервера.
+      - name: Память стека
+        if: always()
+        run: docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}'
 
       - name: Журналы
         if: always()
