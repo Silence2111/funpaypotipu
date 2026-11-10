@@ -18,7 +18,9 @@ export async function SiteHeader() {
         </Link>
         <nav className="nav">
           <Link href="/catalog" className="hide-mobile">{t('Каталог')}</Link>
-          <Link href="/cabinet/new" className="hide-mobile">{t('Продать')}</Link>
+          {/* «Продать» — страница с калькулятором и кнопкой «Выставить лот»: продавец,
+              который пришёл посмотреть, видит, сколько получит, до регистрации. */}
+          <Link href="/prodavat" className="hide-mobile">{t('Продать')}</Link>
         </nav>
         {/* Поиск по играм, как «Поиск по 885 играм» в шапке FunPay. На телефоне
             места нет — там лупа ведёт в указатель игр с тем же поиском. */}

@@ -518,6 +518,26 @@ async function scenarioConsoleLists(rnd) {
   );
 }
 
+/** «Продавать на GameMarket»: сколько на руки — без входа, по правилу раздела. */
+async function scenarioSellEstimate() {
+  console.log('\n— Калькулятор продавца —');
+  const game = await j('/catalog/games/cs2');
+  const acc = game.body.categories.find((c) => c.slug === 'accounts');
+  const keys = game.body.categories.find((c) => c.slug === 'keys');
+  const est = await j(`/fees/estimate?categoryId=${acc.id}&price=100000`);
+  const k = await j(`/fees/estimate?categoryId=${keys.id}&price=100000`);
+  // Правила из сида: 10% общее, 7% на ключи CS2; вывод СБП 2,5%, минимум 25 ₽.
+  check(
+    'Без входа: аккаунт за 1 000 ₽ — комиссия 10%, вывод 25 ₽, на руки 875 ₽; ключи — 7%; конкуренты — по их ставкам',
+    est.status === 200 && est.body.ours?.feePct === 0.1 && est.body.ours.net === '87500' &&
+      k.body.ours?.feePct === 0.07 && est.body.competitors?.playerok?.net === '74000' && est.body.competitors?.funpay?.net === '88000',
+    JSON.stringify({ ours: est.body.ours, keys: k.body.ours?.feePct }),
+  );
+  const missing = await j('/fees/estimate?categoryId=00000000-0000-4000-8000-000000000000&price=100000');
+  const zero = await j(`/fees/estimate?categoryId=${acc.id}&price=0`);
+  check('Калькулятор: нет раздела — 404, цена 0 — 400', missing.status === 404 && zero.status === 400, `${missing.status} / ${zero.status}`);
+}
+
 async function scenarioAccount(rnd) {
   console.log('\n— Аккаунт: чёрный список, профиль, пароль, сеансы —');
   const seller = await register('acs', rnd);
@@ -3855,6 +3875,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioAccount(rnd);
   await scenarioSupport(rnd);
   await scenarioCatalog(rnd);
+  await scenarioSellEstimate();
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

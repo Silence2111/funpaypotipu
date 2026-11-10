@@ -300,4 +300,37 @@ export const SELLER: Record<string, string> = {
   'Не удалось загрузить. Попробуйте ещё раз.': 'Couldn’t upload. Try again.',
   Загрузить: 'Upload',
   'Загрузить {n}': 'Upload {n}',
+  // «Продавать на GameMarket» — калькулятор (часть 109)
+  'Продавать на GameMarket': 'Sell on GameMarket',
+  'Сколько вы получите с продажи аккаунта, ключа или валюты — комиссия, вывод и сумма на руки до регистрации, рядом со ставками FunPay и Playerok.':
+    'How much you get from selling an account, key or currency — fee, withdrawal and take-home before you sign up, next to FunPay and Playerok rates.',
+  'Посчитайте, сколько получите с продажи, — до регистрации. Комиссия берётся только с проданного, выставлять лоты бесплатно.':
+    'See how much you’ll get from a sale — before you sign up. The fee is charged only on what sells; listing is free.',
+  'Калькулятор сейчас недоступен — попробуйте обновить страницу.': 'The calculator is unavailable right now — try refreshing the page.',
+  'Как устроена продажа': 'How selling works',
+  'Покупатель платит площадке, деньги ждут в сделке. Выдали товар, покупатель подтвердил — деньги на вашем балансе.':
+    'The buyer pays the marketplace and the money waits in the deal. You deliver, the buyer confirms — the money is on your balance.',
+  'Не подтвердил и не открыл спор — через {h} ч подтверждение само.':
+    'If they neither confirm nor open a dispute, it’s confirmed automatically after {h} h.',
+  'Ключи и аккаунты можно выдавать автоматически: загрузите их на склад лота — покупатель получит сразу после оплаты.':
+    'Keys and accounts can be delivered automatically: upload them to the listing’s stock and the buyer gets them right after paying.',
+  'Ручная выдача — в течение {h} ч после оплаты, иначе заказ отменится и деньги вернутся покупателю.':
+    'Manual delivery — within {h} h of payment, otherwise the order is cancelled and the buyer is refunded.',
+  'Вывод на карту, СБП и ЮMoney — {pct}, в USDT — {usdt}. Комиссия продавца снижается за продажи, рейтинг и проверенные документы.':
+    'Withdrawals to a card, SBP and YooMoney — {pct}, to USDT — {usdt}. The seller fee goes down with sales, rating and verified documents.',
+  'Не удалось посчитать. Попробуйте ещё раз.': 'Couldn’t calculate. Try again.',
+  'Сколько вы получите': 'How much you get',
+  'Цена лота, ₽': 'Listing price, ₽',
+  'Цена — от 1 до 10 000 000 ₽.': 'Price — from 1 to 10,000,000 ₽.',
+  'Цена лота': 'Listing price',
+  'Комиссия площадки · {pct}': 'Marketplace fee · {pct}',
+  'Вывод на карту или СБП · {pct}, минимум {min}': 'Withdrawal to a card or SBP · {pct}, minimum {min}',
+  'Вам на руки': 'You take home',
+  'С той же продажи на других площадках': 'The same sale on other marketplaces',
+  'в среднем {fee} и вывод 3%, минимум 30 ₽': '{fee} on average and 3% withdrawal, minimum 30 ₽',
+  '{fee} и вывод 6%, минимум 60 ₽': '{fee} and 6% withdrawal, minimum 60 ₽',
+  'Ставки FunPay и Playerok сверены {date} по их справке и прайсам. У FunPay ставка зависит от раздела: в среднем 9%, во многих разделах от 3%. Наша комиссия снижается за продажи, рейтинг и проверенные документы — до {pp} процентных пунктов.':
+    'FunPay and Playerok rates were checked on {date} against their help pages and price lists. FunPay’s rate depends on the category: 9% on average, from 3% in many. Our fee goes down with sales, rating and verified documents — by up to {pp} percentage points.',
+  'Выставить первый лот': 'List your first item',
+  'Выставить лот': 'List an item',
 };
