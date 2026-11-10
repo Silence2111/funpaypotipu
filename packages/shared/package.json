@@ -25,6 +25,10 @@
       "types": "./dist/quantity.d.ts",
       "default": "./dist/quantity.js"
     },
+    "./consent": {
+      "types": "./dist/consent.d.ts",
+      "default": "./dist/consent.js"
+    },
     "./partner": {
       "types": "./dist/partner.d.ts",
       "default": "./dist/partner.js"

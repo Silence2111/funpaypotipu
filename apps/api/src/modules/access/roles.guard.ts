@@ -3,8 +3,13 @@ import { Reflector } from '@nestjs/core';
 import { PrismaClient } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import { ROLES_KEY } from './roles.decorator';
+import { staffState, staffTwoFactorError } from './staff';
 
-/** RBAC: проверяет роли пользователя из БД. 'admin' имеет доступ ко всему. */
+/**
+ * RBAC: проверяет роли пользователя из БД. 'admin' имеет доступ ко всему.
+ * Роль есть — нужен ещё вход с кодом (часть 119): без него 403 «Включите
+ * вход с кодом», и консоль показывает, где его включить.
+ */
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(
@@ -23,12 +28,11 @@ export class RolesGuard implements CanActivate {
     const userId = req.user?.userId;
     if (!userId) throw new ForbiddenException('Не аутентифицирован');
 
-    const rows = await this.prisma.userRole.findMany({
-      where: { userId },
-      include: { role: true },
-    });
-    const keys = rows.map((r) => r.role.key);
-    if (keys.includes('admin') || required.some((r) => keys.includes(r))) return true;
-    throw new ForbiddenException('Недостаточно прав');
+    const { roles: keys, twoFactor } = await staffState(this.prisma, userId);
+    if (!keys.includes('admin') && !required.some((r) => keys.includes(r))) {
+      throw new ForbiddenException('Недостаточно прав');
+    }
+    if (!twoFactor) throw staffTwoFactorError();
+    return true;
   }
 }

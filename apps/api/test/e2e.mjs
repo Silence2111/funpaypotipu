@@ -44,7 +44,7 @@ async function j(path, opts = {}) {
 async function register(prefix, rnd) {
   const r = await j('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email: `${prefix}${rnd}@e2e.local`, password: 'password123', username: `${prefix}${rnd}` }),
+    body: JSON.stringify({ email: `${prefix}${rnd}@e2e.local`, password: 'password123', username: `${prefix}${rnd}`, pdConsent: true }),
   });
   return { token: r.body.accessToken, id: r.body.user?.id, status: r.status };
 }
@@ -283,7 +283,8 @@ async function scenarioPaymentMethods(rnd) {
   check('Пополнение картой: списано 522 ₽, на баланс 500 ₽', top.body.amount === '52200' && w3.body.balance === '150000', `${top.body.amount} / ${w3.body.balance}`);
 }
 
-async function grant(userId, roleKey) {
+/** Роль без входа с кодом: консоль ему ещё закрыта (часть 119). */
+async function grantRole(userId, roleKey) {
   const role = await prisma.role.findUnique({ where: { key: roleKey } });
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId, roleId: role.id } },
@@ -292,14 +293,27 @@ async function grant(userId, roleKey) {
   });
 }
 
+/** Включить вход с кодом, как это делает человек: ключ — и код из приложения. */
+async function enableTwoFactor(u, base) {
+  const setup = await j('/auth/2fa/setup', { method: 'POST', token: u.token, base });
+  await j('/auth/2fa/enable', { method: 'POST', token: u.token, base, body: JSON.stringify({ code: authenticator.generate(setup.body.secret) }) });
+  return setup.body.secret;
+}
+
+/** Сотрудник: роль и вход с кодом — без кода консоль ему закрыта (часть 119). */
+async function grant(u, roleKey, base) {
+  await grantRole(u.id, roleKey);
+  await enableTwoFactor(u, base);
+}
+
 async function scenarioModeration(rnd) {
   console.log('\n— Модерация и споры —');
   const seller = await register('mds', rnd);
   const buyer = await register('mdb', rnd);
   const mod = await register('mdm', rnd);
   const agent = await register('mda', rnd);
-  await grant(mod.id, 'moderator');
-  await grant(agent.id, 'agent');
+  await grant(mod, 'moderator');
+  await grant(agent, 'agent');
   const bad = await createListing(seller.token, 'accounts', '200000');
   const other = await createListing(seller.token, 'accounts', '90000');
 
@@ -429,7 +443,7 @@ async function scenarioConsoleLists(rnd) {
   const mod = await register('clm', rnd);
   const seller = await register('cls', rnd);
   const buyer = await register('clb', rnd);
-  await grant(mod.id, 'moderator');
+  await grant(mod, 'moderator');
   const lots = [];
   for (const price of ['100000', '110000', '120000']) lots.push(await createListing(seller.token, 'accounts', price));
   const desc = (rows) => rows.every((r, i) => i === 0 || r.createdAt <= rows[i - 1].createdAt);
@@ -524,7 +538,7 @@ async function scenarioCatalogAdmin(rnd) {
   console.log('\n— Каталог в консоли —');
   const admin = await register('cta', rnd);
   const seller = await register('cts', rnd);
-  await grant(admin.id, 'admin');
+  await grant(admin, 'admin');
   const A = { token: admin.token };
   const post = (path, body) => j(path, { method: 'POST', ...A, body: JSON.stringify(body) });
   const patch = (path, body) => j(path, { method: 'PATCH', ...A, body: JSON.stringify(body) });
@@ -728,12 +742,103 @@ async function scenarioAccount(rnd) {
   check('Завершить сеанс другого устройства', (await j('/auth/sessions', { token: seller.token })).body.length === 1);
 }
 
+/**
+ * Сотрудники — только с входом с кодом (часть 119): финансы без кода — 403
+ * «Включите вход с кодом» в очереди выплат и в /auth/me — роль есть, кода
+ * нет; арбитр без кода чужое обращение не откроет; включил — 200.
+ * Продавец без кода работает как раньше.
+ */
+async function scenarioStaffTwoFactor(rnd) {
+  console.log('\n— Сотрудники: вход с кодом обязателен —');
+  const fin = await register('s2f', rnd);
+  const agent = await register('s2a', rnd);
+  const user = await register('s2u', rnd);
+  const seller = await register('s2s', rnd);
+  await grantRole(fin.id, 'finance');
+  await grantRole(agent.id, 'agent');
+
+  const queue = () => j('/payouts', { token: fin.token });
+  const before = await queue();
+  const meBefore = (await j('/auth/me', { token: fin.token })).body;
+  const ticket = await j('/support/tickets', {
+    method: 'POST', token: user.token,
+    body: JSON.stringify({ category: 'other', subject: 'Вопрос по сайту', body: 'Как поменять ник в профиле?' }),
+  });
+  const agentNoCode = await j(`/support/tickets/${ticket.body.id}`, { token: agent.token });
+  const lot = await createListing(seller.token, 'accounts', '30000', { title: `Без кода ${rnd}` });
+  const mine = await j('/listings/mine', { token: seller.token });
+  check(
+    'Без входа с кодом: финансам — 403 «Включите вход с кодом», роль видна; арбитр чужое обращение не открыл; продавец без кода — как раньше',
+    before.status === 403 && before.body.error === 'staff_two_factor_required' && /вход с кодом/.test(before.body.message) &&
+      meBefore.roles?.includes('finance') && meBefore.twoFactor === false &&
+      agentNoCode.status === 403 && agentNoCode.body.error === 'staff_two_factor_required' && !!lot && mine.status === 200,
+    JSON.stringify({ before: before.body, me: meBefore, agent: agentNoCode.body, mine: mine.status }),
+  );
+
+  await enableTwoFactor(fin);
+  await enableTwoFactor(agent);
+  const after = await queue();
+  const meAfter = (await j('/auth/me', { token: fin.token })).body;
+  const agentWithCode = await j(`/support/tickets/${ticket.body.id}`, { token: agent.token });
+  check(
+    'Включил вход с кодом — очередь выплат 200, обращение открывается',
+    after.status === 200 && meAfter.twoFactor === true && agentWithCode.status === 200,
+    JSON.stringify({ after: after.status, me: meAfter.twoFactor, agent: agentWithCode.status }),
+  );
+}
+
+/**
+ * Отдельное согласие на обработку персональных данных (часть 120): без него
+ * регистрация — 400; с ним — запись: дата, версия текста, адрес, способ.
+ * В кабинете — статус, отзыв и согласие заново.
+ */
+async function scenarioConsent(rnd) {
+  console.log('\n— Согласие на обработку персональных данных —');
+  const body = (extra) =>
+    JSON.stringify({ email: `pdc${rnd}@e2e.local`, password: 'password123', username: `pdc${rnd}`, ...extra });
+  const without = await j('/auth/register', { method: 'POST', body: body({}) });
+  const refused = await j('/auth/register', { method: 'POST', body: body({ pdConsent: false }) });
+  const ok = await j('/auth/register', { method: 'POST', headers: { 'X-Forwarded-For': '10.120.0.7', 'User-Agent': 'e2e-consent' }, body: body({ pdConsent: true }) });
+  const row = await prisma.personalDataConsent.findFirst({ where: { userId: ok.body.user?.id } });
+  check(
+    'Регистрация без отдельного согласия — 400; с согласием — запись: версия текста, адрес, браузер, способ «почта»',
+    without.status === 400 && refused.status === 400 && /согласие на обработку/.test(JSON.stringify(without.body)) && ok.status === 201 &&
+      row?.version === shared.PD_CONSENT_VERSION && row.ip === '10.120.0.7' && row.userAgent === 'e2e-consent' && row.method === 'email' && !row.revokedAt,
+    JSON.stringify({ without: without.status, refused: refused.status, ok: ok.status, row }),
+  );
+
+  const token = ok.body.accessToken;
+  const status = async () => (await j('/account/consent', { token })).body;
+  const first = await status();
+  const revoked = (await j('/account/consent/revoke', { method: 'POST', token })).body;
+  const again = (await j('/account/consent', { method: 'POST', token })).body;
+  const twice = (await j('/account/consent', { method: 'POST', token })).body;
+  const rows = await prisma.personalDataConsent.findMany({ where: { userId: ok.body.user.id }, orderBy: { givenAt: 'asc' } });
+  check(
+    'Кабинет: согласие действует; отзыв — с датой, согласие пропало; согласие заново — новая запись «в кабинете»; повтор не плодит записей',
+    first.active?.current === true && first.active.method === 'email' && revoked.active === null && !!revoked.history?.[0]?.revokedAt &&
+      again.active?.method === 'account' && twice.active?.method === 'account' && rows.length === 2 && !!rows[0].revokedAt && !rows[1].revokedAt,
+    JSON.stringify({ first: first.active, revoked: revoked.active, again: again.active, rows: rows.length }),
+  );
+
+  // Аккаунт до части 120 — согласия в базе нет: сайт попросит, запись появится.
+  const old = await register('pdo', rnd);
+  await prisma.personalDataConsent.deleteMany({ where: { userId: old.id } });
+  const before = (await j('/account/consent', { token: old.token })).body;
+  const given = (await j('/account/consent', { method: 'POST', token: old.token })).body;
+  check(
+    'Старый аккаунт без записи о согласии — «нет согласия», после согласия в кабинете — действует',
+    before.active === null && given.active?.current === true,
+    JSON.stringify({ before: before.active, given: given.active }),
+  );
+}
+
 async function scenarioSupport(rnd) {
   console.log('\n— Поддержка —');
   const user = await register('spu', rnd);
   const stranger = await register('spx', rnd);
   const agent = await register('spa', rnd);
-  await grant(agent.id, 'agent');
+  await grant(agent, 'agent');
   const seller = await register('sps', rnd);
   const lot = await createListing(seller.token, 'accounts', '30000');
   const order = await j('/orders', { method: 'POST', token: user.token, body: JSON.stringify({ listingId: lot }) });
@@ -1015,7 +1120,7 @@ async function scenarioKyc(rnd) {
   const seller = await register('kys', `k${rnd}`);
   const stranger = await register('kyx', `k${rnd}`);
   const mod = await register('kym', `k${rnd}`);
-  await grant(mod.id, 'moderator');
+  await grant(mod, 'moderator');
   const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001', 'hex');
   const upload = async (who) => {
     const up = await j('/kyc/uploads', { method: 'POST', token: who.token, body: JSON.stringify({ mime: 'image/png' }) });
@@ -1096,8 +1201,12 @@ async function scenarioSocial(rnd, mock) {
   check('Яндекс вернул в браузер билет и страницу завершения с адресом возврата', !!first.ticket && first.location.endsWith('/login/social?next=%2Flot%2Fabc'), first.location);
   const nick = await complete(first.ticket);
   check('Новый человек — сначала ник, подсказка из логина Яндекса', nick.status === 400 && nick.body.error === 'username_required' && nick.body.suggested === 'anna_smirnova', JSON.stringify(nick.body));
-  const made = await complete(first.ticket, { username: `anna_${rnd}` });
-  check('С ником — вход, основная почта Яндекс ID подтверждена', made.status === 200 && !!made.body.accessToken && made.body.user.email === `anna${rnd}@yandex.test`, String(made.status));
+  // Отдельное согласие на обработку ПД (часть 120): без него аккаунт не заводится.
+  const noConsent = await complete(first.ticket, { username: `anna_${rnd}` });
+  check('Новый аккаунт через Яндекс без согласия на обработку ПД — 400 consent_required', noConsent.status === 400 && noConsent.body.error === 'consent_required', JSON.stringify(noConsent.body));
+  const made = await complete(first.ticket, { username: `anna_${rnd}`, pdConsent: true });
+  const madeConsent = await prisma.personalDataConsent.findFirst({ where: { userId: made.body.user?.id } });
+  check('С ником и согласием — вход, основная почта Яндекс ID подтверждена; согласие записано: Яндекс, версия, адрес', made.status === 200 && !!made.body.accessToken && made.body.user.email === `anna${rnd}@yandex.test` && madeConsent?.method === 'yandex' && madeConsent.version === shared.PD_CONSENT_VERSION && !!madeConsent.ip, `${made.status} ${JSON.stringify(madeConsent)}`);
   const again = await complete((await signIn('yandex')).ticket);
   check('Второй вход через Яндекс — тот же аккаунт без вопросов', again.status === 200 && again.body.user.id === made.body.user.id, String(again.status));
   const ways = await j('/auth/social/accounts', { token: made.body.accessToken });
@@ -1176,7 +1285,7 @@ async function scenarioLanguage(rnd) {
   const refreshed = await j('/auth/register', {
     method: 'POST',
     headers: { 'Accept-Language': 'en-GB,en;q=0.9' },
-    body: JSON.stringify({ email: `lng2${rnd}@e2e.local`, password: 'password123', username: `lng2${rnd}` }),
+    body: JSON.stringify({ email: `lng2${rnd}@e2e.local`, password: 'password123', username: `lng2${rnd}`, pdConsent: true }),
   });
   const enUser = (await j('/account/notifications', { token: refreshed.body.accessToken })).body.locale;
   check('Регистрация с английского сайта — профиль на английском', refreshed.status === 201 && enUser === 'en', `${refreshed.status} ${enUser}`);
@@ -1186,7 +1295,7 @@ async function scenarioRates(rnd) {
   console.log('\n— Курсы для показа цен —');
   const admin = await register('rta', rnd);
   const user = await register('rtu', rnd);
-  await grant(admin.id, 'admin');
+  await grant(admin, 'admin');
   check('Курс задаёт только администратор', (await j('/admin/rates', { method: 'PUT', token: user.token, body: JSON.stringify({ USD: 92, EUR: 100 }) })).status === 403);
   check('Опечатка на порядок не проходит', (await j('/admin/rates', { method: 'PUT', token: admin.token, body: JSON.stringify({ USD: 9.2, EUR: 100 }) })).status === 400);
   await j('/admin/rates', { method: 'PUT', token: admin.token, body: JSON.stringify({ USD: 92.5, EUR: 100.1 }) });
@@ -1243,8 +1352,7 @@ async function scenarioPayout(rnd) {
   await j(`/orders/${order.body.id}/confirm`, { method: 'POST', token: buyer.token });
 
   const fin = await register('pyf', rnd);
-  const role = await prisma.role.findUnique({ where: { key: 'finance' } });
-  await prisma.userRole.upsert({ where: { userId_roleId: { userId: fin.id, roleId: role.id } }, update: {}, create: { userId: fin.id, roleId: role.id } });
+  await grant(fin, 'finance');
 
   const over = await j('/payouts', { method: 'POST', token: seller.token, body: JSON.stringify({ amount: '999999', method: 'card', destination: '4111111111111111' }) });
   check('Вывод больше баланса → 400', over.status === 400);
@@ -1444,7 +1552,7 @@ async function scenarioReports(rnd) {
   const seller = await register('rps', rnd);
   const buyer = await register('rpb', rnd);
   const fin = await register('rpf', rnd);
-  await grant(fin.id, 'finance');
+  await grant(fin, 'finance');
   const listingId = await createListing(seller.token, 'accounts', '120000');
   const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
   await pay(buyer.token, order.body.id);
@@ -1747,7 +1855,7 @@ async function scenarioDisputes(rnd) {
   const seller = await register('dss', rnd);
   const buyer = await register('dsb', rnd);
   const agent = await register('dsa', rnd);
-  await grant(agent.id, 'agent');
+  await grant(agent, 'agent');
   const deal = async (price) => {
     const listingId = await createListing(seller.token, 'accounts', price);
     const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
@@ -2072,7 +2180,7 @@ async function scenarioBuyRequests(rnd) {
   const blocked = await register('rqx', rnd);
   const keysOnly = await register('rqk', rnd);
   const mod = await register('rqm', rnd);
-  await grant(mod.id, 'moderator');
+  await grant(mod, 'moderator');
   const game = await j('/catalog/games/cs2');
   const skins = game.body.categories.find((c) => c.slug === 'skins');
   const other = game.body.categories.find((c) => c.slug === 'other');
@@ -2240,13 +2348,13 @@ async function scenarioPartners(rnd) {
   const regFrom = async (prefix, ip) => {
     const r = await j('/auth/register', {
       method: 'POST', headers: { 'X-Forwarded-For': ip },
-      body: JSON.stringify({ email: `${prefix}${rnd}@e2e.local`, password: 'password123', username: `${prefix}${rnd}` }),
+      body: JSON.stringify({ email: `${prefix}${rnd}@e2e.local`, password: 'password123', username: `${prefix}${rnd}`, pdConsent: true }),
     });
     return { token: r.body.accessToken, id: r.body.user?.id, ip };
   };
   const n = rnd % 200;
   const admin = await register('pta', rnd);
-  await grant(admin.id, 'admin');
+  await grant(admin, 'admin');
   const partner = await regFrom('ptp', `10.116.${n}.1`);
   const twin = await regFrom('ptt', `10.116.${n}.1`); // тот же IP, что у партнёра
   const seller = await regFrom('pts', `10.117.${n}.1`);
@@ -3310,7 +3418,7 @@ async function scenarioRecovery(rnd) {
   const seller = await register('qrs', rnd);
   const owner = await register('qro', rnd);
   const agent = await register('qra', rnd);
-  await grant(agent.id, 'agent');
+  await grant(agent, 'agent');
   const lot = await createListing(seller.token, 'accounts', '15000', { title: `Восстановление ${rnd}` });
   const order = await j('/orders', { method: 'POST', token: owner.token, body: JSON.stringify({ listingId: lot }) });
   // «Чужой» включил вход с кодом на аккаунте владельца.
@@ -3383,7 +3491,7 @@ async function scenarioRecoveryNewEmail(rnd) {
   const owner = await register('qno', rnd);
   const other = await register('qnx', rnd);
   const agent = await register('qna', rnd);
-  await grant(agent.id, 'agent');
+  await grant(agent, 'agent');
   await prisma.kycVerification.create({
     data: { userId: owner.id, level: 'document', status: 'approved', reviewedAt: new Date(), documentRefs: { keys: [`kyc/${owner.id}/doc.png`], selfie: `kyc/${owner.id}/me.png` } },
   });
@@ -3448,7 +3556,7 @@ async function scenarioRecoveryDeals(rnd) {
   const owner = await register('qwo', rnd);
   const sellers = [await register('qw1', rnd), await register('qw2', rnd), await register('qw3', rnd)];
   const agent = await register('qwa', rnd);
-  await grant(agent.id, 'agent');
+  await grant(agent, 'agent');
   // Завершённые до заявки покупки владельца у каждого из продавцов.
   for (const [i, s] of sellers.entries()) {
     const lot = await createListing(s.token, 'accounts', '20000', { title: `По сделкам ${rnd} · ${i + 1}` });
@@ -3554,7 +3662,7 @@ async function scenarioEmailChange(rnd) {
   const byOld = await login(`emc${rnd}@e2e.local`, 'password123');
   const squat = await j('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email: `emc${rnd}@e2e.local`, password: 'password123', username: `emq${rnd}` }),
+    body: JSON.stringify({ email: `emc${rnd}@e2e.local`, password: 'password123', username: `emq${rnd}`, pdConsent: true }),
   });
   let alerts = [];
   for (let i = 0; i < 10 && !alerts.length; i++) {
@@ -3885,7 +3993,7 @@ async function scenarioYooKassa(rnd) {
     const reg = async (p) => {
       const r = await k('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email: `${p}${rnd}@e2e.local`, password: 'password123', username: `${p}${rnd}` }),
+        body: JSON.stringify({ email: `${p}${rnd}@e2e.local`, password: 'password123', username: `${p}${rnd}`, pdConsent: true }),
       });
       return { token: r.body.accessToken, id: r.body.user?.id };
     };
@@ -3972,7 +4080,7 @@ async function scenarioYooKassa(rnd) {
     await k(`/orders/${o1.id}/deliver`, { method: 'POST', token: seller.token });
     await k(`/orders/${o1.id}/confirm`, { method: 'POST', token: buyer.token });
     const fin = await reg('ykf');
-    await grant(fin.id, 'finance');
+    await grant(fin, 'finance');
     const balance = async () => (await k('/wallet', { token: seller.token })).body.balance;
     const methods = (await k('/payouts/methods', { token: seller.token })).body;
     const banks = (await k('/payouts/sbp-banks', { token: seller.token })).body;
@@ -4054,7 +4162,7 @@ async function scenarioYooKassa(rnd) {
     // Картой платили месяц назад: свежая карта не засчитывается.
     await prisma.payment.update({ where: { id: cardRow.id }, data: { createdAt: new Date(Date.now() - 30 * 86_400_000) } });
     const ag = await reg('yka');
-    await grant(ag.id, 'agent');
+    await grant(ag, 'agent');
     const claim = (who, ip) =>
       k('/recovery', {
         method: 'POST', headers: { 'X-Forwarded-For': ip },
@@ -4165,7 +4273,7 @@ async function scenarioTelegramBot(rnd) {
     const reg = async (p) => {
       const r = await k('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email: `${p}${rnd}@e2e.local`, password: 'password123', username: `${p}${rnd}` }),
+        body: JSON.stringify({ email: `${p}${rnd}@e2e.local`, password: 'password123', username: `${p}${rnd}`, pdConsent: true }),
       });
       return { token: r.body.accessToken, id: r.body.user?.id };
     };
@@ -4325,6 +4433,8 @@ async function scenarioTelegramBot(rnd) {
   await scenarioPaymentMethods(rnd);
   await scenarioModeration(rnd);
   await scenarioAccount(rnd);
+  await scenarioStaffTwoFactor(rnd);
+  await scenarioConsent(rnd);
   await scenarioSupport(rnd);
   await scenarioCatalog(rnd);
   await scenarioSellEstimate();

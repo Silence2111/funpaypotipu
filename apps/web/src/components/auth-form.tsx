@@ -53,6 +53,8 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
+  // Согласие на обработку ПД — отдельной галочкой (152-ФЗ, ст. 9, с 01.09.2025).
+  const [pdConsent, setPdConsent] = useState(false);
   const socialError = params.get('social_error');
   const [error, setError] = useState<string | null>(
     socialError ? t(SOCIAL_ERRORS[socialError] ?? SOCIAL_ERRORS.disabled!) : null,
@@ -83,6 +85,7 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
         ? t('Пароль — не короче 8 символов')
         : null,
     agreed: isRegister && !agreed ? t('Без согласия с правилами аккаунт не создать') : null,
+    pdConsent: isRegister && !pdConsent ? t('Без согласия на обработку персональных данных аккаунт не создать') : null,
   };
   const show = (k: string) => (touched[k] ? errors[k] : null);
 
@@ -97,7 +100,7 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setTouched({ email: true, username: true, password: true, agreed: true });
+    setTouched({ email: true, username: true, password: true, agreed: true, pdConsent: true });
     if (Object.values(errors).some(Boolean)) return;
     if (isRegister && refCode.trim() && !normalizePartnerCode(refCode)) {
       setError(t('Код партнёра — 6–12 латинских букв и цифр'));
@@ -114,7 +117,7 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
     try {
       const path = isRegister ? '/auth/register' : '/auth/login';
       const payload = isRegister
-        ? { email, password, username: username.trim() }
+        ? { email, password, username: username.trim(), pdConsent: true }
         : { email, password, ...(codeStep && code.trim() ? { code: code.trim() } : {}) };
       const res = await apiFetch<AuthResponse>(path, { method: 'POST', body: JSON.stringify(payload) });
       setSession(res.accessToken, res.user);
@@ -221,12 +224,25 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
                 style={{ marginTop: 3, width: 18, height: 18, accentColor: 'var(--accent)', flex: 'none' }} />
               <span>
                 {t('Мне есть 18 лет, я принимаю')}{' '}
-                <Link href="/rules" style={{ color: 'var(--accent)' }}>{t('правила')}</Link>,{' '}
-                <Link href="/oferta" style={{ color: 'var(--accent)' }}>{t('оферту')}</Link> {t('и согласен на')}{' '}
-                <Link href="/privacy" style={{ color: 'var(--accent)' }}>{t('обработку персональных данных')}</Link>
+                <Link href="/rules" style={{ color: 'var(--accent)' }}>{t('правила')}</Link> {t('и')}{' '}
+                <Link href="/oferta" style={{ color: 'var(--accent)' }}>{t('оферту')}</Link>
               </span>
             </label>
             {show('agreed') && <p className="field-error">{show('agreed')}</p>}
+          </div>
+        )}
+        {/* Согласие на обработку ПД — отдельно от оферты (152-ФЗ, ст. 9, с 01.09.2025). */}
+        {isRegister && (
+          <div className="field">
+            <label className="row muted" style={{ gap: 10, fontSize: 14, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>
+              <input type="checkbox" checked={pdConsent} onChange={(e) => { setPdConsent(e.target.checked); touch('pdConsent'); }}
+                style={{ marginTop: 3, width: 18, height: 18, accentColor: 'var(--accent)', flex: 'none' }} />
+              <span>
+                {t('Даю')}{' '}
+                <Link href="/soglasie" style={{ color: 'var(--accent)' }}>{t('согласие на обработку персональных данных')}</Link>
+              </span>
+            </label>
+            {show('pdConsent') && <p className="field-error">{show('pdConsent')}</p>}
           </div>
         )}
         </>

@@ -19,6 +19,7 @@ import { StorageService } from '../storage/storage.service';
 import { ScanService } from '../antivirus/scan.service';
 import { likeText } from '../../common/like';
 import { nextCursor } from '../../common/cursor';
+import { asStaff, staffTwoFactorError } from '../access/staff';
 
 const STAFF_ROLES = ['agent', 'moderator', 'admin'];
 const OPEN: DisputeStatus[] = ['open', 'in_review'];
@@ -665,17 +666,19 @@ export class DisputesService {
     return dispute;
   }
 
-  private async isStaff(userId: string): Promise<boolean> {
-    const rows = await this.prisma.userRole.findMany({ where: { userId }, include: { role: true } });
-    return rows.some((r) => STAFF_ROLES.includes(r.role.key));
-  }
-
+  /**
+   * Чужой спор открывает только сотрудник с входом с кодом (часть 119).
+   * Участник сделки с ролью, но без кода, — действует как участник.
+   */
   private async accessible(disputeId: string, userId: string) {
     const dispute = await this.get(disputeId);
     const order = await this.prisma.order.findUnique({ where: { id: dispute.orderId } });
-    const staff = await this.isStaff(userId);
+    const { staff, needsTwoFactor } = await asStaff(this.prisma, userId, STAFF_ROLES);
     const participant = order?.buyerId === userId || order?.sellerId === userId;
-    if (!participant && !staff) throw new ForbiddenException('Нет доступа к спору');
+    if (!participant && !staff) {
+      if (needsTwoFactor) throw staffTwoFactorError();
+      throw new ForbiddenException('Нет доступа к спору');
+    }
     return { dispute, order, isStaff: staff };
   }
 }

@@ -89,7 +89,10 @@ TAG=v1.0.0 envsubst < infra/k8s/migrate-job.yaml | kubectl apply -f -
    $C exec postgres psql -U gamemarket -c "INSERT INTO user_roles (user_id, role_id)
      SELECT p.user_id, r.id FROM profiles p, roles r WHERE p.username = 'ваш_ник' AND r.key = 'admin'"
    ```
-   Остальным ролям — в консоли, раздел «Пользователи».
+   Затем «Кабинет → Безопасность» → включить вход с кодом из приложения:
+   без него консоль сотруднику закрыта (403 «Включите вход с кодом»).
+   Остальным ролям — в консоли, раздел «Пользователи»; каждому сотруднику —
+   тоже вход с кодом, иначе консоль ему не откроется.
 
 **Бэкап.** Каждую ночь в 03:00 по Москве сервис `backup` кладёт в
 `infra/backups` дамп базы и архив файлов, старше `BACKUP_KEEP_DAYS` (14)

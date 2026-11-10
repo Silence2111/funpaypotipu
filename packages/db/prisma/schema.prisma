@@ -207,28 +207,29 @@ model User {
   referredAt    DateTime?  @map("referred_at")
 
   profile              Profile?
-  referredBy           User?               @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
-  referrals            User[]              @relation("Referrals")
+  referredBy           User?                 @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals            User[]                @relation("Referrals")
   partner              Partner?
-  partnerAccruals      PartnerAccrual[]    @relation("PartnerAccruals")
-  supportTickets       SupportTicket[]     @relation("SupportTickets")
-  blocksMade           UserBlock[]         @relation("BlocksMade")
-  blocksReceived       UserBlock[]         @relation("BlocksReceived")
+  consents             PersonalDataConsent[]
+  partnerAccruals      PartnerAccrual[]      @relation("PartnerAccruals")
+  supportTickets       SupportTicket[]       @relation("SupportTickets")
+  blocksMade           UserBlock[]           @relation("BlocksMade")
+  blocksReceived       UserBlock[]           @relation("BlocksReceived")
   kyc                  KycVerification[]
   sessions             AuthSession[]
   twoFactor            TwoFactor?
   socialAccounts       SocialAccount[]
   listings             Listing[]
-  ordersAsBuyer        Order[]             @relation("BuyerOrders")
-  ordersAsSeller       Order[]             @relation("SellerOrders")
+  ordersAsBuyer        Order[]               @relation("BuyerOrders")
+  ordersAsSeller       Order[]               @relation("SellerOrders")
   ledgerAccounts       LedgerAccount[]
   payments             Payment[]
   payouts              Payout[]
   payoutDestinations   PayoutDestination[]
-  reviewsAuthored      Review[]            @relation("ReviewAuthor")
-  reviewsReceived      Review[]            @relation("ReviewTarget")
-  buyerReviewsGiven    BuyerReview[]       @relation("BuyerReviewSeller")
-  buyerReviewsReceived BuyerReview[]       @relation("BuyerReviewBuyer")
+  reviewsAuthored      Review[]              @relation("ReviewAuthor")
+  reviewsReceived      Review[]              @relation("ReviewTarget")
+  buyerReviewsGiven    BuyerReview[]         @relation("BuyerReviewSeller")
+  buyerReviewsReceived BuyerReview[]         @relation("BuyerReviewBuyer")
   messages             Message[]
   notifications        Notification[]
   pushSubscriptions    PushSubscription[]
@@ -237,8 +238,8 @@ model User {
   buyRequests          BuyRequest[]
   buyRequestOffers     BuyRequestOffer[]
   sellerPromos         SellerPromo[]
-  following            SellerFollow[]      @relation("Following")
-  followers            SellerFollow[]      @relation("Followers")
+  following            SellerFollow[]        @relation("Following")
+  followers            SellerFollow[]        @relation("Followers")
   favorites            Favorite[]
   stockWatches         StockWatch[]
   roles                UserRole[]
@@ -1245,6 +1246,28 @@ model SavedSearchHit {
   @@id([searchId, listingId])
   @@index([listingId])
   @@map("saved_search_hits")
+}
+
+// Согласие на обработку персональных данных (часть 120): с 01.09.2025
+// оформляется отдельно от оферты (152-ФЗ, ст. 9). Запись на каждое согласие:
+// когда, какая версия текста, с какого адреса и как (почта, Яндекс ID…).
+// Отзыв — revoked_at; новое согласие — новая запись.
+model PersonalDataConsent {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  version   String    @db.VarChar(20)
+  // Как дано: email, yandex, vk, telegram — при регистрации; account — в кабинете.
+  method    String    @db.VarChar(16)
+  ip        String?   @db.VarChar(64)
+  userAgent String?   @map("user_agent") @db.VarChar(300)
+  givenAt   DateTime  @default(now()) @map("given_at")
+  revokedAt DateTime? @map("revoked_at")
+  revokeIp  String?   @map("revoke_ip") @db.VarChar(64)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, givenAt])
+  @@map("personal_data_consents")
 }
 
 // Партнёрская программа (часть 116): доля и срок задаёт администратор в

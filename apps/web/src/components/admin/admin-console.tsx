@@ -42,14 +42,16 @@ type TabKey = (typeof TABS)[number]['key'];
 export function AdminConsole() {
   const router = useRouter();
   const params = useSearchParams();
-  const [me, setMe] = useState<{ userId: string; roles: string[] } | null | undefined>(undefined);
+  const [me, setMe] = useState<{ userId: string; roles: string[]; twoFactor?: boolean } | null | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     if (!getToken()) {
       router.replace('/login?next=/admin');
       return;
     }
-    apiFetch<{ userId: string; roles: string[] }>('/auth/me')
+    apiFetch<{ userId: string; roles: string[]; twoFactor?: boolean }>('/auth/me')
       .then(setMe)
       .catch(() => setMe(null));
   }, [router]);
@@ -61,6 +63,30 @@ export function AdminConsole() {
   const tabs = TABS.filter((t) => isAdmin || t.roles.some((r) => roles.includes(r)));
   const requested = params.get('tab') as TabKey | null;
   const tab = tabs.find((t) => t.key === requested) ?? tabs[0];
+
+  // Сотрудник без входа с кодом (часть 119): API закрыт — показываем, где включить,
+  // а не пустые разделы с ошибками.
+  if (tabs.length > 0 && me?.twoFactor === false) {
+    return (
+      <div className="container stack-lg" style={{ paddingTop: 40, maxWidth: 640 }}>
+        <h1 className="h1" style={{ fontSize: 32 }}>Консоль</h1>
+        <div className="card" style={{ padding: 24, display: 'grid', gap: 12 }}>
+          <h2 className="h2" style={{ fontSize: 20, margin: 0 }}>Включите вход с кодом</h2>
+          <p className="muted" style={{ margin: 0 }}>
+            Консоль и действия сотрудника открываются только с входом по коду из приложения: одного пароля мало,
+            когда в руках выплаты, реквизиты, роли и комиссии. Включение займёт пару минут — нужно приложение
+            вроде Яндекс Ключа, Google Authenticator или 1Password.
+          </p>
+          <div>
+            <Link href="/cabinet/security" className="btn">
+              Включить вход с кодом
+            </Link>
+          </div>
+          <p className="hint" style={{ margin: 0 }}>После включения вернитесь сюда — разделы откроются сразу.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container stack-lg" style={{ paddingTop: 40 }}>

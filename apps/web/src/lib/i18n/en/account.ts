@@ -218,6 +218,7 @@ export const ACCOUNT: Record<string, string> = {
   'Код из приложения': 'Authenticator code',
   'Новые резервные коды': 'New backup codes',
   'Отключить защиту': 'Turn off',
+  'Вы сотрудник площадки: без входа с кодом консоль закроется.': 'You are marketplace staff: without sign-in with a code the console will close.',
   'QR-код для приложения': 'QR code for the app',
   '1. Отсканируйте QR-код в приложении-аутентификаторе.':
     '1. Scan the QR code in your authenticator app.',

@@ -13,7 +13,7 @@ import { ModuleRef } from '@nestjs/core';
 import { createHash, randomUUID } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
 import { PrismaClient } from '@gamemarket/db';
-import { deviceOf, type LoginInput, type RegisterInput } from '@gamemarket/shared';
+import { deviceOf, type LoginInput, type RegisterInput, PD_CONSENT_VERSION } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -89,6 +89,15 @@ export class AuthService {
         passwordHash,
         locale: ctx.lang ?? 'ru',
         profile: { create: { username: input.username, displayName: input.username } },
+        // Отдельное согласие на обработку ПД (часть 120): схема без него не пропустит.
+        consents: {
+          create: {
+            version: PD_CONSENT_VERSION,
+            method: 'email',
+            ip: ctx.ip?.slice(0, 64) ?? null,
+            userAgent: ctx.userAgent?.slice(0, 300) ?? null,
+          },
+        },
       },
       include: { profile: true },
     });

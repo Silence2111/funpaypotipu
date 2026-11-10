@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Copy, Download, ShieldCheck } from 'lucide-react';
-import { apiFetch } from '@/lib/session';
+import { apiFetch, isStaff, useSession } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { useT } from '@/lib/i18n/client';
 
@@ -18,6 +18,8 @@ interface Status {
  */
 export function TwoFactorCard() {
   const t = useT();
+  // Сотруднику: без входа с кодом консоль закрывается (часть 119).
+  const staff = isStaff(useSession().user);
   const [status, setStatus] = useState<Status | null>(null);
   const [setup, setSetup] = useState<{ secret: string; qrSvg: string } | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
@@ -193,6 +195,11 @@ export function TwoFactorCard() {
               {t('Отключить защиту')}
             </button>
           </div>
+          {staff && (
+            <p className="hint" style={{ margin: 0 }}>
+              {t('Вы сотрудник площадки: без входа с кодом консоль закроется.')}
+            </p>
+          )}
         </div>
       ) : setup ? (
         <div className="two-factor-setup">

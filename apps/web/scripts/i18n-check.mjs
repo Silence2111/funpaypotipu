@@ -26,6 +26,7 @@ const RUSSIAN_ONLY = [
   'components/admin/',
   'app/oferta/',
   'app/privacy/',
+  'app/soglasie/',
   'app/contacts/',
   'components/legal-page.tsx',
   'components/json-ld.tsx',

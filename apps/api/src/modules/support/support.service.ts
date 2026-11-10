@@ -4,6 +4,7 @@ import { PRISMA } from '../../prisma/prisma.module';
 import { NotificationsService } from '../notifications/notifications.service';
 import { likeText } from '../../common/like';
 import { nextCursor } from '../../common/cursor';
+import { asStaff, staffTwoFactorError } from '../access/staff';
 
 /** Кто отвечает в поддержке. Администратору открыто всё. */
 const SUPPORT_ROLES = ['agent', 'moderator', 'admin'];
@@ -207,9 +208,12 @@ export class SupportService {
   private async access(ticketId: string, userId: string): Promise<{ ticket: SupportTicket; staff: boolean }> {
     const ticket = await this.prisma.supportTicket.findUnique({ where: { id: ticketId } });
     if (!ticket) throw new NotFoundException('Обращение не найдено');
-    const staff =
-      (await this.prisma.userRole.count({ where: { userId, role: { key: { in: SUPPORT_ROLES } } } })) > 0;
-    if (ticket.userId !== userId && !staff) throw new ForbiddenException('Это не ваше обращение');
+    // Чужое обращение — только сотруднику с входом с кодом (часть 119).
+    const { staff, needsTwoFactor } = await asStaff(this.prisma, userId, SUPPORT_ROLES);
+    if (ticket.userId !== userId && !staff) {
+      if (needsTwoFactor) throw staffTwoFactorError();
+      throw new ForbiddenException('Это не ваше обращение');
+    }
     return { ticket, staff };
   }
 }
