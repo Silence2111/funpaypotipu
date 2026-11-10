@@ -1,14 +1,20 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import {
+  COMPETITOR_RATES_CHECKED,
   GATEWAY_METHOD_KEYS,
   SELLER_LEVELS,
   WITHDRAWAL_METHODS,
   cashbackPct,
+  competitorOutcome,
+  getWithdrawalMethod,
+  sellOutcome,
+  type SellOutcome,
 } from '@gamemarket/shared';
+import { RateLimit } from '../../common/rate-limit';
 import { FeesService } from './fees.service';
 import { AUTO_GOODS_CONFIRM_MS } from './fulfillment.service';
 import { PROMO_DAY_PRICE } from '../listings/listings.service';
@@ -16,6 +22,12 @@ import { KYC_REQUIRED_ABOVE, NEWBIE_HOLD_DAYS } from '../payouts/payouts.service
 import { YOOKASSA_METHODS } from '../payments/yookassa.provider';
 
 const LEVEL_DISCOUNTS = Object.values(SELLER_LEVELS).map((l) => l.feeDiscountBps);
+
+/** Калькулятор «Продавать на GameMarket»: раздел и цена в копейках, от 1 ₽ до 10 млн ₽. */
+const estimateSchema = z.object({
+  categoryId: z.string().uuid(),
+  price: z.coerce.number().int().min(100).max(1_000_000_000),
+});
 
 const quoteSchema = z.object({
   categoryId: z.string().uuid(),
@@ -77,6 +89,42 @@ export class FeesController {
         feePct: m.feePct,
         minFeeMinor: m.minFee.toString(),
       })),
+    };
+  }
+
+  /**
+   * «Сколько вы получите» — без входа, для страницы «Продавать на GameMarket».
+   * Наша комиссия — по тому же правилу раздела, что и настоящая сделка
+   * (для нового продавца, без скидки уровня), вывод — на СБП; FunPay и
+   * Playerok — по их опубликованным ставкам. Раньше «сколько на руки» было
+   * видно только в форме лота, после регистрации.
+   */
+  @Get('estimate')
+  @RateLimit('fees-estimate', 120, 60)
+  async estimate(@Query(new ZodValidationPipe(estimateSchema)) q: { categoryId: string; price: number }) {
+    const category = await this.fees.categoryForEstimate(q.categoryId);
+    if (!category) throw new NotFoundException('Раздел не найден');
+    const price = BigInt(q.price);
+    const f = await this.fees.computeForCategory(price, q.categoryId, 'RUB');
+    const sbp = getWithdrawalMethod('sbp')!;
+    const money = (o: SellOutcome) => ({
+      feePct: o.feePct,
+      fee: o.fee.toString(),
+      payout: o.payout.toString(),
+      withdrawFee: o.withdrawFee.toString(),
+      net: o.net.toString(),
+    });
+    return {
+      price: price.toString(),
+      segment: category.segment,
+      ours: money(sellOutcome(price, f.sellerPct, f.feeSeller, sbp)),
+      competitors: {
+        funpay: money(competitorOutcome('funpay', price, category.segment)),
+        playerok: money(competitorOutcome('playerok', price, category.segment)),
+      },
+      withdrawal: { key: sbp.key, feePct: sbp.feePct, minFee: sbp.minFee.toString() },
+      levelDiscountMaxPp: Math.max(...LEVEL_DISCOUNTS) / 100,
+      ratesCheckedAt: COMPETITOR_RATES_CHECKED,
     };
   }
 

@@ -31,7 +31,7 @@ export class FeesService {
     categoryId: string,
     currency: string,
     sellerId?: string,
-  ): Promise<FeeBreakdown & { level?: SellerLevel }> {
+  ): Promise<FeeBreakdown & { level?: SellerLevel; sellerPct: number }> {
     const rule =
       (await this.prisma.feeRule.findFirst({
         where: { active: true, scope: 'category', scopeRef: categoryId, currency },
@@ -51,7 +51,15 @@ export class FeesService {
     // процентные пункты из доли, и комиссия уровней обнулялась.
     const effSellerPct = effectiveSellerPct(sellerPct, level);
 
-    return { ...computeFees(base, buyerPct, effSellerPct), level };
+    return { ...computeFees(base, buyerPct, effSellerPct), level, sellerPct: effSellerPct };
+  }
+
+  /** Раздел для калькулятора продавца: только открытый, в открытой игре. */
+  categoryForEstimate(id: string) {
+    return this.prisma.category.findFirst({
+      where: { id, isActive: true, OR: [{ gameId: null }, { game: { isActive: true } }] },
+      select: { segment: true },
+    });
   }
 
   /** Активные правила комиссии по валюте — для публичного прайса. */

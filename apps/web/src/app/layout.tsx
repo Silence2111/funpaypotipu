@@ -79,6 +79,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               © {new Date().getFullYear()} GameMarket · {t('лоты с пометкой «Пример» — демонстрационные')}
             </p>
             <nav className="row faint" style={{ gap: '0 16px', fontSize: 13, flexWrap: 'wrap' }} aria-label={t('Документы')}>
+              <Link href="/prodavat" className="footer-link">{t('Продавать на GameMarket')}</Link>
               <Link href="/pomosch" className="footer-link">{t('Помощь')}</Link>
               <Link href="/rules" className="footer-link">{t('Правила и гарантии')}</Link>
               <Link href="/oferta" className="footer-link">{t('Оферта')}</Link>

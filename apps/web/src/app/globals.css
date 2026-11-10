@@ -5293,3 +5293,68 @@ a.my-lot-title:hover {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* «Продавать на GameMarket» — калькулятор «Сколько вы получите» (часть 109). */
+.sell-calc {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sell-calc-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.sell-calc-result {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.sell-calc-result > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+}
+.sell-calc-result dt {
+  color: var(--fg-muted);
+}
+.sell-calc-result dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sell-calc-total {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-weight: 700;
+  font-size: 18px !important;
+}
+.sell-calc-total dt {
+  color: inherit !important;
+}
+.sell-calc-compare-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 18px 0 8px;
+  color: var(--fg-muted);
+}
+.sell-calc-compare {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+.sell-calc-compare li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.sell-calc-compare li > b {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
