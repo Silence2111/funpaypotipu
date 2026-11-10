@@ -201,8 +201,16 @@ model User {
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
   deletedAt     DateTime?  @map("deleted_at")
+  // Кто привёл (партнёрская программа, часть 116) и когда: срок начислений
+  // партнёру считается от этой даты. Ставится один раз в первые сутки.
+  referredById  String?    @map("referred_by_id") @db.Uuid
+  referredAt    DateTime?  @map("referred_at")
 
   profile              Profile?
+  referredBy           User?               @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals            User[]              @relation("Referrals")
+  partner              Partner?
+  partnerAccruals      PartnerAccrual[]    @relation("PartnerAccruals")
   supportTickets       SupportTicket[]     @relation("SupportTickets")
   blocksMade           UserBlock[]         @relation("BlocksMade")
   blocksReceived       UserBlock[]         @relation("BlocksReceived")
@@ -240,6 +248,8 @@ model User {
 
   // Консоль: новые сверху, по статусу со счётчиками, поиск по части почты.
   @@index([createdAt, id])
+  // Кабинет партнёра: сколько он привёл.
+  @@index([referredById])
   @@index([status, createdAt, id])
   @@index([email(ops: raw("gin_trgm_ops"))], type: Gin, map: "users_email_trgm_idx")
   @@map("users")
@@ -598,6 +608,7 @@ model Order {
   review         Review?
   buyerReview    BuyerReview?
   conversation   Conversation?
+  partnerAccrual PartnerAccrual?
   ledgerEntries  LedgerEntry[]
   payments       Payment[]
 
@@ -1234,6 +1245,56 @@ model SavedSearchHit {
   @@id([searchId, listingId])
   @@index([listingId])
   @@map("saved_search_hits")
+}
+
+// Партнёрская программа (часть 116): доля и срок задаёт администратор в
+// консоли (system_settings, partner_program), по умолчанию выключена.
+// Партнёр — код ссылки и промокода; привязка нового пользователя — в
+// users.referred_by_id; начисление — с завершённой сделки привлечённого, от
+// того, что осталось площадке после эквайринга и кэшбэка.
+model Partner {
+  userId    String   @id @map("user_id") @db.Uuid
+  code      String   @unique @db.VarChar(16)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clickDays PartnerClickDay[]
+
+  @@map("partners")
+}
+
+// Переходы по ссылке партнёра — счётчик по дням.
+model PartnerClickDay {
+  partnerId String   @map("partner_id") @db.Uuid
+  day       DateTime @db.Date
+  clicks    Int      @default(0)
+
+  partner Partner @relation(fields: [partnerId], references: [userId], onDelete: Cascade)
+
+  @@id([partnerId, day])
+  @@map("partner_click_days")
+}
+
+// Начисление партнёру с одной сделки: одна сделка — одно начисление.
+model PartnerAccrual {
+  id         String   @id @default(uuid()) @db.Uuid
+  partnerId  String   @map("partner_id") @db.Uuid
+  orderId    String   @unique @map("order_id") @db.Uuid
+  // Кого привёл партнёр и кем тот был в сделке: buyer или seller.
+  referredId String   @map("referred_id") @db.Uuid
+  role       String   @db.VarChar(8)
+  // Что осталось площадке со сделки и доля партнёра на тот момент.
+  net        BigInt
+  shareBps   Int      @map("share_bps")
+  amount     BigInt
+  currency   String   @db.Char(3)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  partner User  @relation("PartnerAccruals", fields: [partnerId], references: [id], onDelete: Cascade)
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId, createdAt])
+  @@map("partner_accruals")
 }
 
 enum BuyRequestStatus {

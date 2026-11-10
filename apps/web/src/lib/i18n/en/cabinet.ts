@@ -549,4 +549,31 @@ export const CABINET: Record<string, string> = {
   'Ваш ответ:': 'Your reply:',
   'Ответ на отзыв': 'Reply to the review',
   'можно до {date}': 'until {date}',
+  // Партнёрская программа (часть 116)
+  Партнёрам: 'Partners',
+  'Приводите покупателей и продавцов на GameMarket — получайте долю с их сделок на баланс.':
+    'Bring buyers and sellers to GameMarket and get a share of their deals on your balance.',
+  'Не удалось загрузить партнёрскую программу.': 'Couldn’t load the partner program.',
+  'Партнёрская программа пока не работает. Когда площадка её включит, здесь появятся ваша ссылка и код.':
+    'The partner program isn’t running yet. Once the marketplace turns it on, your link and code will appear here.',
+  'Программа сейчас выключена: новые переходы и сделки не считаются. Начисленное остаётся на балансе.':
+    'The program is off right now: new visits and deals aren’t counted. What you’ve earned stays on your balance.',
+  'С каждой завершённой сделки приглашённого — покупки или продажи — вам {share}% того, что площадка на ней заработала. Считаются сделки за {days} дней после его регистрации.':
+    'From every completed deal of someone you invited — a purchase or a sale — you get {share}% of what the marketplace earned on it. Deals count for {days} days after they sign up.',
+  'Ваша ссылка': 'Your link',
+  Скопировано: 'Copied',
+  'Код партнёра — для поля при регистрации': 'Partner code — for the sign-up field',
+  'Переходы за 30 дней': 'Visits in 30 days',
+  Регистрации: 'Sign-ups',
+  Сделки: 'Deals',
+  Начислено: 'Earned',
+  Начисления: 'Rewards',
+  'продажа приглашённого': 'sale by your invitee',
+  'покупка приглашённого': 'purchase by your invitee',
+  'Начисления — на баланс, вывести их можно из кошелька, как деньги за продажи. Не считаются: сделки с вами самим, спорные сделки и аккаунты, созданные с того же устройства или адреса, что и ваш.':
+    'Rewards go to your balance and can be withdrawn from the wallet like sale proceeds. Not counted: deals with you yourself, disputed deals and accounts created from the same device or address as yours.',
+  'Код партнёра': 'Partner code',
+  'Если вас пригласили — необязательно': 'If someone invited you — optional',
+  'Есть код партнёра?': 'Have a partner code?',
+  'Код партнёра — 6–12 латинских букв и цифр': 'A partner code is 6–12 Latin letters and digits',
 };

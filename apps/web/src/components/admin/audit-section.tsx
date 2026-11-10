@@ -61,6 +61,7 @@ const ACTION: Record<string, string> = {
   'moderation.block': 'блокировка',
   'moderation.unblock': 'снятие блокировки',
   'moderation.hide': 'скрыто модератором',
+  'partner.settings': 'партнёрская программа',
   'moderation.delete': 'удалено модератором',
   'report.resolved': 'жалоба решена',
   'report.rejected': 'жалоба отклонена',
@@ -158,6 +159,14 @@ function details(r: Entry): string[] {
   if (r.action === 'fee.create') {
     out.push(`с продавца ${pct(a.feeSellerPct)} · с покупателя ${pct(a.feeBuyerPct)}`);
   }
+  if (r.action === 'partner.settings') {
+    // Было → стало: включена, доля и срок.
+    const show = (v: Record<string, unknown>) =>
+      v.enabled === true
+        ? `включена, ${(Number(v.shareBps) || 0) / 100}%, ${Number(v.termDays) || 0} дн.`
+        : 'выключена';
+    out.push(`${show(b)} → ${show(a)}`);
+  }
   if (r.action === 'fee.update') {
     for (const [k, label] of Object.entries(FEE_FIELD)) {
       if (b[k] !== a[k]) out.push(`${label}: ${feeValue(k, b[k])} → ${feeValue(k, a[k])}`);
@@ -209,7 +218,11 @@ function targetLabel(r: Entry) {
       return text ? `запрос «${text.length > 60 ? `${text.slice(0, 60)}…` : text}»` : `запрос ${short}`;
     }
     case 'setting':
-      return r.entityId === 'display_rates' ? 'курсы валют' : r.entityId;
+      return r.entityId === 'display_rates'
+        ? 'курсы валют'
+        : r.entityId === 'partner_program'
+          ? 'партнёрская программа'
+          : r.entityId;
     case 'fee_rule':
       return `правило ${short}`;
     case 'game':

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { CurrencySwitch } from '@/components/currency-switch';
 import { InstallApp } from '@/components/install-app';
 import { PwaRegister } from '@/components/pwa-register';
+import { PartnerRef } from '@/components/partner-ref';
 import { SiteHeader } from '@/components/site-header';
 import { TabBar } from '@/components/tab-bar';
 import { DisputeBanner } from '@/components/dispute-banner';
@@ -69,6 +70,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         />
         <LangProvider lang={lang} dict={dictOf(lang)}>
         <PwaRegister />
+        <PartnerRef />
         <SiteHeader />
         <DisputeBanner />
         <main>{children}</main>

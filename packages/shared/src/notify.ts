@@ -27,7 +27,7 @@ export const NOTIFY_GROUPS = [
   { key: 'messages', label: 'Сообщения', hint: 'новые сообщения в чатах', types: ['new_message'] },
   { key: 'disputes', label: 'Споры', hint: 'открыт спор, ждём вашего ответа, срок ответа подходит к концу, решение арбитра', types: ['dispute_opened', 'dispute_reply_needed', 'dispute_reply_soon', 'dispute_resolved'] },
   { key: 'reviews', label: 'Отзывы', hint: 'новый отзыв, ответ продавца, оценка вас как покупателя', types: ['review_received', 'review_reply', 'buyer_review'] },
-  { key: 'finance', label: 'Деньги', hint: 'кэшбэк и выплаты', types: ['cashback', 'payout_paid', 'payout_rejected'] },
+  { key: 'finance', label: 'Деньги', hint: 'кэшбэк, выплаты и партнёрские начисления', types: ['cashback', 'payout_paid', 'payout_rejected', 'partner_reward'] },
   { key: 'support', label: 'Поддержка', hint: 'ответы на ваши обращения', types: ['support_reply'] },
   {
     key: 'searches',
@@ -106,6 +106,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   recovery_restored: 'Доступ к аккаунту восстановлен',
   recovery_rejected: 'Заявка на восстановление отклонена',
   cashback: 'Кэшбэк за покупку зачислен на баланс',
+  partner_reward: 'Партнёрское вознаграждение зачислено на баланс',
   new_message: 'Новое сообщение',
   dispute_opened: 'Спор по сделке',
   dispute_reply_needed: 'Ждём вашего ответа в споре',
@@ -193,6 +194,7 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
   if (id('orderId')) return `/orders/${id('orderId')}`;
   if (id('listingId')) return type === 'listing_blocked' ? '/cabinet/lots' : `/lot/${id('listingId')}`;
   // Деньги — в кошелёк: там баланс, заявки на вывод и выписка.
+  if (type === 'partner_reward') return '/cabinet/partner';
   if (type.startsWith('payout') || type === 'cashback') return '/cabinet/wallet';
   return '/cabinet';
 }

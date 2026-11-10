@@ -13,6 +13,7 @@ export const LEDGER_OPERATIONS: Record<string, string> = {
   order_release: 'Зачисление за продажу',
   dispute_release: 'Зачисление по решению спора',
   cashback: 'Кэшбэк за покупку',
+  partner_reward: 'Партнёрское вознаграждение',
   order_refund: 'Возврат: заказ отменён',
   order_refund_overdue: 'Возврат: продавец не выдал товар',
   seller_refund: 'Возврат от продавца',
@@ -54,6 +55,7 @@ export const OPERATION_KINDS = [
   { key: 'topups', label: 'Пополнения', refTypes: ['balance_topup', 'late_payment'] },
   { key: 'payouts', label: 'Выводы', refTypes: ['payout_hold', 'payout_reverse', 'payout_settle'] },
   { key: 'promotion', label: 'Продвижение', refTypes: ['promotion'] },
+  { key: 'partner', label: 'Партнёрская программа', refTypes: ['partner_reward'] },
 ] as const;
 
 export type OperationKind = (typeof OPERATION_KINDS)[number]['key'];

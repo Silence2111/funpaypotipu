@@ -4207,6 +4207,28 @@ a.my-lot-title:hover {
   gap: 6px 12px;
 }
 
+/* Кабинет партнёра: четыре итога в ряд, на телефоне — по два. */
+.partner-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.partner-stat {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+}
+.partner-stat-value {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 22px;
+  font-weight: 700;
+}
+@media (max-width: 640px) {
+  .partner-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* Подписки на продавцов: аватар с именем и сводкой; число подписчиков у кнопки. */
 .following-main {
   display: flex;

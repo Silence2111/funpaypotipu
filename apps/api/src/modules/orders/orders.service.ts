@@ -44,6 +44,7 @@ import { PromoService } from '../promo/promo.service';
 import { SellerPromosService } from '../promo/seller-promos.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatService } from '../chat/chat.service';
+import { PartnersService } from '../partners/partners.service';
 import { FeesService } from './fees.service';
 import { FulfillmentService } from './fulfillment.service';
 
@@ -70,6 +71,7 @@ export class OrdersService {
     private readonly notifications: NotificationsService,
     private readonly chat: ChatService,
     private readonly sellerPromos: SellerPromosService,
+    private readonly partners: PartnersService,
   ) {}
 
   /** Системное сообщение о событии сделки в чат (не роняет основной поток). */
@@ -588,6 +590,11 @@ export class OrdersService {
         amount: cashback.toString(),
       });
     }
+    // Партнёру — доля с этой сделки, если её участника привёл он (часть 116).
+    // Сбой начисления не отменяет завершённую сделку: продавец уже с деньгами.
+    await this.partners.accrue(updated).catch((e) => {
+      this.logger.warn(`Партнёрское начисление по ${order.id}: ${(e as Error).message}`);
+    });
     return updated;
   }
 

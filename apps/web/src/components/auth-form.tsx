@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, type FormEvent } from 'react';
+import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch, setSession, type SessionUser } from '@/lib/session';
@@ -8,6 +8,8 @@ import { apiErrorMessage, errorCode } from '@/lib/errors';
 import { SocialLogin } from '@/components/social-login';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
+import { saveRef, savedRef } from '@/lib/partner-ref';
+import { normalizePartnerCode } from '@gamemarket/shared/partner';
 
 interface AuthResponse {
   user: SessionUser;
@@ -60,6 +62,11 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
   const [codeStep, setCodeStep] = useState(false);
   const [recovery, setRecovery] = useState(false);
   const [code, setCode] = useState('');
+  // Код партнёра (часть 116): из ссылки — уже в браузере; без ссылки — полем.
+  // Поле — только пока программа работает.
+  const [partnerOn, setPartnerOn] = useState(false);
+  const [refOpen, setRefOpen] = useState(false);
+  const [refCode, setRefCode] = useState('');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const touch = (k: string) => setTouched((prev) => ({ ...prev, [k]: true }));
 
@@ -79,10 +86,25 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
   };
   const show = (k: string) => (touched[k] ? errors[k] : null);
 
+  useEffect(() => {
+    if (!isRegister) return;
+    const saved = savedRef();
+    if (saved) setRefCode(saved);
+    apiFetch<{ active: boolean }>('/partners/program')
+      .then((p) => setPartnerOn(p.active))
+      .catch(() => {});
+  }, [isRegister]);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setTouched({ email: true, username: true, password: true, agreed: true });
     if (Object.values(errors).some(Boolean)) return;
+    if (isRegister && refCode.trim() && !normalizePartnerCode(refCode)) {
+      setError(t('Код партнёра — 6–12 латинских букв и цифр'));
+      return;
+    }
+    // Привяжет после входа общий компонент сайта — как и код из ссылки.
+    if (isRegister && refCode.trim()) saveRef(refCode);
     if (codeStep && !code.trim()) {
       setError(recovery ? t('Введите резервный код') : t('Введите код из приложения'));
       return;
@@ -178,6 +200,20 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
             aria-invalid={!!show('password')} />
           {show('password') ? <p className="field-error">{show('password')}</p> : isRegister ? <p className="hint">{t('Не короче 8 символов')}</p> : null}
         </div>
+        {isRegister && partnerOn && (
+          refOpen || refCode ? (
+            <div className="field">
+              <label className="label" htmlFor="partner-code">{t('Код партнёра')}</label>
+              <input id="partner-code" className="input" autoCapitalize="characters" spellCheck={false}
+                value={refCode} onChange={(e) => setRefCode(e.target.value.toUpperCase())} />
+              <p className="hint">{t('Если вас пригласили — необязательно')}</p>
+            </div>
+          ) : (
+            <button type="button" className="btn ghost" style={{ justifySelf: 'start', paddingInline: 0 }} onClick={() => setRefOpen(true)}>
+              {t('Есть код партнёра?')}
+            </button>
+          )
+        )}
         {isRegister && (
           <div className="field">
             <label className="row muted" style={{ gap: 10, fontSize: 14, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { isStaff, useSession } from '@/lib/session';
+import { apiFetch, isStaff, useSession } from '@/lib/session';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
 
@@ -27,6 +27,13 @@ const LINKS = [
   { href: '/cabinet/support', label: msg('Поддержка') },
 ];
 
+/** Работает ли партнёрская программа — один запрос на вкладку браузера. */
+let partnerProgram: Promise<boolean> | null = null;
+const partnerActive = () =>
+  (partnerProgram ??= apiFetch<{ active: boolean }>('/partners/program')
+    .then((p) => p.active)
+    .catch(() => false));
+
 /**
  * На телефоне — одна строка с прокруткой, а не три строки кнопок над каждой
  * страницей кабинета; текущий раздел прокручен в видимую часть.
@@ -36,8 +43,14 @@ export function CabinetNav() {
   const path = usePathname();
   const { user } = useSession();
   const nav = useRef<HTMLElement>(null);
+  // «Партнёрам» — пока программа работает (часть 116): выключенная — лишняя кнопка.
+  const [partner, setPartner] = useState(false);
+  useEffect(() => {
+    void partnerActive().then(setPartner);
+  }, []);
+  const base = partner || path === '/cabinet/partner' ? [...LINKS, { href: '/cabinet/partner', label: msg('Партнёрам') }] : LINKS;
   // Сотруднику — вход в консоль: на телефоне в шапке для него нет места.
-  const links = isStaff(user) ? [...LINKS, { href: '/admin', label: msg('Консоль') }] : LINKS;
+  const links = isStaff(user) ? [...base, { href: '/admin', label: msg('Консоль') }] : base;
 
   useEffect(() => {
     nav.current

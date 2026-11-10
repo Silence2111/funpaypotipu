@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { PromoModule } from '../promo/promo.module';
 import { ChatModule } from '../chat/chat.module';
+import { PartnersModule } from '../partners/partners.module';
 import { OrdersController } from './orders.controller';
 import { FeesController } from './fees.controller';
 import { OrdersService } from './orders.service';
@@ -11,7 +12,7 @@ import { MockTopUpProvider } from './topup.provider';
 import { OrdersSweepService } from './orders-sweep.service';
 
 @Module({
-  imports: [AuthModule, PromoModule, ChatModule],
+  imports: [AuthModule, PromoModule, ChatModule, PartnersModule],
   controllers: [OrdersController, FeesController],
   providers: [OrdersService, FeesService, FulfillmentService, MockTopUpProvider, OrdersSweepService],
   exports: [OrdersService],

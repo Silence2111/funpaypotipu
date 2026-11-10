@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
 import { Empty } from './shared';
+import { PartnerProgramCard } from './partner-program';
 
 interface Rule {
   id: string;
@@ -241,6 +242,8 @@ export function FeesSection() {
           Скидка не опустит сделку в минус: её потолок считает расчёт экономики сделки.
         </p>
       </div>
+
+      <PartnerProgramCard />
     </section>
   );
 }

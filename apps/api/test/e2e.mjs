@@ -16,6 +16,7 @@ import { createECDH, createHmac, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { authenticator } from 'otplib';
 import db from '../../../packages/db/dist/index.js';
+import shared from '../../../packages/shared/dist/index.js';
 import { startOAuthMock } from './oauth-mock.mjs';
 import { startYooKassaMock } from './yookassa-mock.mjs';
 import { startTelegramMock } from './telegram-mock.mjs';
@@ -2228,6 +2229,130 @@ async function scenarioBuyRequests(rnd) {
 }
 
 /**
+ * Партнёрская программа (часть 116): по умолчанию выключена, условия задаёт
+ * только администратор (с журналом); код и счётчик переходов; привязка в
+ * первые сутки, себя не привести; доля — от остатка площадки после
+ * эквайринга и кэшбэка; сделка с партнёром, вне срока и при выключенной
+ * программе — без начисления. В конце программа снова выключена.
+ */
+async function scenarioPartners(rnd) {
+  console.log('\n— Партнёрская программа —');
+  const regFrom = async (prefix, ip) => {
+    const r = await j('/auth/register', {
+      method: 'POST', headers: { 'X-Forwarded-For': ip },
+      body: JSON.stringify({ email: `${prefix}${rnd}@e2e.local`, password: 'password123', username: `${prefix}${rnd}` }),
+    });
+    return { token: r.body.accessToken, id: r.body.user?.id, ip };
+  };
+  const n = rnd % 200;
+  const admin = await register('pta', rnd);
+  await grant(admin.id, 'admin');
+  const partner = await regFrom('ptp', `10.116.${n}.1`);
+  const twin = await regFrom('ptt', `10.116.${n}.1`); // тот же IP, что у партнёра
+  const seller = await regFrom('pts', `10.117.${n}.1`);
+  const buyer = await register('ptb', rnd);
+  const put = (body, token = admin.token) => j('/admin/partner-program', { method: 'PUT', token, body: JSON.stringify(body) });
+  const attach = (u, code) =>
+    j('/partners/attach', { method: 'POST', token: u.token, headers: { 'X-Forwarded-For': u.ip }, body: JSON.stringify({ code }) });
+
+  await put({ enabled: false, shareBps: 0, termDays: 0 });
+  const off = (await j('/partners/program')).body;
+  const offMe = (await j('/partners/me', { token: partner.token })).body;
+  const notAdmin = await put({ enabled: true, shareBps: 2000, termDays: 30 }, partner.token);
+  const noShare = await put({ enabled: true, shareBps: 0, termDays: 30 });
+  const tooMuch = await put({ enabled: true, shareBps: 6000, termDays: 30 });
+  check(
+    'Программа выключена — кода нет; условия меняет только администратор; включить без доли — 400, больше 50% — 400',
+    off.active === false && offMe.active === false && offMe.code === null && notAdmin.status === 403 &&
+      noShare.status === 400 && tooMuch.status === 400,
+    JSON.stringify({ off, offMe, notAdmin: notAdmin.status, noShare: noShare.status, tooMuch: tooMuch.status }),
+  );
+
+  const on = await put({ enabled: true, shareBps: 2000, termDays: 30 });
+  const log = (await j(`/admin/audit?kind=settings&actor=${admin.id}`, { token: admin.token })).body.items ?? [];
+  const change = log.find((e) => e.action === 'partner.settings' && e.after?.enabled === true);
+  const me = (await j('/partners/me', { token: partner.token })).body;
+  const again = (await j('/partners/me', { token: partner.token })).body;
+  check(
+    'Включена: 20% остатка, 30 дней; в журнале — что было и что стало; партнёру выдан код, один и тот же',
+    on.status === 200 && on.body.active === true && change?.before?.enabled === false && change.after.shareBps === 2000 &&
+      /^[A-HJ-NP-Z2-9]{8}$/.test(me.code ?? '') && again.code === me.code && me.shareBps === 2000,
+    JSON.stringify({ on: on.body, change: change && { before: change.before, after: change.after }, code: me.code }),
+  );
+
+  await j('/partners/click', { method: 'POST', body: JSON.stringify({ code: me.code }) });
+  await j('/partners/click', { method: 'POST', body: JSON.stringify({ code: me.code.toLowerCase() }) });
+  await j('/partners/click', { method: 'POST', body: JSON.stringify({ code: 'ZZZZZZZZ' }) });
+  const own = await attach(partner, me.code);
+  const sameIp = await attach(twin, me.code);
+  const ok = await attach(seller, me.code);
+  const twice = await attach(seller, me.code);
+  const late = await regFrom('ptl', `10.118.${n}.1`);
+  await prisma.user.update({ where: { id: late.id }, data: { createdAt: new Date(Date.now() - 25 * 3600_000) } });
+  const tooLate = await attach(late, me.code);
+  const bad = await attach(buyer, 'nope');
+  check(
+    'Переходы считаются; свой код и тот же IP, что у партнёра, — не привязка; новый — привязан один раз; через сутки и битый код — нет',
+    own.body.attached === false && own.body.reason === 'self' && sameIp.body.reason === 'self' && ok.body.attached === true &&
+      twice.body.reason === 'already' && tooLate.body.reason === 'late' && bad.body.attached === false,
+    JSON.stringify({ own: own.body, sameIp: sameIp.body, ok: ok.body, twice: twice.body, tooLate: tooLate.body }),
+  );
+
+  // Сделка привлечённого продавца: доля — от остатка площадки.
+  const deal = async (sellerU, buyerU, price) => {
+    const listingId = await createListing(sellerU.token, 'accounts', price, { title: `Партнёр ${rnd}` });
+    const order = (await j('/orders', { method: 'POST', token: buyerU.token, body: JSON.stringify({ listingId }) })).body;
+    await pay(buyerU.token, order.id);
+    await j(`/orders/${order.id}/deliver`, { method: 'POST', token: sellerU.token });
+    await j(`/orders/${order.id}/confirm`, { method: 'POST', token: buyerU.token });
+    return prisma.order.findUnique({ where: { id: order.id } });
+  };
+  const o1 = await deal(seller, buyer, '200000');
+  const acc = await prisma.partnerAccrual.findUnique({ where: { orderId: o1.id } });
+  const econ = shared.dealEconomics({ amountToPay: o1.amount, sellerPayout: o1.sellerPayoutAmount, paymentMethod: o1.paymentMethod ?? 'balance' });
+  const expected = shared.partnerShare(econ.net, 2000);
+  const reward = await prisma.ledgerEntry.findFirst({ where: { refType: 'partner_reward', refId: o1.id } }).catch(() => null);
+  const told = (await j('/notifications', { token: partner.token })).body.filter((x) => x.type === 'partner_reward');
+  const wallet = (await j('/wallet', { token: partner.token })).body;
+  check(
+    'Сделка привлечённого: партнёру 20% того, что осталось площадке после эквайринга и кэшбэка, — на баланс, с уведомлением',
+    o1.status === 'completed' && acc?.role === 'seller' && acc.net === econ.net && acc.amount === expected && expected > 0n &&
+      acc.net < o1.amount - o1.sellerPayoutAmount && told.length === 1 && wallet.balance === expected.toString(),
+    JSON.stringify({ status: o1.status, acc: acc && { ...acc, net: String(acc.net), amount: String(acc.amount) }, net: String(econ.net), expected: String(expected), wallet: wallet.balance, reward: !!reward }),
+  );
+
+  // Партнёр сам покупает у привлечённого — не в счёт; вне срока и выключено — тоже.
+  await j('/wallet', { token: partner.token });
+  const o2 = await deal(seller, partner, '100000');
+  await prisma.user.update({ where: { id: seller.id }, data: { referredAt: new Date(Date.now() - 31 * 24 * 3600_000) } });
+  const o3 = await deal(seller, buyer, '100000');
+  await prisma.user.update({ where: { id: seller.id }, data: { referredAt: new Date() } });
+  await put({ enabled: false, shareBps: 2000, termDays: 30 });
+  const o4 = await deal(seller, buyer, '100000');
+  const none = await prisma.partnerAccrual.count({ where: { orderId: { in: [o2.id, o3.id, o4.id] } } });
+  check(
+    'Без начисления: сделка с самим партнёром, после срока и при выключенной программе',
+    none === 0 && [o2, o3, o4].every((o) => o.status === 'completed'),
+    JSON.stringify({ none, statuses: [o2.status, o3.status, o4.status] }),
+  );
+
+  await put({ enabled: true, shareBps: 2000, termDays: 30 });
+  const cab = (await j('/partners/me', { token: partner.token })).body;
+  const st = (await j('/reports/statement', { token: partner.token })).body;
+  const view = (await j('/admin/partner-program', { token: admin.token })).body;
+  check(
+    'Кабинет партнёра: 2 перехода, 1 регистрация, 1 сделка, начислено; в выписке — «Партнёрское вознаграждение»; в консоли — итоги',
+    cab.stats?.clicks === 2 && cab.stats.registrations === 1 && cab.stats.deals === 1 && cab.stats.accrued === expected.toString() &&
+      cab.recent?.[0]?.order === o1.publicNumber && cab.recent[0].role === 'seller' &&
+      st.rows?.some((r) => r.refType === 'partner_reward' && r.amount === expected.toString()) &&
+      view.totals?.deals >= 1 && view.totals.referred >= 1,
+    JSON.stringify({ stats: cab.stats, recent: cab.recent?.[0], totals: view.totals }),
+  );
+  // Другие сценарии — без программы.
+  await put({ enabled: false, shareBps: 0, termDays: 0 });
+}
+
+/**
  * Снижение цены в избранном: меньше 5% — молчит, 5% и больше — одно
  * уведомление «было — стало»; подорожал и вернулся к прежней — не повод,
  * новый минимум — снова уведомление; «было» в избранном.
@@ -4152,6 +4277,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioSellerTools(rnd);
   await scenarioSavedSearches(rnd);
   await scenarioBuyRequests(rnd);
+  await scenarioPartners(rnd);
   await scenarioPriceDrop(rnd);
   await scenarioLotStats(rnd);
   await scenarioSale(rnd);

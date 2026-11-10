@@ -19,7 +19,7 @@ export const AUDIT_KINDS = {
   kyc: ['kyc.'],
   recovery: ['recovery.'],
   access: ['role.', 'email.'],
-  settings: ['rates.', 'fee.'],
+  settings: ['rates.', 'fee.', 'partner.'],
   catalog: ['catalog.'],
 } as const;
 export type AuditKind = keyof typeof AUDIT_KINDS;

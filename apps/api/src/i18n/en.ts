@@ -498,4 +498,9 @@ export const EN_API: Phrasebook = {
   'Это ваш запрос': 'This is your request',
   'На свой запрос жаловаться не нужно': 'No need to report your own request',
   'Снять можно только запрос покупателя': 'Only a buyer request can be removed',
+  // Партнёрская программа
+  'Чтобы включить программу, задайте долю и срок больше нуля':
+    'To turn the program on, set a share and a term above zero',
+  'Доля партнёра — не больше 50%': 'The partner share can be at most 50%',
+  'Срок — не больше 3650 дней': 'The term can be at most 3650 days',
 };
