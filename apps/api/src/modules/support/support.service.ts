@@ -1,10 +1,15 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { Prisma, PrismaClient, type SupportTicket } from '@gamemarket/db';
+import { SUPPORT_SLA_HOURS, SUPPORT_STATS_DAYS, median } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { NotificationsService } from '../notifications/notifications.service';
 import { likeText } from '../../common/like';
 import { nextCursor } from '../../common/cursor';
 import { asStaff, staffTwoFactorError } from '../access/staff';
+
+/** Как часто искать обращения без ответа дольше срока; e2e — раз в 2 с. */
+const SUPPORT_SWEEP_MS = Number(process.env.SUPPORT_SWEEP_MS ?? 10 * 60_000);
 
 /** Кто отвечает в поддержке. Администратору открыто всё. */
 const SUPPORT_ROLES = ['agent', 'moderator', 'admin'];
@@ -93,16 +98,107 @@ export class SupportService {
     const { ticket, staff } = await this.access(ticketId, userId);
     const asStaff = staff && ticket.userId !== userId;
     await this.prisma.supportMessage.create({ data: { ticketId, authorId: userId, body, fromStaff: asStaff } });
+    const now = new Date();
     const updated = await this.prisma.supportTicket.update({
       where: { id: ticketId },
       data: {
         status: asStaff ? 'answered' : 'open',
-        lastMessageAt: new Date(),
+        lastMessageAt: now,
         ...(asStaff && !ticket.assigneeId ? { assigneeId: userId } : {}),
+        // Первый ответ — для «обычно отвечаем за …»; ответ снимает эскалацию,
+        // новое сообщение человека — новый срок (часть 138).
+        ...(asStaff && !ticket.firstReplyAt ? { firstReplyAt: now } : {}),
+        escalatedAt: null,
       },
     });
     if (asStaff) await this.notifications.notify(ticket.userId, 'support_reply', { ticketId });
     return updated;
+  }
+
+  /**
+   * Оценка ответа (часть 138): автор обращения, после ответа поддержки,
+   * 1–5 и комментарий; поменять можно, последняя оценка считается.
+   */
+  async rate(ticketId: string, userId: string, rating: number, comment?: string) {
+    const ticket = await this.prisma.supportTicket.findUnique({ where: { id: ticketId } });
+    if (!ticket || ticket.userId !== userId) throw new NotFoundException('Обращение не найдено');
+    if (!ticket.firstReplyAt) throw new BadRequestException('Оценить можно после ответа поддержки');
+    return this.prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: { rating, ratingComment: comment?.trim() || null, ratedAt: new Date() },
+    });
+  }
+
+  /**
+   * Время ответа и оценки за 30 дней (часть 138): медиана первого ответа —
+   * на странице поддержки («обычно отвечаем за …»); сотруднику — ещё
+   * средняя оценка, сколько ждут и сколько эскалировано.
+   */
+  async stats(staff = false) {
+    const since = new Date(Date.now() - SUPPORT_STATS_DAYS * 86_400_000);
+    const answered = await this.prisma.supportTicket.findMany({
+      where: { createdAt: { gte: since }, firstReplyAt: { not: null } },
+      select: { createdAt: true, firstReplyAt: true },
+      take: 5000,
+    });
+    const firstReplySec = median(answered.map((t) => Math.max(0, (t.firstReplyAt!.getTime() - t.createdAt.getTime()) / 1000)));
+    if (!staff) return { firstReplySec, answered: answered.length };
+    const [rated, waiting, escalated] = await Promise.all([
+      this.prisma.supportTicket.aggregate({ where: { ratedAt: { gte: since } }, _avg: { rating: true }, _count: { rating: true } }),
+      this.prisma.supportTicket.count({ where: { status: 'open' } }),
+      this.prisma.supportTicket.count({ where: { status: 'open', escalatedAt: { not: null } } }),
+    ]);
+    return {
+      firstReplySec,
+      answered: answered.length,
+      avgRating: rated._avg.rating,
+      rated: rated._count.rating,
+      waiting,
+      escalated,
+    };
+  }
+
+  /** Ждёт ответа дольше срока — эскалация: администраторам уведомление, в очереди пометка. */
+  @Interval('support-escalation', SUPPORT_SWEEP_MS)
+  async escalate() {
+    const due = new Date(Date.now() - SUPPORT_SLA_HOURS * 3_600_000);
+    const late = await this.prisma.supportTicket.findMany({
+      where: { status: 'open', escalatedAt: null, lastMessageAt: { lte: due } },
+      select: { id: true },
+      take: 200,
+    });
+    if (!late.length) return;
+    const admins = await this.prisma.user.findMany({
+      where: { status: 'active', roles: { some: { role: { key: 'admin' } } } },
+      select: { id: true },
+    });
+    for (const t of late) {
+      const claimed = await this.prisma.supportTicket.updateMany({ where: { id: t.id, escalatedAt: null, status: 'open' }, data: { escalatedAt: new Date() } });
+      if (!claimed.count) continue;
+      for (const a of admins) await this.notifications.notify(a.id, 'support_overdue', { ticketId: t.id }).catch(() => null);
+    }
+  }
+
+  // ─────────── Заготовки ответов (часть 138) ───────────
+
+  templates() {
+    return this.prisma.supportTemplate.findMany({ orderBy: { title: 'asc' }, select: { id: true, title: true, body: true } });
+  }
+
+  async saveTemplate(staffId: string, input: { title: string; body: string }, id?: string) {
+    if (id) {
+      const found = await this.prisma.supportTemplate.findUnique({ where: { id } });
+      if (!found) throw new NotFoundException('Заготовка не найдена');
+      return this.prisma.supportTemplate.update({ where: { id }, data: input, select: { id: true, title: true, body: true } });
+    }
+    const count = await this.prisma.supportTemplate.count();
+    if (count >= 100) throw new BadRequestException('Заготовок не больше 100 — удалите ненужные');
+    return this.prisma.supportTemplate.create({ data: { ...input, createdBy: staffId }, select: { id: true, title: true, body: true } });
+  }
+
+  async removeTemplate(id: string) {
+    await this.prisma.supportTemplate.deleteMany({ where: { id } });
+    return { ok: true };
   }
 
   async close(ticketId: string, userId: string) {

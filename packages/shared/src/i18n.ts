@@ -331,6 +331,7 @@ export const EN_SHARED: Phrasebook = {
   'Что не совпало с описанием: скриншоты.': 'Screenshots of what didn’t match the description.',
   'Данные, переданные покупателю, и время передачи.': 'The details handed to the buyer and when.',
   'Обжалование ждёт ответа дольше срока': 'An appeal is waiting past its deadline',
+  'Обращение ждёт ответа дольше срока': 'A support request is waiting past its deadline',
   'Проверка вывода затянулась — заявку передали старшему сотруднику': 'The withdrawal check is taking longer — your request went to a senior staff member',
   'Заявка на вывод ждёт решения дольше срока': 'A withdrawal request is waiting past its deadline',
   'Блокировка лота снята': 'Listing unblocked',

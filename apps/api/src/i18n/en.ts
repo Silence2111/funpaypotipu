@@ -647,4 +647,10 @@ export const EN_API: Phrasebook = {
   'Этот заказ вернуть на карту нельзя — только на баланс': 'This order can’t be refunded to the card — only to the balance',
   'Заказ уже выдан или отменён': 'The order has already been delivered or cancelled',
   'Платёжная система не приняла возврат. Попробуйте позже или верните на баланс.': 'The payment system didn’t accept the refund. Try later or refund to the balance.',
+  // Поддержка (часть 138)
+  'Оценка — от 1 до 5': 'The rating is from 1 to 5',
+  'Название — от 2 знаков': 'The title needs at least 2 characters',
+  'Текст — от 5 знаков': 'The text needs at least 5 characters',
+  'Оценить можно после ответа поддержки': 'You can rate after support replies',
+  'Заготовок не больше 100 — удалите ненужные': 'No more than 100 templates — delete the ones you don’t need',
 };

@@ -132,6 +132,10 @@
     "./refund": {
       "types": "./dist/refund.d.ts",
       "default": "./dist/refund.js"
+    },
+    "./support-quality": {
+      "types": "./dist/support-quality.d.ts",
+      "default": "./dist/support-quality.js"
     }
   },
   "scripts": {

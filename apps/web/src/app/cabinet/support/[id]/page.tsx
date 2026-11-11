@@ -10,7 +10,11 @@ import { useT } from '@/lib/i18n/client';
 import { backToSupportQueue } from '@/lib/support-queue';
 
 interface View {
-  ticket: { id: string; subject: string; category: string; status: string; createdAt: string };
+  ticket: {
+    id: string; subject: string; category: string; status: string; createdAt: string;
+    /** Часть 138: первый ответ поддержки и оценка автора. */
+    firstReplyAt?: string | null; rating?: number | null; ratingComment?: string | null; escalatedAt?: string | null;
+  };
   isStaff: boolean;
   owner: { id: string; username: string | null };
   order: { id: string; publicNumber: string; status: string } | null;
@@ -36,6 +40,9 @@ function Ticket() {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Заготовки ответов — у сотрудника (часть 138).
+  const [templates, setTemplates] = useState<Array<{ id: string; title: string; body: string }>>([]);
+  const [comment, setComment] = useState('');
 
   const load = useCallback(async () => {
     setView(await apiFetch<View>(`/support/tickets/${id}`));
@@ -45,6 +52,18 @@ function Ticket() {
     if (!token) return;
     load().catch(() => setErr(t('Обращение не найдено')));
   }, [load, token, t]);
+
+  useEffect(() => {
+    if (!view?.isStaff) return;
+    apiFetch<Array<{ id: string; title: string; body: string }>>('/support/templates').then(setTemplates).catch(() => {});
+  }, [view?.isStaff]);
+
+  function rate(rating: number) {
+    void run(
+      () => apiFetch(`/support/tickets/${id}/rate`, { method: 'POST', body: JSON.stringify({ rating, ...(comment.trim() ? { comment: comment.trim() } : {}) }) }),
+      t('Не удалось сохранить оценку.'),
+    );
+  }
 
   async function run(fn: () => Promise<unknown>, fallback: string) {
     setBusy(true);
@@ -113,7 +132,40 @@ function Ticket() {
 
       {err && <p className="field-error" role="alert">{err}</p>}
 
+      {/* Оценка ответа (часть 138) — автор, после ответа поддержки. */}
+      {!staffView && ticket.firstReplyAt && (
+        <div className="card flat" style={{ padding: 14, marginBottom: 16, background: 'var(--page)', display: 'grid', gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>
+            {ticket.rating ? t('Ваша оценка ответа: {n} из 5. Можно поменять.', { n: ticket.rating }) : t('Оцените ответ поддержки')}
+          </span>
+          <div className="row" style={{ gap: 6 }} role="group" aria-label={t('Оценка от 1 до 5')}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button key={n} type="button" className="chip" aria-pressed={ticket.rating === n} disabled={busy} onClick={() => rate(n)}>
+                {'★'.repeat(n)}
+              </button>
+            ))}
+          </div>
+          <input className="input" maxLength={1000} placeholder={t('Что можно сделать лучше — необязательно')} value={comment}
+            onChange={(e) => setComment(e.target.value)} aria-label={t('Комментарий к оценке')} />
+        </div>
+      )}
+      {staffView && ticket.rating && (
+        <p className="hint" style={{ margin: '0 0 12px' }}>
+          {t('Оценка автора: {n} из 5', { n: ticket.rating })}{ticket.ratingComment ? ` · «${ticket.ratingComment}»` : ''}
+        </p>
+      )}
+
       <form onSubmit={send} className="stack-form" style={{ gap: 10 }}>
+        {staffView && templates.length > 0 && (
+          <select className="input" value="" aria-label={t('Заготовка ответа')}
+            onChange={(e) => {
+              const tpl = templates.find((x) => x.id === e.target.value);
+              if (tpl) setDraft((d) => (d.trim() ? `${d}\n\n${tpl.body}` : tpl.body));
+            }}>
+            <option value="">{t('Вставить заготовку…')}</option>
+            {templates.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
+          </select>
+        )}
         <textarea className="input" rows={3} maxLength={4000} value={draft} aria-label={t('Сообщение')}
           placeholder={ticket.status === 'closed' ? t('Обращение закрыто — сообщение откроет его снова') : t('Сообщение…')}
           onChange={(e) => setDraft(e.target.value)} style={{ resize: 'vertical' }} />

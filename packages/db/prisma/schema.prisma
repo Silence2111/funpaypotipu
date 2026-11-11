@@ -1053,18 +1053,25 @@ model BalanceHold {
 
 /// Обращение в поддержку: тема, раздел, связанный заказ и переписка.
 model SupportTicket {
-  id            String   @id @default(uuid()) @db.Uuid
-  userId        String   @map("user_id") @db.Uuid
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
   subject       String
   /// order | payment | account | selling | other
   category      String
-  orderId       String?  @map("order_id") @db.Uuid
+  orderId       String?   @map("order_id") @db.Uuid
   /// open — ждёт поддержку, answered — ждёт пользователя, closed — закрыто
-  status        String   @default("open")
-  assigneeId    String?  @map("assignee_id") @db.Uuid
-  lastMessageAt DateTime @default(now()) @map("last_message_at")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  status        String    @default("open")
+  assigneeId    String?   @map("assignee_id") @db.Uuid
+  lastMessageAt DateTime  @default(now()) @map("last_message_at")
+  /// Поддержка (часть 138): первый ответ сотрудника — для «обычно отвечаем
+  /// за …»; ждёт ответа дольше срока — эскалация; оценка ответа человеком.
+  firstReplyAt  DateTime? @map("first_reply_at")
+  escalatedAt   DateTime? @map("escalated_at")
+  rating        Int?      @db.SmallInt
+  ratingComment String?   @map("rating_comment")
+  ratedAt       DateTime? @map("rated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   user     User             @relation("SupportTickets", fields: [userId], references: [id], onDelete: Cascade)
   messages SupportMessage[]
@@ -1091,6 +1098,18 @@ model SupportMessage {
 
   @@index([ticketId, createdAt])
   @@map("support_messages")
+}
+
+/// Заготовки ответов поддержки (часть 138): общие для сотрудников.
+model SupportTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  title     String
+  body      String
+  createdBy String   @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("support_templates")
 }
 
 /// «Не могу войти»: заявка на восстановление доступа без входа. Пишется,

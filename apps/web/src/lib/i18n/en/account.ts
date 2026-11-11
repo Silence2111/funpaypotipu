@@ -297,4 +297,16 @@ export const ACCOUNT: Record<string, string> = {
     'You can appeal once. Another staff member, not the one who decided, will answer within {hours} h.',
   'Обжаловать': 'Appeal',
   'Срок обжалования — {days} дней — прошёл.': 'The {days}-day appeal window has passed.',
+  // Поддержка (часть 138)
+  'Не удалось сохранить оценку.': 'Couldn’t save the rating.',
+  'Ваша оценка ответа: {n} из 5. Можно поменять.': 'Your rating of the reply: {n} of 5. You can change it.',
+  'Оцените ответ поддержки': 'Rate the support reply',
+  'Оценка от 1 до 5': 'Rating from 1 to 5',
+  'Что можно сделать лучше — необязательно': 'What could be better — optional',
+  'Комментарий к оценке': 'Comment on the rating',
+  'Оценка автора: {n} из 5': 'Author’s rating: {n} of 5',
+  'Заготовка ответа': 'Reply template',
+  'Вставить заготовку…': 'Insert a template…',
+  'Обычно отвечаем за {n} мин': 'We usually reply within {n} min',
+  'Обычно отвечаем за {n} ч': 'We usually reply within {n} h',
 };
