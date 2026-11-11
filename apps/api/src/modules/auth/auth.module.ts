@@ -9,10 +9,12 @@ import { SocialController } from './social/social.controller';
 import { SocialService } from './social/social.service';
 import { EmailChangeController } from './email-change.controller';
 import { EmailChangeService } from './email-change.service';
+import { PhoneController } from './phone.controller';
+import { PhoneService } from './phone.service';
 
 @Module({
   imports: [JwtModule.register({})],
-  controllers: [AuthController, SocialController, EmailChangeController],
+  controllers: [AuthController, SocialController, EmailChangeController, PhoneController],
   providers: [
     AuthService,
     TokenService,
@@ -20,6 +22,7 @@ import { EmailChangeService } from './email-change.service';
     JwtAuthGuard,
     SocialService,
     EmailChangeService,
+    PhoneService,
   ],
   exports: [TokenService, JwtAuthGuard, TwoFactorService],
 })

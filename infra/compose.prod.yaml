@@ -70,6 +70,8 @@ x-app-env: &app-env
   YANDEX_CLIENT_SECRET: ${YANDEX_CLIENT_SECRET:-}
   VK_CLIENT_ID: ${VK_CLIENT_ID:-}
   VK_CLIENT_SECRET: ${VK_CLIENT_SECRET:-}
+  # Вход по номеру телефона (часть 121): с mock на проде он выключен.
+  SMS_PROVIDER: ${SMS_PROVIDER:-mock}
   # Пуши: без ключей создаются при первом запуске и хранятся в базе.
   VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
   VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}

@@ -190,30 +190,32 @@ enum FeeScope {
 // ─────────────────────── IDENTITY & USERS ───────────────────────
 
 model User {
-  id            String     @id @default(uuid()) @db.Uuid
-  email         String?    @unique
-  emailVerified DateTime?  @map("email_verified_at")
-  phone         String?    @unique
-  passwordHash  String?    @map("password_hash")
-  telegramId    String?    @unique @map("telegram_id")
+  id              String     @id @default(uuid()) @db.Uuid
+  email           String?    @unique
+  emailVerified   DateTime?  @map("email_verified_at")
+  phone           String?    @unique
+  /// Номер подтверждён кодом из SMS (часть 121): по нему можно войти.
+  phoneVerifiedAt DateTime?  @map("phone_verified_at")
+  passwordHash    String?    @map("password_hash")
+  telegramId      String?    @unique @map("telegram_id")
   // Каналы уведомлений по группам (shared/notify.ts); null — по умолчанию.
-  notifyPrefs   Json?      @map("notify_prefs")
+  notifyPrefs     Json?      @map("notify_prefs")
   // Язык писем, Telegram и пушей: ru или en — последний язык сайта при входе
   // или выбранный в переключателе.
-  locale        String     @default("ru") @db.VarChar(5)
-  status        UserStatus @default(active)
-  lastLoginAt   DateTime?  @map("last_login_at")
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
+  locale          String     @default("ru") @db.VarChar(5)
+  status          UserStatus @default(active)
+  lastLoginAt     DateTime?  @map("last_login_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
   /// Удалён владельцем (часть 124): вход закрыт, 30 дней можно восстановить.
-  deletedAt     DateTime?  @map("deleted_at")
+  deletedAt       DateTime?  @map("deleted_at")
   /// Персональные данные уничтожены через 30 дней после удаления (ч. 5 ст. 21
   /// 152-ФЗ): почта, имя, вход, реквизиты. Остались сделки и деньги — без них.
-  erasedAt      DateTime?  @map("erased_at")
+  erasedAt        DateTime?  @map("erased_at")
   // Кто привёл (партнёрская программа, часть 116) и когда: срок начислений
   // партнёру считается от этой даты. Ставится один раз в первые сутки.
-  referredById  String?    @map("referred_by_id") @db.Uuid
-  referredAt    DateTime?  @map("referred_at")
+  referredById    String?    @map("referred_by_id") @db.Uuid
+  referredAt      DateTime?  @map("referred_at")
 
   profile              Profile?
   referredBy           User?                 @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
@@ -1581,4 +1583,24 @@ model UserRole {
 
   @@id([userId, roleId])
   @@map("user_roles")
+}
+
+/// Коды из SMS (часть 121): вход по номеру и привязка номера в кабинете.
+/// Хранится только хеш кода; лимиты считаются по строкам номера.
+model PhoneCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  phone     String    @db.VarChar(16)
+  /// login — вход или регистрация; link — привязка в кабинете.
+  purpose   String    @db.VarChar(8)
+  /// Кто привязывает номер (purpose = link).
+  userId    String?   @map("user_id") @db.Uuid
+  codeHash  String    @map("code_hash") @db.VarChar(64)
+  attempts  Int       @default(0)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  ip        String?   @db.VarChar(64)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([phone, createdAt])
+  @@map("phone_codes")
 }

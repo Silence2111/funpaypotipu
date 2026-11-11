@@ -88,6 +88,10 @@
     "./deletion": {
       "types": "./dist/deletion.d.ts",
       "default": "./dist/deletion.js"
+    },
+    "./phone": {
+      "types": "./dist/phone.d.ts",
+      "default": "./dist/phone.js"
     }
   },
   "scripts": {
