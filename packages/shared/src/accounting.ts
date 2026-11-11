@@ -94,6 +94,23 @@ export const refundToBalance = (buyerId: string, amount: Minor): PostingLeg[] =>
   credit(userAccount(buyerId, 'available'), amount),
 ];
 
+/**
+ * «Безопасная сделка» (часть 123): завершение — доля продавца не на его
+ * баланс у площадки, а в обязательство к выплате по сделке ЮKassa;
+ * вознаграждение — в доход.
+ */
+export const releaseEscrowToDeal = (sellerPayout: Minor, revenue: Minor): PostingLeg[] => [
+  debit(escrowHolding(), sellerPayout + revenue),
+  credit(platformAccount('payout_payable'), sellerPayout),
+  credit(platformRevenue(), revenue),
+];
+
+/** «Безопасная сделка»: возврат — деньги уходят со сделки обратно на карту покупателя. */
+export const refundToGateway = (amount: Minor): PostingLeg[] => [
+  debit(escrowHolding(), amount),
+  credit(gatewayClearing(), amount),
+];
+
 /** Кэшбэк покупателю на баланс за завершённую покупку (за счёт дохода площадки). */
 export const cashbackToBalance = (buyerId: string, amount: Minor): PostingLeg[] => [
   debit(platformRevenue(), amount),

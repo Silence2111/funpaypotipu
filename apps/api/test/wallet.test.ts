@@ -28,6 +28,11 @@ describe('кошелёк', () => {
           return { _count: { _all: 0 }, _sum: { amount: null } };
         }),
       },
+      // «Безопасная сделка» (часть 123): выплаты по сделкам в пути.
+      dealPayout: {
+        aggregate: vi.fn(async () => ({ _count: { _all: 1 }, _sum: { amount: 90000n } })),
+        count: vi.fn(async () => 1),
+      },
     };
     const ledger = { balanceOf: vi.fn(async () => 50000n) };
     const svc = new WalletService(prisma as never, ledger as never);
@@ -37,6 +42,7 @@ describe('кошелёк', () => {
       balance: 50000n,
       inDeals: { count: 2, amount: 171000n },
       withdrawing: { count: 0, amount: 0n },
+      dealPayouts: { count: 1, amount: 90000n, waiting: 1 },
     });
     expect(orderWhere[0]).toEqual({
       sellerId: 'me',

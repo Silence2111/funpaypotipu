@@ -129,6 +129,7 @@ function setup(listing: Record<string, unknown>, order: Record<string, unknown> 
     { consume: vi.fn(async () => 0n) } as never,
     notifications as never,
     chat as never,
+    {} as never, {} as never, { scheme: async () => 'escrow' } as never,
   );
   return { svc, state, ledger, notifications };
 }

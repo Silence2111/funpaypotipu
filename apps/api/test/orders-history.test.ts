@@ -61,7 +61,7 @@ function setup(rows: ReturnType<typeof order>[], found: string[] = []) {
     },
   };
   const none = {} as never;
-  const svc = new OrdersService(prisma as never, none, none, none, none, none, none, none, none);
+  const svc = new OrdersService(prisma as never, none, none, none, none, none, none, none, none, {} as never, { scheme: async () => 'escrow' } as never);
   return { svc, calls, raw, prisma };
 }
 

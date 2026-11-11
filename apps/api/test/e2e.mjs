@@ -1019,6 +1019,107 @@ async function scenarioPhoneLogin(rnd) {
   );
 }
 
+/**
+ * «Безопасная сделка» ЮKassa (часть 123, заглушка): администратор
+ * включает схему в консоли — витрина предлагает только карту, с баланса и
+ * пополнение — 400. Оплата открывает сделку у заказа; завершение — доля
+ * продавца не на его баланс, а выплатой по сделке: нет реквизитов — ждёт с
+ * уведомлением, отказ ЮMoney — ждёт новые, новые — выплачено. Возврат — на
+ * карту, а не на баланс. В конце схема снова escrow.
+ */
+async function scenarioSafeDeal(rnd) {
+  console.log('\n— «Безопасная сделка» ЮKassa —');
+  const admin = await register('sda', rnd);
+  const seller = await register('sds', rnd);
+  const buyer = await register('sdb', rnd);
+  await grant(admin, 'admin');
+  const A = { token: admin.token };
+  const B = { token: buyer.token };
+  const S = { token: seller.token };
+  const scheme = (s) => j('/admin/payment-scheme', { method: 'PUT', ...A, body: JSON.stringify({ scheme: s }) });
+  const notAdmin = await j('/admin/payment-scheme', { method: 'PUT', ...S, body: JSON.stringify({ scheme: 'safe_deal' }) });
+  const on = await scheme('safe_deal');
+  const pub = (await j('/fees/public')).body;
+  check(
+    'Схема в консоли: не администратор — 403; «Безопасная сделка» включена — витрина предлагает только карту',
+    notAdmin.status === 403 && on.status === 200 && pub.paymentScheme === 'safe_deal' && JSON.stringify(pub.payMethods) === '["card"]',
+    JSON.stringify({ notAdmin: notAdmin.status, on: on.status, scheme: pub.paymentScheme, methods: pub.payMethods }),
+  );
+
+  const lot = await createListing(seller.token, 'skins', '100000', { title: `Сделка ${rnd}` });
+  const order = (await j('/orders', { method: 'POST', ...B, body: JSON.stringify({ listingId: lot }) })).body;
+  const deposit = (method) => j('/payments/deposit', { method: 'POST', ...B, body: JSON.stringify({ orderId: order.id, method }) });
+  const sbp = await deposit('sbp');
+  const fromBalance = await j(`/orders/${order.id}/pay-from-balance`, { method: 'POST', ...B });
+  const topup = await j('/payments/topup', { method: 'POST', ...B, body: JSON.stringify({ amount: '50000', method: 'card' }) });
+  const card = await deposit('card');
+  await j('/payments/mock/callback?providerRef=' + card.body.providerRef, { method: 'POST' });
+  const paid = await prisma.order.findUnique({ where: { id: order.id }, select: { status: true, dealId: true } });
+  check(
+    'В сделке: СБП, оплата с баланса и пополнение — 400; картой — сделка у заказа открыта, заказ оплачен',
+    sbp.status === 400 && fromBalance.status === 400 && topup.status === 400 && card.status === 201 &&
+      card.body.dealId?.startsWith('dl-mock-') && paid.status === 'paid' && paid.dealId === card.body.dealId,
+    JSON.stringify({ sbp: sbp.status, fromBalance: fromBalance.status, topup: topup.status, card: [card.status, card.body?.dealId], paid }),
+  );
+
+  const before = (await j('/wallet', S)).body;
+  await j(`/orders/${order.id}/deliver`, { method: 'POST', ...S });
+  await j(`/orders/${order.id}/confirm`, { method: 'POST', ...B });
+  const after = (await j('/wallet', S)).body;
+  const dp = await prisma.dealPayout.findUnique({ where: { orderId: order.id } });
+  const fresh = await prisma.order.findUnique({ where: { id: order.id }, select: { sellerPayoutAmount: true } });
+  const waitNote = (await j('/notifications', S)).body.find((n) => n.type === 'deal_payout_waiting');
+  check(
+    'Завершена: на баланс продавцу не пришло — выплата по сделке ждёт реквизиты, в кошельке «в пути», продавцу уведомление',
+    after.balance === before.balance && dp?.status === 'waiting' && dp.amount === fresh.sellerPayoutAmount &&
+      after.dealPayouts?.waiting === 1 && after.dealPayouts?.amount === fresh.sellerPayoutAmount.toString() && !!waitNote,
+    JSON.stringify({ before: before.balance, after: after.balance, dp: dp && [dp.status, String(dp.amount)], wallet: after.dealPayouts, note: !!waitNote }),
+  );
+
+  const waitFor = async (want) => {
+    let row = null;
+    for (let i = 0; i < 20; i++) {
+      await wait(500);
+      row = await prisma.dealPayout.findUnique({ where: { orderId: order.id } });
+      if (row?.status === want) break;
+    }
+    return row;
+  };
+  const save = (destination) => j('/payouts/destinations', { method: 'POST', ...S, body: JSON.stringify({ method: 'yoomoney', destination }) });
+  const badDest = await save(`41000000001${String(rnd).slice(-5).padStart(5, '0')}`);
+  const failed = await waitFor('failed');
+  await wait(1100);
+  const goodDest = await save(`41001${String(rnd).slice(-9).padStart(9, '0')}`);
+  const done = await waitFor('paid');
+  const paidNote = (await j('/notifications', S)).body.find((n) => n.type === 'payout_paid' && n.payload.orderId === order.id);
+  const settled = await prisma.ledgerEntry.count({ where: { idempotencyKey: `deal_payout:${done?.id}` } });
+  check(
+    'Реквизиты: ЮMoney без идентификации — отказ, выплата ждёт новые; новые — выплачено по сделке, уведомление, проводка',
+    badDest.status === 201 && failed?.status === 'failed' && failed.failureReason === 'identification_required' &&
+      goodDest.status === 201 && done?.status === 'paid' && done.method === 'yoomoney' && !!paidNote && settled === 1,
+    JSON.stringify({ bad: badDest.status, failed: failed && [failed.status, failed.failureReason], good: goodDest.status, done: done && [done.status, done.method], note: !!paidNote, settled }),
+  );
+
+  // Возврат в сделке — на карту, не на баланс.
+  const order2 = (await j('/orders', { method: 'POST', ...B, body: JSON.stringify({ listingId: lot }) })).body;
+  const dep2 = await j('/payments/deposit', { method: 'POST', ...B, body: JSON.stringify({ orderId: order2.id, method: 'card' }) });
+  await j('/payments/mock/callback?providerRef=' + dep2.body.providerRef, { method: 'POST' });
+  const buyerBefore = (await j('/wallet', B)).body.balance;
+  const refund = await j(`/orders/${order2.id}/refund`, { method: 'POST', ...S, body: JSON.stringify({ reason: 'нет в наличии' }) });
+  const buyerAfter = (await j('/wallet', B)).body.balance;
+  const legs = await prisma.ledgerEntry.findFirst({ where: { idempotencyKey: `refund:${order2.id}` }, select: { refType: true } });
+  const msgs = await prisma.message.findMany({ where: { conversation: { orderId: order2.id } }, select: { body: true } });
+  check(
+    'Возврат продавцом в сделке — на карту: баланс покупателя не изменился, в чате «на карту»',
+    refund.status === 201 && buyerAfter === buyerBefore && legs?.refType === 'seller_refund' &&
+      msgs.some((m) => m.body.includes('вернул деньги покупателю на карту')),
+    JSON.stringify({ refund: refund.status, buyerBefore, buyerAfter, legs, msgs: msgs.map((m) => m.body).slice(-2) }),
+  );
+
+  const off = await scheme('escrow');
+  check('Схема снова escrow — витрина предлагает все способы', off.status === 200 && (await j('/fees/public')).body.payMethods.length > 1);
+}
+
 /** «Продавать на GameMarket»: сколько на руки — без входа, по правилу раздела. */
 async function scenarioSellEstimate() {
   console.log('\n— Калькулятор продавца —');
@@ -4918,6 +5019,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioLotReview(rnd);
   await scenarioAccountDeletion(rnd);
   await scenarioPhoneLogin(rnd);
+  await scenarioSafeDeal(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

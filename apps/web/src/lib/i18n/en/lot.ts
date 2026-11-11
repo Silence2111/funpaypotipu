@@ -235,4 +235,7 @@ export const LOT: Record<string, string> = {
   'Раздел закрыт для продажи': 'This section is closed for sales',
   'Продажа в разделе закрыта правилами площадки.': 'Sales in this section are closed by the marketplace rules.',
   'Другие разделы игры': 'Other sections of the game',
+
+  'Деньги держит ЮKassa в «Безопасной сделке». Продавец получит их, только когда вы подтвердите получение.':
+    'YooKassa holds the money in a Safe Deal. The seller gets it only after you confirm receipt.',
 };

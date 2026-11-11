@@ -607,4 +607,20 @@ export const CABINET: Record<string, string> = {
   'раздел закрыт для продажи': 'section closed for sales',
   'ждёт модератора': 'awaiting moderator',
   'Почему': 'Why',
+
+  // «Безопасная сделка» ЮKassa (часть 123)
+  'Пополнение баланса недоступно: заказы оплачиваются картой через «Безопасную сделку» ЮKassa.':
+    'Balance top-up is unavailable: orders are paid by card through a YooKassa Safe Deal.',
+  'Кошелёк сохранён — ждущие выплаты уйдут на него в течение минуты.': 'Wallet saved — pending payouts will go to it within a minute.',
+  'Не удалось сохранить кошелёк.': 'Couldn’t save the wallet.',
+  'Выплаты по сделкам': 'Deal payouts',
+  'Оплата идёт через «Безопасную сделку» ЮKassa: деньги за каждую продажу ЮKassa выплачивает сама, на карту или в ЮMoney, не через баланс.':
+    'Payments go through a YooKassa Safe Deal: YooKassa pays you for each sale itself, to a card or YooMoney, not via your balance.',
+  'в пути: {n}': 'in transit: {n}',
+  'ждут реквизиты: {n}': 'waiting for payout details: {n}',
+  'Кошелёк ЮMoney для выплат': 'YooMoney wallet for payouts',
+  'Кошелёк — именной или идентифицированный: на анонимный ЮKassa не выплачивает.':
+    'The wallet must be named or identified: YooKassa doesn’t pay out to anonymous wallets.',
+  'Оплата через «Безопасную сделку» ЮKassa: деньги держит ЮKassa, продавец получит их после вашего подтверждения, возврат — на карту.':
+    'Payment through a YooKassa Safe Deal: YooKassa holds the money, the seller gets it after you confirm, refunds go back to your card.',
 };

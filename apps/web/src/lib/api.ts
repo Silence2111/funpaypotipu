@@ -368,6 +368,8 @@ export interface PublicPricing {
   paymentsDemo?: boolean;
   /** Способы оплаты, которые принимает шлюз. */
   payMethods?: string[];
+  /** «Безопасная сделка» ЮKassa (часть 123): только карта, без баланса. */
+  paymentScheme?: 'escrow' | 'safe_deal';
   /** Цена суток продвижения лота, копейки. */
   promoDayPrice?: string;
   /** Часов на проверку после автоматической выдачи: ключ, пополнение, товар со склада. */

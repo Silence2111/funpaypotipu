@@ -330,4 +330,10 @@ export const ORDERS: Record<string, string> = {
   'Запросить пояснения:': 'Ask for an explanation:',
   'у покупателя': 'from the buyer',
   'у продавца': 'from the seller',
+
+  // «Безопасная сделка» (часть 123)
+  'Оплата поступила — деньги держит ЮKassa в «Безопасной сделке».': 'Payment received — YooKassa holds the money in a Safe Deal.',
+  'Заказ отменён, средства возвращены покупателю на карту.': 'Order cancelled, the money has been returned to the buyer’s card.',
+  'Продавец вернул деньги покупателю на карту.': 'The seller refunded the buyer to their card.',
+  'Спор решён в пользу покупателя. Средства возвращены покупателю на карту.': 'Dispute resolved in the buyer’s favour. The money has been returned to the buyer’s card.',
 };

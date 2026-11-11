@@ -20,6 +20,19 @@ const queueSchema = z.object({
 });
 type QueueParams = z.infer<typeof queueSchema>;
 
+const cardSchema = z.object({
+  token: z.string().min(8).max(512).regex(/^[\w\-.:=+/]+$/),
+  first6: z.string().regex(/^\d{6}$/),
+  last4: z.string().regex(/^\d{4}$/),
+  type: z.string().max(40).optional(),
+  issuer: z.string().max(120).optional(),
+});
+const destinationSchema = z.object({
+  method: z.enum(['card', 'yoomoney']),
+  destination: z.string().min(4).max(40).optional(),
+  card: cardSchema.optional(),
+});
+
 const requestSchema = z.object({
   amount: z.union([z.string(), z.number()]).transform((v) => String(v))
     .refine((v) => /^\d+$/.test(v), 'ожидается целое число минорных единиц'),
@@ -87,6 +100,16 @@ export class PayoutsController {
   @UseGuards(JwtAuthGuard)
   destinations(@CurrentUser() user: AuthUser) {
     return this.payouts.destinations(user.userId);
+  }
+
+  /** Реквизиты для выплат по «Безопасной сделке» — без заявки на вывод (часть 123). */
+  @Post('destinations')
+  @UseGuards(JwtAuthGuard)
+  saveDestination(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(destinationSchema)) body: z.infer<typeof destinationSchema>,
+  ) {
+    return this.payouts.saveDestination(user.userId, body.method, body.destination, body.card);
   }
 
   @Delete('destinations/:id')

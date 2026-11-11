@@ -619,6 +619,9 @@ model Order {
   // за приём платежа, при возврате на баланс она не возвращается.
   paymentMethod      String?         @map("payment_method")
   paymentSurcharge   BigInt          @default(0) @map("payment_surcharge")
+  /// Сделка ЮKassa («Безопасная сделка», часть 123): деньги держит ЮKassa,
+  /// возврат — на карту, продавцу — выплата по сделке. null — схема escrow.
+  dealId             String?         @map("deal_id")
   createdAt          DateTime        @default(now()) @map("created_at")
   updatedAt          DateTime        @updatedAt @map("updated_at")
 
@@ -632,6 +635,7 @@ model Order {
   buyerReview    BuyerReview?
   conversation   Conversation?
   partnerAccrual PartnerAccrual?
+  dealPayout     DealPayout?
   ledgerEntries  LedgerEntry[]
   payments       Payment[]
 
@@ -1604,3 +1608,31 @@ model PhoneCode {
   @@index([phone, createdAt])
   @@map("phone_codes")
 }
+
+/// Выплата продавцу по «Безопасной сделке» (часть 123): одна на заказ, на
+/// карту или в ЮMoney продавца. waiting — нет карты или ЮMoney, sent — ушла
+/// в ЮKassa, paid — дошла, failed — отказ (повтор, когда продавец сменит
+/// реквизиты). Деньги до выплаты — в обязательстве `payout_payable`.
+model DealPayout {
+  id            String    @id @default(uuid()) @db.Uuid
+  orderId       String    @unique @map("order_id") @db.Uuid
+  sellerId      String    @map("seller_id") @db.Uuid
+  dealId        String    @map("deal_id")
+  amount        BigInt
+  currency      String    @db.Char(3)
+  status        String    @default("waiting") @db.VarChar(8)
+  method        String?   @db.VarChar(16)
+  destinationId String?   @map("destination_id") @db.Uuid
+  externalId    String?   @map("external_id")
+  failureReason String?   @map("failure_reason")
+  paidAt        DateTime? @map("paid_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([sellerId, status])
+  @@index([status, updatedAt])
+  @@map("deal_payouts")
+}
+

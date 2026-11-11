@@ -64,9 +64,14 @@ export function PayMethods({
   // Способы, которые принимает шлюз: у ЮKassa нет криптовалюты. Пока не
   // знаем — показываем все, как раньше.
   const [gateway, setGateway] = useState<string[] | null>(null);
+  // «Безопасная сделка» (часть 123): деньги держит ЮKassa — с баланса не платят.
+  const [safeDeal, setSafeDeal] = useState(false);
 
   useEffect(() => {
-    void loadPublicPricing().then((p) => setGateway(p?.payMethods ?? null));
+    void loadPublicPricing().then((p) => {
+      setGateway(p?.payMethods ?? null);
+      setSafeDeal(p?.paymentScheme === 'safe_deal');
+    });
   }, []);
 
   useEffect(() => {
@@ -77,16 +82,18 @@ export function PayMethods({
   }, [withBalance]);
 
   const short = balance != null && base != null && balance < base;
+  // Первый способ шлюза — куда уходит выбор, если выбранный недоступен.
+  const fallback = ((gateway?.[0] as PayMethod | undefined) ?? 'sbp') as PayMethod;
   // Денег на балансе не хватает — выбор не остаётся на недоступной строке.
   useEffect(() => {
-    if (short && value === 'balance') onChange('sbp');
-  }, [short, value, onChange]);
+    if ((short || safeDeal) && value === 'balance') onChange(fallback);
+  }, [short, safeDeal, value, onChange, fallback]);
 
-  const offered = (key: PayMethod) => key === 'balance' || !gateway || gateway.includes(key);
+  const offered = (key: PayMethod) => (key === 'balance' ? !safeDeal : !gateway || gateway.includes(key));
   // Способ, которого у шлюза нет, не остаётся выбранным.
   useEffect(() => {
-    if (gateway && value !== 'balance' && !gateway.includes(value)) onChange('sbp');
-  }, [gateway, value, onChange]);
+    if (gateway && value !== 'balance' && !gateway.includes(value)) onChange(fallback);
+  }, [gateway, value, onChange, fallback]);
 
   const rows = ROWS.filter((r) => (withBalance || r.key !== 'balance') && offered(r.key)).map((r) => {
     const fee = PAYMENT_METHODS.find((m) => m.key === r.key)?.feePct ?? 0;
@@ -142,6 +149,11 @@ export function PayMethods({
           <span className="pm-price">{r.price}</span>
         </label>
       ))}
+      {safeDeal && (
+        <p className="hint" style={{ margin: '4px 0 0' }}>
+          {t('Оплата через «Безопасную сделку» ЮKassa: деньги держит ЮKassa, продавец получит их после вашего подтверждения, возврат — на карту.')}
+        </p>
+      )}
     </fieldset>
   );
 }

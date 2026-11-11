@@ -50,7 +50,7 @@ function setup(payment: Record<string, unknown>, order?: Record<string, unknown>
   const mock = new MockPaymentProvider();
   const registry = new PaymentProviderRegistry(mock);
   registry.register(realProvider);
-  const svc = new PaymentsService(prisma as never, registry, mock, orders as never, ledger as never);
+  const svc = new PaymentsService(prisma as never, registry, mock, orders as never, ledger as never, { scheme: async () => 'escrow' } as never);
   return { svc, state, orders, ledger, mock };
 }
 

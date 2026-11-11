@@ -230,6 +230,26 @@ export class PayoutsService {
   }
 
   /**
+   * Реквизиты для выплат по «Безопасной сделке» (часть 123) — без заявки на
+   * вывод: ЮKassa выплачивает продавцу по каждой сделке сама, на карту из
+   * её виджета или в ЮMoney. Сохраняются так же, как реквизиты вывода.
+   */
+  async saveDestination(userId: string, method: 'card' | 'yoomoney', destination?: string, card?: CardToken) {
+    let stored: string;
+    if (method === 'card') {
+      if (!card) throw new BadRequestException('Введите карту в форме ЮKassa: номер карты площадка не принимает');
+      const { token, first6, last4, type, issuer } = card;
+      stored = JSON.stringify({ token, first6, last4, type, issuer });
+    } else {
+      const account = (destination ?? '').replace(/\s/g, '');
+      if (!/^\d{11,20}$/.test(account)) throw new BadRequestException('Номер кошелька ЮMoney — от 11 до 20 цифр');
+      stored = account;
+    }
+    await this.remember(userId, method, stored);
+    return this.destinations(userId);
+  }
+
+  /**
    * Сохранённые реквизиты для заявки. Шлюз выплачивает только то, что ему
    * подходит (СБП с банком, токен карты), а вручную — только обычную
    * строку: иначе заявку не выплатить, и реквизиты нужно ввести заново.

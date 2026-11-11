@@ -4,4 +4,5 @@ export const PLURAL_CABINET: Record<string, readonly [string, string]> = {
   лот: ['listing', 'listings'],
   продажа: ['sale', 'sales'],
   заявка: ['request', 'requests'],
+  выплата: ['payout', 'payouts'],
 };

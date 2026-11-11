@@ -6,6 +6,7 @@ import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
 import { Empty } from './shared';
 import { PartnerProgramCard } from './partner-program';
+import { PaymentSchemeCard } from './payment-scheme';
 
 interface Rule {
   id: string;
@@ -243,6 +244,7 @@ export function FeesSection() {
         </p>
       </div>
 
+      <PaymentSchemeCard />
       <PartnerProgramCard />
     </section>
   );

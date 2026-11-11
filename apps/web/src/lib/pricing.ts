@@ -8,6 +8,8 @@ export interface PublicPricingLite {
   /** Способы, которые принимает платёжный шлюз; у ЮKassa нет криптовалюты. */
   payMethods?: string[];
   paymentsDemo?: boolean;
+  /** «Безопасная сделка» ЮKassa (часть 123): только карта, без баланса. */
+  paymentScheme?: 'escrow' | 'safe_deal';
 }
 
 let once: Promise<PublicPricingLite | null> | null = null;

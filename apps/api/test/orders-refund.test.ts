@@ -29,6 +29,7 @@ function setup(order: Record<string, unknown>) {
     {} as never,
     notifications as never,
     chat as never,
+    {} as never, {} as never, { scheme: async () => 'escrow' } as never,
   );
   return { svc, state, ledger, notifications };
 }

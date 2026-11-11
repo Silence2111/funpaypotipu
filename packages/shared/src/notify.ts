@@ -27,7 +27,7 @@ export const NOTIFY_GROUPS = [
   { key: 'messages', label: 'Сообщения', hint: 'новые сообщения в чатах', types: ['new_message'] },
   { key: 'disputes', label: 'Споры', hint: 'открыт спор, ждём вашего ответа, срок ответа подходит к концу, решение арбитра', types: ['dispute_opened', 'dispute_reply_needed', 'dispute_reply_soon', 'dispute_resolved'] },
   { key: 'reviews', label: 'Отзывы', hint: 'новый отзыв, ответ продавца, оценка вас как покупателя', types: ['review_received', 'review_reply', 'buyer_review'] },
-  { key: 'finance', label: 'Деньги', hint: 'кэшбэк, выплаты и партнёрские начисления', types: ['cashback', 'payout_paid', 'payout_rejected', 'partner_reward'] },
+  { key: 'finance', label: 'Деньги', hint: 'кэшбэк, выплаты и партнёрские начисления', types: ['cashback', 'payout_paid', 'payout_rejected', 'partner_reward', 'deal_payout_waiting'] },
   { key: 'support', label: 'Поддержка', hint: 'ответы на ваши обращения', types: ['support_reply'] },
   {
     key: 'searches',
@@ -140,6 +140,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   kyc_rejected: 'Документы не приняты — посмотрите причину',
   payout_paid: 'Выплата отправлена',
   payout_rejected: 'Выплата отклонена',
+  deal_payout_waiting: 'Выплата по сделке ждёт карту или ЮMoney — укажите их в «Кошельке»',
   support_reply: 'Поддержка ответила на обращение',
   saved_search: 'Новые предложения по сохранённому поиску',
   price_drop: 'Лот из избранного подешевел',
@@ -211,6 +212,8 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
   }
   // Просьба подтвердить сделку — в кабинет, где на неё отвечают, а не в сам заказ.
   if (type === 'deal_check') return '/cabinet/deal-checks';
+  // Выплата по «Безопасной сделке» ждёт реквизиты — в кошелёк, где их указывают.
+  if (type === 'deal_payout_waiting') return '/cabinet/wallet';
   if (type === 'new_message' && id('conversationId')) return `/chat/${id('conversationId')}`;
   if (id('orderId')) return `/orders/${id('orderId')}`;
   if (id('listingId')) return type === 'listing_blocked' ? '/cabinet/lots' : `/lot/${id('listingId')}`;
