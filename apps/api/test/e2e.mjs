@@ -1778,6 +1778,58 @@ async function scenarioRefundChoice(rnd) {
 }
 
 /**
+ * Поддержка (часть 138): оценка — после ответа; ждёт ответа дольше 8 ч —
+ * эскалация и уведомление администратору; ответ снимает её и даёт «первый
+ * ответ»; заготовки ответов — у сотрудников; сводка — время ответа и оценки.
+ */
+async function scenarioSupportQuality(rnd) {
+  console.log('\n— Поддержка: оценка, эскалация, заготовки —');
+  const user = await register('squ', rnd);
+  const agent = await register('sqa', rnd);
+  const admin = await register('sqd', rnd);
+  await grant(agent, 'agent');
+  await grant(admin, 'admin');
+  const U = { token: user.token };
+  const G = { token: agent.token };
+  const ticket = (await j('/support/tickets', { method: 'POST', ...U, body: JSON.stringify({ category: 'other', subject: `Вопрос ${rnd}`, body: 'Как вывести деньги на карту?' }) })).body;
+  const early = await j(`/support/tickets/${ticket.id}/rate`, { method: 'POST', ...U, body: JSON.stringify({ rating: 5 }) });
+  await prisma.supportTicket.update({ where: { id: ticket.id }, data: { lastMessageAt: new Date(Date.now() - 9 * 3_600_000) } });
+  let late = null;
+  for (let i = 0; i < 20 && !late?.escalatedAt; i++) {
+    await wait(500);
+    late = await prisma.supportTicket.findUnique({ where: { id: ticket.id }, select: { escalatedAt: true } });
+  }
+  // Администраторам уведомление уходит следом за отметкой — по очереди всем.
+  let note = null;
+  for (let i = 0; i < 30 && !note; i++) {
+    note = await prisma.notification.findFirst({ where: { userId: admin.id, type: 'support_overdue' } });
+    if (!note) await wait(500);
+  }
+  check(
+    'Оценка до ответа — 400; без ответа 8 ч — эскалация и уведомление администратору',
+    early.status === 400 && !!late?.escalatedAt && !!note,
+    JSON.stringify({ early: early.status, escalated: late?.escalatedAt, note: !!note }),
+  );
+
+  const tpl = await j('/support/templates', { method: 'POST', ...G, body: JSON.stringify({ title: `Вывод ${rnd}`, body: 'Вывод — в «Кошельке»: карта, СБП или ЮMoney.' }) });
+  const userTpl = await j('/support/templates', U);
+  const list = (await j('/support/templates', G)).body;
+  await j(`/support/tickets/${ticket.id}/messages`, { method: 'POST', ...G, body: JSON.stringify({ body: 'Вывод — в «Кошельке»: карта, СБП или ЮMoney.' }) });
+  const answered = await prisma.supportTicket.findUnique({ where: { id: ticket.id }, select: { firstReplyAt: true, escalatedAt: true } });
+  const rated = await j(`/support/tickets/${ticket.id}/rate`, { method: 'POST', ...U, body: JSON.stringify({ rating: 5, comment: 'Быстро и понятно' }) });
+  const staffStats = (await j('/support/stats/staff', G)).body;
+  const pub = (await j('/support/stats', U)).body;
+  const gone = await j(`/support/templates/${tpl.body.id}`, { method: 'DELETE', ...G });
+  check(
+    'Заготовка — у сотрудника (у пользователя — 403); ответ — первый ответ, эскалация снята; оценка 5 сохранена; сводка — время ответа и оценка',
+    tpl.status === 201 && userTpl.status === 403 && list.some((x) => x.id === tpl.body.id) && !!answered?.firstReplyAt && !answered?.escalatedAt &&
+      rated.status === 200 && rated.body.rating === 5 && staffStats.avgRating > 0 && staffStats.firstReplySec !== null &&
+      pub.answered >= 1 && gone.status === 200,
+    JSON.stringify({ tpl: tpl.status, userTpl: userTpl.status, answered, rated: [rated.status, rated.body?.rating], staffStats, pub, gone: gone.status }),
+  );
+}
+
+/**
  * API для продавцов (часть 127): ключ показывается один раз и работает
  * вместо входа; лоты — цена, снять и вернуть, склад автовыдачи; продажи и
  * выдача с сообщением; вебхук «оплачен новый заказ» с подписью и повтором
@@ -5787,6 +5839,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioArbitration(rnd);
   await scenarioSellerProtection(rnd);
   await scenarioRefundChoice(rnd);
+  await scenarioSupportQuality(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

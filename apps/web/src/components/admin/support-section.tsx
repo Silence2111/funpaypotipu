@@ -9,6 +9,7 @@ import { readSupportStatus, supportQueueUrl, ticketUrl, type SupportStatus } fro
 import { apiErrorMessage } from '@/lib/errors';
 import { SUPPORT_CATEGORY } from '@/components/support-ui';
 import { Empty, when } from './shared';
+import { SupportExtras } from './support-extras';
 
 interface Row {
   id: string;
@@ -146,6 +147,7 @@ export function SupportSection() {
 
   return (
     <section className="stack-form" style={{ gap: 16 }}>
+      <SupportExtras />
       <form
         onSubmit={(e: FormEvent) => {
           e.preventDefault();

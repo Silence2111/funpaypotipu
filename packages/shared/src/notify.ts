@@ -31,7 +31,7 @@ export const NOTIFY_GROUPS = [
   { key: 'disputes', label: 'Споры', hint: 'открыт спор, ждём вашего ответа, срок ответа подходит к концу, решение арбитра', types: ['dispute_opened', 'dispute_reply_needed', 'dispute_reply_soon', 'dispute_resolved', 'dispute_appealed'] },
   { key: 'reviews', label: 'Отзывы', hint: 'новый отзыв, ответ продавца, оценка вас как покупателя', types: ['review_received', 'review_reply', 'buyer_review'] },
   { key: 'finance', label: 'Деньги', hint: 'кэшбэк, выплаты и партнёрские начисления', types: ['cashback', 'payout_paid', 'payout_rejected', 'partner_reward', 'deal_payout_waiting', 'payout_delayed', 'payout_overdue'] },
-  { key: 'support', label: 'Поддержка', hint: 'ответы на ваши обращения', types: ['support_reply'] },
+  { key: 'support', label: 'Поддержка', hint: 'ответы на ваши обращения', types: ['support_reply', 'support_overdue'] },
   {
     key: 'searches',
     label: 'Поиски, избранное и подписки',
@@ -163,6 +163,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   payout_rejected: 'Выплата отклонена',
   deal_payout_waiting: 'Выплата по сделке ждёт карту или ЮMoney — укажите их в «Кошельке»',
   support_reply: 'Поддержка ответила на обращение',
+  support_overdue: 'Обращение ждёт ответа дольше срока',
   saved_search: 'Новые предложения по сохранённому поиску',
   price_drop: 'Лот из избранного подешевел',
   back_in_stock: 'Лот снова в продаже',

@@ -35,6 +35,8 @@ function Support() {
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // «Обычно отвечаем за …» — медиана первого ответа за 30 дней (часть 138).
+  const [replySec, setReplySec] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setTickets(await apiFetch<Ticket[]>('/support/tickets').catch(() => []));
@@ -47,6 +49,9 @@ function Support() {
     }
     void load();
     apiFetch<OrderRow[]>('/orders/mine?limit=30').then(setOrders).catch(() => {});
+    apiFetch<{ firstReplySec: number | null; answered: number }>('/support/stats')
+      .then((s) => setReplySec(s.answered >= 5 ? s.firstReplySec : null))
+      .catch(() => {});
   }, [router, load]);
 
   async function submit(e: FormEvent) {
@@ -73,6 +78,13 @@ function Support() {
           <h1 className="h1" style={{ fontSize: 32 }}>{t('Поддержка')}</h1>
           {!open && <button type="button" className="btn" onClick={() => setOpen(true)}>{t('Новое обращение')}</button>}
         </div>
+        {replySec !== null && (
+          <p className="muted" style={{ margin: '8px 0 0' }}>
+            {replySec < 3600
+              ? t('Обычно отвечаем за {n} мин', { n: Math.max(1, Math.round(replySec / 60)) })
+              : t('Обычно отвечаем за {n} ч', { n: Math.round(replySec / 3600) })}
+          </p>
+        )}
         <div style={{ marginTop: 16 }}>
           <CabinetNav />
         </div>
