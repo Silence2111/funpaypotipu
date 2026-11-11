@@ -263,4 +263,21 @@ export const ACCOUNT: Record<string, string> = {
   'Вход через Telegram отключён по закону. Добавьте почту и пароль, пока вы в аккаунте, — иначе после выхода войти будет нечем.':
     'Sign-in with Telegram is off by law. Add an email and a password while you are signed in — otherwise you won’t be able to sign in after signing out.',
   'Добавить почту и пароль': 'Add email and password',
+
+  // Удаление аккаунта (часть 124)
+  'Не получилось удалить аккаунт. Попробуйте ещё раз.': 'Couldn’t delete the account. Please try again.',
+  'Сделок в работе: {n}': 'Deals in progress: {n}',
+  'Открытых споров: {n}': 'Open disputes: {n}',
+  'На балансе {sum} — выведите их': '{sum} on your balance — withdraw it',
+  'Заявок на вывод в работе: {n}': 'Withdrawals in progress: {n}',
+  'Вы сотрудник площадки — роль сначала снимает администратор': 'You’re marketplace staff — an administrator must remove your role first',
+  'Удалить аккаунт': 'Delete account',
+  'Лоты уйдут из каталога, вход закроется. {days} дней аккаунт можно вернуть входом, потом почта, имя, вход и реквизиты уничтожаются. Сделки и движение денег остаются — без них не исполнить закон и не разобрать спор, ник в них станет «deleted_…».':
+    'Your listings leave the catalogue and sign-in closes. For {days} days you can restore the account by signing in; after that your email, name, sign-in and payout details are erased. Deals and money movements stay — they’re needed by law and for disputes; your username in them becomes “deleted_…”.',
+  'Сначала доведите до конца:': 'Finish these first:',
+  'Впишите свой ник — это защита от случайного нажатия': 'Type your username — this protects against an accidental click',
+  'На балансе {sum} — меньше минимального вывода. Понимаю, что при удалении они сгорят.':
+    '{sum} on your balance — below the minimum withdrawal. I understand it will be forfeited on deletion.',
+  'Удаляем…': 'Deleting…',
 };
+

@@ -109,4 +109,8 @@ export const COMMON: Record<string, string> = {
   'в течение дня': 'within a day',
   Инструменты: 'Tools',
   'Инструменты продавца': 'Seller tools',
+
+  'Аккаунт удалён. До {date} его можно вернуть: войдите и нажмите «Восстановить». Потом почта, имя и вход будут уничтожены.':
+    'Account deleted. Until {date} you can restore it: sign in and press “Restore”. After that your email, name and sign-in are erased.',
 };
+

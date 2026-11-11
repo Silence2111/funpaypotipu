@@ -34,14 +34,16 @@ export class JwtAuthGuard implements CanActivate {
     if (payload.fam) {
       const session = await this.prisma.authSession.findFirst({
         where: { familyId: payload.fam, userId: payload.sub, revokedAt: null, expiresAt: { gt: new Date() } },
-        select: { user: { select: { status: true } } },
+        select: { user: { select: { status: true, deletedAt: true } } },
       });
       if (!session) throw new UnauthorizedException('Сеанс завершён');
       if (session.user.status === 'banned') throw new UnauthorizedException('Аккаунт заблокирован');
+      if (session.user.deletedAt) throw new UnauthorizedException('Аккаунт удалён');
     } else {
-      const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, select: { status: true } });
+      const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, select: { status: true, deletedAt: true } });
       if (!user) throw new UnauthorizedException('Пользователь не найден');
       if (user.status === 'banned') throw new UnauthorizedException('Аккаунт заблокирован');
+      if (user.deletedAt) throw new UnauthorizedException('Аккаунт удалён');
     }
     req.user = { userId: payload.sub, username: payload.username, sessionFamily: payload.fam };
     return true;

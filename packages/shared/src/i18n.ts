@@ -273,6 +273,8 @@ export const EN_SHARED: Phrasebook = {
   'Лот заблокирован модератором': 'Listing blocked by a moderator',
   'Блокировка лота снята': 'Listing unblocked',
   'Лот прошёл проверку и вернулся в продажу': 'Your listing passed review and is back on sale',
+  'Аккаунт удалён — данные уничтожим через 30 дней, до этого его можно восстановить входом':
+    'Account deleted — we’ll erase your data in 30 days; until then you can restore it by signing in',
   'Раздел закрыт для продажи — ваши лоты сняты с витрины': 'The section is closed for sales — your listings are hidden',
   'Раздел снова открыт — ваши лоты вернулись в продажу': 'The section is open again — your listings are back on sale',
   // Причины закрытия разделов (часть 122): сайт и API показывают их как есть.

@@ -55,6 +55,7 @@ export const NOTIFY_GROUPS = [
       'recovery_restored',
       'recovery_rejected',
       'login_method_needed',
+      'account_deleted',
     ],
   },
   {
@@ -117,6 +118,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   recovery_restored: 'Доступ к аккаунту восстановлен',
   recovery_rejected: 'Заявка на восстановление отклонена',
   login_method_needed: 'Вход через Telegram отключён — добавьте почту и пароль',
+  account_deleted: 'Аккаунт удалён — данные уничтожим через 30 дней, до этого его можно восстановить входом',
   cashback: 'Кэшбэк за покупку зачислен на баланс',
   partner_reward: 'Партнёрское вознаграждение зачислено на баланс',
   new_message: 'Новое сообщение',

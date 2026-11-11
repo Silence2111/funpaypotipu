@@ -779,6 +779,122 @@ async function scenarioLotReview(rnd) {
   await j(`/listings/${held}`, { method: 'PATCH', ...S, body: JSON.stringify({ status: 'paused' }) });
 }
 
+/**
+ * Удаление аккаунта (часть 124): при сделке в работе — 409 со списком, что
+ * мешает; остаток меньше вывода — только с подтверждением, что сгорит;
+ * удалённый не входит, сеансы закрыты; 30 дней — «Восстановить» при входе.
+ * Через 30 дней проход уничтожает почту, ник, вход — сделка остаётся с
+ * ником «deleted_…». Отзыв согласия: подборки не приходят, через 30 дней
+ * уничтожается то, что было только по согласию, а вход и почта остаются.
+ */
+async function scenarioAccountDeletion(rnd) {
+  console.log('\n— Удаление аккаунта —');
+  const seller = await register('dls', rnd);
+  const buyer = await register('dlb', rnd);
+  const B = { token: buyer.token };
+  const email = `dlb${rnd}@e2e.local`;
+  const lot = await createListing(seller.token, 'skins', '50000', { title: `Удаление ${rnd}` });
+  const order = await j('/orders', { method: 'POST', ...B, body: JSON.stringify({ listingId: lot }) });
+  await pay(buyer.token, order.body.id);
+  const busy = (await j('/account/deletion', B)).body;
+  const blocked = await j('/account/deletion', { method: 'POST', ...B, body: JSON.stringify({ username: `dlb${rnd}`, password: 'password123' }) });
+  check(
+    'Сделка в работе: удалить нельзя — 409 «deletion_blocked» и что мешает',
+    busy.canDelete === false && busy.blockers?.orders === 1 && busy.needsPassword === true &&
+      blocked.status === 409 && blocked.body.error === 'deletion_blocked' && blocked.body.blockers?.orders === 1,
+    JSON.stringify({ busy, blocked: [blocked.status, blocked.body?.error] }),
+  );
+
+  await j(`/orders/${order.body.id}/deliver`, { method: 'POST', token: seller.token });
+  await j(`/orders/${order.body.id}/confirm`, { method: 'POST', ...B });
+  const sellerState = (await j('/account/deletion', { token: seller.token })).body;
+  const after = (await j('/account/deletion', B)).body;
+  const del = (body) => j('/account/deletion', { method: 'POST', ...B, body: JSON.stringify(body) });
+  const noForfeit = await del({ username: `dlb${rnd}`, password: 'password123' });
+  const wrongName = await del({ username: 'someone', password: 'password123', forfeit: true });
+  const wrongPass = await del({ username: `dlb${rnd}`, password: 'nope-nope', forfeit: true });
+  check(
+    'Сделка завершена: у продавца мешают деньги на балансе; у покупателя кэшбэк меньше вывода — только с «сгорит»; чужой ник — 400, пароль — 401',
+    sellerState.canDelete === false && BigInt(sellerState.blockers.balance) >= 30000n &&
+      after.canDelete === true && BigInt(after.forfeit) > 0n &&
+      noForfeit.status === 409 && noForfeit.body.error === 'deletion_forfeit' &&
+      wrongName.status === 400 && wrongPass.status === 401,
+    JSON.stringify({ seller: sellerState.blockers, buyer: after, noForfeit: [noForfeit.status, noForfeit.body?.error], wrongName: wrongName.status, wrongPass: wrongPass.status }),
+  );
+
+  const done = await del({ username: `DLB${rnd}`, password: 'password123', forfeit: true });
+  const stale = await j('/wallet', B);
+  const login = (extra = {}) => j('/auth/login', { method: 'POST', body: JSON.stringify({ email, password: 'password123', ...extra }) });
+  const closed = await login();
+  const note = await prisma.notification.findFirst({ where: { userId: buyer.id, type: 'account_deleted' } });
+  check(
+    'Удалён: старый сеанс — 401; вход — 403 «account_deleted» с датой уничтожения через 30 дней; письмо «аккаунт удалён»',
+    done.status === 200 && !!done.body.eraseAt && stale.status === 401 && closed.status === 403 &&
+      closed.body.error === 'account_deleted' && Math.round((new Date(closed.body.eraseAt) - new Date(closed.body.deletedAt)) / 86400000) === 30 && !!note,
+    JSON.stringify({ done: done.status, stale: stale.status, closed: [closed.status, closed.body], note: !!note }),
+  );
+
+  const restored = await login({ restore: true });
+  const back = await j('/account/deletion', { token: restored.body.accessToken });
+  check('Восстановить: вход с «restore» — аккаунт снова открыт', restored.status === 200 && back.status === 200, JSON.stringify({ restored: restored.status, back: back.status }));
+
+  await j('/account/deletion', { method: 'POST', token: restored.body.accessToken, body: JSON.stringify({ username: `dlb${rnd}`, password: 'password123', forfeit: true }) });
+  await prisma.user.update({ where: { id: buyer.id }, data: { deletedAt: new Date(Date.now() - 31 * 86400000) } });
+  let erased = null;
+  for (let i = 0; i < 20 && !erased?.erasedAt; i++) {
+    await wait(500);
+    erased = await prisma.user.findUnique({ where: { id: buyer.id }, select: { email: true, passwordHash: true, erasedAt: true, profile: { select: { username: true, displayName: true } } } });
+  }
+  const sessions = await prisma.authSession.count({ where: { userId: buyer.id } });
+  const relogin = await login({ restore: true });
+  const sales = (await j('/orders/history?role=seller', { token: seller.token })).body;
+  const kept = sales.items?.find((o) => o.id === order.body.id);
+  check(
+    'Через 30 дней: почта, пароль и сеансы уничтожены, ник — «deleted_…»; вход больше не находит; сделка у продавца осталась с этим ником',
+    !!erased?.erasedAt && erased.email === null && erased.passwordHash === null && sessions === 0 &&
+      erased.profile.username === shared.erasedUsername(buyer.id) && erased.profile.displayName === erased.profile.username &&
+      relogin.status === 401 && kept?.status === 'completed' && kept?.counterparty === erased.profile.username,
+    JSON.stringify({ erased, sessions, relogin: relogin.status, kept: kept && [kept.status, kept.counterparty] }),
+  );
+
+  // Отзыв согласия: подборки — нет; через 30 дней — то, что было только по согласию.
+  const fan = await register('dlf', rnd);
+  const F = { token: fan.token };
+  const game = (await j('/catalog/games/cs2')).body;
+  const skins = game.categories.find((c) => c.slug === 'skins');
+  await j('/account/profile', { method: 'PATCH', ...F, body: JSON.stringify({ displayName: 'Коллекционер', bio: 'Собираю ножи' }) });
+  const word = `nojh${rnd}`;
+  // Контроль: тот же поиск у человека с согласием — подборка ему приходит.
+  const control = await register('dlc', rnd);
+  for (const t of [fan.token, control.token]) {
+    await j('/saved-searches', { method: 'POST', token: t, body: JSON.stringify({ categoryId: skins.id, q: word }) });
+  }
+  await j('/account/consent/revoke', { method: 'POST', ...F });
+  await createListing(seller.token, 'skins', '20000', { title: `Нож ${word}` });
+  let controlHits = [];
+  for (let i = 0; i < 20 && !controlHits.length; i++) {
+    await wait(500);
+    controlHits = (await j('/notifications', { token: control.token })).body.filter((n) => n.type === 'saved_search');
+  }
+  await wait(2500);
+  const hits = (await j('/notifications', F)).body.filter((n) => n.type === 'saved_search');
+  await prisma.personalDataConsent.updateMany({ where: { userId: fan.id }, data: { revokedAt: new Date(Date.now() - 31 * 86400000) } });
+  let row = null;
+  for (let i = 0; i < 20; i++) {
+    await wait(500);
+    row = await prisma.personalDataConsent.findFirst({ where: { userId: fan.id }, select: { erasedAt: true } });
+    if (row?.erasedAt) break;
+  }
+  const prof = await prisma.profile.findUnique({ where: { userId: fan.id }, select: { displayName: true, bio: true, username: true } });
+  const searches = await prisma.savedSearch.count({ where: { userId: fan.id } });
+  const still = await j('/auth/login', { method: 'POST', body: JSON.stringify({ email: `dlf${rnd}@e2e.local`, password: 'password123' }) });
+  check(
+    'Отозвал согласие: подборка не пришла (человеку с согласием — пришла); через 30 дней имя на витрине, «о себе» и поиски уничтожены, вход по почте — работает',
+    controlHits.length === 1 && hits.length === 0 && !!row?.erasedAt && prof.bio === null && prof.displayName === prof.username && searches === 0 && still.status === 200,
+    JSON.stringify({ control: controlHits.length, hits: hits.length, erased: row?.erasedAt, prof, searches, still: still.status }),
+  );
+}
+
 /** «Продавать на GameMarket»: сколько на руки — без входа, по правилу раздела. */
 async function scenarioSellEstimate() {
   console.log('\n— Калькулятор продавца —');
@@ -2495,8 +2611,13 @@ async function scenarioBuyRequests(rnd) {
   );
 
   const answers = (await j('/notifications', { token: buyer.token })).body.filter((n) => n.type === 'buy_request_offer');
-  const myReqs = (await j('/buy-requests/mine', { token: buyer.token })).body;
-  const mr = myReqs.find((x) => x.id === r.body.id);
+  // Счётчик разосланных пишется после рассылки: на стенде с сотнями продавцов
+  // раздела она идёт дольше, чем ответы лотами.
+  let mr = null;
+  for (let i = 0; i < 30 && !(mr?.notified >= 1); i++) {
+    if (i) await wait(300);
+    mr = (await j('/buy-requests/mine', { token: buyer.token })).body.find((x) => x.id === r.body.id);
+  }
   check(
     'Покупателю — «Продавец ответил лотом» со ссылкой на лот; в «Моих запросах» — три лота, дорогой — «выше бюджета»',
     answers.some((n) => n.payload.listingId === cheap && n.payload.preview.includes(`rqs${rnd}`)) && answers.length === 3 &&
@@ -4671,6 +4792,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioCatalogAdmin(rnd);
   await scenarioClosedSections(rnd);
   await scenarioLotReview(rnd);
+  await scenarioAccountDeletion(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

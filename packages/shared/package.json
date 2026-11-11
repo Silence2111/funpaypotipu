@@ -84,6 +84,10 @@
     "./sections": {
       "types": "./dist/sections.d.ts",
       "default": "./dist/sections.js"
+    },
+    "./deletion": {
+      "types": "./dist/deletion.d.ts",
+      "default": "./dist/deletion.js"
     }
   },
   "scripts": {

@@ -24,7 +24,8 @@ export default async function HomePage({
   searchParams,
 }: {
   // Логин и сумма возвращаются сюда после входа: виджет открывается заполненным.
-  searchParams: Promise<{ account?: string; amount?: string }>;
+  // deleted — дата уничтожения данных после удаления аккаунта (часть 124).
+  searchParams: Promise<{ account?: string; amount?: string; deleted?: string }>;
 }) {
   const [index, browse, pricing, steam, query, t] = await Promise.all([
     getGameIndex(),
@@ -49,8 +50,17 @@ export default async function HomePage({
       : null;
   const payoutFee = pricing?.withdrawal.find((w) => w.key === 'sbp')?.feePct ?? null;
 
+  const deletedUntil = /^\d{4}-\d{2}-\d{2}$/.test(query.deleted ?? '') ? new Date(`${query.deleted}T00:00:00Z`) : null;
+
   return (
     <div className="container stack-lg home">
+      {deletedUntil && (
+        <div className="alert" role="status">
+          {t('Аккаунт удалён. До {date} его можно вернуть: войдите и нажмите «Восстановить». Потом почта, имя и вход будут уничтожены.', {
+            date: deletedUntil.toLocaleDateString(t.locale),
+          })}
+        </div>
+      )}
       {/* Первый экран: поиск по играм и пополнение Steam — самый короткий путь
           к первой покупке. «Оплатить» в виджете — единственный акцент экрана. */}
       <section className={topup ? 'home-hero' : undefined}>

@@ -20,6 +20,19 @@ export const EN_API: Phrasebook = {
     'The listing is under moderator review: the moderator will put it back on sale',
   'Причина — до {n} символов': 'Reason must be at most {n} characters',
 
+  // Удаление аккаунта (часть 124)
+  'Впишите свой ник': 'Type your username',
+  'Ник не совпадает — впишите свой ник, чтобы подтвердить удаление':
+    'The username doesn’t match — type your username to confirm deletion',
+  'Пароль не подошёл': 'Wrong password',
+  'Сначала доведите сделки и споры и выведите деньги — тогда аккаунт можно удалить':
+    'Finish your deals and disputes and withdraw your money first — then the account can be deleted',
+  'На балансе остаток меньше минимального вывода — подтвердите, что он сгорит':
+    'Your balance is below the minimum withdrawal — confirm that it will be forfeited',
+  'Аккаунт удалён — его можно восстановить в течение 30 дней после удаления':
+    'Account deleted — you can restore it within 30 days of deletion',
+  'Аккаунт удалён': 'Account deleted',
+
   // Доступ и статус аккаунта
   'Аккаунт заморожен модератором: покупки, продажи и вывод недоступны. Напишите в поддержку.':
     'Your account has been frozen by a moderator: purchases, sales and withdrawals are unavailable. Contact support.',

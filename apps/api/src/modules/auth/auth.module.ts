@@ -21,6 +21,6 @@ import { EmailChangeService } from './email-change.service';
     SocialService,
     EmailChangeService,
   ],
-  exports: [TokenService, JwtAuthGuard],
+  exports: [TokenService, JwtAuthGuard, TwoFactorService],
 })
 export class AuthModule {}

@@ -13,7 +13,7 @@ import { ModuleRef } from '@nestjs/core';
 import { createHash, randomUUID } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
 import { PrismaClient } from '@gamemarket/db';
-import { deviceOf, type LoginInput, type RegisterInput, PD_CONSENT_VERSION } from '@gamemarket/shared';
+import { deviceOf, type LoginInput, type RegisterInput, PD_CONSENT_VERSION, ACCOUNT_DELETED, eraseAt } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -211,7 +211,28 @@ export class AuthService {
     if (second !== 'ok') throw TwoFactorService.loginError(second);
 
     passwordAttempts.reset(key);
+    await this.deletedGate(user, input.restore);
     return this.issue(user.id, user.email, user.profile.username, ctx);
+  }
+
+  /**
+   * Удалённый аккаунт (часть 124): вход и код верны, но аккаунт удалён —
+   * 403 с датой, до которой его можно вернуть; с `restore` — вернуть.
+   * Говорим об удалении только после пароля и кода: чужому — «Неверные данные».
+   */
+  private async deletedGate(user: { id: string; deletedAt: Date | null; erasedAt: Date | null }, restore?: boolean) {
+    if (!user.deletedAt) return;
+    if (user.erasedAt) throw new UnauthorizedException('Неверные данные');
+    if (!restore) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        message: 'Аккаунт удалён — его можно восстановить в течение 30 дней после удаления',
+        error: ACCOUNT_DELETED,
+        deletedAt: user.deletedAt,
+        eraseAt: eraseAt(user.deletedAt),
+      });
+    }
+    await this.prisma.user.update({ where: { id: user.id }, data: { deletedAt: null } });
   }
 
   /**
@@ -219,12 +240,13 @@ export class AuthService {
    * блокировка и код из приложения, что у входа по паролю, — иначе кнопка
    * «Войти через Яндекс ID» обходила бы двухфакторную защиту.
    */
-  async loginVerified(userId: string, code: string | undefined, ctx: RequestCtx): Promise<IssuedAuth> {
+  async loginVerified(userId: string, code: string | undefined, ctx: RequestCtx, restore?: boolean): Promise<IssuedAuth> {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { profile: true } });
     if (!user?.profile) throw new UnauthorizedException('Пользователь не найден');
     if (user.status === 'banned') throw new ForbiddenException(BANNED);
     const second = await this.twoFactor.check(user.id, code);
     if (second !== 'ok') throw TwoFactorService.loginError(second);
+    await this.deletedGate(user, restore);
     return this.issue(user.id, user.email, user.profile.username, ctx);
   }
 
@@ -259,6 +281,7 @@ export class AuthService {
     });
     if (!user?.profile) throw new UnauthorizedException('Пользователь не найден');
     if (user.status === 'banned') throw new ForbiddenException(BANNED);
+    if (user.deletedAt) throw new UnauthorizedException('Сессия недействительна');
 
     // Сначала новая строка того же семейства, потом отзыв старой: запросы,
     // которые идут в этот момент со старым access-токеном, не получат 401.
