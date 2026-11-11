@@ -92,6 +92,10 @@
     "./phone": {
       "types": "./dist/phone.d.ts",
       "default": "./dist/phone.js"
+    },
+    "./safe-deal": {
+      "types": "./dist/safe-deal.d.ts",
+      "default": "./dist/safe-deal.js"
     }
   },
   "scripts": {

@@ -21,7 +21,7 @@ export class WalletService {
    * которые ещё не выплачены. Суммы — строками (BigInt.toJSON).
    */
   async getWallet(userId: string, currency = 'RUB') {
-    const [balance, deals, payouts] = await Promise.all([
+    const [balance, deals, payouts, dealPayouts, waiting] = await Promise.all([
       this.ledger.balanceOf(userId, currency),
       this.prisma.order.aggregate({
         where: { sellerId: userId, currency, status: { in: [...DEAL_OPEN] } },
@@ -33,12 +33,21 @@ export class WalletService {
         _count: { _all: true },
         _sum: { amount: true },
       }),
+      // «Безопасная сделка» (часть 123): выплаты по сделкам, которые ещё не дошли.
+      this.prisma.dealPayout.aggregate({
+        where: { sellerId: userId, currency, status: { in: ['waiting', 'sent', 'failed'] } },
+        _count: { _all: true },
+        _sum: { amount: true },
+      }),
+      this.prisma.dealPayout.count({ where: { sellerId: userId, currency, status: { in: ['waiting', 'failed'] } } }),
     ]);
     return {
       currency,
       balance,
       inDeals: { count: deals._count._all, amount: deals._sum.sellerPayoutAmount ?? 0n },
       withdrawing: { count: payouts._count._all, amount: payouts._sum.amount ?? 0n },
+      // waiting — сколько из них ждут карту или ЮMoney (или новые реквизиты после отказа).
+      dealPayouts: { count: dealPayouts._count._all, amount: dealPayouts._sum.amount ?? 0n, waiting },
     };
   }
 

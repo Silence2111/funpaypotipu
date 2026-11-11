@@ -379,7 +379,12 @@ export default async function ListingPage({
                 <ShieldCheck size={18} strokeWidth={1.75} color="var(--accent)" /> {t('Как защищена покупка')}
               </div>
               <ul style={{ margin: '10px 0 0', paddingLeft: 18, display: 'grid', gap: 6, fontSize: 13 }} className="muted">
-                <li>{t('Деньги лежат у площадки. Продавец получит их, только когда вы подтвердите получение.')}</li>
+                <li>
+                  {/* «Безопасная сделка» (часть 123): деньги держит ЮKassa, а не площадка. */}
+                  {pricing?.paymentScheme === 'safe_deal'
+                    ? t('Деньги держит ЮKassa в «Безопасной сделке». Продавец получит их, только когда вы подтвердите получение.')
+                    : t('Деньги лежат у площадки. Продавец получит их, только когда вы подтвердите получение.')}
+                </li>
                 <li>
                   {auto
                     ? keys

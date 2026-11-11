@@ -20,6 +20,17 @@ export const EN_API: Phrasebook = {
     'The listing is under moderator review: the moderator will put it back on sale',
   'Причина — до {n} символов': 'Reason must be at most {n} characters',
 
+  // «Безопасная сделка» ЮKassa (часть 123)
+  'Оплата с баланса недоступна: платежи идут через «Безопасную сделку» ЮKassa — оплатите картой':
+    'Paying from balance is unavailable: payments go through a YooKassa Safe Deal — pay by card',
+  'Пополнение баланса недоступно: оплата идёт через «Безопасную сделку» ЮKassa — заказ оплачивается картой':
+    'Balance top-up is unavailable: payments go through a YooKassa Safe Deal — orders are paid by card',
+  'Платёжный шлюз отказал. Попробуйте позже.': 'The payment gateway refused. Please try again later.',
+  'В «Безопасной сделке» оплата — только картой: СБП ЮKassa в сделке не принимает':
+    'A Safe Deal can only be paid by card: YooKassa doesn’t accept SBP in a deal',
+  'Этот заказ нельзя оплатить в «Безопасной сделке»: у площадки не остаётся вознаграждения':
+    'This order can’t be paid in a Safe Deal: no reward is left for the marketplace',
+
   // Вход по номеру телефона (часть 121)
   'Укажите номер телефона': 'Enter your phone number',
   'Введите код из SMS': 'Enter the code from the SMS',

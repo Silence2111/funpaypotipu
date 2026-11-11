@@ -11,6 +11,7 @@ import { TopUpForm } from '@/components/topup-form';
 import { PayoutForm } from '@/components/payout-form';
 import { PayoutRequests, type MyPayout } from '@/components/payout-requests';
 import { StatementView } from '@/components/statement';
+import { DealPayouts } from '@/components/deal-payouts';
 import { useT } from '@/lib/i18n/client';
 
 interface Wallet {
@@ -20,6 +21,8 @@ interface Wallet {
   inDeals: { count: number; amount: string };
   /** Заявки на вывод, которые ещё не выплачены. */
   withdrawing: { count: number; amount: string };
+  /** Выплаты по «Безопасной сделке» в пути; waiting — ждут реквизиты (часть 123). */
+  dealPayouts?: { count: number; amount: string; waiting: number };
 }
 
 /**
@@ -34,6 +37,7 @@ function WalletInner() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [payouts, setPayouts] = useState<MyPayout[]>([]);
   const [demo, setDemo] = useState(false);
+  const [safeDeal, setSafeDeal] = useState(false);
   // Вернулись со страницы ЮKassa: баланс пополнится, когда придёт её подтверждение.
   const topupBack = params.get('topup') === '1';
 
@@ -54,7 +58,10 @@ function WalletInner() {
       return;
     }
     reload();
-    void loadPublicPricing().then((p) => setDemo(!!p?.paymentsDemo));
+    void loadPublicPricing().then((p) => {
+      setDemo(!!p?.paymentsDemo);
+      setSafeDeal(p?.paymentScheme === 'safe_deal');
+    });
   }, [router, reload]);
 
   useEffect(() => {
@@ -122,6 +129,14 @@ function WalletInner() {
         )}
       </section>
 
+      {wallet && (safeDeal || (wallet.dealPayouts?.count ?? 0) > 0) && (
+        <DealPayouts
+          summary={wallet.dealPayouts ?? { count: 0, amount: '0', waiting: 0 }}
+          currency={wallet.currency}
+          onSaved={() => setTimeout(reload, 3000)}
+        />
+      )}
+
       {topupBack && (
         <div className="alert" role="status">
           {t(
@@ -135,8 +150,15 @@ function WalletInner() {
           <h2 className="h2" style={{ fontSize: 20 }}>
             {t('Пополнение')}
           </h2>
-          <TopUpForm onDone={reload} />
-          {demo && (
+          {safeDeal ? (
+            // «Безопасная сделка»: деньги покупателей держит ЮKassa, баланс не пополняется.
+            <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+              {t('Пополнение баланса недоступно: заказы оплачиваются картой через «Безопасную сделку» ЮKassa.')}
+            </p>
+          ) : (
+            <TopUpForm onDone={reload} />
+          )}
+          {demo && !safeDeal && (
             <p className="hint" style={{ marginTop: 6 }}>
               {t('На демо-стенде пополнение проходит без списания денег.')}
             </p>

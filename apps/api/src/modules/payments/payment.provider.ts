@@ -15,6 +15,8 @@ export interface DepositInput {
   returnUrl: string;
   /** Почта покупателя — для чека, если шлюз их отправляет. */
   customerEmail?: string | null;
+  /** «Безопасная сделка» (часть 123): сделка ЮKassa и доля продавца в платеже. */
+  deal?: { id: string; sellerAmount: bigint };
 }
 
 export interface DepositSession {

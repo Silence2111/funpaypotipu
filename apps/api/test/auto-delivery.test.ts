@@ -310,7 +310,8 @@ describe('чат заказа после оплаты', () => {
       {} as never,
       { notify: vi.fn(async () => undefined) } as never,
       chat as never,
-    );
+    {} as never, {} as never, { scheme: async () => 'escrow' } as never,
+  );
     return { svc, said };
   }
 

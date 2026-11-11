@@ -61,6 +61,7 @@ function setup(listing: Record<string, unknown>) {
     { consume: vi.fn(async () => 0n) } as never,
     { notify: vi.fn(async () => undefined) } as never,
     { postSystem: vi.fn(async () => undefined) } as never,
+    {} as never, {} as never, { scheme: async () => 'escrow' } as never,
   );
   return { svc, created, fees };
 }

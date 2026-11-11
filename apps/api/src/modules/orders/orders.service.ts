@@ -45,6 +45,7 @@ import { SellerPromosService } from '../promo/seller-promos.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatService } from '../chat/chat.service';
 import { PartnersService } from '../partners/partners.service';
+import { SafeDealService } from '../safe-deal/safe-deal.service';
 import { FeesService } from './fees.service';
 import { FulfillmentService } from './fulfillment.service';
 
@@ -72,7 +73,43 @@ export class OrdersService {
     private readonly chat: ChatService,
     private readonly sellerPromos: SellerPromosService,
     private readonly partners: PartnersService,
+    private readonly safeDeal: SafeDealService,
   ) {}
+
+  /**
+   * Вернуть деньги покупателю: заказ в «Безопасной сделке» (часть 123) — на
+   * карту через ЮKassa, иначе — на баланс у площадки.
+   */
+  private async refundBuyer(order: Order, refType: string) {
+    if (order.dealId) return this.safeDeal.refund(order, refType);
+    await this.ledger.post({
+      legs: refundToBalance(order.buyerId, order.amount),
+      currency: order.currency,
+      idempotencyKey: `refund:${order.id}`,
+      orderId: order.id,
+      refType,
+      refId: order.id,
+    });
+  }
+
+  /** Завершить: в сделке — выплата продавцу по ней, иначе — на его баланс. */
+  private async releaseSeller(order: Order, refType: string) {
+    if (order.dealId) return this.safeDeal.release(order, refType);
+    const revenue = order.amount - order.sellerPayoutAmount;
+    await this.ledger.post({
+      legs: releaseEscrow(order.sellerId, order.sellerPayoutAmount, revenue),
+      currency: order.currency,
+      idempotencyKey: `release:${order.id}`,
+      orderId: order.id,
+      refType,
+      refId: order.id,
+    });
+  }
+
+  /** Куда ушли деньги покупателя — для сообщений в чате. */
+  private refundedTo(order: Order) {
+    return order.dealId ? 'на карту' : 'на баланс';
+  }
 
   /** Системное сообщение о событии сделки в чат (не роняет основной поток). */
   private async sys(orderId: string, text: string) {
@@ -330,6 +367,10 @@ export class OrdersService {
     if (order.buyerId !== buyerId) throw new ForbiddenException('Это не ваш заказ');
     if (order.status === 'paid') return order;
     this.assertTransition(order.status, 'paid');
+    // «Безопасная сделка» (часть 123): деньги площадки в сделку ЮKassa не попадают.
+    if (order.dealId || (await this.safeDeal.scheme()) === 'safe_deal') {
+      throw new BadRequestException('Оплата с баланса недоступна: платежи идут через «Безопасную сделку» ЮKassa — оплатите картой');
+    }
 
     const balance = await this.ledger.balanceOf(buyerId, order.currency);
     if (balance < order.amount) throw new BadRequestException('Недостаточно средств на балансе');
@@ -391,7 +432,9 @@ export class OrdersService {
       unit && (paid.qty > 1 || unit !== 'шт.')
         ? ` Количество: ${new Intl.NumberFormat('ru-RU').format(paid.qty)} ${unit}.`
         : '';
-    await this.sys(paid.id, `Оплата поступила — средства защищены эскроу.${howMany}`);
+    // В «Безопасной сделке» (часть 123) деньги держит ЮKassa, а не площадка.
+    const held = paid.dealId ? 'деньги держит ЮKassa в «Безопасной сделке»' : 'средства защищены эскроу';
+    await this.sys(paid.id, `Оплата поступила — ${held}.${howMany}`);
 
     if (paid.fulfillmentType !== 'manual') {
       await this.fulfillment.autoFulfill(paid.id);
@@ -543,15 +586,7 @@ export class OrdersService {
     if (!opts.system && order.buyerId !== buyerId) throw new ForbiddenException('Это не ваш заказ');
     this.assertTransition(order.status, 'completed');
 
-    const revenue = order.amount - order.sellerPayoutAmount;
-    await this.ledger.post({
-      legs: releaseEscrow(order.sellerId, order.sellerPayoutAmount, revenue),
-      currency: order.currency,
-      idempotencyKey: `release:${order.id}`,
-      orderId: order.id,
-      refType: 'order_release',
-      refId: order.id,
-    });
+    await this.releaseSeller(order, 'order_release');
 
     const [updated] = await this.prisma.$transaction([
       this.prisma.order.update({
@@ -620,21 +655,14 @@ export class OrdersService {
 
     if (order.status === 'paid') {
       this.assertTransition(order.status, 'refunded');
-      await this.ledger.post({
-        legs: refundToBalance(order.buyerId, order.amount),
-        currency: order.currency,
-        idempotencyKey: `refund:${order.id}`,
-        orderId: order.id,
-        refType: 'order_refund',
-        refId: order.id,
-      });
+      await this.refundBuyer(order, 'order_refund');
       const res = await this.prisma.order.update({
         where: { id: order.id },
         data: { status: 'refunded' },
       });
       await this.restock(order);
       await this.notifications.notify(order.buyerId, 'order_refunded', { orderId: order.id });
-      await this.sys(order.id, 'Заказ отменён, средства возвращены покупателю на баланс.');
+      await this.sys(order.id, `Заказ отменён, средства возвращены покупателю ${this.refundedTo(order)}.`);
       return res;
     }
 
@@ -657,14 +685,7 @@ export class OrdersService {
     const wasDisputed = order.status === 'disputed';
     const wasPaid = order.status === 'paid';
 
-    await this.ledger.post({
-      legs: refundToBalance(order.buyerId, order.amount),
-      currency: order.currency,
-      idempotencyKey: `refund:${order.id}`,
-      orderId: order.id,
-      refType: 'seller_refund',
-      refId: order.id,
-    });
+    await this.refundBuyer(order, 'seller_refund');
     const res = await this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
     if (wasPaid) await this.restock(order);
     if (wasDisputed) {
@@ -686,7 +707,7 @@ export class OrdersService {
     // Причину пишет продавец, а системное сообщение не проходит фильтр чата:
     // без маскирования через «причину» уводили бы сделку в мессенджер.
     const why = reason?.trim() ? ` Причина: ${maskContacts(reason.trim()).masked}` : '';
-    await this.sys(order.id, `Продавец вернул деньги покупателю на баланс.${why}`);
+    await this.sys(order.id, `Продавец вернул деньги покупателю ${this.refundedTo(order)}.${why}`);
     return res;
   }
 
@@ -694,14 +715,7 @@ export class OrdersService {
   async refundOverdue(orderId: string) {
     const order = await this.get(orderId);
     if (order.status !== 'paid') return;
-    await this.ledger.post({
-      legs: refundToBalance(order.buyerId, order.amount),
-      currency: order.currency,
-      idempotencyKey: `refund:${order.id}`,
-      orderId: order.id,
-      refType: 'order_refund_overdue',
-      refId: order.id,
-    });
+    await this.refundBuyer(order, 'order_refund_overdue');
     await this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
     await this.restock(order);
     await this.notifications.notify(order.buyerId, 'order_refunded', {
@@ -741,15 +755,7 @@ export class OrdersService {
     }
 
     if (outcome === 'seller') {
-      const revenue = order.amount - order.sellerPayoutAmount;
-      await this.ledger.post({
-        legs: releaseEscrow(order.sellerId, order.sellerPayoutAmount, revenue),
-        currency: order.currency,
-        idempotencyKey: `release:${order.id}`,
-        orderId: order.id,
-        refType: 'dispute_release',
-        refId: order.id,
-      });
+      await this.releaseSeller(order, 'dispute_release');
       const done = await this.prisma.order.update({
         where: { id: order.id },
         data: { status: 'completed', completedAt: new Date() },
@@ -758,19 +764,17 @@ export class OrdersService {
       return done;
     }
 
-    await this.ledger.post({
-      legs: refundToBalance(order.buyerId, order.amount),
-      currency: order.currency,
-      idempotencyKey: `refund:${order.id}`,
-      orderId: order.id,
-      refType: 'dispute_refund',
-      refId: order.id,
-    });
+    await this.refundBuyer(order, 'dispute_refund');
     const refunded = await this.prisma.order.update({
       where: { id: order.id },
       data: { status: 'refunded' },
     });
-    await this.sys(order.id, 'Спор решён в пользу покупателя. Средства возвращены покупателю.');
+    await this.sys(
+      order.id,
+      order.dealId
+        ? 'Спор решён в пользу покупателя. Средства возвращены покупателю на карту.'
+        : 'Спор решён в пользу покупателя. Средства возвращены покупателю.',
+    );
     return refunded;
   }
 

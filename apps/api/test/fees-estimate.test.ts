@@ -15,7 +15,7 @@ function setup(segment: string | null, sellerPct = 0.1) {
     categoryForEstimate: vi.fn(async () => (segment ? { segment } : null)),
     computeForCategory: vi.fn(async (base: bigint) => ({ ...computeFees(base, 0, sellerPct), sellerPct })),
   };
-  return { c: new FeesController(fees as never), fees };
+  return { c: new FeesController(fees as never, { scheme: async () => 'escrow' } as never), fees };
 }
 
 describe('сколько вы получите', () => {

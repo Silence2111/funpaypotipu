@@ -306,6 +306,8 @@ export const EN_SHARED: Phrasebook = {
   'Документы не приняты — посмотрите причину': 'ID not accepted — see the reason',
   'Выплата отправлена': 'Payout sent',
   'Выплата отклонена': 'Payout rejected',
+  'Выплата по сделке ждёт карту или ЮMoney — укажите их в «Кошельке»':
+    'A deal payout is waiting for a card or YooMoney wallet — add one in “Wallet”',
   'Поддержка ответила на обращение': 'Support replied to your request',
   'Новые предложения по сохранённому поиску': 'New offers for your saved search',
   'Лот из избранного подешевел': 'A listing in your favorites got cheaper',

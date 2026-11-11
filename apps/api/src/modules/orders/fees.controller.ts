@@ -6,6 +6,7 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import {
   COMPETITOR_RATES_CHECKED,
   GATEWAY_METHOD_KEYS,
+  SAFE_DEAL_PAY_METHODS,
   SELLER_LEVELS,
   WITHDRAWAL_METHODS,
   cashbackPct,
@@ -20,6 +21,7 @@ import { AUTO_GOODS_CONFIRM_MS } from './fulfillment.service';
 import { PROMO_DAY_PRICE } from '../listings/listings.service';
 import { KYC_REQUIRED_ABOVE, NEWBIE_HOLD_DAYS } from '../payouts/payouts.service';
 import { YOOKASSA_METHODS } from '../payments/yookassa.provider';
+import { SafeDealService } from '../safe-deal/safe-deal.service';
 
 const LEVEL_DISCOUNTS = Object.values(SELLER_LEVELS).map((l) => l.feeDiscountBps);
 
@@ -37,7 +39,10 @@ const quoteSchema = z.object({
 
 @Controller('fees')
 export class FeesController {
-  constructor(private readonly fees: FeesService) {}
+  constructor(
+    private readonly fees: FeesService,
+    private readonly safeDeal: SafeDealService,
+  ) {}
 
   /**
    * Публичный прайс площадки — для витрины.
@@ -50,6 +55,7 @@ export class FeesController {
   @Get('public')
   async publicPricing() {
     const rules = await this.fees.activeRules('RUB');
+    const scheme = await this.safeDeal.scheme();
     const pcts = rules.map((r) => r.feeSellerPct).filter((v) => v > 0);
     return {
       currency: 'RUB',
@@ -78,7 +84,14 @@ export class FeesController {
       paymentsDemo: (process.env.PAYMENT_PROVIDER ?? 'mock') === 'mock',
       // Способы оплаты, которые принимает шлюз: у ЮKassa нет криптовалюты —
       // витрина не предлагает то, что не пройдёт.
-      payMethods: process.env.PAYMENT_PROVIDER === 'yookassa' ? YOOKASSA_METHODS : GATEWAY_METHOD_KEYS,
+      // «Безопасная сделка» (часть 123): только карта, без оплаты с баланса и пополнения.
+      payMethods:
+        scheme === 'safe_deal'
+          ? SAFE_DEAL_PAY_METHODS
+          : process.env.PAYMENT_PROVIDER === 'yookassa'
+            ? YOOKASSA_METHODS
+            : GATEWAY_METHOD_KEYS,
+      paymentScheme: scheme,
       // Цена суток продвижения лота, копейки строкой.
       promoDayPrice: PROMO_DAY_PRICE.toString(),
       // Курсы для показа «≈ 10,84 $» рядом с ценой; оплата — в рублях.

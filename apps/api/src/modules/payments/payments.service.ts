@@ -13,6 +13,7 @@ import { chargeFor, depositToBalance, type GatewayMethodKey } from '@gamemarket/
 import { PRISMA } from '../../prisma/prisma.module';
 import { OrdersService } from '../orders/orders.service';
 import { LedgerService } from '../ledger/ledger.service';
+import { SafeDealService } from '../safe-deal/safe-deal.service';
 import { MockPaymentProvider, type MockWebhookPayload } from './mock.provider';
 import { PaymentProviderRegistry } from './provider.registry';
 import type { DepositSession } from './payment.provider';
@@ -29,6 +30,7 @@ export class PaymentsService {
     private readonly mock: MockPaymentProvider,
     private readonly orders: OrdersService,
     private readonly ledger: LedgerService,
+    private readonly safeDeal: SafeDealService,
   ) {}
 
   /**
@@ -37,6 +39,10 @@ export class PaymentsService {
    */
   async createBalanceDeposit(userId: string, amount: bigint, method: GatewayMethodKey = 'sbp', currency = 'RUB') {
     if (amount <= 0n) throw new BadRequestException('Сумма должна быть положительной');
+    // «Безопасная сделка» (часть 123): деньги покупателей держит ЮKassa, а не площадка.
+    if ((await this.safeDeal.scheme()) === 'safe_deal') {
+      throw new BadRequestException('Пополнение баланса недоступно: оплата идёт через «Безопасную сделку» ЮKassa — заказ оплачивается картой');
+    }
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     const session = await this.openDeposit({
       userId,
@@ -64,6 +70,14 @@ export class PaymentsService {
     if (order.buyerId !== userId) throw new ForbiddenException('Это не ваш заказ');
     if (order.status !== 'created') throw new BadRequestException('Заказ уже оплачен или закрыт');
 
+    // «Безопасная сделка» (часть 123): сделка у ЮKassa на заказ, оплата — картой,
+    // в платеже — доля продавца, остальное — вознаграждение площадки.
+    let deal: { id: string; sellerAmount: bigint } | undefined;
+    if (order.dealId || (await this.safeDeal.scheme()) === 'safe_deal') {
+      this.safeDeal.assertMethod(method);
+      deal = { id: await this.safeDeal.ensureDeal(order), sellerAmount: order.sellerPayoutAmount };
+    }
+
     const session = await this.openDeposit({
       userId,
       orderId,
@@ -74,8 +88,9 @@ export class PaymentsService {
       // Со страницы шлюза — обратно на заказ: там видно, дошла ли оплата.
       returnUrl: `${webUrl()}/orders/${orderId}?paid=1`,
       customerEmail: order.buyer?.email ?? null,
+      deal,
     });
-    return { orderId, ...session, method };
+    return { orderId, ...session, method, ...(deal ? { dealId: deal.id } : {}) };
   }
 
   /**
@@ -91,6 +106,7 @@ export class PaymentsService {
     description: string;
     returnUrl: string;
     customerEmail: string | null;
+    deal?: { id: string; sellerAmount: bigint };
   }) {
     const provider = this.registry.current;
     if (!provider.methods.includes(p.method)) {
@@ -122,6 +138,7 @@ export class PaymentsService {
         description: p.description,
         returnUrl: p.returnUrl,
         customerEmail: p.customerEmail,
+        ...(p.deal ? { deal: p.deal } : {}),
       });
     } catch (e) {
       await this.prisma.payment.update({ where: { providerRef }, data: { status: 'failed' } });

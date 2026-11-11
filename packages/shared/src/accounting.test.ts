@@ -11,6 +11,8 @@ import {
   holdForPayout,
   settlePayout,
   reversePayoutHold,
+  releaseEscrowToDeal,
+  refundToGateway,
   UnbalancedPostingError,
   type PostingLeg,
 } from './accounting';
@@ -129,3 +131,19 @@ describe('money: комиссии (docs/03 §5)', () => {
     }
   });
 });
+
+describe('«Безопасная сделка» (часть 123)', () => {
+  it('завершение: доля продавца — в обязательство к выплате по сделке, вознаграждение — в доход; сбалансировано', () => {
+    const legs = releaseEscrowToDeal(90_000n, 10_000n);
+    expect(() => assertBalanced(legs)).not.toThrow();
+    expect(legs.find((l) => l.account.kind === 'payout_payable')?.amount).toBe(90_000n);
+    expect(legs.find((l) => l.account.kind === 'revenue')?.amount).toBe(10_000n);
+  });
+
+  it('возврат на карту: из эскроу обратно в шлюз; сбалансировано', () => {
+    const legs = refundToGateway(100_000n);
+    expect(() => assertBalanced(legs)).not.toThrow();
+    expect(legs.map((l) => `${l.direction}:${l.account.kind}`)).toEqual(['debit:escrow', 'credit:gateway_clearing']);
+  });
+});
+

@@ -147,6 +147,15 @@ export class YooKassaProvider implements PaymentProvider {
         ...(input.orderId ? { orderId: input.orderId } : {}),
       },
       ...(type ? { payment_method_data: { type } } : {}),
+      // «Безопасная сделка»: платёж в сделку, settlements — сколько выплатить продавцу.
+      ...(input.deal
+        ? {
+            deal: {
+              id: input.deal.id,
+              settlements: [{ type: 'payout', amount: { value: toValue(input.deal.sellerAmount), currency: input.currency } }],
+            },
+          }
+        : {}),
       ...(this.receipts && input.customerEmail
         ? {
             receipt: {
