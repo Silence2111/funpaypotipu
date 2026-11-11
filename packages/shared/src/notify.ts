@@ -30,7 +30,7 @@ export const NOTIFY_GROUPS = [
   { key: 'messages', label: 'Сообщения', hint: 'новые сообщения в чатах', types: ['new_message'] },
   { key: 'disputes', label: 'Споры', hint: 'открыт спор, ждём вашего ответа, срок ответа подходит к концу, решение арбитра', types: ['dispute_opened', 'dispute_reply_needed', 'dispute_reply_soon', 'dispute_resolved', 'dispute_appealed'] },
   { key: 'reviews', label: 'Отзывы', hint: 'новый отзыв, ответ продавца, оценка вас как покупателя', types: ['review_received', 'review_reply', 'buyer_review'] },
-  { key: 'finance', label: 'Деньги', hint: 'кэшбэк, выплаты и партнёрские начисления', types: ['cashback', 'payout_paid', 'payout_rejected', 'partner_reward', 'deal_payout_waiting', 'payout_delayed', 'payout_overdue'] },
+  { key: 'finance', label: 'Деньги', hint: 'кэшбэк, бонусы, выплаты и партнёрские начисления', types: ['cashback', 'bonus_accrued', 'payout_paid', 'payout_rejected', 'partner_reward', 'deal_payout_waiting', 'payout_delayed', 'payout_overdue'] },
   { key: 'support', label: 'Поддержка', hint: 'ответы на ваши обращения', types: ['support_reply', 'support_overdue'] },
   {
     key: 'searches',
@@ -134,6 +134,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   account_deleted: 'Аккаунт удалён — данные уничтожим через 30 дней, до этого его можно восстановить входом',
   phone_changed: 'Номер телефона для входа изменён',
   cashback: 'Кэшбэк за покупку зачислен на баланс',
+  bonus_accrued: 'Бонусы за покупку — спишутся скидкой в следующем заказе',
   partner_reward: 'Партнёрское вознаграждение зачислено на баланс',
   new_message: 'Новое сообщение',
   dispute_opened: 'Спор по сделке',
@@ -249,6 +250,6 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
   if (type === 'section_closed' || type === 'section_opened') return '/cabinet/lots';
   // Деньги — в кошелёк: там баланс, заявки на вывод и выписка.
   if (type === 'partner_reward') return '/cabinet/partner';
-  if (type.startsWith('payout') || type === 'cashback') return '/cabinet/wallet';
+  if (type.startsWith('payout') || type === 'cashback' || type === 'bonus_accrued') return '/cabinet/wallet';
   return '/cabinet';
 }

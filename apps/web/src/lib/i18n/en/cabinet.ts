@@ -633,4 +633,11 @@ export const CABINET: Record<string, string> = {
   'повтор — в разделе виден другой': 'duplicate — another one is shown in the section',
   'В разделе виден самый дешёвый из одинаковых лотов, этот выйдет, когда тот купят. Проще держать один лот с наличием.':
     'The section shows the cheapest of identical listings; this one appears once that is bought. It’s simpler to keep one listing with stock.',
+  // Бонусы (часть 146)
+  'Бонусы': 'Bonuses',
+  'начислено за заказ': 'earned for an order',
+  'списано в заказе': 'used in an order',
+  'возвращено: заказ отменён': 'returned: order cancelled',
+  'Спишутся скидкой при оплате следующего заказа — галочкой у кнопки «Оплатить». Не выводятся.':
+    'Applied as a discount when you pay for your next order — with the checkbox next to “Pay”. They can’t be withdrawn.',
 };

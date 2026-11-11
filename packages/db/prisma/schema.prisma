@@ -242,6 +242,7 @@ model User {
   payments             Payment[]
   payouts              Payout[]
   payoutDestinations   PayoutDestination[]
+  bonusEntries         BonusEntry[]
   reviewsAuthored      Review[]              @relation("ReviewAuthor")
   reviewsReceived      Review[]              @relation("ReviewTarget")
   buyerReviewsGiven    BuyerReview[]         @relation("BuyerReviewSeller")
@@ -684,6 +685,9 @@ model Order {
   /// Сделка ЮKassa («Безопасная сделка», часть 123): деньги держит ЮKassa,
   /// возврат — на карту, продавцу — выплата по сделке. null — схема escrow.
   dealId             String?         @map("deal_id")
+  /// Бонусы покупателя, списанные скидкой в этом заказе (часть 146): из
+  /// вознаграждения площадки. Отмена или возврат — бонусы возвращаются (триггер).
+  bonusDiscount      BigInt          @default(0) @map("bonus_discount")
   /// Услуга со сроком (часть 125): выполнить до; взято в работу; когда срок
   /// вышел и обе стороны об этом узнали. Вышел и сутки без выдачи и спора —
   /// деньги возвращаются покупателю.
@@ -1886,4 +1890,30 @@ model WebhookDelivery {
   @@index([status, nextAt])
   @@index([webhookId, createdAt])
   @@map("webhook_deliveries")
+}
+
+enum BonusKind {
+  accrual
+  spend
+  refund
+}
+
+/// Бонусы покупателя (часть 146): в «Безопасной сделке» вместо кэшбэка
+/// деньгами — бонусы, которые списываются скидкой из вознаграждения площадки
+/// при следующей оплате. Не деньги: не выводятся и не переводятся.
+/// Баланс — сумма amount (+ начисление и возврат, − списание).
+model BonusEntry {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  amount    BigInt
+  kind      BonusKind
+  orderId   String?   @map("order_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Одно начисление, одно списание и один возврат на заказ — повтор не задвоит.
+  @@unique([kind, orderId])
+  @@index([userId, createdAt])
+  @@map("bonus_entries")
 }

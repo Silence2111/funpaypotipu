@@ -257,4 +257,10 @@ export const LOT: Record<string, string> = {
   'продавец': 'the seller',
   'GameMarket — площадка, а не продавец: продаёт {seller}, площадка проводит оплату и разбирает споры.':
     'GameMarket is a marketplace, not the seller: {seller} sells, the marketplace handles payment and settles disputes.',
+  // Бонусы (часть 146)
+  'Списать бонусы: −{sum}': 'Use bonuses: −{sum}',
+  'С промокодом площадки бонусы спишутся в пределах оставшейся скидки.': 'With a marketplace promo code, bonuses apply within the remaining discount.',
+  'Всего бонусов {sum}. Скидка — из вознаграждения площадки, продавец получит столько же.':
+    'You have {sum} in bonuses. The discount comes from the marketplace’s fee; the seller gets the same.',
+  '+{pct}% бонусами после подтверждения — спишутся скидкой в следующем заказе': '+{pct}% in bonuses after confirmation — applied as a discount on your next order',
 };

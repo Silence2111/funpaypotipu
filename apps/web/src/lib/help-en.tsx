@@ -108,7 +108,11 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
         </li>
         <li>
           <b>Check and confirm.</b> If everything is fine, press “Confirm receipt”: the seller gets
-          paid and you get {pct(c.cashback)} cashback on your balance. If something is wrong, press
+          paid and{' '}
+          {c.bonus > 0
+            ? `you get ${pct(c.bonus)} in bonuses — applied as a discount on your next order.`
+            : `you get ${pct(c.cashback)} cashback on your balance.`}{' '}
+          If something is wrong, press
           “Open a dispute”. If you do neither, the order is confirmed automatically when the check
           period ends.
         </li>
@@ -453,7 +457,15 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
       )}
       <h2>Balance</h2>
       <ul>
-        <li>Refunds and {pct(c.cashback)} cashback after an order is confirmed arrive here.</li>
+        {c.bonus > 0 ? (
+          <li>
+            Bonuses: {pct(c.bonus)} of an order after it’s confirmed, instead of cash back in the Safe Deal. They’re
+            applied as a discount on your next payment with the checkbox next to “Pay” — from the marketplace’s fee,
+            the seller gets the same. They can’t be withdrawn; if an order is cancelled, spent bonuses come back.
+          </li>
+        ) : (
+          <li>Refunds and {pct(c.cashback)} cashback after an order is confirmed arrive here.</li>
+        )}
         <li>For sellers — the money from sales.</li>
         <li>
           You can pay for a purchase or a listing promotion from your balance. Top it up in “Wallet”

@@ -92,7 +92,23 @@ export function BuyButton({
   const next = deal ? nextQtyTier(tiers, qty) : null;
   const reachable = next && (qtyOffer?.stock == null || next.from <= qtyOffer.stock) ? next : null;
   const sellerOff = base != null && promoInfo?.source === 'seller' ? sellerPromoDiscount(base, promoInfo.percent ?? 0) : 0n;
-  const priced = base != null ? base - sellerOff : null;
+  // Бонусы (часть 146): скидка из вознаграждения площадки; сколько спишется —
+  // считает сервер (потолок — как у промокода площадки).
+  const [bonus, setBonus] = useState<{ balance: bigint; discount: bigint } | null>(null);
+  const [useBonus, setUseBonus] = useState(true);
+  useEffect(() => {
+    if (!getToken() || isTopUp) return;
+    if (qtyOffer && !Number.isFinite(qty)) return;
+    const timer = setTimeout(() => {
+      const p = new URLSearchParams({ listingId, ...(qtyOffer ? { qty: String(qty) } : {}) });
+      apiFetch<{ balance: string; discount: string }>(`/orders/bonus-quote?${p}`)
+        .then((r) => setBonus({ balance: BigInt(r.balance), discount: BigInt(r.discount) }))
+        .catch(() => setBonus(null));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [listingId, qty, qtyOffer, isTopUp]);
+  const bonusOff = useBonus && bonus && promoInfo?.source !== 'platform' ? bonus.discount : 0n;
+  const priced = base != null ? base - sellerOff - (bonusOff < base - sellerOff ? bonusOff : 0n) : null;
   const toPay = priced != null ? priceFor(priced, method) : null;
   const answersRaw = buyerDataError(buyerFields, answers);
   const answersProblem = answersRaw && t.d(answersRaw);
@@ -107,6 +123,7 @@ export function BuyButton({
         ...(isTopUp && account.trim() ? { account: account.trim() } : {}),
         ...(qtyOffer ? { qty } : {}),
         ...(buyerFields.length ? { buyerData: answers } : {}),
+        ...(useBonus && bonus && bonus.discount > 0n ? { useBonus: true } : {}),
       }),
     });
     return order.id;
@@ -282,6 +299,23 @@ export function BuyButton({
           )}
         </div>
       </details>
+
+      {bonus && bonus.discount > 0n && (
+        <label className="row" style={{ gap: 10, fontSize: 14, marginBottom: 12, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>
+          <input type="checkbox" checked={useBonus} onChange={(e) => setUseBonus(e.target.checked)}
+            style={{ marginTop: 2, width: 18, height: 18, accentColor: 'var(--accent)' }} />
+          <span>
+            {t('Списать бонусы: −{sum}', { sum: formatPrice(bonus.discount.toString(), currency, t) })}
+            <span className="hint" style={{ display: 'block' }}>
+              {promoInfo?.source === 'platform'
+                ? t('С промокодом площадки бонусы спишутся в пределах оставшейся скидки.')
+                : t('Всего бонусов {sum}. Скидка — из вознаграждения площадки, продавец получит столько же.', {
+                    sum: formatPrice(bonus.balance.toString(), currency, t),
+                  })}
+            </span>
+          </span>
+        </label>
+      )}
 
       <div style={{ marginBottom: 14 }}>
         <PayMethods base={priced} currency={currency} value={method} onChange={setMethod} />

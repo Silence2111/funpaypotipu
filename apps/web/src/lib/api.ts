@@ -369,6 +369,8 @@ export interface PublicPricing {
   sellerFeeMaxPct: number;
   levelDiscountMaxPp: number;
   cashbackPct: number;
+  /** Бонусы скидкой вместо кэшбэка в «Безопасной сделке» (часть 146); 0 — их нет. */
+  bonusPct?: number;
   /** Часов на проверку после выдачи, потом заказ подтверждается сам. */
   autoConfirmHours?: number;
   /** Часов у продавца на ручную выдачу, потом деньги возвращаются сами. */

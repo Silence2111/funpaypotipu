@@ -18,6 +18,8 @@ const createOrderSchema = z.object({
   qty: z.number().int().positive().optional(),
   // Ответы на поля лота «что спросить у покупателя»: { «Ник в игре»: «Dragon_77» }.
   buyerData: z.record(z.string().max(200)).optional(),
+  // Списать бонусы скидкой (часть 146).
+  useBonus: z.boolean().optional(),
 });
 type CreateOrderBody = z.infer<typeof createOrderSchema>;
 
@@ -45,6 +47,10 @@ type MineQuery = z.infer<typeof mineQuery>;
 type HistoryQuery = z.infer<typeof historyQuery>;
 
 const refundSchema = z.object({ reason: z.string().max(300).optional() });
+const bonusQuoteSchema = z.object({
+  listingId: z.string().uuid(),
+  qty: z.coerce.number().int().positive().optional(),
+});
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
@@ -64,6 +70,12 @@ export class OrdersController {
     await this.blocks.assertCanBuy(user.userId, body.listingId);
     const { listingId, ...opts } = body;
     return this.orders.create(user.userId, listingId, opts);
+  }
+
+  /** Сколько бонусов спишется в заказе лота (часть 146). Стоит до `:id`. */
+  @Get('bonus-quote')
+  bonusQuote(@CurrentUser() user: AuthUser, @Query(new ZodValidationPipe(bonusQuoteSchema)) q: z.infer<typeof bonusQuoteSchema>) {
+    return this.orders.bonusQuote(user.userId, q.listingId, q.qty);
   }
 
   @Get('mine')
