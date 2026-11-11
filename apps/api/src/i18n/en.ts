@@ -642,4 +642,9 @@ export const EN_API: Phrasebook = {
   'Отметить «данные получены» можно после ручной выдачи': 'You can mark “details received” after a manual delivery',
   'Возраст аккаунта — 0, 1, 7 или 30 дней': 'Account age: 0, 1, 7 or 30 days',
   'Проигранных споров — 0, 1 или 3': 'Lost disputes: 0, 1 or 3',
+  // Возврат на карту при отмене (часть 137)
+  'Отменить с возвратом можно оплаченный, ещё не выданный заказ': 'Only a paid order that hasn’t been delivered can be cancelled with a refund',
+  'Этот заказ вернуть на карту нельзя — только на баланс': 'This order can’t be refunded to the card — only to the balance',
+  'Заказ уже выдан или отменён': 'The order has already been delivered or cancelled',
+  'Платёжная система не приняла возврат. Попробуйте позже или верните на баланс.': 'The payment system didn’t accept the refund. Try later or refund to the balance.',
 };

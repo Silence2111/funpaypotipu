@@ -6,13 +6,7 @@ import {
 } from '@nestjs/common';
 import { z } from 'zod';
 import type { GatewayMethodKey } from '@gamemarket/shared';
-import type {
-  CardPrint,
-  DepositInput,
-  DepositSession,
-  PaymentProvider,
-  WebhookEvent,
-} from './payment.provider';
+import type { CardPrint, DepositInput, DepositSession, PaymentProvider, WebhookEvent, RefundInput } from './payment.provider';
 
 /** Способы, которые ЮKassa принимает: СБП и карта (Apple Pay и Google Pay — картой). */
 export const YOOKASSA_METHODS: readonly GatewayMethodKey[] = [
@@ -313,6 +307,34 @@ export class YooKassaProvider implements PaymentProvider {
       throw new ServiceUnavailableException('Платёжный шлюз не принял платёж. Попробуйте ещё раз.');
     }
     return { id: payment.data.id, url };
+  }
+
+  /**
+   * Возврат платежа (часть 137): POST /refunds с id платежа ЮKassa. Ключ
+   * идемпотентности — по заказу: повтор не вернёт деньги дважды.
+   */
+  async refund(input: RefundInput): Promise<{ id: string }> {
+    if (!input.externalId) throw new Error('Нет номера платежа ЮKassa для возврата');
+    let res: Response;
+    try {
+      res = await fetch(`${this.api}/refunds`, {
+        method: 'POST',
+        headers: this.headers({ 'Idempotence-Key': input.idempotenceKey }),
+        body: JSON.stringify({
+          payment_id: input.externalId,
+          amount: { value: toValue(input.amount), currency: input.currency },
+          description: input.description.slice(0, 250),
+        }),
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch (e) {
+      throw new Error(`ЮKassa недоступна: ${(e as Error).message}`);
+    }
+    const json = (await res.json().catch(() => null)) as { id?: string; status?: string } | null;
+    if (!res.ok || !json?.id || json.status === 'canceled') {
+      throw new Error(`ЮKassa не приняла возврат (${res.status}): ${JSON.stringify(json).slice(0, 300)}`);
+    }
+    return { id: json.id };
   }
 
   /** Отменить платёж в ожидании подтверждения — блокировка на карте снимается. */

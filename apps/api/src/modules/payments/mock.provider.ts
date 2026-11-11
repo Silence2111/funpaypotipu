@@ -2,12 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { GATEWAY_METHOD_KEYS } from '@gamemarket/shared';
-import type {
-  DepositInput,
-  DepositSession,
-  PaymentProvider,
-  WebhookEvent,
-} from './payment.provider';
+import type { DepositInput, DepositSession, PaymentProvider, WebhookEvent, RefundInput } from './payment.provider';
 
 const webhookSchema = z.object({
   providerRef: z.string().min(1),
@@ -35,6 +30,11 @@ export class MockPaymentProvider implements PaymentProvider {
       url: `/api/payments/mock/callback?providerRef=${input.providerRef}`,
       redirect: false,
     };
+  }
+
+  /** Возврат — в заглушке всегда успешен (часть 137). */
+  async refund(input: RefundInput): Promise<{ id: string }> {
+    return { id: `mock-refund-${input.providerRef}` };
   }
 
   /** Подпись события (в проде это делает провайдер; здесь — для dev/тестов). */

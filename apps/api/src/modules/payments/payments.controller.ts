@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { GATEWAY_METHOD_KEYS, type GatewayMethodKey } from '@gamemarket/shared';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
@@ -51,6 +51,14 @@ export class PaymentsController {
    * разбирает и проверяет провайдер: заглушка — по HMAC-подписи, ЮKassa —
    * запросом статуса платежа в своём API. Ответ 200 — «принято, не повторять».
    */
+  /** Отменить оплаченный заказ с возвратом на карту или по СБП (часть 137). */
+  @Post('orders/:id/cancel-to-original')
+  @UseGuards(JwtAuthGuard)
+  @RateLimit('payments', 30, 600)
+  cancelToOriginal(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.payments.cancelToOriginal(id, user.userId);
+  }
+
   @Post('webhook/:provider')
   @HttpCode(200)
   webhook(@Param('provider') provider: string, @Body() body: unknown) {

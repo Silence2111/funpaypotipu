@@ -8,6 +8,7 @@ import {
   NotFoundException,
   Optional,
   HttpException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type Order, type OrderStatus, type Payment } from '@gamemarket/db';
@@ -44,6 +45,8 @@ import {
   buyerFilterActive,
   buyerFilterMiss,
   buyerFilterOf,
+  canRefundToOriginal,
+  refundToOriginal,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { likeText } from '../../common/like';
@@ -822,6 +825,46 @@ export class OrdersService {
     await this.partners.accrue(order).catch((e) => {
       this.logger.warn(`Партнёрское начисление по ${order.id}: ${(e as Error).message}`);
     });
+  }
+
+  /**
+   * Отмена оплаченного заказа с возвратом исходным способом (часть 137):
+   * заказ занимается первым (повтор и параллельная выдача не пройдут), затем
+   * шлюз возвращает платёж (`refund` — от PaymentsService), и только после
+   * этого проводки. Шлюз отказал — заказ снова оплачен, деньги на месте.
+   */
+  async cancelToOriginal(orderId: string, buyerId: string, refund: (order: Order) => Promise<void>) {
+    const order = await this.get(orderId);
+    if (order.buyerId !== buyerId) throw new ForbiddenException('Это не ваш заказ');
+    if (order.status !== 'paid') throw new ConflictException('Отменить с возвратом можно оплаченный, ещё не выданный заказ');
+    if (order.serviceStartedAt) {
+      throw new ConflictException('Продавец уже взял заказ в работу: отменить можно через спор или попросить продавца вернуть деньги');
+    }
+    if (!canRefundToOriginal(order)) {
+      throw new BadRequestException('Этот заказ вернуть на карту нельзя — только на баланс');
+    }
+    const claimed = await this.prisma.order.updateMany({ where: { id: order.id, status: 'paid' }, data: { status: 'refunded' } });
+    if (!claimed.count) throw new ConflictException('Заказ уже выдан или отменён');
+    try {
+      await refund(order);
+    } catch (e) {
+      await this.prisma.order.update({ where: { id: order.id }, data: { status: 'paid' } });
+      this.logger.warn(`Возврат на карту по ${order.publicNumber}: ${(e as Error).message}`);
+      throw new ServiceUnavailableException('Платёжная система не приняла возврат. Попробуйте позже или верните на баланс.');
+    }
+    await this.ledger.post({
+      legs: refundToOriginal(order.amount, order.paymentSurcharge),
+      currency: order.currency,
+      idempotencyKey: `refund:${order.id}`,
+      orderId: order.id,
+      refType: 'order_refund_original',
+      refId: order.id,
+    });
+    await this.restock(order);
+    await this.notifications.notify(order.buyerId, 'order_refunded', { orderId: order.id, to: 'original' });
+    await this.notifications.notify(order.sellerId, 'order_cancelled', { orderId: order.id });
+    await this.sys(order.id, 'Заказ отменён, деньги возвращаются тем же способом оплаты — банк зачислит их за 1–10 дней.');
+    return this.get(order.id);
   }
 
   /** Отмена: до оплаты — просто отмена; после оплаты — возврат на баланс покупателя. */

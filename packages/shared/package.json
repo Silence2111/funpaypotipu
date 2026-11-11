@@ -128,6 +128,10 @@
     "./buyer-filter": {
       "types": "./dist/buyer-filter.d.ts",
       "default": "./dist/buyer-filter.js"
+    },
+    "./refund": {
+      "types": "./dist/refund.d.ts",
+      "default": "./dist/refund.js"
     }
   },
   "scripts": {
