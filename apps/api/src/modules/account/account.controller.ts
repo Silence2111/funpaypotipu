@@ -8,6 +8,7 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { BlocksService } from '../access/blocks.service';
 import { AccountService } from './account.service';
 import { ConsentService } from './consent.service';
+import { DeletionService } from './deletion.service';
 import { ctxOf } from '../auth/auth-http';
 import { PushService, type PushSubscriptionInput } from '../notifications/push.service';
 import { NOTIFY_GROUPS } from '@gamemarket/shared';
@@ -37,6 +38,14 @@ const profileSchema = z.object({
   bio: z.string().trim().max(500, 'О себе — до 500 символов').nullable().optional(),
 });
 
+const deletionSchema = z.object({
+  username: z.string().trim().min(1, 'Впишите свой ник').max(40),
+  password: z.string().max(200).optional(),
+  code: z.string().trim().max(20).optional(),
+  // Остаток меньше вывода сгорит — человек это подтвердил.
+  forfeit: z.boolean().optional(),
+});
+
 @Controller('account')
 @UseGuards(JwtAuthGuard)
 export class AccountController {
@@ -45,7 +54,25 @@ export class AccountController {
     private readonly blocks: BlocksService,
     private readonly push: PushService,
     private readonly consent: ConsentService,
+    private readonly deletion: DeletionService,
   ) {}
+
+  /** Удаление аккаунта (часть 124): что мешает и что спросит форма. */
+  @Get('deletion')
+  deletionStatus(@CurrentUser() user: AuthUser) {
+    return this.deletion.status(user.userId);
+  }
+
+  /** Удалить аккаунт: ник, пароль и код, если есть; при сделках, спорах и деньгах — 409. */
+  @Post('deletion')
+  @HttpCode(200)
+  @RateLimit('account-deletion', 10, 3600)
+  deleteAccount(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(deletionSchema)) body: z.infer<typeof deletionSchema>,
+  ) {
+    return this.deletion.request(user.userId, body);
+  }
 
   /** Согласие на обработку ПД (часть 120): действующее, история, текущая редакция. */
   @Get('consent')

@@ -17,7 +17,7 @@ const USERNAME_RE = /^[a-z0-9_]{3,32}$/;
 const safeNext = (raw: string | null) =>
   raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
 
-type Phase = 'loading' | 'username' | 'code' | 'error';
+type Phase = 'loading' | 'username' | 'code' | 'error' | 'deleted';
 
 /**
  * Завершение входа через Яндекс ID, VK ID или Telegram. Сервис уже подтвердил
@@ -40,10 +40,12 @@ function Complete() {
   const [recovery, setRecovery] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Удалённый аккаунт, 30 дней не прошли (часть 124): до какой даты вернуть.
+  const [eraseAt, setEraseAt] = useState<string | null>(null);
   const started = useRef(false);
 
   const send = useCallback(
-    async (extra: { username?: string; code?: string; pdConsent?: boolean }) => {
+    async (extra: { username?: string; code?: string; pdConsent?: boolean; restore?: boolean }) => {
       setBusy(true);
       setMsg(null);
       try {
@@ -60,8 +62,13 @@ function Complete() {
           suggested?: string;
           name?: string;
           provider?: string;
+          eraseAt?: string;
         } | null;
         switch (body?.error) {
+          case 'account_deleted':
+            setPhase('deleted');
+            setEraseAt(body.eraseAt ?? null);
+            break;
           case 'username_required':
             setPhase('username');
             setProvider(body.provider ?? null);
@@ -298,6 +305,21 @@ function Complete() {
         </form>
       )}
 
+      {phase === 'deleted' && (
+        <div className="card stack-form" style={{ gap: 16, padding: 24, marginTop: 20 }}>
+          <p style={{ margin: 0 }}>
+            {eraseAt
+              ? t('Аккаунт удалён. До {date} его можно вернуть — лоты останутся в архиве.', {
+                  date: new Date(eraseAt).toLocaleDateString(t.locale),
+                })
+              : t('Аккаунт удалён. Его можно вернуть в течение 30 дней после удаления.')}
+          </p>
+          <button type="button" className="btn" disabled={busy}
+            onClick={() => void send({ restore: true, ...(code.trim() ? { code: code.trim() } : {}) })}>
+            {t('Восстановить аккаунт')}
+          </button>
+        </div>
+      )}
       {phase === 'error' && (
         <div className="card stack-form" style={{ gap: 16, padding: 24, marginTop: 20 }}>
           <div className="alert error" role="alert">

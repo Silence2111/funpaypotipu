@@ -250,7 +250,7 @@ describe('завершение входа', () => {
       links: [{ id: 'l1', userId: 'u1', provider: 'yandex', subject: 'g-1' }],
     });
     await svc.complete(ticketFor({ provider: 'yandex', subject: 'g-1' }), { code: '123456' }, {});
-    expect(auth.loginVerified).toHaveBeenCalledWith('u1', '123456', {});
+    expect(auth.loginVerified).toHaveBeenCalledWith('u1', '123456', {}, undefined);
   });
 
   it('почту подтвердили и Яндекс ID, и площадка — аккаунт находится', async () => {
@@ -262,7 +262,7 @@ describe('завершение входа', () => {
       {},
       {},
     );
-    expect(auth.loginVerified).toHaveBeenCalledWith('u3', undefined, {});
+    expect(auth.loginVerified).toHaveBeenCalledWith('u3', undefined, {}, undefined);
   });
 
   it('почта на площадке не подтверждена — чужой аккаунт по ней не отдаётся', async () => {

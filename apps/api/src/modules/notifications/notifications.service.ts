@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common'
 import { Prisma, PrismaClient } from '@gamemarket/db';
 import { PRISMA } from '../../prisma/prisma.module';
 import {
+  CONSENT_ONLY_NOTIFY_GROUPS,
   EN_SHARED,
   HIDDEN_MARK,
   isPayoutRejectReason,
@@ -98,6 +99,12 @@ export class NotificationsService {
     payload: Prisma.InputJsonValue = {},
     opts: NotifyOptions = {},
   ) {
+    // Отозвал согласие (часть 124): подборки и предложения не шлём вовсе —
+    // ни на сайте, ни письмом. Сделки, деньги и безопасность — по договору.
+    const group = notifyGroupOf(type);
+    if (group && (CONSENT_ONLY_NOTIFY_GROUPS as readonly string[]).includes(group) && (await this.consentRevoked(userId))) {
+      return null;
+    }
     const notification = await this.prisma.notification.create({
       data: { userId, type, channel: 'in_app', payload },
     });
@@ -148,6 +155,12 @@ export class NotificationsService {
     if (this.push.enabled && wantsNotify(prefs, 'push', type))
       void this.pushTo(userId, lang, type, data);
     return notification;
+  }
+
+  /** Согласие было и отозвано, нового нет. Аккаунты до части 120 без записей — не в счёт. */
+  private async consentRevoked(userId: string): Promise<boolean> {
+    const rows = await this.prisma.personalDataConsent.findMany({ where: { userId }, select: { revokedAt: true }, take: 20 });
+    return rows.length > 0 && rows.every((r) => r.revokedAt);
   }
 
   /** Тема письма на языке получателя. */

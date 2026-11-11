@@ -222,8 +222,8 @@ export const AUTH: Record<string, string> = {
     'You can’t create an account without consent to the processing of personal data',
   'Не удалось загрузить согласие.': 'Couldn’t load the consent.',
   'Согласие дано — спасибо.': 'Consent given — thank you.',
-  'Согласие отозвано. Данные, без которых не исполнить заключённые сделки и требования закона, храним в установленные сроки; остальные не обрабатываем.':
-    'Consent withdrawn. Data needed to fulfil completed deals and legal requirements is kept for the required periods; the rest is no longer processed.',
+  'Согласие отозвано. Подборки и предложения больше не придут. Через 30 дней уничтожим имя на витрине, «о себе», аватар, историю входов, сохранённые поиски и подписки, если не дадите согласие снова. Сделки, деньги и вход по почте остаются — это договор и закон.':
+    'Consent withdrawn. You won’t get recommendations and offers any more. In 30 days we’ll erase your display name, “about”, avatar, sign-in history, saved searches and subscriptions unless you give consent again. Deals, money and email sign-in stay — that’s the contract and the law.',
   дано: 'given',
   'не дано': 'not given',
   '{date}, {how}': '{date}, {how}',
@@ -235,8 +235,8 @@ export const AUTH: Record<string, string> = {
   'Даю согласие': 'I give consent',
   'Да, отозвать': 'Yes, withdraw',
   'Отозвать согласие': 'Withdraw consent',
-  'Отзыв записывается с датой. Заключённые сделки и расчёты сохранятся; сайт будет просить согласие снова, пока вы его не дадите.':
-    'The withdrawal is recorded with a date. Completed deals and payments stay; the site will keep asking for consent until you give it.',
+  'Отзыв записывается с датой. Подборки и предложения перестанут приходить сразу, а через 30 дней уничтожим то, что обрабатывали только по согласию: имя на витрине, «о себе», аватар, историю входов, поиски и подписки. Сделки, расчёты и вход останутся.':
+    'The withdrawal is recorded with a date. Recommendations and offers stop right away, and in 30 days we’ll erase what we processed only with your consent: display name, “about”, avatar, sign-in history, searches and subscriptions. Deals, payments and sign-in stay.',
   'Подтвердите согласие на обработку персональных данных — теперь оно оформляется отдельно от оферты.':
     'Please confirm your consent to the processing of personal data — it is now given separately from the offer.',
   Позже: 'Later',
@@ -245,4 +245,11 @@ export const AUTH: Record<string, string> = {
   'при входе через VK ID': 'when signing in with VK ID',
   'при входе через Telegram': 'when signing in with Telegram',
   'в кабинете': 'in your account',
+
+  // Удаление аккаунта (часть 124)
+  'Аккаунт удалён. До {date} его можно вернуть — лоты останутся в архиве.':
+    'Account deleted. You can restore it until {date} — listings stay archived.',
+  'Аккаунт удалён. Его можно вернуть в течение 30 дней после удаления.':
+    'Account deleted. You can restore it within 30 days of deletion.',
+  'Восстановить аккаунт': 'Restore account',
 };

@@ -205,7 +205,11 @@ model User {
   lastLoginAt   DateTime?  @map("last_login_at")
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
+  /// Удалён владельцем (часть 124): вход закрыт, 30 дней можно восстановить.
   deletedAt     DateTime?  @map("deleted_at")
+  /// Персональные данные уничтожены через 30 дней после удаления (ч. 5 ст. 21
+  /// 152-ФЗ): почта, имя, вход, реквизиты. Остались сделки и деньги — без них.
+  erasedAt      DateTime?  @map("erased_at")
   // Кто привёл (партнёрская программа, часть 116) и когда: срок начислений
   // партнёру считается от этой даты. Ставится один раз в первые сутки.
   referredById  String?    @map("referred_by_id") @db.Uuid
@@ -1279,6 +1283,9 @@ model PersonalDataConsent {
   givenAt   DateTime  @default(now()) @map("given_at")
   revokedAt DateTime? @map("revoked_at")
   revokeIp  String?   @map("revoke_ip") @db.VarChar(64)
+  /// Данные, которые обрабатывались только по согласию, уничтожены через 30
+  /// дней после отзыва (часть 124).
+  erasedAt  DateTime? @map("erased_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

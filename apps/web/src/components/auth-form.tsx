@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch, setSession, type SessionUser } from '@/lib/session';
-import { apiErrorMessage, errorCode } from '@/lib/errors';
+import { apiErrorMessage, errorBody, errorCode } from '@/lib/errors';
 import { SocialLogin } from '@/components/social-login';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
@@ -64,6 +64,10 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
   const [codeStep, setCodeStep] = useState(false);
   const [recovery, setRecovery] = useState(false);
   const [code, setCode] = useState('');
+  // Аккаунт удалён, 30 дней не прошли (часть 124): до какой даты можно вернуть.
+  const [deletedUntil, setDeletedUntil] = useState<string | null>(null);
+  // Другая почта — уже не тот удалённый аккаунт.
+  useEffect(() => setDeletedUntil(null), [email]);
   // Код партнёра (часть 116): из ссылки — уже в браузере; без ссылки — полем.
   // Поле — только пока программа работает.
   const [partnerOn, setPartnerOn] = useState(false);
@@ -98,7 +102,7 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
       .catch(() => {});
   }, [isRegister]);
 
-  async function submit(e: FormEvent) {
+  async function submit(e: FormEvent, restore = false) {
     e.preventDefault();
     setTouched({ email: true, username: true, password: true, agreed: true, pdConsent: true });
     if (Object.values(errors).some(Boolean)) return;
@@ -118,13 +122,22 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
       const path = isRegister ? '/auth/register' : '/auth/login';
       const payload = isRegister
         ? { email, password, username: username.trim(), pdConsent: true }
-        : { email, password, ...(codeStep && code.trim() ? { code: code.trim() } : {}) };
+        : {
+            email,
+            password,
+            ...(codeStep && code.trim() ? { code: code.trim() } : {}),
+            ...(restore ? { restore: true } : {}),
+          };
       const res = await apiFetch<AuthResponse>(path, { method: 'POST', body: JSON.stringify(payload) });
       setSession(res.accessToken, res.user);
       router.push(next);
     } catch (err) {
       const kind = errorCode(err);
-      if (kind === 'two_factor_required') {
+      if (kind === 'account_deleted') {
+        const until = errorBody(err)?.eraseAt;
+        setDeletedUntil(typeof until === 'string' ? until : '');
+        setError(null);
+      } else if (kind === 'two_factor_required') {
         // Пароль верный — спрашиваем код. Раньше форма его не спрашивала, и
         // включивший защиту больше не мог войти.
         setCodeStep(true);
@@ -248,15 +261,32 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
         </>
         )}
         {error && <div className="alert error" role="alert">{error}</div>}
-        <button className="btn lg block" type="submit" disabled={busy}>
-          {busy
-            ? isRegister
-              ? t('Создаём аккаунт…')
-              : t('Входим…')
-            : isRegister
-              ? t('Создать аккаунт')
-              : t('Войти')}
-        </button>
+        {deletedUntil !== null && (
+          <div className="alert" role="status" style={{ display: 'grid', gap: 10 }}>
+            <span>
+              {deletedUntil
+                ? t('Аккаунт удалён. До {date} его можно вернуть — лоты останутся в архиве.', {
+                    date: new Date(deletedUntil).toLocaleDateString(t.locale),
+                  })
+                : t('Аккаунт удалён. Его можно вернуть в течение 30 дней после удаления.')}
+            </span>
+            <button type="button" className="btn lg block" disabled={busy} onClick={(e) => void submit(e, true)}>
+              {t('Восстановить аккаунт')}
+            </button>
+          </div>
+        )}
+        {/* Аккаунт удалён — одна кнопка, «Восстановить» выше: «Войти» снова дало бы тот же ответ. */}
+        {deletedUntil === null && (
+          <button className="btn lg block" type="submit" disabled={busy}>
+            {busy
+              ? isRegister
+                ? t('Создаём аккаунт…')
+                : t('Входим…')
+              : isRegister
+                ? t('Создать аккаунт')
+                : t('Войти')}
+          </button>
+        )}
         {codeStep && (
           <button type="button" className="link-button" style={{ alignSelf: 'center' }}
             onClick={() => { setCodeStep(false); setCode(''); setError(null); }}>

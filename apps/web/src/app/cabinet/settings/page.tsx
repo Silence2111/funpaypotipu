@@ -9,6 +9,7 @@ import { CabinetNav } from '@/components/cabinet-nav';
 import { NotificationSettings } from '@/components/notification-settings';
 import { useT } from '@/lib/i18n/client';
 import { ConsentSettings } from '@/components/consent';
+import { AccountDeletion } from '@/components/account-deletion';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -217,6 +218,9 @@ export default function SettingsPage() {
           </div>
         )}
       </section>
+
+      {/* Удаление — последним: необратимое действие внизу страницы (часть 124). */}
+      <AccountDeletion />
     </div>
   );
 }

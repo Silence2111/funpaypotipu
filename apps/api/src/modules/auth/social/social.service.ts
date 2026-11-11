@@ -210,7 +210,7 @@ export class SocialService {
   /** Завершение входа по билету: ник для нового аккаунта, код — если включена защита. */
   async complete(
     ticketCookie: string | undefined,
-    input: { code?: string; username?: string; pdConsent?: boolean },
+    input: { code?: string; username?: string; pdConsent?: boolean; restore?: boolean },
     ctx: RequestCtx,
   ): Promise<IssuedAuth> {
     let profile: SocialProfile;
@@ -225,7 +225,7 @@ export class SocialService {
       consent: input.pdConsent === true,
       ctx,
     });
-    return this.auth.loginVerified(userId, input.code?.trim(), ctx);
+    return this.auth.loginVerified(userId, input.code?.trim(), ctx, input.restore);
   }
 
   private async resolve(

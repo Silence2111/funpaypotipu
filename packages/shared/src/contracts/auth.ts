@@ -83,6 +83,8 @@ export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
   code: z.string().optional(), // TOTP-код, если включена 2FA
+  // Аккаунт удалён, но 30 дней ещё не прошли: «Восстановить» на форме входа (часть 124).
+  restore: z.boolean().optional(),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
