@@ -2033,7 +2033,13 @@ async function scenarioSellerApi(rnd) {
     const r = await j('/v1/me', K);
     if (r.status === 429) limited = r;
   }
-  const log = (await j('/account/api/requests', S)).body;
+  // Запрос пишется в журнал после ответа — под нагрузкой чуть позже.
+  let log = [];
+  for (let i = 0; i < 20; i++) {
+    log = (await j('/account/api/requests', S)).body;
+    if (log.some?.((r) => r.status === 429)) break;
+    await wait(500);
+  }
   const revoked = await j(`/account/api/keys/${made.body.id}`, { method: 'DELETE', ...S });
   const after = await j('/v1/me', K);
   check(
