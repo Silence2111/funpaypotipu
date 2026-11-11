@@ -629,4 +629,8 @@ export const CABINET: Record<string, string> = {
   'Причина и обжалование': 'Reason and appeal',
   'Проверка затянулась — заявку передали старшему сотруднику.': 'The check is taking longer — your request went to a senior staff member.',
   'Проверим до {date}.': 'We’ll check it by {date}.',
+  // Чистая выдача (часть 143)
+  'повтор — в разделе виден другой': 'duplicate — another one is shown in the section',
+  'В разделе виден самый дешёвый из одинаковых лотов, этот выйдет, когда тот купят. Проще держать один лот с наличием.':
+    'The section shows the cheapest of identical listings; this one appears once that is bought. It’s simpler to keep one listing with stock.',
 };

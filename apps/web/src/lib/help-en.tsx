@@ -17,6 +17,8 @@ import {
   SALE_MIN_PCT,
   SELLER_PROMO_MAX_PCT,
   SELLER_PROMO_MIN_PCT,
+  APPEAL_REVIEW_HOURS,
+  APPEAL_WINDOW_DAYS,
 } from '@gamemarket/shared';
 import type { HelpSlug, Terms } from './help';
 import { formatPrice } from './format';
@@ -391,6 +393,46 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
     </>
   ),
 
+  'vydacha-i-reyting': (c, t) => (
+    <>
+      <h2>Order of listings in a section</h2>
+      <ul>
+        <li>On top — promoted listings, while the promotion is paid, marked “promoted”.</li>
+        <li>
+          Next — listings raised with “Raise”: once every {hours(bumpCooldownHours(0))}, from 10 sales — every{' '}
+          {hours(bumpCooldownHours(10))}, from 50 — every {hours(bumpCooldownHours(50))}. Then — newest first.
+        </li>
+        <li>A buyer can choose another order: cheapest, most expensive, popular (by sales), “price dropped”.</li>
+        <li>Filters: section parameters, price, “Seller online”, “Instant delivery”.</li>
+        <li>
+          Identical listings of one seller show as one card, the cheapest: the others appear once it is bought.
+          Identical means the same title ignoring case and symbols, and the same parameters.
+        </li>
+      </ul>
+      <p>
+        Promotion is equal for everyone: {formatPrice(c.promoDay, 'RUB', t)} per day, packages of {PROMO_DAYS.join(', ')}{' '}
+        days. Rating, level and fee don’t affect the place in a section.
+      </p>
+      <h2>Seller rating</h2>
+      <p>
+        The average score of buyers’ reviews on completed deals, from 1 to 5, with the number of reviews next to it. Only
+        the buyer of that deal can leave a review. Rating and sales decide the level: the fee discount and order check
+        period are in <Link href="/pomosch/komissii">“Fees and seller levels”</Link>.
+      </p>
+      <h2>Blocks and other restrictions</h2>
+      <ul>
+        <li>
+          Blocking a listing, freezing, holding an amount, a ban on writing — only with a clause of the{' '}
+          <Link href="/rules">rules</Link> and a reason. You see them in your account, in “Moderation decisions”.
+        </li>
+        <li>
+          Appeal within {days(APPEAL_WINDOW_DAYS)}, in the same place. The answer comes within {hours(APPEAL_REVIEW_HOURS)},
+          decided by another staff member, not the one who restricted.
+        </li>
+        <li>If the decision is overturned, the restriction is lifted at once and held money returns to the balance.</li>
+      </ul>
+    </>
+  ),
   'oplata-i-vyvod': (c, t) => (
     <>
       <h2>Payment methods</h2>

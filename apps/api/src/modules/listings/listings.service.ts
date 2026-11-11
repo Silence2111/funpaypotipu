@@ -11,6 +11,7 @@ import {
 import { Interval } from '@nestjs/schedule';
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type FulfillmentType } from '@gamemarket/db';
+import { titleNoiseError } from '@gamemarket/shared';
 import {
   SALE_MIN_PRICE,
   SALE_MIN_PCT,
@@ -91,6 +92,8 @@ const bumpWaitMs = (boostUntil: Date | null, cooldownMs: number, now: number) =>
 const cardSelect = {
   id: true,
   title: true,
+  // Лот на английском (часть 144): сайт показывает его англоязычным.
+  titleEn: true,
   price: true,
   currency: true,
   images: true,
@@ -159,6 +162,8 @@ const mineSelect = {
   // Снят, потому что раздел закрыт; на проверке — какая фраза (часть 122).
   pausedForSection: true,
   reviewReason: true,
+  // Повтор другого своего лота — в разделе не виден (часть 143).
+  dupOf: true,
   categoryId: true,
   boostUntil: true,
   promotedUntil: true,
@@ -194,7 +199,8 @@ export function listingFilters(f: {
       attributes: { path: [k], equals: v },
     }));
   }
-  if (f.q) where.title = containsText(f.q);
+  // Английское название (часть 144) ищется наравне с русским.
+  if (f.q) where.OR = [{ title: containsText(f.q) }, { titleEn: containsText(f.q) }];
   if (f.minPrice != null || f.maxPrice != null) {
     where.price = {
       gte: f.minPrice != null ? BigInt(f.minPrice) : undefined,
@@ -318,7 +324,7 @@ export class ListingsService {
         // Индекс может отставать от статуса: распроданный при оплате лот
         // ещё лежит в нём как активный. Статус проверяем по базе.
         const rows = await this.prisma.listing.findMany({
-          where: { id: { in: found.ids }, status: 'active' },
+          where: { id: { in: found.ids }, status: 'active', dupOf: null },
           select: cardSelect,
         });
         const byId = new Map(rows.map((r) => [r.id, r]));
@@ -330,8 +336,9 @@ export class ListingsService {
       }
     }
 
-    // Fallback: Postgres.
-    const where: Prisma.ListingWhereInput = { status: 'active' };
+    // Fallback: Postgres. Повторы лотов продавца (часть 143) — одной карточкой:
+    // в выдаче только самый дешёвый из одинаковых, остальные ждут своей очереди.
+    const where: Prisma.ListingWhereInput = { status: 'active', dupOf: null };
     if (query.sellerId) where.sellerId = query.sellerId;
     if (query.instant) where.fulfillmentType = { in: ['auto_key', 'provider'] };
     // Онлайн — тот же порог, что у зелёной точки на карточке: 5 минут.
@@ -551,6 +558,7 @@ export class ListingsService {
       select: {
         ...cardSelect,
         description: true,
+        descriptionEn: true,
         attributes: true,
         buyerFields: true,
         fulfillmentType: true,
@@ -629,6 +637,7 @@ export class ListingsService {
         gameId: true,
         categoryId: true,
         description: true,
+        descriptionEn: true,
         attributes: true,
         buyerFields: true,
         stock: true,
@@ -978,6 +987,29 @@ export class ListingsService {
     return { awaySince: null, restored: restored.count };
   }
 
+  /**
+   * Такой же лот уже в продаже (часть 143) — форма предупреждает до
+   * публикации: в разделе покажем одну карточку, лучше поднять наличие.
+   * Ключ считает та же функция базы, что и триггер повторов.
+   */
+  async duplicateOf(sellerId: string, q: { categoryId: string; title: string; attrs?: string; except?: string }) {
+    let attrs: Record<string, unknown> = {};
+    try {
+      const o: unknown = q.attrs ? JSON.parse(q.attrs) : {};
+      if (o && typeof o === 'object' && !Array.isArray(o)) attrs = o as Record<string, unknown>;
+    } catch {
+      attrs = {};
+    }
+    const rows = await this.prisma.$queryRaw<Array<{ id: string; title: string }>>`
+      SELECT "id", "title" FROM "listings"
+      WHERE "seller_id" = ${sellerId}::uuid AND "category_id" = ${q.categoryId}::uuid AND "status" = 'active'
+        AND "dup_key" = listing_dup_key(${q.title}, ${JSON.stringify(attrs)}::jsonb)
+        ${q.except ? Prisma.sql`AND "id" <> ${q.except}::uuid` : Prisma.empty}
+      ORDER BY "price", "created_at", "id"
+      LIMIT 1`;
+    return { duplicate: rows[0] ?? null };
+  }
+
   async create(sellerId: string, input: CreateListingInput) {
     const category = await this.prisma.category.findFirst({
       where: { id: input.categoryId, gameId: input.gameId },
@@ -986,6 +1018,9 @@ export class ListingsService {
     if (category.salesClosed) throw sectionClosedError(category.closedReason);
     await this.antifraud?.assertCanList(sellerId);
 
+    // Чистая выдача (часть 143): без гирлянд эмодзи, капса и «!!!».
+    const noise = titleNoiseError(input.title) ?? (input.titleEn ? titleNoiseError(input.titleEn) : null);
+    if (noise) throw new BadRequestException(noise);
     await this.validateAttributes(input.categoryId, input.attributes);
     // Слова о передаче аккаунта — лот на проверку модератору (часть 122).
     const review = accountTransferMatch(input.title, input.description, attributeText(input.attributes));
@@ -1013,6 +1048,8 @@ export class ListingsService {
         categoryId: input.categoryId,
         title: input.title,
         description: input.description,
+        titleEn: input.titleEn ?? null,
+        descriptionEn: input.descriptionEn ?? null,
         price: terms ? topupQuote(terms.min, terms.markupBps).price : BigInt(input.price),
         topupMarkupBps: terms?.markupBps ?? null,
         topupMin: terms?.min ?? null,
@@ -1347,8 +1384,19 @@ export class ListingsService {
     // убрать обязательное «Звание» или вписать значение не из списка.
     if (input.attributes !== undefined) await this.validateAttributes(current.categoryId, input.attributes);
     const data: Prisma.ListingUpdateInput = {};
-    if (input.title !== undefined) data.title = input.title;
+    if (input.title !== undefined) {
+      // Старое название с эмодзи не мешает править цену; новое — без шума (часть 143).
+      const noise = input.title !== current.title ? titleNoiseError(input.title) : null;
+      if (noise) throw new BadRequestException(noise);
+      data.title = input.title;
+    }
     if (input.description !== undefined) data.description = input.description;
+    if (input.titleEn !== undefined) {
+      const noise = input.titleEn && input.titleEn !== current.titleEn ? titleNoiseError(input.titleEn) : null;
+      if (noise) throw new BadRequestException(noise);
+      data.titleEn = input.titleEn;
+    }
+    if (input.descriptionEn !== undefined) data.descriptionEn = input.descriptionEn;
     if (input.deliveryTemplate !== undefined) data.deliveryTemplate = this.template(input.deliveryTemplate);
     // Способ выдачи после правки: у аккаунтов, предметов и услуг продавец
     // включает и выключает автовыдачу, у ключей и пополнений его задаёт раздел.
@@ -1526,6 +1574,7 @@ export class ListingsService {
         stock: true,
         qtyDiscounts: true,
         title: true,
+        titleEn: true,
         description: true,
         attributes: true,
         category: {

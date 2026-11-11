@@ -37,6 +37,8 @@ export interface MyLot {
   pausedForSection?: boolean;
   /** На проверке у модератора — найденная фраза о передаче аккаунта. */
   reviewReason?: string | null;
+  /** Повтор своего лота (часть 143): в разделе виден лот dupOf, этот — после него. */
+  dupOf?: string | null;
   boostUntil?: string | null;
   promotedUntil?: string | null;
   /** Скидка: прежняя цена и срок; price — уже со скидкой. */
@@ -175,6 +177,11 @@ export function MyLotRow({
             </span>
           )}
           {closed && <span className="badge">{t('раздел закрыт для продажи')}</span>}
+          {active && lot.dupOf && (
+            <span className="badge warning" title={t('В разделе виден самый дешёвый из одинаковых лотов, этот выйдет, когда тот купят. Проще держать один лот с наличием.')}>
+              {t('повтор — в разделе виден другой')}
+            </span>
+          )}
           {counted && !soldOut && <span>{t('в наличии {qty}', { qty: formatQty(lot.stock!, lot.unitName, t) })}</span>}
           {active && later(lot.boostUntil) && <span>{t('в топе до {time}', { time: hhmm(lot.boostUntil!, t) })}</span>}
           {active && later(lot.promotedUntil) && (

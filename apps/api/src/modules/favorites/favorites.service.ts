@@ -87,6 +87,7 @@ export class FavoritesService {
       select: {
         id: true,
         title: true,
+        titleEn: true,
         price: true,
         currency: true,
         images: true,

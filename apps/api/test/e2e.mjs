@@ -1553,8 +1553,14 @@ async function scenarioAppeals(rnd) {
     await wait(500);
     mine = (await j('/payouts/mine', U)).body.find?.((p) => p.id === payout.body.id);
   }
-  const adminNote = await prisma.notification.findFirst({ where: { userId: admin.id, type: 'appeal_overdue' } });
-  const userNote = await prisma.notification.findFirst({ where: { userId: user.id, type: 'payout_delayed' } });
+  // Уведомления уходят после отметки эскалации — под нагрузкой чуть позже.
+  let adminNote = null;
+  let userNote = null;
+  for (let i = 0; i < 20 && !(adminNote && userNote); i++) {
+    adminNote = await prisma.notification.findFirst({ where: { userId: admin.id, type: 'appeal_overdue' } });
+    userNote = await prisma.notification.findFirst({ where: { userId: user.id, type: 'payout_delayed' } });
+    if (!(adminNote && userNote)) await wait(500);
+  }
   check(
     'Сроки: обжалование дольше 48 ч и вывод дольше суток — эскалация, администратору уведомление, человеку — что заявку подняли',
     block.status === 200 && late.status === 201 && !!escalated?.escalatedAt && payout.status === 201 && !!mine?.escalatedAt && !!adminNote && !!userNote,
@@ -2395,6 +2401,74 @@ async function scenarioSteamTrade(rnd) {
   check('В настройках кривую ссылку не сохранить', badPut.status === 400);
   const cleared = await j('/account/steam-trade', { method: 'PUT', token: buyer.token, body: JSON.stringify({ url: '' }) });
   check('Ссылку можно стереть', cleared.status === 200 && (await j('/account/steam-trade', { token: buyer.token })).body.url === null);
+  await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
+}
+
+/**
+ * Чистая выдача (часть 143): одинаковые лоты продавца в разделе — одной
+ * карточкой (самый дешёвый), форма предупреждает о повторе; название без
+ * гирлянд эмодзи, капса и «!!!».
+ */
+async function scenarioCleanListings(rnd) {
+  console.log('\n— Чистая выдача —');
+  const seller = await register('dps', rnd);
+  const title = `Нож Керамбит ${rnd}`;
+  const a = await createListing(seller.token, 'skins', '50000', { title });
+  const b = await createListing(seller.token, 'skins', '30000', { title: `нож керамбит ${rnd}!` });
+  const c = await createListing(seller.token, 'skins', '40000', { title, attributes: { rarity: 'Covert', stattrak: true } });
+  // rnd общий у всех сценариев прогона — берём только лоты этого продавца.
+  const ids = async () =>
+    ((await j(`/listings?gameSlug=cs2&categorySlug=skins&q=${encodeURIComponent(`ерамбит ${rnd}`)}&limit=50`)).body.items ?? [])
+      .filter((x) => x.seller?.id === seller.id)
+      .map((x) => x.id)
+      .sort();
+  const shown = await ids();
+  check('Одинаковые лоты — одной карточкой, самой дешёвой; с другими параметрами — отдельно', JSON.stringify(shown) === JSON.stringify([b, c].sort()), JSON.stringify({ shown, a, b, c }));
+  const mine = (await j('/listings/mine', { token: seller.token })).body;
+  const row = (id) => mine.find?.((x) => x.id === id);
+  check('В «Моих лотах» повтор помечен', row(a)?.dupOf === b && row(b)?.dupOf === null && row(c)?.dupOf === null, JSON.stringify(mine.map?.((x) => [x.id === a ? 'a' : x.id === b ? 'b' : 'c', x.dupOf])));
+  const game = await j('/catalog/games/cs2');
+  const cat = game.body.categories.find((x) => x.slug === 'skins');
+  const dq = (t, attrs, except) =>
+    j(`/listings/mine/duplicate?${new URLSearchParams({ categoryId: cat.id, title: t, attrs: JSON.stringify(attrs), ...(except ? { except } : {}) })}`, { token: seller.token });
+  const d1 = await dq(`НОЖ — керамбит ${rnd}`, { rarity: 'Covert' });
+  const d2 = await dq(`Нож Керамбит ${rnd}`, { rarity: 'Covert' }, b);
+  const d3 = await dq(`Нож Бабочка ${rnd}`, { rarity: 'Covert' });
+  check('Форма: такой лот уже есть — без учёта регистра и знаков; свой лот при правке не в счёт; другой — нет', d1.body.duplicate?.id === b && d2.body.duplicate?.id === a && d3.body.duplicate === null, JSON.stringify([d1.body, d2.body, d3.body]));
+  await j(`/listings/${b}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
+  check('Дешёвый сняли — в разделе следующий', JSON.stringify(await ids()) === JSON.stringify([a, c].sort()));
+  const g = game.body;
+  const noisy = (t) => j('/listings', { method: 'POST', token: seller.token, body: JSON.stringify({ gameId: g.id, categoryId: cat.id, title: t, description: 'x', price: '1000', attributes: { rarity: 'Covert' } }) });
+  const [e1, e2, e3] = [await noisy('🧅Автовыдача🧅 нож 🔪'), await noisy('АВТОВЫДАЧА НОЖ КЕРАМБИТ'), await noisy('Дёшево!!! Нож')];
+  check('Название: гирлянда эмодзи, капс и «!!!» — 400 с понятной причиной', e1.status === 400 && /эмодзи/.test(e1.body.message) && e2.status === 400 && /заглавными/.test(e2.body.message) && e3.status === 400 && /повторов/.test(e3.body.message), JSON.stringify([e1.body.message, e2.body.message, e3.body.message]));
+  const ren = await j(`/listings/${a}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ title: 'НОЖ!!! КУПИ' }) });
+  check('Переименовать в шумное — нельзя', ren.status === 400);
+  for (const id of [a, c]) await j(`/listings/${id}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
+}
+
+/**
+ * Лот на английском (часть 144): название и описание по-английски —
+ * необязательно, ищутся наравне с русскими; кириллица и шум в английском
+ * названии — 400; пустое — стирает.
+ */
+async function scenarioListingEnglish(rnd) {
+  console.log('\n— Лот на английском —');
+  const seller = await register('lens', rnd);
+  const lot = await createListing(seller.token, 'skins', '62000', {
+    title: `Нож Бабочка ${rnd}`,
+    titleEn: `Butterfly Knife ${rnd}`,
+    descriptionEn: 'Factory New, trade within 10 minutes',
+  });
+  const page = (await j(`/listings/${lot}`)).body;
+  check('Лот отдаёт английские название и описание', page.titleEn === `Butterfly Knife ${rnd}` && page.descriptionEn === 'Factory New, trade within 10 minutes', JSON.stringify([page.titleEn, page.descriptionEn]));
+  const found = (await j(`/listings?q=${encodeURIComponent(`Butterfly Knife ${rnd}`)}&limit=10`)).body.items ?? [];
+  check('Поиск по английскому названию находит лот, карточка с titleEn', found.some((x) => x.id === lot && x.titleEn === `Butterfly Knife ${rnd}`), JSON.stringify(found.map((x) => x.id)));
+  const cyr = await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ titleEn: 'Нож Butterfly' }) });
+  const noisy = await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ titleEn: 'BUTTERFLY KNIFE FACTORY NEW' }) });
+  check('Английское название: кириллица и капс — 400', cyr.status === 400 && noisy.status === 400 && /заглавными/.test(noisy.body.message), JSON.stringify([cyr.status, noisy.body?.message]));
+  const cleared = await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ titleEn: '', descriptionEn: '' }) });
+  const after = (await j(`/listings/${lot}`)).body;
+  check('Пустое — стирает: англоязычные увидят русское', cleared.status === 200 && after.titleEn === null && after.descriptionEn === null, JSON.stringify([cleared.status, after.titleEn, after.descriptionEn]));
   await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
 }
 
@@ -5923,6 +5997,8 @@ async function scenarioTelegramBot(rnd) {
   await scenarioInstantFilter(rnd);
   await scenarioBuyerData(rnd);
   await scenarioSteamTrade(rnd);
+  await scenarioCleanListings(rnd);
+  await scenarioListingEnglish(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);
   await scenarioSellerTools(rnd);

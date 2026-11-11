@@ -136,6 +136,10 @@
     "./support-quality": {
       "types": "./dist/support-quality.d.ts",
       "default": "./dist/support-quality.js"
+    },
+    "./listing-title": {
+      "types": "./dist/listing-title.d.ts",
+      "default": "./dist/listing-title.js"
     }
   },
   "scripts": {

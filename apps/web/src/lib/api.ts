@@ -59,6 +59,8 @@ export type GameWithCategories = Game & { categories: Category[]; sellers?: Sell
 export interface ListingCard {
   id: string;
   title: string;
+  /** Название на английском (часть 144) — для англоязычных; нет — русское. */
+  titleEn?: string | null;
   price: string; // минорные единицы строкой
   currency: string;
   images: string[];
@@ -114,6 +116,7 @@ export interface SellerBrief {
 
 export type ListingDetail = ListingCard & {
   description: string;
+  descriptionEn?: string | null;
   attributes: Record<string, unknown>;
   /** Что продавец спрашивает у покупателя при покупке. */
   buyerFields?: Array<{ label: string; required: boolean; kind?: 'steam_trade' }> | null;

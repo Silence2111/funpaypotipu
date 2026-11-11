@@ -224,6 +224,17 @@ export const EN_SHARED: Phrasebook = {
   'Укажите «{label}»': 'Fill in “{label}”',
   '«{label}» — не длиннее {n} символов': '“{label}” must be at most {n} characters',
   'Ссылка на обмен Steam': 'Steam trade link',
+
+  // Редакции правил (часть 145)
+  'Нарушения по пунктам: санкция и доля возврата покупателю у каждого пункта; обжалование решений модерации.':
+    'Violations by clause: a sanction and the buyer’s refund share for each clause; appeals against moderation decisions.',
+  // Лот на английском (часть 144)
+  'Название на английском — от 3 знаков': 'The English title must be at least 3 characters',
+  'Название на английском — латиницей': 'Write the English title in Latin letters',
+  // Название лота (часть 143)
+  'В названии — не больше {n} эмодзи': 'No more than {n} emoji in the title',
+  'Название не заглавными буквами: так лот похож на спам': 'Don’t write the title in capitals: it makes the listing look like spam',
+  'Без повторов знаков в названии: «!!!», «***»': 'No repeated symbols in the title: “!!!”, “***”',
   'Ссылка на обмен Steam — вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=… (Steam → Инвентарь → Предложения обмена → «Кто может отправлять мне предложения»)':
     'A Steam trade link looks like https://steamcommunity.com/tradeoffer/new/?partner=…&token=… (Steam → Inventory → Trade Offers → “Who can send me trade offers?”)',
 

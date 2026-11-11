@@ -9,6 +9,9 @@ interface ListingDoc {
   id: string;
   title: string;
   description: string;
+  // Лот на английском (часть 144).
+  titleEn: string | null;
+  descriptionEn: string | null;
   gameSlug: string;
   categorySlug: string;
   status: string;
@@ -50,7 +53,7 @@ export class SearchService implements OnModuleInit {
       await this.client.createIndex(INDEX, { primaryKey: 'id' }).catch(() => undefined);
       const index = this.client.index<ListingDoc>(INDEX);
       await index.updateSettings({
-        searchableAttributes: ['title', 'description'],
+        searchableAttributes: ['title', 'titleEn', 'description', 'descriptionEn'],
         filterableAttributes: ['gameSlug', 'categorySlug', 'status', 'price'],
         sortableAttributes: ['price', 'createdAt'],
       });
@@ -113,12 +116,15 @@ export class SearchService implements OnModuleInit {
 
   private toDoc(l: {
     id: string; title: string; description: string; status: string; price: bigint; currency: string;
+    titleEn?: string | null; descriptionEn?: string | null;
     createdAt: Date; game: { slug: string }; category: { slug: string };
   }): ListingDoc {
     return {
       id: l.id,
       title: l.title,
       description: l.description,
+      titleEn: l.titleEn ?? null,
+      descriptionEn: l.descriptionEn ?? null,
       gameSlug: l.game.slug,
       categorySlug: l.category.slug,
       status: l.status,
