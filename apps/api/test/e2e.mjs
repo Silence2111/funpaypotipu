@@ -895,6 +895,130 @@ async function scenarioAccountDeletion(rnd) {
   );
 }
 
+/**
+ * Вход по номеру телефона (часть 121): только российский мобильный; код из
+ * SMS (заглушка отдаёт его e2e); пауза и лимиты на номер; пять неверных —
+ * код сгорает. Новый номер — регистрация с ником и согласием; знакомый —
+ * вход в тот же аккаунт. Привязка номера в кабинете, чужой номер — 409,
+ * единственный способ входа не отвязать, вход с кодом из приложения — и
+ * по номеру.
+ */
+async function scenarioPhoneLogin(rnd) {
+  console.log('\n— Вход по номеру телефона —');
+  const base = String(rnd).replace(/\D/g, '').slice(-8).padStart(8, '0');
+  const ph = (k) => `8 9${base}${k}`;
+  const norm = (k) => `+79${base}${k}`;
+  const inbox = async (p) => (await j(`/auth/phone/test-inbox?phone=${encodeURIComponent(p)}`)).body?.text?.slice(0, 6) ?? null;
+  const start = (p, token) => j(token ? '/account/phone/start' : '/auth/phone/start', { method: 'POST', token, body: JSON.stringify({ phone: p }) });
+  const verify = (p, code) => j('/auth/phone/verify', { method: 'POST', body: JSON.stringify({ phone: p, code }) });
+  const complete = (body) => j('/auth/phone/complete', { method: 'POST', body: JSON.stringify(body) });
+  const me = async (token) => (await j('/auth/me', { token })).body;
+
+  const cfg = await j('/auth/phone/config');
+  const kz = await start('+7 701 123 45 67');
+  const s1 = await start(ph(1));
+  const again = await start(ph(1));
+  check(
+    'Номер: Казахстан (+7 7…) — 400; код ушёл на номер под маской; повтор сразу — 429 с паузой',
+    cfg.body.enabled === true && kz.status === 400 && s1.status === 200 && s1.body.sentTo === shared.maskPhone(norm(1)) &&
+      again.status === 429 && again.body.error === 'phone_code_wait' && again.body.retryIn >= 1,
+    JSON.stringify({ cfg: cfg.body, kz: kz.status, s1: s1.body, again: [again.status, again.body?.error] }),
+  );
+
+  const code1 = await inbox(ph(1));
+  const wrongCode = code1 === '000000' ? '111111' : '000000';
+  const wrongs = [];
+  for (let i = 0; i < 5; i++) wrongs.push(await verify(ph(1), wrongCode));
+  const late = await verify(ph(1), code1);
+  check(
+    'Пять неверных кодов: «Код не подошёл» с остатком попыток, пятый — код сгорел; верный после этого — тоже нет',
+    /^\d{6}$/.test(code1 ?? '') && wrongs[0].status === 400 && wrongs[0].body.left === 4 && wrongs[3].body.left === 1 &&
+      wrongs[4].status === 429 && wrongs[4].body.error === 'phone_code_locked' && late.status === 429,
+    JSON.stringify({ code1, wrongs: wrongs.map((w) => [w.status, w.body?.error, w.body?.left]), late: late.status }),
+  );
+
+  await wait(1100);
+  await start(ph(1));
+  const ok = await verify(ph(1), await inbox(ph(1)));
+  const noName = await complete({ ticket: ok.body.ticket });
+  const noConsent = await complete({ ticket: ok.body.ticket, username: `ph${rnd}` });
+  const made = await complete({ ticket: ok.body.ticket, username: `ph${rnd}`, pdConsent: true });
+  const madeMe = await me(made.body.accessToken);
+  const consent = await prisma.personalDataConsent.findFirst({ where: { userId: madeMe.userId }, select: { method: true } });
+  const linked = (await j('/account/phone', { token: made.body.accessToken })).body;
+  check(
+    'Новый номер: код — билет; без ника — «username_required» с подсказкой, без согласия — 400; с ними — аккаунт с этим номером, согласие «phone»',
+    ok.status === 200 && ok.body.registered === false && noName.status === 400 && noName.body.error === 'username_required' &&
+      !!noName.body.suggested && noConsent.body.error === 'consent_required' && made.status === 200 &&
+      madeMe.username === `ph${rnd}` && consent?.method === 'phone' && linked.phone === norm(1),
+    JSON.stringify({ ok: [ok.status, ok.body?.registered], noName: [noName.status, noName.body?.error, noName.body?.suggested], noConsent: noConsent.body?.error, made: made.status, linked }),
+  );
+
+  await wait(1100);
+  await start(ph(1));
+  const ok2 = await verify(ph(1), await inbox(ph(1)));
+  const back = await complete({ ticket: ok2.body.ticket });
+  check(
+    'Тот же номер ещё раз — вход в тот же аккаунт',
+    ok2.body.registered === true && back.status === 200 && !!madeMe.userId && (await me(back.body.accessToken)).userId === madeMe.userId,
+    JSON.stringify({ registered: ok2.body?.registered, back: back.status }),
+  );
+
+  // Привязка номера к аккаунту с почтой.
+  const u = await register('phe', rnd);
+  const taken = await start(ph(1), u.token);
+  await start(ph(2), u.token);
+  const link = await j('/account/phone', { method: 'POST', token: u.token, body: JSON.stringify({ phone: ph(2), code: await inbox(ph(2)) }) });
+  const alert = await prisma.notification.findFirst({ where: { userId: u.id, type: 'phone_changed' } });
+  await wait(1100);
+  await start(ph(2));
+  const ok3 = await verify(ph(2), await inbox(ph(2)));
+  const viaPhone = await complete({ ticket: ok3.body.ticket });
+  check(
+    'В кабинете: чужой номер — 409; свой — привязан по коду, предупреждение «номер изменён»; по нему — вход в тот же аккаунт',
+    taken.status === 409 && link.status === 200 && link.body.phone === norm(2) && !!alert &&
+      viaPhone.status === 200 && (await me(viaPhone.body.accessToken)).userId === u.id,
+    JSON.stringify({ taken: taken.status, link: [link.status, link.body], alert: !!alert, via: viaPhone.status }),
+  );
+
+  const onlyWay = await j('/account/phone', { method: 'DELETE', token: made.body.accessToken });
+  const unlinked = await j('/account/phone', { method: 'DELETE', token: u.token });
+  check(
+    'Отвязать: единственный способ входа — 400; при почте и пароле — номер снят',
+    onlyWay.status === 400 && unlinked.status === 200 && unlinked.body.phone === null,
+    JSON.stringify({ onlyWay: onlyWay.status, unlinked: [unlinked.status, unlinked.body] }),
+  );
+
+  // Лимит: пять кодов в час на номер.
+  const sent = [];
+  for (let i = 0; i < 6; i++) {
+    if (i) await wait(1100);
+    sent.push((await start(ph(3))).status);
+  }
+  const lastTry = await start(ph(3));
+  check(
+    'Лимит: пять кодов в час на номер, шестой — 429 «phone_code_limit»',
+    sent.slice(0, 5).every((st) => st === 200) && sent[5] === 429 && lastTry.body.error === 'phone_code_limit',
+    JSON.stringify({ sent, last: [lastTry.status, lastTry.body?.error] }),
+  );
+
+  // Вход с кодом из приложения — и по номеру.
+  const tf = await register('ph2', rnd);
+  const secret = await enableTwoFactor(tf);
+  await start(ph(4), tf.token);
+  await j('/account/phone', { method: 'POST', token: tf.token, body: JSON.stringify({ phone: ph(4), code: await inbox(ph(4)) }) });
+  await wait(1100);
+  await start(ph(4));
+  const ok4 = await verify(ph(4), await inbox(ph(4)));
+  const need = await complete({ ticket: ok4.body.ticket });
+  const withCode = await complete({ ticket: ok4.body.ticket, code: authenticator.generate(secret) });
+  check(
+    'Вход с кодом включён: по номеру без кода из приложения — 401 «two_factor_required», с ним — вход',
+    need.status === 401 && need.body.error === 'two_factor_required' && withCode.status === 200,
+    JSON.stringify({ need: [need.status, need.body?.error], withCode: withCode.status }),
+  );
+}
+
 /** «Продавать на GameMarket»: сколько на руки — без входа, по правилу раздела. */
 async function scenarioSellEstimate() {
   console.log('\n— Калькулятор продавца —');
@@ -4793,6 +4917,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioClosedSections(rnd);
   await scenarioLotReview(rnd);
   await scenarioAccountDeletion(rnd);
+  await scenarioPhoneLogin(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

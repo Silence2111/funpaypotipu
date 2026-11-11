@@ -41,8 +41,8 @@ export const ACCOUNT: Record<string, string> = {
   'Пароль изменён.': 'Password changed.',
   'Не удалось сменить пароль.': 'Couldn’t change the password.',
   Пароль: 'Password',
-  'Вход по паролю — это почта и пароль, а у аккаунта нет почты: он заведён через сервис. Подключите второй сервис ниже, чтобы не зависеть от одного.':
-    'Password sign-in needs an email and a password, and this account has no email: it was created through a service. Connect a second service below so you don’t depend on just one.',
+  'Вход по паролю — это почта и пароль, а у аккаунта нет почты. Добавьте почту выше или подключите сервис ниже, чтобы не зависеть от одного способа входа.':
+    'Password sign-in is email plus password, and the account has no email. Add an email above or connect a service below so you don’t depend on one sign-in method.',
   'Пароля нет — аккаунт заведён через сервис. Задайте пароль, чтобы входить и по почте {email}.':
     'No password yet — the account was created through a service. Set a password to also sign in with {email}.',
   'Текущий пароль': 'Current password',
@@ -246,7 +246,7 @@ export const ACCOUNT: Record<string, string> = {
   'Письмо со ссылкой ушло на {email}. Откройте его, чтобы подтвердить, — ссылка действует сутки.':
     'A link has been sent to {email}. Open it to confirm — the link works for a day.',
   'Не удалось сменить почту.': 'Couldn’t change the email.',
-  'Почты у аккаунта нет — он заведён через сервис.': 'The account has no email — it was created through a service.',
+  'Почты у аккаунта нет — добавьте её, чтобы письма о сделках и входе приходили на неё.': 'The account has no email — add one to get deal and sign-in emails.',
   'На новую почту придёт ссылка для подтверждения, на прежнюю — письмо со ссылкой «Это не я»: 7 дней её можно вернуть.':
     'The new email will get a confirmation link, and the previous one a letter with an “It wasn’t me” link: it can be restored for 7 days.',
   'На почту придёт ссылка для подтверждения. С почтой можно входить по паролю и восстановить доступ.':

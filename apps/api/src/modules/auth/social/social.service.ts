@@ -79,8 +79,17 @@ export const telegramLoginRemoved = () =>
   );
 
 /** Способы входа, которые ещё работают: почта с паролем или Яндекс ID / VK ID. */
-export const canSignIn = (u: { passwordHash: string | null; email: string | null; socialAccounts: Array<{ provider: string }> }) =>
-  !!(u.passwordHash && u.email) || u.socialAccounts.some((a) => (OAUTH_PROVIDERS as readonly string[]).includes(a.provider));
+export const canSignIn = (u: {
+  passwordHash: string | null;
+  email: string | null;
+  socialAccounts: Array<{ provider: string }>;
+  phone?: string | null;
+  phoneVerifiedAt?: Date | null;
+}) =>
+  !!(u.passwordHash && u.email) ||
+  // Подтверждённый номер — тоже вход (часть 121).
+  !!(u.phone && u.phoneVerifiedAt) ||
+  u.socialAccounts.some((a) => (OAUTH_PROVIDERS as readonly string[]).includes(a.provider));
 
 /**
  * Вход через VK ID и Яндекс ID. Сервис подтверждает личность, площадка
@@ -402,6 +411,8 @@ export class SocialService {
       select: {
         passwordHash: true,
         email: true,
+        phone: true,
+        phoneVerifiedAt: true,
         socialAccounts: { select: { id: true, provider: true } },
       },
     });
@@ -428,6 +439,8 @@ export class SocialService {
       select: {
         passwordHash: true,
         email: true,
+        phone: true,
+        phoneVerifiedAt: true,
         socialAccounts: { select: { provider: true, name: true, email: true, createdAt: true } },
       },
     });
@@ -461,6 +474,8 @@ export class SocialService {
         status: { not: 'banned' },
         socialAccounts: { some: { provider: 'telegram' }, none: { provider: { in: [...OAUTH_PROVIDERS] } } },
         OR: [{ passwordHash: null }, { email: null }],
+        // Подтверждённый номер — тоже способ войти (часть 121).
+        phoneVerifiedAt: null,
         notifications: { none: { type: 'login_method_needed' } },
       },
       take: 500,

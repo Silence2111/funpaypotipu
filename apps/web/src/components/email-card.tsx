@@ -60,7 +60,7 @@ export function EmailCard({ email, hasPassword }: { email: string | null; hasPas
         <Mail size={18} strokeWidth={1.75} /> {t('Почта')}
       </h2>
       <p style={{ margin: '12px 0 0' }}>
-        {email ? <span style={{ fontWeight: 600 }}>{email}</span> : <span className="muted">{t('Почты у аккаунта нет — он заведён через сервис.')}</span>}
+        {email ? <span style={{ fontWeight: 600 }}>{email}</span> : <span className="muted">{t('Почты у аккаунта нет — добавьте её, чтобы письма о сделках и входе приходили на неё.')}</span>}
       </p>
       {msg && (
         <p role={msg.ok ? 'status' : 'alert'} style={{ margin: '12px 0 0', fontSize: 14, color: msg.ok ? undefined : 'var(--danger)' }}>

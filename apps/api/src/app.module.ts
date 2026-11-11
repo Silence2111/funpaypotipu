@@ -10,6 +10,7 @@ import { SellersModule } from './modules/sellers/sellers.module';
 import { AccessModule } from './modules/access/access.module';
 import { CryptoModule } from './modules/crypto/crypto.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { SmsModule } from './modules/sms/sms.module';
 import { AntivirusModule } from './modules/antivirus/antivirus.module';
 import { MailModule } from './modules/mail/mail.module';
 import { SearchModule } from './modules/search/search.module';
@@ -56,6 +57,7 @@ import { TelegramActionsModule } from './modules/telegram-actions/telegram-actio
     AccessModule,
     CryptoModule,
     StorageModule,
+    SmsModule,
     AntivirusModule,
     MailModule,
     SearchModule,

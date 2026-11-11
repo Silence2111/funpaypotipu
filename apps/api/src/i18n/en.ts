@@ -20,6 +20,20 @@ export const EN_API: Phrasebook = {
     'The listing is under moderator review: the moderator will put it back on sale',
   'Причина — до {n} символов': 'Reason must be at most {n} characters',
 
+  // Вход по номеру телефона (часть 121)
+  'Укажите номер телефона': 'Enter your phone number',
+  'Введите код из SMS': 'Enter the code from the SMS',
+  'Вход по телефону пока не работает': 'Phone sign-in isn’t available yet',
+  'Этот номер уже привязан к другому аккаунту': 'This number is already linked to another account',
+  'Это единственный способ входа — сначала задайте почту и пароль':
+    'This is your only way to sign in — set an email and password first',
+  'Новый код — через {n} сек.': 'New code in {n} s',
+  'Слишком много кодов на этот номер — попробуйте позже': 'Too many codes for this number — try again later',
+  'Код устарел — запросите новый': 'The code has expired — request a new one',
+  'Слишком много неверных кодов — запросите новый': 'Too many wrong codes — request a new one',
+  'Код не подошёл': 'Wrong code',
+  'Вход по номеру устарел — запросите код заново': 'Phone sign-in has expired — request a code again',
+
   // Удаление аккаунта (часть 124)
   'Впишите свой ник': 'Type your username',
   'Ник не совпадает — впишите свой ник, чтобы подтвердить удаление':

@@ -10,7 +10,7 @@
 export const PD_CONSENT_VERSION = '2026-11-11';
 
 /** Как дано согласие: при регистрации — способом входа, позже — в кабинете. */
-export const PD_CONSENT_METHODS = ['email', 'yandex', 'vk', 'telegram', 'account'] as const;
+export const PD_CONSENT_METHODS = ['email', 'yandex', 'vk', 'telegram', 'phone', 'account'] as const;
 export type PdConsentMethod = (typeof PD_CONSENT_METHODS)[number];
 
 /** Без согласия аккаунт не создаётся — ни по почте, ни через сервисы входа. */

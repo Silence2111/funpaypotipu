@@ -11,6 +11,7 @@ import { TwoFactorCard } from '@/components/two-factor-card';
 import { KycCard } from '@/components/kyc-card';
 import { SocialAccounts, type LoginWays } from '@/components/social-accounts';
 import { EmailCard } from '@/components/email-card';
+import { PhoneCard } from '@/components/phone-card';
 import { useT } from '@/lib/i18n/client';
 import { msg, type T } from '@/lib/i18n/lang';
 
@@ -240,6 +241,8 @@ function Security() {
 
       {ways && <EmailCard email={ways.email} hasPassword={ways.hasPassword} />}
 
+      <PhoneCard />
+
       <section className="card" style={{ padding: 24, maxWidth: 600 }}>
         <h2 className="h2 row" style={{ fontSize: 18, gap: 8 }}>
           <KeyRound size={18} strokeWidth={1.75} /> {t('Пароль')}
@@ -247,7 +250,7 @@ function Security() {
         {firstPassword && !ways?.email ? (
           <p className="muted" style={{ fontSize: 14, margin: '10px 0 0' }}>
             {t(
-              'Вход по паролю — это почта и пароль, а у аккаунта нет почты: он заведён через сервис. Подключите второй сервис ниже, чтобы не зависеть от одного.',
+              'Вход по паролю — это почта и пароль, а у аккаунта нет почты. Добавьте почту выше или подключите сервис ниже, чтобы не зависеть от одного способа входа.',
             )}
           </p>
         ) : (

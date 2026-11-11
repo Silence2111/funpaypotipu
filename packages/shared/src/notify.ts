@@ -56,6 +56,7 @@ export const NOTIFY_GROUPS = [
       'recovery_rejected',
       'login_method_needed',
       'account_deleted',
+      'phone_changed',
     ],
   },
   {
@@ -119,6 +120,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   recovery_rejected: 'Заявка на восстановление отклонена',
   login_method_needed: 'Вход через Telegram отключён — добавьте почту и пароль',
   account_deleted: 'Аккаунт удалён — данные уничтожим через 30 дней, до этого его можно восстановить входом',
+  phone_changed: 'Номер телефона для входа изменён',
   cashback: 'Кэшбэк за покупку зачислен на баланс',
   partner_reward: 'Партнёрское вознаграждение зачислено на баланс',
   new_message: 'Новое сообщение',
@@ -201,6 +203,7 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
     type === 'login_method_needed' ||
     type === 'password_changed' ||
     type === 'email_changed' ||
+    type === 'phone_changed' ||
     type.startsWith('two_factor_') ||
     type.startsWith('recovery_')
   ) {

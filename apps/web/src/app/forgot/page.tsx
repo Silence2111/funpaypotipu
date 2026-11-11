@@ -41,6 +41,13 @@ export default function ForgotPage() {
           </button>
         </form>
       )}
+      {/* Номер — тоже путь назад (часть 121): вошли по коду из SMS — пароль задаётся в «Безопасности». */}
+      <p className="muted" style={{ fontSize: 14, marginTop: 16 }}>
+        {t('Привязан номер телефона? Войдите по нему — код придёт в SMS, а новый пароль задайте в «Безопасности».')}{' '}
+        <Link href="/login/phone?next=%2Fcabinet%2Fsecurity" style={{ color: 'var(--accent)' }}>
+          {t('Войти по номеру телефона')}
+        </Link>
+      </p>
       <p className="muted" style={{ fontSize: 14, marginTop: 20, textAlign: 'center' }}>
         <Link href="/login">{t('← Ко входу')}</Link>
       </p>

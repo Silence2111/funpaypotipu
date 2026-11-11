@@ -20,6 +20,7 @@ const METHOD: Record<string, string> = {
   yandex: msg('при входе через Яндекс ID'),
   vk: msg('при входе через VK ID'),
   telegram: msg('при входе через Telegram'),
+  phone: msg('при входе по номеру телефона'),
   account: msg('в кабинете'),
 };
 

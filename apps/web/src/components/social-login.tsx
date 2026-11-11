@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { apiFetch } from '@/lib/session';
 import { useT } from '@/lib/i18n/client';
 
@@ -25,26 +26,36 @@ export const oauthStart = (provider: 'yandex' | 'vk', next: string) =>
 export function SocialLogin({ next }: { next: string }) {
   const t = useT();
   const [providers, setProviders] = useState<SocialProviders | null>(null);
+  // Вход по номеру телефона (часть 121): на проде без провайдера SMS — нет.
+  const [phone, setPhone] = useState(false);
 
   useEffect(() => {
     apiFetch<SocialProviders>('/auth/social')
       .then(setProviders)
       .catch(() => setProviders(null));
+    apiFetch<{ enabled: boolean }>('/auth/phone/config')
+      .then((c) => setPhone(c.enabled))
+      .catch(() => setPhone(false));
   }, []);
 
-  if (!providers || (!providers.yandex && !providers.vk)) return null;
+  if (!phone && (!providers || (!providers.yandex && !providers.vk))) return null;
 
   return (
     <div className="social-login">
       <div className="social-divider">
         <span>{t('или')}</span>
       </div>
-      {providers.yandex && (
+      {phone && (
+        <Link className="btn secondary block" href={`/login/phone?next=${encodeURIComponent(next)}`}>
+          {t('Войти по номеру телефона')}
+        </Link>
+      )}
+      {providers?.yandex && (
         <a className="btn secondary block" href={oauthStart('yandex', next)}>
           {t('Войти через Яндекс ID')}
         </a>
       )}
-      {providers.vk && (
+      {providers?.vk && (
         <a className="btn secondary block" href={oauthStart('vk', next)}>
           {t('Войти через VK ID')}
         </a>
