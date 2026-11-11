@@ -70,6 +70,10 @@ export async function SectionView({
   if (sort !== defaultSort) values.sort = sort;
   if (sp.online === '1') values.online = '1';
   if (sp.drop === '1') values.drop = '1';
+  // «Выдача сразу» (часть 141): автовыдача и пополнения — только там, где
+  // бывает и ручная; в ключах и пополнениях сразу и так всё.
+  const mixed = section.fulfillmentType === 'manual';
+  if (mixed && sp.instant === '1') values.instant = '1';
   const q = sp.q?.trim().slice(0, 100);
   if (q) values.q = q;
   // «Цена до» — из сохранённого поиска: ссылка из уведомления показывает
@@ -87,6 +91,7 @@ export async function SectionView({
       attrs: Object.keys(attrs).length ? JSON.stringify(attrs) : undefined,
       online: values.online === '1',
       drop: values.drop === '1',
+      instant: values.instant === '1',
       maxPrice: maxRub ? maxRub * 100 : undefined,
       limit: PAGE_SIZE,
       page,
@@ -190,6 +195,7 @@ export async function SectionView({
             attributes={filterable}
             values={values}
             defaultSort={defaultSort}
+            instantFilter={mixed}
             maxLabel={
               maxRub
                 ? t('до {price}', { price: formatPrice(String(maxRub * 100), 'RUB', t) })

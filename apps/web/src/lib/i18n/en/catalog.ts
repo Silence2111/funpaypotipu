@@ -307,4 +307,7 @@ export const CATALOG: Record<string, string> = {
   'Например: скупаю скины, кто продаст голду': 'E.g. buying skins, who sells gold',
   'Войдите': 'Sign in',
   'чтобы писать в чат.': 'to post in the chat.',
+  // «Выдача сразу» (часть 141)
+  'Выдача сразу': 'Instant delivery',
+  'Автовыдача со склада: товар сразу после оплаты': 'Auto-delivery from stock: the goods right after payment',
 };

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { TrendingDown } from 'lucide-react';
+import { TrendingDown, Zap } from 'lucide-react';
 import { PRICE_LOW_DAYS } from '@gamemarket/shared/price-history';
 import {
   browseListings,
@@ -48,7 +48,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   if (sp.game && sp.category && !sp.q) {
     const rest = new URLSearchParams();
     for (const [k, v] of Object.entries(sp))
-      if (v && (k.startsWith('f_') || k === 'online' || k === 'drop' || k === 'sort'))
+      if (v && (k.startsWith('f_') || k === 'online' || k === 'drop' || k === 'instant' || k === 'sort'))
         rest.set(k, v);
     const s = rest.toString();
     redirect(
@@ -81,6 +81,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       page,
       online: sp.online === '1',
       drop: sp.drop === '1',
+      instant: sp.instant === '1',
     }),
   ]);
   const games = index ?? [];
@@ -165,6 +166,15 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
               >
                 <span className="dot-online" aria-hidden />
                 {t('Продавец в сети')}
+              </Link>
+              <Link
+                href={qs({ instant: sp.instant === '1' ? undefined : '1' })}
+                className="chip"
+                aria-pressed={sp.instant === '1'}
+                title={t('Автовыдача со склада: товар сразу после оплаты')}
+              >
+                <Zap size={14} strokeWidth={1.75} aria-hidden />
+                {t('Выдача сразу')}
               </Link>
               <Link
                 href={qs({ drop: sp.drop === '1' ? undefined : '1' })}

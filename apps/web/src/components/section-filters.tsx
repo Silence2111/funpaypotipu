@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search, SlidersHorizontal, TrendingDown, X } from 'lucide-react';
+import { Search, SlidersHorizontal, TrendingDown, X, Zap } from 'lucide-react';
 import { PRICE_LOW_DAYS } from '@gamemarket/shared/price-history';
 import type { Attribute } from '@/lib/api';
 import { useT } from '@/lib/i18n/client';
@@ -30,6 +30,7 @@ export function SectionFilters({
   values,
   defaultSort = 'new',
   maxLabel,
+  instantFilter = false,
 }: {
   attributes: Attribute[];
   /** Текущие параметры адреса: f_<ключ>, online, drop, q, max, sort. */
@@ -38,6 +39,8 @@ export function SectionFilters({
   defaultSort?: string;
   /** «до 1 500 ₽» — цена из сохранённого поиска; снимается крестиком. */
   maxLabel?: string;
+  /** «Выдача сразу» (часть 141) — в разделах, где бывает и ручная выдача. */
+  instantFilter?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -66,6 +69,7 @@ export function SectionFilters({
     Object.keys(values).filter((k) => k.startsWith('f_') && values[k]).length +
     (values.online === '1' ? 1 : 0) +
     (values.drop === '1' ? 1 : 0) +
+    (values.instant === '1' ? 1 : 0) +
     (values.max ? 1 : 0);
   const active = chosen > 0 || !!values.q;
 
@@ -114,6 +118,18 @@ export function SectionFilters({
         <span className="dot-online" aria-hidden />
         {t('Продавец в сети')}
       </button>
+      {instantFilter && (
+        <button
+          type="button"
+          className="chip"
+          aria-pressed={values.instant === '1'}
+          title={t('Автовыдача со склада: товар сразу после оплаты')}
+          onClick={() => go({ instant: values.instant === '1' ? undefined : '1' })}
+        >
+          <Zap size={14} strokeWidth={1.75} aria-hidden />
+          {t('Выдача сразу')}
+        </button>
+      )}
       <button
         type="button"
         className="chip"
