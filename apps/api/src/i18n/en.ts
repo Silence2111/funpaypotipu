@@ -609,4 +609,20 @@ export const EN_API: Phrasebook = {
   'Это не ваше сообщение': 'This is not your message',
   'Удалить и запретить писать можно по жалобе на сообщение в чате игры':
     'Deleting and barring from posting only apply to a report about a game chat message',
+  // Блокировки без «чёрного ящика» (часть 134)
+  'Опишите, почему решение неверно, — от 10 знаков': 'Explain why the decision is wrong — at least 10 characters',
+  'Объясните решение — от 3 знаков': 'Explain the decision — at least 3 characters',
+  'Сумма — целое число копеек': 'The amount is a whole number of kopecks',
+  'Объясните, почему снимаете, — от 3 знаков': 'Explain why you are lifting it — at least 3 characters',
+  'Решение не найдено': 'Decision not found',
+  'Это решение не обжалуется': 'This decision cannot be appealed',
+  'Это решение уже обжаловано — второй раз нельзя': 'This decision has already been appealed — only once',
+  'Обжаловать можно в течение {0} дней после решения': 'You can appeal within {0} days of the decision',
+  'Обжалование не найдено': 'Appeal not found',
+  'Обжалование уже решено': 'The appeal has already been decided',
+  'Обжалование решает другой сотрудник — не тот, кто принял решение': 'An appeal is decided by another staff member — not the one who made the decision',
+  'Это решение не отменяется обжалованием': 'This decision cannot be reversed by an appeal',
+  'Свой баланс так не удерживают': 'You cannot put a hold on your own balance',
+  'На балансе {0} ₽ — удержать больше нельзя': 'The balance is {0} ₽ — you cannot hold more',
+  'Удержание не найдено': 'Hold not found',
 };

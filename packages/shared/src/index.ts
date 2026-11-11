@@ -33,6 +33,7 @@ export * from './service-term';
 export * from './warranty';
 export * from './antifraud';
 export * from './game-chat';
+export * from './rules';
 export * from './lot-stats';
 export * from './sale';
 export * from './reprice';

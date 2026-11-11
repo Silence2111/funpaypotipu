@@ -106,6 +106,8 @@ enum LedgerAccountKind {
   fees_payable
   gateway_clearing
   payout_payable
+  // Удержано модератором (часть 134): не тратится и не выводится.
+  held
 }
 
 enum LedgerDirection {
@@ -173,6 +175,9 @@ enum ModerationActionType {
   delete
   // Лот с проверки одобрен (часть 122).
   approve
+  // Запрет писать в чаты игр (часть 133) и удержание суммы (часть 134).
+  mute
+  hold
 }
 
 enum NotificationChannel {
@@ -256,6 +261,8 @@ model User {
   roles                UserRole[]
   riskSignals          RiskSignal[]
   gameChat             GameChatMessage[]
+  appeals              Appeal[]
+  balanceHolds         BalanceHold[]
   recoveries           AccountRecovery[]
   emailChanges         EmailChange[]
 
@@ -811,6 +818,8 @@ model Payout {
   /// HMAC реквизитов (как у сохранённых): один человек — несколько аккаунтов
   /// с одними реквизитами (часть 128). По нему реквизиты не восстановить.
   destinationFp  String?      @map("destination_fp")
+  /// Проверка затянулась сверх срока (часть 134) — передана старшему, сотрудникам уведомление.
+  escalatedAt    DateTime?    @map("escalated_at")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
@@ -971,10 +980,65 @@ model ModerationAction {
   targetId   String               @map("target_id")
   action     ModerationActionType
   reason     String?
+  /// Пункт правил (часть 134): «1.2» — shared/rules.ts.
+  rule       String?
   createdAt  DateTime             @default(now()) @map("created_at")
+
+  appeal Appeal?
 
   @@index([targetType, targetId])
   @@map("moderation_actions")
+}
+
+enum AppealStatus {
+  open
+  upheld
+  overturned
+}
+
+/// Обжалование решения модератора (часть 134): одно на решение, решает
+/// другой сотрудник — не тот, кто блокировал.
+model Appeal {
+  id          String       @id @default(uuid()) @db.Uuid
+  actionId    String       @unique @map("action_id") @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  text        String
+  status      AppealStatus @default(open)
+  decidedBy   String?      @map("decided_by") @db.Uuid
+  decidedAt   DateTime?    @map("decided_at")
+  note        String?
+  /// Срок ответа: дольше — автоэскалация администратору.
+  dueAt       DateTime     @map("due_at")
+  escalatedAt DateTime?    @map("escalated_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  action ModerationAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("appeals")
+}
+
+/// Удержание суммы (часть 134): вместо заморозки всего — только спорные
+/// деньги, с причиной и пунктом правил; остальное можно выводить.
+model BalanceHold {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  amount      BigInt
+  currency    String    @db.Char(3)
+  reason      String
+  rule        String?
+  createdBy   String    @map("created_by") @db.Uuid
+  releasedAt  DateTime? @map("released_at")
+  releasedBy  String?   @map("released_by") @db.Uuid
+  releaseNote String?   @map("release_note")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, releasedAt])
+  @@map("balance_holds")
 }
 
 /// Обращение в поддержку: тема, раздел, связанный заказ и переписка.

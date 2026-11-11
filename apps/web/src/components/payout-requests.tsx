@@ -21,6 +21,9 @@ export interface MyPayout {
   failureReason?: string | null;
   /** Почему отклонил сотрудник. */
   rejectReason?: string | null;
+  /** Срок проверки (часть 134) и когда заявку подняли старшему. */
+  reviewBy?: string | null;
+  escalatedAt?: string | null;
 }
 
 /** Статус заявки для продавца: «отправляется» — шлюз ещё не подтвердил. */
@@ -73,6 +76,13 @@ export function PayoutRequests({ items }: { items: MyPayout[] }) {
                     {t('Первый вывод до первой продажи отправим не раньше {date}.', {
                       date: date(p.holdUntil!),
                     })}
+                  </span>
+                )}
+                {p.status === 'requested' && !held && p.reviewBy && (
+                  <span className="payout-note">
+                    {p.escalatedAt
+                      ? t('Проверка затянулась — заявку передали старшему сотруднику.')
+                      : t('Проверим до {date}.', { date: date(p.reviewBy) })}
                   </span>
                 )}
                 {p.status === 'rejected' && p.rejectReason && (

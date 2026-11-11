@@ -10,6 +10,7 @@ import { presenceText } from '@/lib/presence';
 import { Empty, ROLE_LABEL, StatusBadge, USER_STATUS, when } from './shared';
 import { usePaged, type Paged } from './use-paged';
 import { UserRisk } from './user-risk';
+import { useDecisionDialog } from './decision-dialog';
 import { AntifraudSettingsCard } from './antifraud-settings';
 
 type UserStatus = 'active' | 'frozen' | 'banned';
@@ -64,6 +65,7 @@ export function UsersSection({ isAdmin, meId }: { isAdmin: boolean; meId: string
   const [text, setText] = useState(params.get('q') ?? '');
   const [query, setQuery] = useState(params.get('q') ?? '');
   const [working, setWorking] = useState<string | null>(null);
+  const { dialog, ask } = useDecisionDialog();
   // Открытая карточка «Риск и связи» (часть 128).
   const [riskOpen, setRiskOpen] = useState<string | null>(null);
 
@@ -124,24 +126,38 @@ export function UsersSection({ isAdmin, meId }: { isAdmin: boolean; meId: string
     }
   }
 
-  function setUserStatus(u: Row, to: UserStatus) {
+  async function setUserStatus(u: Row, to: UserStatus) {
     const name = u.profile?.username ?? u.email ?? u.id.slice(0, 8);
-    const question =
+    // Против человека — пункт правил и причина (часть 134); снятие — комментарий.
+    const d = await ask(
       to === 'banned'
-        ? `Забанить ${name}? Сессии закроются, лоты уйдут из каталога. Причина:`
+        ? { title: `Забанить ${name}?`, hint: 'Сессии закроются, лоты уйдут из каталога.', confirm: 'Забанить' }
         : to === 'frozen'
-          ? `Заморозить ${name}? Покупки, продажи и вывод станут недоступны. Причина:`
-          : `Снять ограничения с ${name}? Лоты, снятые блокировкой, вернутся в продажу. Комментарий:`;
-    const reason = window.prompt(question, to === 'active' ? '' : 'Нарушение правил площадки');
-    if (reason === null) return;
+          ? { title: `Заморозить ${name}?`, hint: 'Покупки, продажи и вывод станут недоступны. Если спорна только сумма — лучше «Удержать сумму».', confirm: 'Заморозить' }
+          : { title: `Снять ограничения с ${name}?`, hint: 'Лоты, снятые блокировкой, вернутся в продажу.', withRule: false, reason: 'Ограничение снято', confirm: 'Снять' },
+    );
+    if (!d) return;
     void run(
       u,
       () =>
         apiFetch(`/moderation/users/${u.id}/status`, {
           method: 'POST',
-          body: JSON.stringify({ status: to, ...(reason.trim() ? { reason: reason.trim() } : {}) }),
+          body: JSON.stringify({ status: to, reason: d.reason, ...(d.rule ? { rule: d.rule } : {}) }),
         }),
       'Не удалось изменить статус.',
+    );
+  }
+
+  /** Удержать только спорную сумму (часть 134): аккаунт работает, остальное выводится. */
+  async function holdMoney(u: Row) {
+    const name = u.profile?.username ?? u.email ?? u.id.slice(0, 8);
+    const d = await ask({ title: `Удержать сумму у ${name}`, hint: 'Сумма уйдёт с доступного баланса, остальное можно выводить. Снять — во вкладке «Обжалования».', withAmount: true, confirm: 'Удержать' });
+    if (!d?.amount) return;
+    const kopecks = Math.round(Number(d.amount) * 100);
+    void run(
+      u,
+      () => apiFetch(`/moderation/users/${u.id}/hold`, { method: 'POST', body: JSON.stringify({ amount: String(kopecks), reason: d.reason, ...(d.rule ? { rule: d.rule } : {}) }) }),
+      'Не удалось удержать сумму.',
     );
   }
 
@@ -163,6 +179,7 @@ export function UsersSection({ isAdmin, meId }: { isAdmin: boolean; meId: string
 
   return (
     <section className="stack-form" style={{ gap: 16 }}>
+      {dialog}
       {isAdmin && <AntifraudSettingsCard />}
       <form
         onSubmit={(e: FormEvent) => {
@@ -238,6 +255,11 @@ export function UsersSection({ isAdmin, meId }: { isAdmin: boolean; meId: string
                     {!me && u.status !== 'active' && (
                       <button type="button" className="chip" disabled={busyRow} onClick={() => setUserStatus(u, 'active')}>
                         Снять ограничения
+                      </button>
+                    )}
+                    {!me && u.status !== 'banned' && (
+                      <button type="button" className="chip" disabled={busyRow} onClick={() => void holdMoney(u)}>
+                        Удержать сумму
                       </button>
                     )}
                   </span>

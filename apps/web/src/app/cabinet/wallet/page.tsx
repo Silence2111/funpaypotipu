@@ -12,6 +12,7 @@ import { PayoutForm } from '@/components/payout-form';
 import { PayoutRequests, type MyPayout } from '@/components/payout-requests';
 import { StatementView } from '@/components/statement';
 import { DealPayouts } from '@/components/deal-payouts';
+import Link from 'next/link';
 import { useT } from '@/lib/i18n/client';
 
 interface Wallet {
@@ -23,6 +24,8 @@ interface Wallet {
   withdrawing: { count: number; amount: string };
   /** Выплаты по «Безопасной сделке» в пути; waiting — ждут реквизиты (часть 123). */
   dealPayouts?: { count: number; amount: string; waiting: number };
+  /** Удержано модератором (часть 134): не тратится и не выводится. */
+  held?: { count: number; amount: string };
 }
 
 /**
@@ -101,7 +104,7 @@ function WalletInner() {
             <span className="skeleton" style={{ height: 48, width: 200 }} aria-busy="true" />
           )}
         </div>
-        {wallet && (wallet.inDeals.count > 0 || wallet.withdrawing.count > 0) && (
+        {wallet && (wallet.inDeals.count > 0 || wallet.withdrawing.count > 0 || (wallet.held?.count ?? 0) > 0) && (
           <dl className="wallet-pending">
             {wallet.inDeals.count > 0 && (
               <div>
@@ -111,6 +114,16 @@ function WalletInner() {
                   {t('{n} — зачислим, когда покупатели подтвердят получение, а с гарантией — когда она закончится', {
                     n: t.n(wallet.inDeals.count, 'продажа', 'продажи', 'продаж'),
                   })}
+                </span>
+              </div>
+            )}
+            {(wallet.held?.count ?? 0) > 0 && (
+              <div>
+                <dt>{t('Удержано')}</dt>
+                <dd>{money(wallet.held!.amount)}</dd>
+                <span className="hint">
+                  {t('Модератор удержал спорную сумму, остальное можно выводить.')}{' '}
+                  <Link href="/cabinet/decisions" style={{ color: 'var(--accent)' }}>{t('Причина и обжалование')}</Link>
                 </span>
               </div>
             )}

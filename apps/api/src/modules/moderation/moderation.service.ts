@@ -378,14 +378,14 @@ export class ModerationService {
   async handleReport(
     reportId: string,
     staffId: string,
-    input: { status: ReportStatus; action?: ReportAction; note?: string },
+    input: { status: ReportStatus; action?: ReportAction; note?: string; rule?: string },
   ) {
     const report = await this.prisma.report.findUnique({ where: { id: reportId } });
     if (!report) throw new NotFoundException('Жалоба не найдена');
     if (input.action && input.status !== 'resolved') {
       throw new BadRequestException('Действие над нарушителем — только вместе с решением жалобы');
     }
-    if (input.action) await this.applyAction(staffId, report, input.action, input.note || report.reason);
+    if (input.action) await this.applyAction(staffId, report, input.action, input.note || report.reason, input.rule);
 
     const affected = await this.prisma.report.findMany({
       where:
@@ -418,10 +418,10 @@ export class ModerationService {
     return this.prisma.report.findUnique({ where: { id: reportId } });
   }
 
-  private async applyAction(staffId: string, report: Report, action: ReportAction, reason: string) {
+  private async applyAction(staffId: string, report: Report, action: ReportAction, reason: string, rule?: string) {
     if (action === 'block_listing') {
       if (report.targetType !== 'listing') throw new BadRequestException('Заблокировать можно только лот');
-      await this.setListingStatus(staffId, report.targetId, 'blocked', reason);
+      await this.setListingStatus(staffId, report.targetId, 'blocked', reason, rule);
       return;
     }
     if (action === 'remove_request') {
@@ -433,16 +433,16 @@ export class ModerationService {
       if (report.targetType !== 'game_chat' || !this.gameChat) {
         throw new BadRequestException('Удалить и запретить писать можно по жалобе на сообщение в чате игры');
       }
-      await this.gameChat.remove(staffId, report.targetId, reason);
+      await this.gameChat.remove(staffId, report.targetId, reason, rule);
       if (action === 'mute_chat') {
         const userId = await this.responsibleUser(report);
-        if (userId) await this.gameChat.mute(staffId, userId, 168, reason);
+        if (userId) await this.gameChat.mute(staffId, userId, 168, reason, rule);
       }
       return;
     }
     const userId = await this.responsibleUser(report);
     if (!userId) throw new NotFoundException('Пользователь не найден');
-    await this.setUserStatus(staffId, userId, action === 'ban_user' ? 'banned' : 'frozen', reason);
+    await this.setUserStatus(staffId, userId, action === 'ban_user' ? 'banned' : 'frozen', reason, rule);
   }
 
   /** Кто отвечает за цель жалобы: продавец лота, автор сообщения, сам пользователь. */
@@ -751,7 +751,7 @@ export class ModerationService {
    * лот с проверки (часть 122). В закрытом разделе одобренный лот остаётся
    * снятым с отметкой «раздел закрыт» — это делает триггер базы.
    */
-  async setListingStatus(staffId: string, listingId: string, status: 'active' | 'blocked', reason?: string) {
+  async setListingStatus(staffId: string, listingId: string, status: 'active' | 'blocked', reason?: string, rule?: string) {
     const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing) throw new NotFoundException('Лот не найден');
     const approve = status === 'active' && listing.status === 'review';
@@ -765,13 +765,17 @@ export class ModerationService {
       data: { status: next, ...(approve ? { reviewReason: null } : {}) },
     });
     await this.search.indexListing(listingId).catch(() => undefined);
-    await this.record(
+    const decision = await this.record(
       staffId,
       'listing',
       listingId,
       status === 'blocked' ? 'block' : approve ? 'approve' : 'unblock',
       reason ?? (approve ? listing.reviewReason ?? undefined : undefined),
+      undefined,
+      status === 'blocked' ? rule : undefined,
     );
+    // Решение видно человеку целиком (часть 134): причина, пункт правил и
+    // «Обжаловать» — в кабинете по id решения.
     await this.notifications.notify(
       listing.sellerId,
       status === 'blocked' ? 'listing_blocked' : approve ? 'listing_approved' : 'listing_unblocked',
@@ -779,6 +783,8 @@ export class ModerationService {
         listingId,
         title: listing.title,
         ...(reason ? { reason } : {}),
+        ...(status === 'blocked' && rule ? { rule } : {}),
+        ...(status === 'blocked' ? { decisionId: decision.id } : {}),
       },
     );
     return updated;
@@ -793,7 +799,7 @@ export class ModerationService {
    * лоты уходят из каталога, а при снятии блокировки возвращаются те,
    * что сняла именно она.
    */
-  async setUserStatus(staffId: string, userId: string, status: UserStatus, reason?: string) {
+  async setUserStatus(staffId: string, userId: string, status: UserStatus, reason?: string, rule?: string) {
     if (userId === staffId) throw new BadRequestException('Свой аккаунт так не меняют');
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -821,8 +827,13 @@ export class ModerationService {
       await this.prisma.authSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
     }
     const action = status === 'banned' ? 'ban' : status === 'frozen' ? 'block' : 'unblock';
-    await this.record(staffId, 'user', userId, action, reason, { status, pausedListings: paused });
-    await this.notifications.notify(userId, 'account_status', { status, ...(reason ? { reason } : {}) });
+    const decision = await this.record(staffId, 'user', userId, action, reason, { status, pausedListings: paused }, status === 'active' ? undefined : rule);
+    await this.notifications.notify(userId, 'account_status', {
+      status,
+      ...(reason ? { reason } : {}),
+      ...(status !== 'active' && rule ? { rule } : {}),
+      ...(status === 'frozen' ? { decisionId: decision.id } : {}),
+    });
     return { id: user.id, status };
   }
 
@@ -856,16 +867,22 @@ export class ModerationService {
     action: 'warn' | 'block' | 'unblock' | 'ban' | 'hide' | 'delete' | 'approve',
     reason?: string,
     after?: Prisma.InputJsonValue,
+    rule?: string,
   ) {
-    await this.prisma.moderationAction.create({
-      data: { actorId, targetType, targetId, action, reason },
+    const created = await this.prisma.moderationAction.create({
+      data: { actorId, targetType, targetId, action, reason, rule },
     });
     await this.audit.log({
       actorId,
       action: `moderation.${action}`,
       entityType: targetType,
       entityId: targetId,
-      after: { ...(after && typeof after === 'object' ? (after as object) : {}), ...(reason ? { reason } : {}) },
+      after: {
+        ...(after && typeof after === 'object' ? (after as object) : {}),
+        ...(reason ? { reason } : {}),
+        ...(rule ? { rule } : {}),
+      },
     });
+    return created;
   }
 }

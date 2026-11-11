@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { ShieldCheck, AlertTriangle, Percent, Scale, Ban, MessagesSquare } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, Percent, Scale, Ban, MessagesSquare, Gavel } from 'lucide-react';
+import { RULE_GROUPS, ruleAnchor } from '@gamemarket/shared/rules';
 import { PROHIBITED_GOODS } from '@gamemarket/shared/sections';
 import { getT } from '@/lib/i18n/server';
 
@@ -86,6 +87,27 @@ export default async function RulesPage() {
             <li>{t('Фишинг и вредоносные вложения.')}</li>
             <li>{t('Торговля между своими аккаунтами: покупка у аккаунта с тем же браузером или реквизитами вывода не пройдёт.')}</li>
           </ul>
+        </Section>
+
+        {/* Пункты с номерами (часть 134): на них ссылаются решения модераторов. */}
+        <Section id="narusheniya" icon={<Gavel size={20} strokeWidth={1.75} />} title={t('Нарушения по пунктам')}>
+          <div style={{ display: 'grid', gap: 12 }}>
+            {RULE_GROUPS.map((g) => (
+              <div key={g.title}>
+                <h3 style={{ fontSize: 15, margin: '0 0 4px' }}>{t.d(g.title)}</h3>
+                <ol className="muted" style={{ margin: 0, paddingLeft: 0, listStyle: 'none', fontSize: 15, lineHeight: 1.7 }}>
+                  {g.clauses.map((c) => (
+                    <li key={c.id} id={ruleAnchor(c.id)} style={{ scrollMarginTop: 80 }}>
+                      <b>{c.id}</b> {t.d(c.title)}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+          <p className="hint" style={{ margin: '12px 0 0' }}>
+            {t('Решение модератора всегда называет пункт и причину. Не согласны — обжалуйте в кабинете, «Решения модерации»: один раз, решает другой сотрудник, ответ — в течение 48 ч. Если спорна только часть денег, удерживается только она, остальное можно выводить.')}
+          </p>
         </Section>
 
         <Section id="chat" icon={<MessagesSquare size={20} strokeWidth={1.75} />} title={t('Чат игры')}>

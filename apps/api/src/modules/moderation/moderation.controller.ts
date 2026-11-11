@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
+import { RULE_IDS } from '@gamemarket/shared';
 import type { ReportStatus, UserStatus } from '@gamemarket/db';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -28,6 +29,8 @@ const handleSchema = z.object({
   status: z.enum(['reviewing', 'resolved', 'rejected']),
   action: z.enum(['block_listing', 'remove_request', 'delete_chat_message', 'mute_chat', 'freeze_user', 'ban_user']).optional(),
   note: z.string().trim().max(500).optional(),
+  // Пункт правил (часть 134): «1.2».
+  rule: z.enum(RULE_IDS as [string, ...string[]]).optional(),
 });
 
 const USER_STATUSES = ['active', 'frozen', 'banned'] as const;
@@ -90,7 +93,7 @@ export class ModerationController {
     // Не uuid — 400, а не 500 от базы.
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(handleSchema))
-    body: { status: ReportStatus; action?: ReportAction; note?: string },
+    body: { status: ReportStatus; action?: ReportAction; note?: string; rule?: string },
   ) {
     return this.moderation.handleReport(id, user.userId, body);
   }
@@ -115,10 +118,10 @@ export class ModerationController {
   listingStatus(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(z.object({ status: z.enum(['active', 'blocked']), reason: z.string().trim().max(500).optional() })))
-    body: { status: 'active' | 'blocked'; reason?: string },
+    @Body(new ZodValidationPipe(z.object({ status: z.enum(['active', 'blocked']), reason: z.string().trim().max(500).optional(), rule: z.enum(RULE_IDS as [string, ...string[]]).optional() })))
+    body: { status: 'active' | 'blocked'; reason?: string; rule?: string },
   ) {
-    return this.moderation.setListingStatus(user.userId, id, body.status, body.reason);
+    return this.moderation.setListingStatus(user.userId, id, body.status, body.reason, body.rule);
   }
 
   @Post('moderation/users/:id/status')
@@ -127,9 +130,9 @@ export class ModerationController {
   userStatus(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(z.object({ status: z.enum(USER_STATUSES), reason: z.string().trim().max(500).optional() })))
-    body: { status: UserStatus; reason?: string },
+    @Body(new ZodValidationPipe(z.object({ status: z.enum(USER_STATUSES), reason: z.string().trim().max(500).optional(), rule: z.enum(RULE_IDS as [string, ...string[]]).optional() })))
+    body: { status: UserStatus; reason?: string; rule?: string },
   ) {
-    return this.moderation.setUserStatus(user.userId, id, body.status, body.reason);
+    return this.moderation.setUserStatus(user.userId, id, body.status, body.reason, body.rule);
   }
 }

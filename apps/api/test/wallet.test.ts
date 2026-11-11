@@ -33,6 +33,8 @@ describe('кошелёк', () => {
         aggregate: vi.fn(async () => ({ _count: { _all: 1 }, _sum: { amount: 90000n } })),
         count: vi.fn(async () => 1),
       },
+      // Удержано модератором (часть 134).
+      balanceHold: { aggregate: vi.fn(async () => ({ _count: { _all: 1 }, _sum: { amount: 20000n } })) },
     };
     const ledger = { balanceOf: vi.fn(async () => 50000n) };
     const svc = new WalletService(prisma as never, ledger as never);
@@ -43,6 +45,7 @@ describe('кошелёк', () => {
       inDeals: { count: 2, amount: 171000n },
       withdrawing: { count: 0, amount: 0n },
       dealPayouts: { count: 1, amount: 90000n, waiting: 1 },
+      held: { count: 1, amount: 20000n },
     });
     // Подтверждённые, но на гарантии продавца (часть 126): деньги ещё у площадки.
     expect(orderWhere[0]).toEqual({

@@ -18,6 +18,7 @@ import {
   WITHDRAWAL_METHODS,
   getWithdrawalMethod,
   computeWithdrawalFee,
+  PAYOUT_REVIEW_HOURS,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { AntifraudService } from '../trust/antifraud.service';
@@ -673,8 +674,11 @@ export class PayoutsService {
   private public(p: {
     id: string; amount: bigint; currency: string; method: string; status: string;
     holdUntil: Date | null; createdAt: Date; externalId?: string | null; failureReason?: string | null;
-    rejectReason?: string | null; destinationEnc?: string;
+    rejectReason?: string | null; destinationEnc?: string; escalatedAt?: Date | null;
   }) {
+    // Срок проверки (часть 134): после холда новичка плюс сутки; затянулась —
+    // заявку подняли старшему (escalatedAt).
+    const start = p.holdUntil && p.holdUntil > p.createdAt ? p.holdUntil : p.createdAt;
     return {
       id: p.id,
       amount: p.amount,
@@ -689,6 +693,8 @@ export class PayoutsService {
       // Причина сотрудника — продавцу в кошельке.
       rejectReason: p.rejectReason ?? null,
       destinationHint: this.hint(p.method, p.destinationEnc),
+      reviewBy: p.status === 'requested' ? new Date(start.getTime() + PAYOUT_REVIEW_HOURS * 3_600_000) : null,
+      escalatedAt: p.escalatedAt ?? null,
     };
   }
 }
