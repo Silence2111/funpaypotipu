@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { LegalPage, Fill } from '@/components/legal-page';
 import { getPublicPricing } from '@/lib/api';
+import { OFFER_EDITIONS } from '@gamemarket/shared/rules';
 
 export const metadata: Metadata = { title: 'Оферта' };
 
@@ -45,6 +46,16 @@ export default async function OfertaPage() {
       </p>
       <h2>5. Запрещено</h2>
       <p>Товары, нарушающие правила игр и законы РФ, обмен контактами в обход площадки, фиктивные сделки.</p>
+      {/* 289-ФЗ ст. 5 ч. 5 (часть 145): редакции с датами — что действовало на дату сделки. */}
+      <h2>Редакции оферты</h2>
+      <ul>
+        {OFFER_EDITIONS.map((e) => (
+          <li key={e.from}>
+            <b>с {e.from.split('-').reverse().join('.')}</b> — {e.what}
+          </li>
+        ))}
+      </ul>
+      <p>Прежние редакции хранятся здесь не меньше трёх лет.</p>
     </LegalPage>
   );
 }

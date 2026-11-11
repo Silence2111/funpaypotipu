@@ -418,4 +418,6 @@ export const SELLER: Record<string, string> = {
   'Описание на английском': 'Description in English',
   'Название на английском — от 3 знаков': 'The English title must be at least 3 characters',
   'Название на английском — латиницей': 'Write the English title in Latin letters',
+  'По желанию — «Название (англ.)» и «Описание (англ.)»: их видят покупатели с английским сайтом.':
+    'Optionally — “title_en” and “description_en” columns: buyers using the site in English see them.',
 };

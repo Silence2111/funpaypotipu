@@ -18,3 +18,12 @@ describe('сроки хранения (часть 147)', () => {
     expect(actCutoff(now).toISOString()).toBe('2023-11-11T10:00:00.000Z');
   });
 });
+
+describe('пороги реестра 289-ФЗ', () => {
+  it('доли и пометки', async () => {
+    const { registryStanding } = await import('./retention');
+    expect(registryStanding(120, 1_000_000_00n)).toMatchObject({ reached: false, near: false });
+    expect(registryStanding(5_000, 0n)).toMatchObject({ near: true, reached: false, sellersShare: 0.5 });
+    expect(registryStanding(0, 50_000_000_000n * 100n)).toMatchObject({ reached: true, turnoverShare: 1 });
+  });
+});

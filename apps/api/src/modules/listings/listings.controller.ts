@@ -77,6 +77,9 @@ const importSchema = z.object({
         price: z.string().max(12),
         stock: z.number().int().nullable(),
         attributes: z.record(z.union([z.string().max(200), z.boolean()])),
+        // Лот на английском (часть 144).
+        titleEn: z.string().max(200).optional(),
+        descriptionEn: z.string().max(10_100).optional(),
       }),
     )
     .min(1)

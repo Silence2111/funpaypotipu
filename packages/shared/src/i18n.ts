@@ -231,6 +231,8 @@ export const EN_SHARED: Phrasebook = {
   // Лот на английском (часть 144)
   'Название на английском — от 3 знаков': 'The English title must be at least 3 characters',
   'Название на английском — латиницей': 'Write the English title in Latin letters',
+  'Название на английском — от 3 до 120 знаков': 'The English title must be 3 to 120 characters',
+  'Описание на английском — до 10 000 знаков': 'The English description must be up to 10,000 characters',
   // Название лота (часть 143)
   'В названии — не больше {n} эмодзи': 'No more than {n} emoji in the title',
   'Название не заглавными буквами: так лот похож на спам': 'Don’t write the title in capitals: it makes the listing look like spam',
@@ -287,6 +289,7 @@ export const EN_SHARED: Phrasebook = {
   'Новый отзыв': 'New review',
   'Продавец ответил на ваш отзыв': 'The seller replied to your review',
   'Кэшбэк за покупку зачислен на баланс': 'Purchase cashback credited to your balance',
+  'Итоги года: площадка и пороги реестра по 289-ФЗ': 'Year results: the marketplace and the 289-FZ registry thresholds',
   'Бонусы за покупку — спишутся скидкой в следующем заказе': 'Purchase bonuses — they’ll be applied as a discount on your next order',
   'кэшбэк, бонусы, выплаты и партнёрские начисления': 'cashback, bonuses, payouts and partner rewards',
   'Новое сообщение': 'New message',

@@ -99,6 +99,38 @@ function DailyChart({ daily }: { daily: Day[] }) {
  * сделки, люди, выплаты и деньги, которые площадка держит, — на балансах
  * пользователей и в сделках. Деньги — из журнала проводок.
  */
+interface Registry {
+  thresholds: { dailyUsers: number; sellers: number; turnover: string };
+  last: { year: number; sellers: number; turnover: string; near: boolean; reached: boolean } | null;
+  current: { year: number; sellers: number; turnover: string; near: boolean; reached: boolean };
+}
+
+/**
+ * Пороги реестра по 289-ФЗ (часть 145): где площадка относительно порогов.
+ * Итоги прошлого года площадка считает сама в январе и пишет администраторам.
+ * Только администратору: другим ролям карточка не показывается.
+ */
+function RegistryCard() {
+  const [r, setR] = useState<Registry | null>(null);
+  useEffect(() => {
+    apiFetch<Registry>('/admin/erasure/registry').then(setR).catch(() => setR(null));
+  }, []);
+  if (!r) return null;
+  const line = (m: Registry['current']) =>
+    `${m.year}: продавцов со сделками ${m.sellers} из ${r.thresholds.sellers.toLocaleString('ru-RU')}, оборот ${rub(m.turnover)} из 50 млрд ₽`;
+  return (
+    <div className="card" style={{ padding: 16, marginTop: 16, display: 'grid', gap: 6, fontSize: 14 }}>
+      <b>Пороги реестра платформ (289-ФЗ)</b>
+      <span>{line(r.current)} — на сегодня</span>
+      {r.last && <span>{line(r.last)} — итоги года</span>}
+      <span className="hint">
+        В реестр — от {r.thresholds.dailyUsers.toLocaleString('ru-RU')} пользователей в день (смотреть в Метрике) и одного из порогов
+        выше. {r.current.near || r.last?.near ? 'Половина порога пройдена — пора готовить требования закона: ПРОДУКТ/289-ФЗ.md.' : 'До порогов далеко.'}
+      </span>
+    </div>
+  );
+}
+
 export function StatsSection() {
   const [days, setDays] = useState<(typeof PERIODS)[number]>(30);
   const [s, setS] = useState<Summary | null>(null);
@@ -234,6 +266,7 @@ export function StatsSection() {
           </details>
         </>
       )}
+      <RegistryCard />
     </section>
   );
 }

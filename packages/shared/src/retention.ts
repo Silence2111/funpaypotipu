@@ -66,3 +66,26 @@ export const ERASURE_CATEGORIES = {
 export const ERASURE_SYSTEM = 'Информационная система GameMarket (база данных PostgreSQL и файловое хранилище)';
 /** Способ уничтожения — для акта. */
 export const ERASURE_METHOD = 'Удаление записей из базы данных и файлов из хранилища без возможности восстановления; резервные копии перезаписываются по сроку их хранения';
+
+/**
+ * Пороги реестра посреднических цифровых платформ (289-ФЗ ст. 4,
+ * постановление Правительства от 28.01.2026 № 54): за прошлый календарный
+ * год в среднем от 100 тыс. пользователей из России в день и хотя бы одно —
+ * от 10 тыс. продавцов со сделками или от 50 млрд ₽ сделок. Попали — закон
+ * о платформенной экономике применяется целиком (`ПРОДУКТ/289-ФЗ.md`).
+ * Пользователей в день считает Метрика, продавцов и оборот — площадка.
+ */
+export const REGISTRY_DAILY_USERS = 100_000;
+export const REGISTRY_SELLERS = 10_000;
+/** 50 млрд ₽ в копейках. */
+export const REGISTRY_TURNOVER_MINOR = 50_000_000_000n * 100n;
+/** С какой доли порога предупреждать заранее: готовить требования закона. */
+export const REGISTRY_NEAR_SHARE = 0.5;
+
+/** Где площадка относительно порогов: продавцы и оборот — доля от порога. */
+export function registryStanding(sellers: number, turnoverMinor: bigint) {
+  const sellersShare = sellers / REGISTRY_SELLERS;
+  const turnoverShare = Number((turnoverMinor * 10_000n) / REGISTRY_TURNOVER_MINOR) / 10_000;
+  const top = Math.max(sellersShare, turnoverShare);
+  return { sellersShare, turnoverShare, reached: top >= 1, near: top >= REGISTRY_NEAR_SHARE };
+}

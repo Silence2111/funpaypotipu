@@ -197,4 +197,21 @@ describe('выгрузка своих лотов и обратно', () => {
       { line: 4, message: 'Этот лот уже есть в таблице выше' },
     ]);
   });
+
+  it('английские столбцы (часть 144): читаются, проверяются, выгружаются туда же', () => {
+    const r = readImport(
+      parseCsv('Название;Описание;Цена;Звание;Название (англ.);Описание (англ.)\nАкк;Б;100;Global Elite;CS2 account;Prime, 2000 hours\nАкк2;Б;100;Global Elite;Акк;'),
+      ATTRS,
+    );
+    expect(r.lots[0]).toMatchObject({ titleEn: 'CS2 account', descriptionEn: 'Prime, 2000 hours' });
+    expect(r.errors).toEqual([{ line: 3, message: 'Название на английском — латиницей' }]);
+    const csv = exportLots(
+      [{ id: '11111111-1111-4111-8111-111111111111', title: 'Акк', description: 'Б', price: '10000', stock: null, attributes: {}, titleEn: 'CS2 account', descriptionEn: null }],
+      [],
+    );
+    expect(csv.split('\r\n')[0]).toBe('ID;Название;Описание;Цена, ₽;Наличие;Название (англ.);Описание (англ.)');
+    const back = readImport(parseCsv(csv), []);
+    expect(back.lots[0]).toMatchObject({ id: '11111111-1111-4111-8111-111111111111', titleEn: 'CS2 account' });
+    expect(back.lots[0]?.descriptionEn).toBeUndefined();
+  });
 });
