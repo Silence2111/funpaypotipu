@@ -124,6 +124,10 @@
     "./dispute-evidence": {
       "types": "./dist/dispute-evidence.d.ts",
       "default": "./dist/dispute-evidence.js"
+    },
+    "./buyer-filter": {
+      "types": "./dist/buyer-filter.d.ts",
+      "default": "./dist/buyer-filter.js"
     }
   },
   "scripts": {

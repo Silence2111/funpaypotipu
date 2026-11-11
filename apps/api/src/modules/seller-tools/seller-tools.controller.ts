@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
-import { COMMAND_MAX } from '@gamemarket/shared';
+import { COMMAND_MAX, BUYER_AGE_DAYS, BUYER_LOST_DISPUTES } from '@gamemarket/shared';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
@@ -35,6 +35,16 @@ const templateSchema = z.object({
     .nullish(),
 });
 
+const buyerFilterSchema = z.object({
+  minAgeDays: z.number().int().refine((d) => (BUYER_AGE_DAYS as readonly number[]).includes(d), 'Возраст аккаунта — 0, 1, 7 или 30 дней'),
+  maxLostDisputes: z
+    .number()
+    .int()
+    .refine((d) => (BUYER_LOST_DISPUTES as readonly number[]).includes(d), 'Проигранных споров — 0, 1 или 3')
+    .nullable(),
+  noBadReviews: z.boolean(),
+});
+
 @Controller('seller-tools')
 @UseGuards(JwtAuthGuard)
 export class SellerToolsController {
@@ -52,6 +62,15 @@ export class SellerToolsController {
     @Body(new ZodValidationPipe(greetingSchema)) body: { text: string | null },
   ) {
     return this.tools.setGreeting(user.userId, body.text);
+  }
+
+  /** Кому продавать (часть 136): возраст аккаунта, проигранные споры, оценки. */
+  @Put('buyer-filter')
+  buyerFilter(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(buyerFilterSchema)) body: { minAgeDays: number; maxLostDisputes: number | null; noBadReviews: boolean },
+  ) {
+    return this.tools.setBuyerFilter(user.userId, body);
   }
 
   @Put('auto-raise')

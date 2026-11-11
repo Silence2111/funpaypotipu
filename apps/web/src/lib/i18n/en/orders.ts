@@ -389,4 +389,11 @@ export const ORDERS: Record<string, string> = {
   'Что приложить покупателю': 'What the buyer should attach',
   'Что приложить продавцу': 'What the seller should attach',
   'Файлы — скрепкой под перепиской. Чем точнее доказательства, тем быстрее решение.': 'Attach files with the paperclip below the conversation. The clearer the evidence, the faster the decision.',
+  // Защита продавца (часть 136)
+  'Данные получены': 'Details received',
+  'Данные получены {date}': 'Details received {date}',
+  'Продавец передал данные? Отметьте «Данные получены» — это не подтверждение сделки: проверить товар можно и после, деньги продавец получит, только когда вы подтвердите.':
+    'Did the seller hand over the details? Mark “Details received” — this doesn’t confirm the deal: you can still check the goods, and the seller is paid only after you confirm.',
+  'Покупатель отметил: данные получены': 'The buyer marked: details received',
+  'Покупатель отметил: данные получены.': 'The buyer marked: details received.',
 };

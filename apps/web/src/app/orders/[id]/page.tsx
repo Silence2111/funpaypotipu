@@ -39,6 +39,8 @@ interface Order {
   autoConfirmAt?: string | null; sellerPayoutAmount?: string;
   /** Услуга со сроком (часть 125): выполнить до, взято в работу, срок вышел. */
   serviceDueAt?: string | null; serviceStartedAt?: string | null; serviceOverdueAt?: string | null;
+  /** «Данные получены» (часть 136): покупатель отметил передачу при ручной выдаче. */
+  receivedAt?: string | null;
   /** Гарантия продавца (часть 126): спор до этого времени, деньги продавцу — после. */
   warrantyUntil?: string | null; warrantyReleasedAt?: string | null;
   /** Диалог сделки — приходит с заказом, а не поиском по списку мессенджера. */
@@ -424,6 +426,16 @@ export default function OrderPage() {
             <strong style={{ wordBreak: 'break-all' }}>{topupAccount}</strong>
           </p>
         )}
+        {order.receivedAt && (order.status === 'delivered' || order.status === 'completed' || order.status === 'disputed') && (
+          <p style={{ margin: '14px 0 0', fontSize: 15 }}>
+            <span className="badge">{t('Данные получены {date}', { date: when(t, order.receivedAt) })}</span>
+          </p>
+        )}
+        {role === 'buyer' && order.status === 'delivered' && kind === 'manual' && !order.receivedAt && (
+          <p className="hint" style={{ margin: '14px 0 0' }}>
+            {t('Продавец передал данные? Отметьте «Данные получены» — это не подтверждение сделки: проверить товар можно и после, деньги продавец получит, только когда вы подтвердите.')}
+          </p>
+        )}
         {order.status === 'paid' && kind === 'manual' && order.serviceStartedAt && (
           <p style={{ margin: '14px 0 0', fontSize: 15 }}>
             <span className="badge">{t('В работе с {date}', { date: when(t, order.serviceStartedAt) })}</span>
@@ -457,6 +469,11 @@ export default function OrderPage() {
             <button className={order.status === 'delivered' ? 'btn secondary' : 'btn'} onClick={revealKey} type="button">
               {kind === 'item' ? <Package size={16} strokeWidth={1.75} /> : <KeyRound size={16} strokeWidth={1.75} />}{' '}
               {kind === 'item' ? t('Показать товар') : many ? t('Показать ключи') : t('Показать ключ')}
+            </button>
+          )}
+          {role === 'buyer' && order.status === 'delivered' && kind === 'manual' && !order.receivedAt && (
+            <button className="btn secondary" onClick={() => act('received')} disabled={busy} type="button">
+              {t('Данные получены')}
             </button>
           )}
           {role === 'buyer' && order.status === 'delivered' && (

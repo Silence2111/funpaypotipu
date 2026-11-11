@@ -41,6 +41,8 @@ function setup(listing: Record<string, unknown>) {
   const created: Record<string, unknown>[] = [];
   const prisma = {
     listing: { findUnique: vi.fn(async () => listing) },
+    // Фильтр покупателей продавца (часть 136) — у этого продавца нет.
+    profile: { findUnique: vi.fn(async () => ({ buyerFilter: null })) },
     order: {
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
         created.push(data);

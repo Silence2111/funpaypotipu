@@ -7,6 +7,8 @@ import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { SellerPromos } from '@/components/seller-promos';
 import { SellerApi } from '@/components/seller-api';
+import { BuyerFilterCard } from '@/components/buyer-filter';
+import type { BuyerFilter } from '@gamemarket/shared/buyer-filter';
 import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
 import { COMMAND_MAX } from '@gamemarket/shared';
@@ -20,6 +22,8 @@ interface Template {
 interface Tools {
   greeting: string | null;
   autoRaise: boolean;
+  /** Кому продавать (часть 136). */
+  buyerFilter?: BuyerFilter;
   raise: { everyHours: number; activeLots: number; nextInMinutes: number | null };
   templates: Template[];
 }
@@ -383,6 +387,7 @@ export default function ToolsPage() {
             </form>
           </section>
 
+          <BuyerFilterCard initial={tools?.buyerFilter} />
           <SellerPromos />
           <SellerApi />
         </>

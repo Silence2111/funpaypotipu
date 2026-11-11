@@ -634,4 +634,12 @@ export const EN_API: Phrasebook = {
   'Обжаловать может сторона, против которой вынесено решение': 'Only the side the decision went against can appeal',
   'Решение уже вступило в силу': 'The decision has already taken effect',
   'Принять решение может сторона, против которой оно вынесено': 'Only the side the decision went against can accept it',
+  // Защита продавца (часть 136)
+  'Открыто {0} спора — дождитесь решения по ним, потом открывайте новый.': '{0} disputes are open — wait for decisions on them before opening a new one.',
+  'Продавец продаёт покупателям с аккаунтом не моложе {0} дн.': 'This seller sells to buyers whose accounts are at least {0} days old.',
+  'Продавец не продаёт покупателям с проигранными спорами за последние 90 дней.': 'This seller doesn’t sell to buyers who lost disputes in the last 90 days.',
+  'Продавец не продаёт покупателям, которых другие продавцы чаще не рекомендуют.': 'This seller doesn’t sell to buyers whom other sellers more often don’t recommend.',
+  'Отметить «данные получены» можно после ручной выдачи': 'You can mark “details received” after a manual delivery',
+  'Возраст аккаунта — 0, 1, 7 или 30 дней': 'Account age: 0, 1, 7 or 30 days',
+  'Проигранных споров — 0, 1 или 3': 'Lost disputes: 0, 1 or 3',
 };

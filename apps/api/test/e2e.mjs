@@ -1662,6 +1662,79 @@ async function scenarioArbitration(rnd) {
 }
 
 /**
+ * Защита продавца (часть 136): фильтр покупателей у продавца (возраст
+ * аккаунта, проигранные споры) — виден на лоте, заказ не прошедшего — 403
+ * с причиной; не больше трёх открытых споров у покупателя; «данные
+ * получены» при ручной выдаче — в журнал выдачи спора.
+ */
+async function scenarioSellerProtection(rnd) {
+  console.log('\n— Защита продавца —');
+  const seller = await register('sfz', rnd);
+  const young = await register('spy', rnd);
+  const old = await register('spo', rnd);
+  await prisma.user.update({ where: { id: old.id }, data: { createdAt: new Date(Date.now() - 40 * 86_400_000) } });
+  const S = { token: seller.token };
+  const lot = await createListing(seller.token, 'skins', '15000', { title: `Защита ${rnd}` });
+
+  const bad = await j('/seller-tools/buyer-filter', { method: 'PUT', ...S, body: JSON.stringify({ minAgeDays: 5, maxLostDisputes: null, noBadReviews: false }) });
+  const set = await j('/seller-tools/buyer-filter', { method: 'PUT', ...S, body: JSON.stringify({ minAgeDays: 30, maxLostDisputes: null, noBadReviews: false }) });
+  const shown = (await j(`/listings/${lot}`)).body;
+  const youngTry = await j('/orders', { method: 'POST', token: young.token, body: JSON.stringify({ listingId: lot }) });
+  const oldTry = await j('/orders', { method: 'POST', token: old.token, body: JSON.stringify({ listingId: lot }) });
+  check(
+    'Фильтр покупателей: вариант не из списка — 400; «от 30 дней» — виден на лоте; новичку — 403 «buyer_filtered» с причиной, старому — заказ',
+    bad.status === 400 && set.status === 200 && shown.seller?.profile?.buyerFilter?.minAgeDays === 30 &&
+      youngTry.status === 403 && youngTry.body.error === 'buyer_filtered' && youngTry.body.reason === 'age' && oldTry.status === 201,
+    JSON.stringify({ bad: bad.status, set: set.status, shown: shown.seller?.profile?.buyerFilter, young: [youngTry.status, youngTry.body?.error], old: oldTry.status }),
+  );
+
+  // Проигранный спор за 90 дней — у продавца «ни одного».
+  await j('/seller-tools/buyer-filter', { method: 'PUT', ...S, body: JSON.stringify({ minAgeDays: 0, maxLostDisputes: 0, noBadReviews: false }) });
+  const lostOn = await prisma.dispute.create({ data: { orderId: oldTry.body.id, openedBy: old.id, reason: 'тест', status: 'resolved_seller', resolvedAt: new Date() } });
+  const lostTry = await j('/orders', { method: 'POST', token: old.token, body: JSON.stringify({ listingId: lot }) });
+  await prisma.dispute.delete({ where: { id: lostOn.id } });
+  const off = await j('/seller-tools/buyer-filter', { method: 'PUT', ...S, body: JSON.stringify({ minAgeDays: 0, maxLostDisputes: null, noBadReviews: false }) });
+  const shownOff = (await j(`/listings/${lot}`)).body;
+  check(
+    'Проигранный спор — 403 «disputes»; фильтр выключен — на лоте условий нет',
+    lostTry.status === 403 && lostTry.body.reason === 'disputes' && off.status === 200 && shownOff.seller?.profile?.buyerFilter == null,
+    JSON.stringify({ lost: [lostTry.status, lostTry.body?.reason], off: off.status, filter: shownOff.seller?.profile?.buyerFilter }),
+  );
+
+  // Не больше трёх открытых споров сразу.
+  const disputer = await register('spd', rnd);
+  const paidOrder = async (who) => {
+    const o = (await j('/orders', { method: 'POST', token: who.token, body: JSON.stringify({ listingId: lot }) })).body;
+    await pay(who.token, o.id);
+    return o;
+  };
+  const orders = [];
+  for (let i = 0; i < 4; i++) orders.push(await paidOrder(disputer));
+  const opened = [];
+  for (const o of orders) opened.push(await j('/disputes', { method: 'POST', token: disputer.token, body: JSON.stringify({ orderId: o.id, reason: 'Товар не пришёл' }) }));
+  check(
+    'Лимит споров: три открытых — можно, четвёртый — 429 «dispute_limit»',
+    opened.slice(0, 3).every((r) => r.status === 201) && opened[3].status === 429 && opened[3].body.error === 'dispute_limit',
+    JSON.stringify(opened.map((r) => [r.status, r.body?.error])),
+  );
+
+  // «Данные получены» — после ручной выдачи, в журнал спора.
+  const receiver = await register('spr', rnd);
+  const o = await paidOrder(receiver);
+  const early = await j(`/orders/${o.id}/received`, { method: 'POST', token: receiver.token });
+  await j(`/orders/${o.id}/deliver`, { method: 'POST', token: seller.token });
+  const sellerTry = await j(`/orders/${o.id}/received`, { method: 'POST', token: seller.token });
+  const got = await j(`/orders/${o.id}/received`, { method: 'POST', token: receiver.token });
+  const d = (await j('/disputes', { method: 'POST', token: receiver.token, body: JSON.stringify({ orderId: o.id, reason: 'Данные не подходят' }) })).body;
+  const journal = (await j(`/disputes/${d.id}`, { token: seller.token })).body.journal ?? [];
+  check(
+    '«Данные получены»: до выдачи — 400, продавцу — 403; после выдачи — отметка и событие в журнале спора',
+    early.status === 400 && sellerTry.status === 403 && got.status === 201 && !!got.body.receivedAt && journal.some((e) => e.code === 'received'),
+    JSON.stringify({ early: early.status, sellerTry: sellerTry.status, got: [got.status, got.body?.receivedAt], journal: journal.map((e) => e.code) }),
+  );
+}
+
+/**
  * API для продавцов (часть 127): ключ показывается один раз и работает
  * вместо входа; лоты — цена, снять и вернуть, склад автовыдачи; продажи и
  * выдача с сообщением; вебхук «оплачен новый заказ» с подписью и повтором
@@ -5669,6 +5742,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioGameChat(rnd);
   await scenarioAppeals(rnd);
   await scenarioArbitration(rnd);
+  await scenarioSellerProtection(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

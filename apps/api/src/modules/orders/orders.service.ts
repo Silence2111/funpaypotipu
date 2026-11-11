@@ -7,6 +7,7 @@ import {
   Logger,
   NotFoundException,
   Optional,
+  HttpException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type Order, type OrderStatus, type Payment } from '@gamemarket/db';
@@ -39,6 +40,10 @@ import {
   serviceDueAt,
   warrantyActive,
   warrantyUntil,
+  BUYER_DISPUTES_DAYS,
+  buyerFilterActive,
+  buyerFilterMiss,
+  buyerFilterOf,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { likeText } from '../../common/like';
@@ -159,6 +164,8 @@ export class OrdersService {
     if (listing.sellerId === buyerId) throw new BadRequestException('Нельзя купить собственный лот');
     // Свой второй аккаунт — тоже свой лот: накрутка продаж и кэшбэк с себя (часть 128).
     await this.antifraud?.assertNotLinked(buyerId, listing.sellerId);
+    // Кому продавать — решает продавец (часть 136).
+    await this.assertBuyerFits(buyerId, listing.sellerId);
     if (listing.fulfillmentType === 'provider') {
       const accountError = topupAccountError(listing.game.slug, account);
       if (accountError) throw new BadRequestException(accountError);
@@ -603,6 +610,54 @@ export class OrdersService {
       })
       .catch(() => null);
     return { key: keys[0], keys };
+  }
+
+  /**
+   * Фильтр покупателей продавца (часть 136): возраст аккаунта, проигранные
+   * споры за 90 дней, оценки других продавцов. Не проходит — 403 с тем,
+   * какое условие не выполнено; условия видны на странице лота заранее.
+   */
+  private async assertBuyerFits(buyerId: string, sellerId: string) {
+    const seller = await this.prisma.profile.findUnique({ where: { userId: sellerId }, select: { buyerFilter: true } });
+    const filter = buyerFilterOf(seller?.buyerFilter);
+    if (!buyerFilterActive(filter)) return;
+    const since = new Date(Date.now() - BUYER_DISPUTES_DAYS * 86_400_000);
+    const [user, lost, reviews] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: buyerId }, select: { createdAt: true } }),
+      this.prisma.dispute.count({ where: { status: 'resolved_seller', resolvedAt: { gte: since }, order: { buyerId } } }),
+      this.prisma.buyerReview.groupBy({ by: ['good'], where: { buyerId }, _count: { _all: true } }),
+    ]);
+    const miss = buyerFilterMiss(filter, {
+      ageDays: user ? (Date.now() - user.createdAt.getTime()) / 86_400_000 : 0,
+      lostDisputes: lost,
+      goodReviews: reviews.find((r) => r.good)?._count._all ?? 0,
+      badReviews: reviews.find((r) => !r.good)?._count._all ?? 0,
+    });
+    if (!miss) return;
+    const filterWhy =
+      miss === 'age'
+        ? `Продавец продаёт покупателям с аккаунтом не моложе ${filter.minAgeDays} дн.`
+        : miss === 'disputes'
+          ? 'Продавец не продаёт покупателям с проигранными спорами за последние 90 дней.'
+          : 'Продавец не продаёт покупателям, которых другие продавцы чаще не рекомендуют.';
+    throw new HttpException({ statusCode: 403, error: 'buyer_filtered', message: filterWhy, reason: miss }, 403);
+  }
+
+  /**
+   * «Данные получены» (часть 136): при ручной выдаче покупатель отмечает,
+   * что продавец передал данные. Это не подтверждение качества — проверить
+   * можно и после, — а факт передачи для арбитра: в журнал выдачи спора.
+   */
+  async markReceived(orderId: string, buyerId: string) {
+    const order = await this.get(orderId);
+    if (order.buyerId !== buyerId) throw new ForbiddenException('Это не ваш заказ');
+    if (order.fulfillmentType !== 'manual' || order.status !== 'delivered') {
+      throw new BadRequestException('Отметить «данные получены» можно после ручной выдачи');
+    }
+    if (order.receivedAt) return order;
+    const updated = await this.prisma.order.update({ where: { id: order.id }, data: { receivedAt: new Date() } });
+    await this.sys(order.id, 'Покупатель отметил: данные получены.');
+    return updated;
   }
 
   /**

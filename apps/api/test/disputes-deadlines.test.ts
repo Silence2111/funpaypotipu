@@ -39,6 +39,8 @@ function setup() {
     });
   const prisma = {
     dispute: {
+      // Открытые споры покупателя (часть 136) — лимит 3, здесь их нет.
+      count: vi.fn(async () => 0),
       findUnique: vi.fn(async ({ where }: { where: Row }) =>
         where.id
           ? (disputes.get(where.id as string) ?? null)

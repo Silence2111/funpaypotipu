@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaClient } from '@gamemarket/db';
-import { normalizeCommand } from '@gamemarket/shared';
+import { Prisma, PrismaClient } from '@gamemarket/db';
+import { buyerFilterActive, buyerFilterOf, normalizeCommand, type BuyerFilter } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { ListingsService } from '../listings/listings.service';
 
@@ -33,7 +33,7 @@ export class SellerToolsService {
     const [profile, templates, raise] = await Promise.all([
       this.prisma.profile.findUnique({
         where: { userId },
-        select: { greetingText: true, autoRaise: true },
+        select: { greetingText: true, autoRaise: true, buyerFilter: true },
       }),
       this.templates(userId),
       this.listings.raiseStatus(userId),
@@ -41,6 +41,7 @@ export class SellerToolsService {
     return {
       greeting: profile?.greetingText ?? null,
       autoRaise: profile?.autoRaise ?? false,
+      buyerFilter: buyerFilterOf(profile?.buyerFilter),
       raise,
       templates,
     };
@@ -51,6 +52,16 @@ export class SellerToolsService {
     const greeting = text?.trim() || null;
     await this.prisma.profile.update({ where: { userId }, data: { greetingText: greeting } });
     return { greeting };
+  }
+
+  /** Кому продавать (часть 136); всё выключено — фильтра нет. */
+  async setBuyerFilter(userId: string, input: BuyerFilter) {
+    const filter = buyerFilterOf(input);
+    await this.prisma.profile.update({
+      where: { userId },
+      data: { buyerFilter: buyerFilterActive(filter) ? (filter as unknown as Prisma.InputJsonValue) : Prisma.DbNull },
+    });
+    return { buyerFilter: filter };
   }
 
   async setAutoRaise(userId: string, on: boolean) {
