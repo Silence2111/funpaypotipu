@@ -80,6 +80,7 @@ export const NOTIFY_GROUPS = [
       'balance_released',
       'appeal_decided',
       'appeal_overdue',
+      'registry_check',
       'kyc_approved',
       'kyc_rejected',
     ],
@@ -156,6 +157,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   balance_released: 'Удержание с баланса снято',
   appeal_decided: 'Решение по вашему обжалованию',
   appeal_overdue: 'Обжалование ждёт ответа дольше срока',
+  registry_check: 'Итоги года: площадка и пороги реестра по 289-ФЗ',
   payout_delayed: 'Проверка вывода затянулась — заявку передали старшему сотруднику',
   payout_overdue: 'Заявка на вывод ждёт решения дольше срока',
   kyc_approved: 'Документы проверены — вывод без ограничения суммы',
@@ -238,6 +240,7 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
   // Решения модерации и обжалования (часть 134) — в кабинет «Решения модерации»;
   // сотруднику — в очередь обжалований и вывода.
   if (type === 'appeal_overdue') return '/admin?tab=appeals';
+  if (type === 'registry_check') return '/admin?tab=stats';
   if (type === 'payout_overdue') return '/admin?tab=payouts';
   if (id('decisionId') || type === 'appeal_decided') return '/cabinet/decisions';
   if (type === 'balance_released' || type === 'payout_delayed') return '/cabinet/wallet';

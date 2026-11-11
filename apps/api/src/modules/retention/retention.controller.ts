@@ -7,6 +7,7 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { RolesGuard } from '../access/roles.guard';
 import { Roles } from '../access/roles.decorator';
 import { RetentionService } from './retention.service';
+import { RegistryCheckService } from './registry-check.service';
 
 const listQuery = z.object({ limit: z.coerce.number().int().min(1).max(200).default(50) });
 
@@ -18,7 +19,16 @@ const listQuery = z.object({ limit: z.coerce.number().int().min(1).max(200).defa
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class RetentionController {
-  constructor(private readonly retention: RetentionService) {}
+  constructor(
+    private readonly retention: RetentionService,
+    private readonly registry: RegistryCheckService,
+  ) {}
+
+  /** Пороги реестра по 289-ФЗ (часть 145): прошлый год и текущий на сегодня. */
+  @Get('registry')
+  registryStatus() {
+    return this.registry.status();
+  }
 
   @Get('acts')
   list(@Query(new ZodValidationPipe(listQuery)) q: z.infer<typeof listQuery>) {

@@ -53,6 +53,12 @@ export interface ImportLot {
   price: string;
   stock: number | null;
   attributes: Record<string, string | boolean>;
+  /**
+   * Лот на английском (часть 144) — необязательные столбцы «Название
+   * (англ.)» и «Описание (англ.)». Пусто — не трогать.
+   */
+  titleEn?: string;
+  descriptionEn?: string;
 }
 
 export interface ImportRead {
@@ -112,13 +118,18 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-const FIELDS: Record<'id' | 'title' | 'description' | 'price' | 'stock', string[]> = {
+const FIELDS: Record<'id' | 'title' | 'description' | 'price' | 'stock' | 'titleEn' | 'descriptionEn', string[]> = {
   id: ['id'],
   title: ['название', 'title'],
   description: ['описание', 'description'],
   price: ['цена', 'price'],
   stock: ['наличие', 'количество', 'stock'],
+  titleEn: ['название (англ.)', 'название на английском', 'title (en)', 'title_en'],
+  descriptionEn: ['описание (англ.)', 'описание на английском', 'description (en)', 'description_en'],
 };
+
+/** Английские столбцы в выгрузке — как их ждёт загрузка. */
+export const IMPORT_EN_COLUMNS = { ru: ['Название (англ.)', 'Описание (англ.)'], en: ['title_en', 'description_en'] } as const;
 
 /** «Цена, ₽*» → «цена»: регистр, звёздочка обязательного и валюта не важны. */
 const headerKey = (h: string) =>
@@ -159,6 +170,11 @@ export function lotImportError(lot: ImportLot, attrs: ImportAttr[]): string | nu
   if (lot.description.length > 10_000) return 'Описание — до 10 000 знаков';
   if (!/^\d+$/.test(lot.price) || BigInt(lot.price) <= 0n)
     return 'Цена — число больше нуля, например 490';
+  if (lot.titleEn) {
+    if (lot.titleEn.length < 3 || lot.titleEn.length > 120) return 'Название на английском — от 3 до 120 знаков';
+    if (/[\u0400-\u04FF]/.test(lot.titleEn)) return 'Название на английском — латиницей';
+  }
+  if (lot.descriptionEn && lot.descriptionEn.length > 10_000) return 'Описание на английском — до 10 000 знаков';
   if (
     lot.stock != null &&
     (!Number.isInteger(lot.stock) || lot.stock < 0 || lot.stock > 9_999_999)
@@ -252,6 +268,11 @@ export function readImport(table: string[][], attrs: ImportAttr[]): ImportRead {
       if (c.field === 'id') {
         if (raw) lot.id = raw.toLowerCase();
       } else if (c.field === 'title') lot.title = raw;
+      else if (c.field === 'titleEn') {
+        if (raw) lot.titleEn = raw;
+      } else if (c.field === 'descriptionEn') {
+        if (raw) lot.descriptionEn = (cells[i] ?? '').trim();
+      }
       else if (c.field === 'description') lot.description = (cells[i] ?? '').trim();
       else if (c.field === 'price') {
         const p = importPrice(raw);
@@ -333,11 +354,15 @@ export function exportLots(
     price: string;
     stock: number | null;
     attributes: Record<string, unknown>;
+    titleEn?: string | null;
+    descriptionEn?: string | null;
   }>,
   attrs: ImportAttr[],
   lang: 'ru' | 'en' = 'ru',
 ): string {
-  const head = importTemplate(attrs, lang).trimEnd();
+  // Английские столбцы — только если они у кого-то заполнены: остальным таблица та же.
+  const en = lots.some((l) => l.titleEn || l.descriptionEn);
+  const head = importTemplate(attrs, lang).trimEnd() + (en ? `;${IMPORT_EN_COLUMNS[lang].join(';')}` : '');
   const rub = (minor: string) => {
     const v = BigInt(minor);
     const kop = v % 100n;
@@ -361,6 +386,7 @@ export function exportLots(
       rub(l.price),
       l.stock == null ? '' : String(l.stock),
       ...attrs.map((a) => value(l.attributes[a.key])),
+      ...(en ? [l.titleEn ?? '', l.descriptionEn ?? ''] : []),
     ]
       .map(csvCell)
       .join(';'),

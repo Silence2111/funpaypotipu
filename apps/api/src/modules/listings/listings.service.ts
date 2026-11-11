@@ -1113,7 +1113,7 @@ export class ListingsService {
         topupMarkupBps: null,
       },
       orderBy: { createdAt: 'asc' },
-      select: { id: true, title: true, description: true, price: true, stock: true, attributes: true },
+      select: { id: true, title: true, description: true, price: true, stock: true, attributes: true, titleEn: true, descriptionEn: true },
       take: IMPORT_MAX_ROWS * 5,
     });
     return rows.map((r) => ({ ...r, price: r.price.toString() }));
@@ -1153,6 +1153,8 @@ export class ListingsService {
           categoryId,
           title: lot.title.trim(),
           description: lot.description,
+          ...(lot.titleEn ? { titleEn: lot.titleEn } : {}),
+          ...(lot.descriptionEn ? { descriptionEn: lot.descriptionEn } : {}),
           price: lot.price,
           stock: lot.stock,
           attributes: lot.attributes,
@@ -1180,6 +1182,8 @@ export class ListingsService {
         fulfillmentType: true,
         title: true,
         description: true,
+        titleEn: true,
+        descriptionEn: true,
         price: true,
         stock: true,
         attributes: true,
@@ -1198,6 +1202,9 @@ export class ListingsService {
     const input: UpdateListingInput = {};
     if (title !== current.title) input.title = title;
     if (lot.description && lot.description !== current.description) input.description = lot.description;
+    // Английские поля (часть 144): пусто — оставить как есть.
+    if (lot.titleEn && lot.titleEn !== current.titleEn) input.titleEn = lot.titleEn;
+    if (lot.descriptionEn && lot.descriptionEn !== current.descriptionEn) input.descriptionEn = lot.descriptionEn;
     if (BigInt(lot.price) !== current.price) input.price = lot.price;
     if (lot.stock !== current.stock) input.stock = lot.stock;
     if (JSON.stringify(sortKeys(attributes)) !== JSON.stringify(sortKeys(before))) input.attributes = attributes;

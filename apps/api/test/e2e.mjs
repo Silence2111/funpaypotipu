@@ -2534,7 +2534,23 @@ async function scenarioListingEnglish(rnd) {
   const cleared = await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ titleEn: '', descriptionEn: '' }) });
   const after = (await j(`/listings/${lot}`)).body;
   check('Пустое — стирает: англоязычные увидят русское', cleared.status === 200 && after.titleEn === null && after.descriptionEn === null, JSON.stringify([cleared.status, after.titleEn, after.descriptionEn]));
-  await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
+  // Таблица (часть 144): английские столбцы создаются, выгружаются и меняются.
+  const g = (await j('/catalog/games/cs2')).body;
+  const cat = g.categories.find((c) => c.slug === 'skins');
+  const table = (lots) => j('/listings/import', { method: 'POST', token: seller.token, body: JSON.stringify({ gameId: g.id, categoryId: cat.id, lots }) });
+  const imp = await table([{ line: 2, title: `Нож Флип ${rnd}`, description: 'x', price: '50000', stock: null, attributes: { rarity: 'Covert' }, titleEn: `Flip Knife ${rnd}`, descriptionEn: 'Minimal Wear' }]);
+  const newId = imp.body.created?.[0]?.id;
+  const exported = (await j(`/listings/export?categoryId=${cat.id}`, { token: seller.token })).body;
+  const row = exported.find?.((r) => r.id === newId);
+  const upd = await table([{ line: 2, id: newId, title: `Нож Флип ${rnd}`, description: '', price: '50000', stock: null, attributes: {}, titleEn: `Flip Knife FN ${rnd}` }]);
+  const afterUpd = (await j(`/listings/${newId}`)).body;
+  check(
+    'Таблица: английские поля создаются, выгружаются и меняются, пустые — остаются как есть',
+    imp.status === 201 && !!newId && row?.titleEn === `Flip Knife ${rnd}` && row?.descriptionEn === 'Minimal Wear' &&
+      upd.body.updated?.length === 1 && afterUpd.titleEn === `Flip Knife FN ${rnd}` && afterUpd.descriptionEn === 'Minimal Wear',
+    JSON.stringify({ imp: [imp.status, imp.body?.failed], row: row && [row.titleEn, row.descriptionEn], upd: upd.body, after: [afterUpd.titleEn, afterUpd.descriptionEn] }),
+  );
+  for (const id of [lot, newId]) await j(`/listings/${id}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
 }
 
 /**
@@ -2620,6 +2636,15 @@ async function scenarioRetention(rnd) {
   }
   const oldEvents = await prisma.erasureEvent.count({ where: { actId: old.id } });
   check('Акт старше 3 лет удалён вместе с журналом', gone === null && oldEvents === 0);
+  // Пороги реестра по 289-ФЗ (часть 145): продавцы и оборот за год — в консоли.
+  const reg = await j('/admin/erasure/registry', A);
+  const regNo = await j('/admin/erasure/registry', S);
+  check(
+    'Пороги реестра 289-ФЗ: текущий год с продавцами и оборотом, пороги 10 тыс. и 100 тыс. в день; не администратору — 403',
+    reg.status === 200 && reg.body.current.sellers >= 1 && BigInt(reg.body.current.turnover) > 0n && reg.body.thresholds.sellers === 10000 &&
+      reg.body.thresholds.dailyUsers === 100000 && reg.body.current.reached === false && regNo.status === 403,
+    JSON.stringify({ reg: reg.body, no: regNo.status }),
+  );
   await j(`/listings/${lot}`, { method: 'PATCH', ...S, body: JSON.stringify({ status: 'paused' }) });
 }
 
