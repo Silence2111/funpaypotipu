@@ -660,4 +660,7 @@ export const EN_API: Phrasebook = {
     'A Steam trade link looks like https://steamcommunity.com/tradeoffer/new/?partner=…&token=…',
   'Ссылка на обмен Steam — вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=… (Steam → Инвентарь → Предложения обмена → «Кто может отправлять мне предложения»)':
     'A Steam trade link looks like https://steamcommunity.com/tradeoffer/new/?partner=…&token=… (Steam → Inventory → Trade Offers → “Who can send me trade offers?”)',
+  // Акты об уничтожении (часть 147)
+  'Акт не найден': 'Act not found',
+  'Акт уже подписан': 'The act is already signed',
 };

@@ -688,6 +688,9 @@ model Order {
   /// Бонусы покупателя, списанные скидкой в этом заказе (часть 146): из
   /// вознаграждения площадки. Отмена или возврат — бонусы возвращаются (триггер).
   bonusDiscount      BigInt          @default(0) @map("bonus_discount")
+  /// Сроки хранения (часть 147): когда из сделки удалённого пользователя
+  /// уничтожены данные для выдачи и выданное — через 5 лет после года сделки.
+  scrubbedAt         DateTime?       @map("scrubbed_at")
   /// Услуга со сроком (часть 125): выполнить до; взято в работу; когда срок
   /// вышел и обе стороны об этом узнали. Вышел и сутки без выдачи и спора —
   /// деньги возвращаются покупателю.
@@ -1916,4 +1919,41 @@ model BonusEntry {
   @@unique([kind, orderId])
   @@index([userId, createdAt])
   @@map("bonus_entries")
+}
+
+/// Журнал уничтожения персональных данных (часть 147, приказ РКН от
+/// 28.10.2022 № 179): кого, какие категории, сколько записей, почему и
+/// когда. Записи одного дня и одной причины — в одном акте.
+model ErasureEvent {
+  id         String      @id @default(uuid()) @db.Uuid
+  at         DateTime    @default(now())
+  reason     String      @db.VarChar(40)
+  /// Кто: иная информация, позволяющая определить субъекта, — id и ник
+  /// после удаления (`deleted_…`); почты и имени к этому времени уже нет.
+  subject    String
+  userId     String?     @map("user_id") @db.Uuid
+  categories String[]
+  count      Int         @default(1)
+  actId      String?     @map("act_id") @db.Uuid
+  act        ErasureAct? @relation(fields: [actId], references: [id], onDelete: Cascade)
+
+  @@index([actId])
+  @@index([at])
+  @@map("erasure_events")
+}
+
+/// Акт об уничтожении (часть 147): один на день и причину. Подписывает
+/// ответственный в консоли; хранится 3 года, потом удаляется с журналом.
+model ErasureAct {
+  id        String         @id @default(uuid()) @db.Uuid
+  number    Int            @unique @default(autoincrement())
+  day       DateTime       @db.Date
+  reason    String         @db.VarChar(40)
+  createdAt DateTime       @default(now()) @map("created_at")
+  signedBy  String?        @map("signed_by") @db.Uuid
+  signedAt  DateTime?      @map("signed_at")
+  events    ErasureEvent[]
+
+  @@unique([day, reason])
+  @@map("erasure_acts")
 }

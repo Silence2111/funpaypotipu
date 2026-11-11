@@ -2033,7 +2033,13 @@ async function scenarioSellerApi(rnd) {
     const r = await j('/v1/me', K);
     if (r.status === 429) limited = r;
   }
-  const log = (await j('/account/api/requests', S)).body;
+  // Запрос пишется в журнал после ответа — под нагрузкой чуть позже.
+  let log = [];
+  for (let i = 0; i < 20; i++) {
+    log = (await j('/account/api/requests', S)).body;
+    if (log.some?.((r) => r.status === 429)) break;
+    await wait(500);
+  }
   const revoked = await j(`/account/api/keys/${made.body.id}`, { method: 'DELETE', ...S });
   const after = await j('/v1/me', K);
   check(
@@ -2529,6 +2535,92 @@ async function scenarioListingEnglish(rnd) {
   const after = (await j(`/listings/${lot}`)).body;
   check('Пустое — стирает: англоязычные увидят русское', cleared.status === 200 && after.titleEn === null && after.descriptionEn === null, JSON.stringify([cleared.status, after.titleEn, after.descriptionEn]));
   await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
+}
+
+/**
+ * Сроки хранения и акт об уничтожении (часть 147): удалённый аккаунт —
+ * запись в журнал; переписка удалённого старше 3 лет и данные для выдачи в
+ * его сделках старше 5 лет после года сделки уничтожаются; в консоли — акт,
+ * выгрузка из журнала, подпись; акты старше 3 лет удаляются.
+ */
+async function scenarioRetention(rnd) {
+  console.log('\n— Сроки хранения и акт об уничтожении —');
+  const admin = await register('hra', rnd);
+  const seller = await register('hrs', rnd);
+  const buyer = await register('hrb', rnd);
+  await grant(admin, 'admin');
+  const A = { token: admin.token };
+  const B = { token: buyer.token };
+  const S = { token: seller.token };
+  const lot = await createListing(seller.token, 'skins', '30000', { title: `Хранение ${rnd}`, buyerFields: [{ label: 'Ник в игре', required: true }] });
+  const order = (await j('/orders', { method: 'POST', ...B, body: JSON.stringify({ listingId: lot, buyerData: { 'Ник в игре': `nick${rnd}` } }) })).body;
+  await pay(buyer.token, order.id);
+  await j(`/orders/${order.id}/deliver`, { method: 'POST', ...S });
+  await j(`/orders/${order.id}/confirm`, { method: 'POST', ...B });
+  const del = await j('/account/deletion', { method: 'POST', ...B, body: JSON.stringify({ username: `hrb${rnd}`, password: 'password123', forfeit: true }) });
+  await prisma.user.update({ where: { id: buyer.id }, data: { deletedAt: new Date(Date.now() - 31 * 86400000) } });
+  const event = async (reason) => {
+    for (let i = 0; i < 30; i++) {
+      const e = await prisma.erasureEvent.findFirst({ where: { userId: buyer.id, reason } });
+      if (e) return e;
+      await wait(500);
+    }
+    return null;
+  };
+  const erasedEv = await event('account_deleted');
+  check('Аккаунт уничтожен — запись в журнале с категориями и актом', del.status === 200 && !!erasedEv?.actId && erasedEv.categories.includes('почта и телефон') && erasedEv.subject.includes('deleted_'), JSON.stringify({ del: del.status, ev: erasedEv && [erasedEv.subject, erasedEv.categories] }));
+
+  // Сроки вышли: переписке 4 года, сделке 7 лет.
+  const conv = await prisma.conversation.findFirst({ where: { orderId: order.id }, select: { id: true } });
+  const msgsBefore = await prisma.message.count({ where: { conversationId: conv.id } });
+  await prisma.conversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date(Date.now() - 4 * 365 * 86400000) } });
+  await prisma.order.update({ where: { id: order.id }, data: { createdAt: new Date(Date.now() - 7 * 365 * 86400000) } });
+  const chatEv = await event('chat_retention');
+  const dealEv = await event('deal_retention');
+  const msgsAfter = await prisma.message.count({ where: { conversationId: conv.id } });
+  const scrubbed = await prisma.order.findUnique({ where: { id: order.id }, select: { scrubbedAt: true, listingSnapshot: true, amount: true } });
+  const ledger = await prisma.ledgerEntry.count({ where: { orderId: order.id } });
+  check(
+    'Сроки: переписка удалённого старше 3 лет — удалена; в сделке старше 5 лет — без ника, сумма и проводки на месте; обе записи в журнале',
+    msgsBefore > 0 && msgsAfter === 0 && chatEv?.count === msgsBefore && !!scrubbed?.scrubbedAt && !scrubbed.listingSnapshot.buyerData &&
+      scrubbed.amount === 30000n && ledger > 0 && dealEv?.count === 1,
+    JSON.stringify({ msgsBefore, msgsAfter, chat: chatEv?.count, scrubbed: scrubbed?.scrubbedAt, snap: scrubbed?.listingSnapshot, ledger, deal: dealEv?.count }),
+  );
+
+  const notAdmin = await j('/admin/erasure/acts', S);
+  const acts = (await j('/admin/erasure/acts', A)).body;
+  const dealAct = acts.find?.((a) => a.id === dealEv?.actId);
+  const file = async (path) => {
+    const res = await fetch(`${API}/api${path}`, { headers: { Authorization: `Bearer ${admin.token}` } });
+    return { status: res.status, type: res.headers.get('content-type'), text: new TextDecoder('utf-8', { ignoreBOM: true }).decode(await res.arrayBuffer()) };
+  };
+  const html = await file(`/admin/erasure/acts/${dealEv?.actId}/act`);
+  const csv = await file(`/admin/erasure/acts/${dealEv?.actId}/journal.csv`);
+  check(
+    'Консоль: не администратору — 403; акт — субъект, категории, система, способ, причина; выгрузка из журнала — CSV для Excel',
+    notAdmin.status === 403 && dealAct?.reason === 'deal_retention' && dealAct.subjects >= 1 && /402-ФЗ/.test(dealAct.reasonText) &&
+      html.status === 200 && /text\/html/.test(html.type) && html.text.includes(`Акт об уничтожении персональных данных № ${dealAct.number}`) &&
+      html.text.includes(erasedEv.subject) && html.text.includes('данные для выдачи') && html.text.includes('Способ уничтожения') &&
+      csv.status === 200 && csv.text.startsWith('\uFEFFДата и время (МСК);Субъект;') && csv.text.includes(erasedEv.subject),
+    JSON.stringify({ notAdmin: notAdmin.status, act: dealAct, html: [html.status, html.type], csv: csv.text.slice(0, 200) }),
+  );
+  // Акт дня общий для прогонов на одной базе — подпись прошлого прогона снимаем.
+  await prisma.erasureAct.update({ where: { id: dealEv.actId }, data: { signedAt: null, signedBy: null } });
+  const sign = await j(`/admin/erasure/acts/${dealEv.actId}/sign`, { method: 'POST', ...A });
+  const again = await j(`/admin/erasure/acts/${dealEv.actId}/sign`, { method: 'POST', ...A });
+  const signedHtml = await file(`/admin/erasure/acts/${dealEv.actId}/act`);
+  check('Подпись: отмечена с ником и временем, второй раз — 409', sign.status === 201 && again.status === 409 && signedHtml.text.includes(`Подписан в консоли: hra${rnd}`), JSON.stringify([sign.status, again.status]));
+
+  const old = await prisma.erasureAct.create({ data: { day: new Date(Date.now() - 4 * 365 * 86400000), reason: 'account_deleted', events: { create: [{ reason: 'account_deleted', subject: 'старый', categories: ['почта и телефон'] }] } } });
+  let gone = null;
+  for (let i = 0; i < 20; i++) {
+    await wait(500);
+    gone = await prisma.erasureAct.findUnique({ where: { id: old.id } });
+    if (!gone) break;
+  }
+  const oldEvents = await prisma.erasureEvent.count({ where: { actId: old.id } });
+  check('Акт старше 3 лет удалён вместе с журналом', gone === null && oldEvents === 0);
+  await j(`/listings/${lot}`, { method: 'PATCH', ...S, body: JSON.stringify({ status: 'paused' }) });
 }
 
 async function scenarioPromotion(rnd) {
@@ -6059,6 +6151,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioSteamTrade(rnd);
   await scenarioCleanListings(rnd);
   await scenarioListingEnglish(rnd);
+  await scenarioRetention(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);
   await scenarioSellerTools(rnd);

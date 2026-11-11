@@ -140,6 +140,10 @@
     "./listing-title": {
       "types": "./dist/listing-title.d.ts",
       "default": "./dist/listing-title.js"
+    },
+    "./retention": {
+      "types": "./dist/retention.d.ts",
+      "default": "./dist/retention.js"
     }
   },
   "scripts": {

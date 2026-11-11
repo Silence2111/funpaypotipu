@@ -16,6 +16,7 @@ import { SellerApiModule } from './modules/seller-api/seller-api.module';
 import { GameChatModule } from './modules/game-chat/game-chat.module';
 import { AppealsModule } from './modules/appeals/appeals.module';
 import { BonusesModule } from './modules/bonuses/bonuses.module';
+import { RetentionModule } from './modules/retention/retention.module';
 import { AntivirusModule } from './modules/antivirus/antivirus.module';
 import { MailModule } from './modules/mail/mail.module';
 import { SearchModule } from './modules/search/search.module';
@@ -68,6 +69,7 @@ import { TelegramActionsModule } from './modules/telegram-actions/telegram-actio
     GameChatModule,
     AppealsModule,
     BonusesModule,
+    RetentionModule,
     AntivirusModule,
     MailModule,
     SearchModule,
