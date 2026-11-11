@@ -84,6 +84,11 @@ jobs:
       FOLLOW_INTERVAL_MS: 2000
       # Ожидание поступления раз в 2 с: e2e ждёт уведомления, что лот снова в продаже.
       STOCK_WATCH_INTERVAL_MS: 2000
+      # Антифрод (часть 128): лимиты новичков по умолчанию выключены — сценарии
+      # платят свежими аккаунтами; сценарий 128 включает их в консоли сам.
+      # Поиск входов с браузера забаненного — раз в 2 с.
+      ANTIFRAUD_DEFAULTS: "off"
+      ANTIFRAUD_SWEEP_MS: 2000
       # Вход через Яндекс ID и VK ID — против тестового сервера из e2e (apps/api/test/oauth-mock.mjs).
       OAUTH_TEST_ISSUER: http://localhost:4999
       YANDEX_CLIENT_ID: ci-yandex

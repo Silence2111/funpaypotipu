@@ -274,6 +274,7 @@ export const EN_SHARED: Phrasebook = {
   'Спор разрешён': 'Dispute resolved',
   'Ваша жалоба рассмотрена': 'Your report has been reviewed',
   'Лот заблокирован модератором': 'Listing blocked by a moderator',
+  'Модератор запретил вам писать в чаты игр': 'A moderator has barred you from posting in game chats',
   'Блокировка лота снята': 'Listing unblocked',
   'Лот прошёл проверку и вернулся в продажу': 'Your listing passed review and is back on sale',
   'Номер телефона для входа изменён': 'The sign-in phone number has changed',

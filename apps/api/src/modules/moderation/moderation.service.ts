@@ -1,4 +1,11 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import {
   Prisma,
   PrismaClient,
@@ -10,15 +17,16 @@ import {
 } from '@gamemarket/db';
 import { buyRequestState } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
+import { GameChatService } from '../game-chat/game-chat.service';
 import { containsText, likeText } from '../../common/like';
 import { nextCursor } from '../../common/cursor';
 import { AuditService } from '../access/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SearchService } from '../search/search.service';
 
-export type ReportTarget = 'listing' | 'user' | 'message' | 'buy_request';
+export type ReportTarget = 'listing' | 'user' | 'message' | 'buy_request' | 'game_chat';
 /** Что модератор делает с нарушителем, закрывая жалобу. */
-export type ReportAction = 'block_listing' | 'remove_request' | 'freeze_user' | 'ban_user';
+export type ReportAction = 'block_listing' | 'remove_request' | 'delete_chat_message' | 'mute_chat' | 'freeze_user' | 'ban_user';
 
 /** Роли сотрудников: их статус меняет только администратор. */
 const STAFF_ROLES = ['agent', 'moderator', 'finance', 'admin'];
@@ -106,6 +114,8 @@ export class ModerationService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly search: SearchService,
+    // Чаты игр (часть 133): удаление сообщения и запрет писать по жалобе.
+    @Optional() private readonly gameChat?: GameChatService,
   ) {}
 
   // ── Жалобы (любой пользователь) ──
@@ -143,6 +153,13 @@ export class ModerationService {
       const r = await this.prisma.buyRequest.findUnique({ where: { id: targetId }, select: { buyerId: true } });
       if (!r) throw new NotFoundException('Запрос не найден');
       if (r.buyerId === reporterId) throw new BadRequestException('На свой запрос жаловаться не нужно');
+      return;
+    }
+    if (targetType === 'game_chat') {
+      // Общий чат игры виден всем — жаловаться может любой, кроме автора.
+      const m = await this.prisma.gameChatMessage.findUnique({ where: { id: targetId }, select: { userId: true, deletedAt: true } });
+      if (!m || m.deletedAt) throw new NotFoundException('Сообщение не найдено');
+      if (m.userId === reporterId) throw new BadRequestException('На своё сообщение жаловаться не нужно');
       return;
     }
     // Сообщение: жалуется участник диалога, а не любой, кто узнал id.
@@ -211,7 +228,7 @@ export class ModerationService {
     const idsOf = (t: ReportTarget) => [...new Set(page.filter((g) => g.target_type === t).map((g) => g.target_id))];
     const person = { select: { id: true, status: true, profile: { select: { username: true } } } };
 
-    const [reasons, latest, listings, users, messages, requests, open] = await Promise.all([
+    const [reasons, latest, listings, users, messages, chats, requests, open] = await Promise.all([
       this.prisma.$queryRaw<Array<{ target_type: string; target_id: string; handled_at: Date | null; reason: string; n: number }>>`
         SELECT r.target_type, r.target_id, ${decided ? Prisma.sql`r.handled_at` : Prisma.sql`NULL::timestamp`} AS handled_at,
                r.reason, count(*)::int AS n
@@ -234,6 +251,17 @@ export class ModerationService {
       this.prisma.message.findMany({
         where: { id: { in: idsOf('message').filter((id) => UUID.test(id)) } },
         select: { id: true, body: true, conversationId: true, createdAt: true, sender: person },
+      }),
+      this.prisma.gameChatMessage.findMany({
+        where: { id: { in: idsOf('game_chat').filter((id) => UUID.test(id)) } },
+        select: {
+          id: true,
+          body: true,
+          createdAt: true,
+          deletedAt: true,
+          game: { select: { slug: true, title: true } },
+          user: { select: { id: true, status: true, profile: { select: { username: true, chatMutedUntil: true } } } },
+        },
       }),
       this.prisma.buyRequest.findMany({
         where: { id: { in: idsOf('buy_request').filter((id) => UUID.test(id)) } },
@@ -265,6 +293,7 @@ export class ModerationService {
     const listingById = new Map(listings.map((l) => [l.id, l]));
     const userById = new Map(users.map((u) => [u.id, u]));
     const messageById = new Map(messages.map((m) => [m.id, m]));
+    const chatById = new Map(chats.map((m) => [m.id, m]));
     const requestById = new Map(requests.map((r) => [r.id, r]));
     const reporterName = new Map(reporters.map((u) => [u.id, u.profile?.username ?? null]));
 
@@ -276,6 +305,19 @@ export class ModerationService {
       if (type === 'user') {
         const u = userById.get(id);
         return u ? { user: who(u) } : null;
+      }
+      if (type === 'game_chat') {
+        const m = chatById.get(id);
+        return m
+          ? {
+              text: m.body,
+              sentAt: m.createdAt,
+              game: m.game,
+              chatDeleted: !!m.deletedAt,
+              chatMutedUntil: m.user.profile?.chatMutedUntil ?? null,
+              user: who(m.user),
+            }
+          : null;
       }
       if (type === 'buy_request') {
         const r = requestById.get(id);
@@ -387,6 +429,17 @@ export class ModerationService {
       await this.removeRequest(staffId, report.targetId, reason);
       return;
     }
+    if (action === 'delete_chat_message' || action === 'mute_chat') {
+      if (report.targetType !== 'game_chat' || !this.gameChat) {
+        throw new BadRequestException('Удалить и запретить писать можно по жалобе на сообщение в чате игры');
+      }
+      await this.gameChat.remove(staffId, report.targetId, reason);
+      if (action === 'mute_chat') {
+        const userId = await this.responsibleUser(report);
+        if (userId) await this.gameChat.mute(staffId, userId, 168, reason);
+      }
+      return;
+    }
     const userId = await this.responsibleUser(report);
     if (!userId) throw new NotFoundException('Пользователь не найден');
     await this.setUserStatus(staffId, userId, action === 'ban_user' ? 'banned' : 'frozen', reason);
@@ -402,6 +455,10 @@ export class ModerationService {
     if (report.targetType === 'buy_request') {
       const r = await this.prisma.buyRequest.findUnique({ where: { id: report.targetId }, select: { buyerId: true } });
       return r?.buyerId ?? null;
+    }
+    if (report.targetType === 'game_chat') {
+      const c = await this.prisma.gameChatMessage.findUnique({ where: { id: report.targetId }, select: { userId: true } });
+      return c?.userId ?? null;
     }
     const m = await this.prisma.message.findUnique({ where: { id: report.targetId }, select: { senderId: true } });
     return m?.senderId ?? null;
@@ -544,7 +601,8 @@ export class ModerationService {
       this.prisma.user.count({ where: { AND: [match, STAFF_WHERE] } }),
     ]);
     const rows = page.slice(0, limit);
-    const [decisions, lots] = await Promise.all([
+    const since = new Date(Date.now() - 30 * 86_400_000);
+    const [decisions, lots, risks] = await Promise.all([
       this.lastDecisions(
         'user',
         rows.filter((u) => u.status !== 'active').map((u) => u.id),
@@ -557,8 +615,17 @@ export class ModerationService {
             _count: { _all: true },
           })
         : [],
+      // Риск-балл за 30 дней (часть 128): сигналы антифрода — частота, связи.
+      rows.length
+        ? this.prisma.riskSignal.groupBy({
+            by: ['userId'],
+            where: { userId: { in: rows.map((u) => u.id) }, createdAt: { gte: since } },
+            _sum: { score: true },
+          })
+        : [],
     ]);
     const active = new Map(lots.map((l) => [l.sellerId, l._count._all]));
+    const risk = new Map(risks.map((r) => [r.userId, r._sum.score ?? 0]));
     const n = (s: UserStatus) => grouped.find((g) => g.status === s)?._count._all ?? 0;
     const last = rows[rows.length - 1];
     return {
@@ -571,6 +638,7 @@ export class ModerationService {
           ...u,
           roles: roles.map((r) => r.role.key),
           activeListings: active.get(u.id) ?? 0,
+          risk: risk.get(u.id) ?? 0,
           restriction: current ? { at: d.at, by: d.by, reason: d.reason } : null,
         };
       }),
@@ -635,7 +703,7 @@ export class ModerationService {
       ];
       if (id) {
         parts.push(
-          Prisma.sql`SELECT t, ${id}::text FROM unnest(ARRAY['listing', 'user', 'message', 'buy_request']) t`,
+          Prisma.sql`SELECT t, ${id}::text FROM unnest(ARRAY['listing', 'user', 'message', 'buy_request', 'game_chat']) t`,
           Prisma.sql`SELECT r3.target_type, r3.target_id FROM reports r3 WHERE r3.id = ${id}::uuid`,
         );
       }

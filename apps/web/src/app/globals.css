@@ -5530,3 +5530,13 @@ a.my-lot-title:hover {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* Общий чат игры (часть 133): действия сообщения справа; открытая форма
+   жалобы — на всю ширину строки, а не в узкой колонке справа. */
+.chat-msg-actions {
+  margin-left: auto;
+}
+.chat-msg-actions:has(.card) {
+  flex-basis: 100%;
+  margin-left: 0;
+}

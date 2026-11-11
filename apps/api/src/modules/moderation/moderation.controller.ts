@@ -17,7 +17,7 @@ import { RateLimit } from '../../common/rate-limit';
 import { timeCursor } from '../../common/cursor';
 
 const reportSchema = z.object({
-  targetType: z.enum(['listing', 'user', 'message', 'buy_request']),
+  targetType: z.enum(['listing', 'user', 'message', 'buy_request', 'game_chat']),
   // Цели — строки с uuid-ключом: мусорный id отсекается здесь, а не падением базы.
   targetId: z.string().uuid(),
   reason: z.string().trim().min(3).max(200),
@@ -26,7 +26,7 @@ const reportSchema = z.object({
 
 const handleSchema = z.object({
   status: z.enum(['reviewing', 'resolved', 'rejected']),
-  action: z.enum(['block_listing', 'remove_request', 'freeze_user', 'ban_user']).optional(),
+  action: z.enum(['block_listing', 'remove_request', 'delete_chat_message', 'mute_chat', 'freeze_user', 'ban_user']).optional(),
   note: z.string().trim().max(500).optional(),
 });
 

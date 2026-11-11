@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
   UnauthorizedException,
+  Optional,
 } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { z } from 'zod';
@@ -19,6 +20,7 @@ import {
   computeWithdrawalFee,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
+import { AntifraudService } from '../trust/antifraud.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { EncryptionService } from '../crypto/encryption.service';
 import { AuditService } from '../access/audit.service';
@@ -87,6 +89,8 @@ export class PayoutsService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly gateway: YooKassaPayouts,
+    // Реквизиты забаненного (часть 128); в юнит-тестах — без него.
+    @Optional() private readonly antifraud?: AntifraudService,
   ) {}
 
   /**
@@ -201,6 +205,11 @@ export class PayoutsService {
       if (stored.length < 4) throw new BadRequestException('Укажите реквизиты для вывода');
     }
 
+    // Один человек — несколько аккаунтов (часть 128): HMAC реквизитов в
+    // заявке; реквизиты забаненного — отказ.
+    const destinationFp = this.requisitesFp(method, stored);
+    await this.antifraud?.assertRequisitesClean(userId, method, destinationFp);
+
     const profile = await this.prisma.profile.findUnique({ where: { userId } });
     const holdDays = profile && profile.salesCount > 0 ? 0 : NEWBIE_HOLD_DAYS;
     const holdUntil = new Date(Date.now() + holdDays * 86400 * 1000);
@@ -212,6 +221,7 @@ export class PayoutsService {
         currency,
         method,
         destinationEnc: this.encryption.encrypt(stored),
+        destinationFp,
         status: 'requested',
         holdUntil,
       },
@@ -244,6 +254,8 @@ export class PayoutsService {
       const account = (destination ?? '').replace(/\s/g, '');
       if (!/^\d{11,20}$/.test(account)) throw new BadRequestException('Номер кошелька ЮMoney — от 11 до 20 цифр');
       stored = account;
+      // Реквизиты забаненного (часть 128) — и для выплат по «Безопасной сделке».
+      await this.antifraud?.assertRequisitesClean(userId, method, this.requisitesFp(method, stored));
     }
     await this.remember(userId, method, stored);
     return this.destinations(userId);
@@ -270,11 +282,14 @@ export class PayoutsService {
    * карта из виджета — по первым и последним цифрам, токен заменяется новым.
    * Хранится не больше MAX_SAVED, давно не нужные уходят первыми.
    */
-  private async remember(userId: string, method: string, stored: string) {
+  /** HMAC реквизитов: карта — по первым и последним цифрам, остальное — целиком. */
+  private requisitesFp(method: string, stored: string) {
     const d = parseJson(stored);
-    const fingerprint = this.encryption.fingerprint(
-      d?.token ? `card:${d.first6}:${d.last4}` : `${method}:${stored}`,
-    );
+    return this.encryption.fingerprint(d?.token ? `card:${d.first6}:${d.last4}` : `${method}:${stored}`);
+  }
+
+  private async remember(userId: string, method: string, stored: string) {
+    const fingerprint = this.requisitesFp(method, stored);
     const destinationEnc = this.encryption.encrypt(stored);
     await this.prisma.payoutDestination.upsert({
       where: { userId_fingerprint: { userId, fingerprint } },

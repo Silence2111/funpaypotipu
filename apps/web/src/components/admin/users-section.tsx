@@ -9,6 +9,8 @@ import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
 import { presenceText } from '@/lib/presence';
 import { Empty, ROLE_LABEL, StatusBadge, USER_STATUS, when } from './shared';
 import { usePaged, type Paged } from './use-paged';
+import { UserRisk } from './user-risk';
+import { AntifraudSettingsCard } from './antifraud-settings';
 
 type UserStatus = 'active' | 'frozen' | 'banned';
 type Filter = '' | UserStatus | 'staff';
@@ -22,6 +24,8 @@ interface Row {
   roles: string[];
   /** Сколько лотов сейчас в продаже. */
   activeListings: number;
+  /** Риск-балл за 30 дней — сумма сигналов антифрода (часть 128). */
+  risk?: number;
   /** `onlineAt` — когда последний раз был на сайте. */
   profile: { username: string; salesCount: number; ratingAvg: number; ratingCount: number; onlineAt: string | null } | null;
   /** У замороженного и забаненного — когда, кто и за что. */
@@ -60,6 +64,8 @@ export function UsersSection({ isAdmin, meId }: { isAdmin: boolean; meId: string
   const [text, setText] = useState(params.get('q') ?? '');
   const [query, setQuery] = useState(params.get('q') ?? '');
   const [working, setWorking] = useState<string | null>(null);
+  // Открытая карточка «Риск и связи» (часть 128).
+  const [riskOpen, setRiskOpen] = useState<string | null>(null);
 
   const p = new URLSearchParams();
   if (status) p.set('status', status);
@@ -157,6 +163,7 @@ export function UsersSection({ isAdmin, meId }: { isAdmin: boolean; meId: string
 
   return (
     <section className="stack-form" style={{ gap: 16 }}>
+      {isAdmin && <AntifraudSettingsCard />}
       <form
         onSubmit={(e: FormEvent) => {
           e.preventDefault();
@@ -208,6 +215,12 @@ export function UsersSection({ isAdmin, meId }: { isAdmin: boolean; meId: string
                         {u.activeListings ? `лотов в продаже: ${u.activeListings}` : 'лоты'}
                       </Link>
                       {isAdmin && <Link href={withQuery('/admin', { tab: 'audit', entity: `user:${u.id}` })}>история</Link>}
+                      <button type="button" className="inline-link" aria-expanded={riskOpen === u.id}
+                        style={{ background: 'none', border: 0, padding: 0, font: 'inherit', cursor: 'pointer' }}
+                        onClick={() => setRiskOpen((x) => (x === u.id ? null : u.id))}>
+                        риск и связи
+                      </button>
+                      {!!u.risk && <span className={u.risk >= 30 ? 'badge danger' : 'badge warning'}>риск {u.risk}</span>}
                     </span>
                   </span>
                   <span className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
@@ -229,6 +242,7 @@ export function UsersSection({ isAdmin, meId }: { isAdmin: boolean; meId: string
                     )}
                   </span>
                 </div>
+                {riskOpen === u.id && <UserRisk userId={u.id} />}
                 {u.restriction && (
                   <p className="hint" style={{ margin: '10px 0 0' }}>
                     {RESTRICTED[u.status]} {when(u.restriction.at)}

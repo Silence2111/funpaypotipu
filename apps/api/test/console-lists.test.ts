@@ -54,6 +54,8 @@ function setup(opts: {
       ]),
       count: vi.fn(async () => 4),
     },
+    // Риск-балл за 30 дней (часть 128): сигналов в этих тестах нет.
+    riskSignal: { groupBy: vi.fn(async () => []) },
     listing: {
       findMany: vi.fn(async ({ take }: { take: number }) => (opts.lots ?? []).slice(0, take)),
       groupBy: vi.fn(async ({ by }: { by: string[] }) =>

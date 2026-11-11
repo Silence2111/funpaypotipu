@@ -15,7 +15,7 @@ interface Person { id: string; username: string | null; status: string }
 interface Row {
   /** Последняя жалоба карточки: решение по ней закрывает их все. */
   id: string;
-  targetType: 'listing' | 'user' | 'message' | 'buy_request';
+  targetType: 'listing' | 'user' | 'message' | 'buy_request' | 'game_chat';
   targetId: string;
   status: string;
   /** Когда решили или отклонили. */
@@ -34,6 +34,10 @@ interface Row {
     maxPrice?: string | null;
     requestState?: 'open' | 'expired' | 'closed' | 'removed';
     section?: { slug: string; title: string; game: { slug: string; title: string } | null };
+    /** Сообщение в чате игры (часть 133): игра, удалено ли, запрет автору. */
+    game?: { slug: string; title: string };
+    chatDeleted?: boolean;
+    chatMutedUntil?: string | null;
     user: Person | null;
   } | null;
 }
@@ -49,7 +53,7 @@ const FILTERS = [
 const readFilter = (v: string | null) => FILTERS.find((f) => f.key === v)?.key ?? '';
 /** Адрес очереди с фильтром и поиском — ссылкой открывается тот же список. */
 const reportsUrl = (status: string, q: string) => withQuery('/admin', { tab: 'reports', status, q: q.trim() });
-const KIND = { listing: 'Лот', user: 'Пользователь', message: 'Сообщение в чате', buy_request: 'Запрос покупателя' };
+const KIND = { listing: 'Лот', user: 'Пользователь', message: 'Сообщение в чате', buy_request: 'Запрос покупателя', game_chat: 'Сообщение в чате игры' };
 const REQUEST_STATE = { open: 'открыт', expired: 'истёк', closed: 'закрыт автором', removed: 'снят модератором' };
 
 /** «1 жалоба», «3 жалобы», «250 жалоб». */
@@ -109,7 +113,7 @@ export function ReportsSection() {
     replaceUrl(reportsUrl(st, q));
   }
 
-  async function handle(r: Row, status: 'resolved' | 'rejected', action?: 'block_listing' | 'remove_request' | 'freeze_user' | 'ban_user') {
+  async function handle(r: Row, status: 'resolved' | 'rejected', action?: 'block_listing' | 'remove_request' | 'delete_chat_message' | 'mute_chat' | 'freeze_user' | 'ban_user') {
     const who = r.target?.user?.username ?? 'пользователя';
     if (action === 'ban_user' && !window.confirm(`Забанить ${who}? Он не сможет войти, его лоты уйдут из каталога.`)) return;
     if (action === 'freeze_user' && !window.confirm(`Заморозить ${who}? Покупки, продажи и вывод станут недоступны.`)) return;
@@ -205,6 +209,16 @@ export function ReportsSection() {
                     {r.targetType === 'message' && (
                       <p style={{ margin: '4px 0 0', fontSize: 14, whiteSpace: 'pre-wrap' }}>«{t.text}»</p>
                     )}
+                    {r.targetType === 'game_chat' && (
+                      <>
+                        <p style={{ margin: '4px 0 0', fontSize: 14, whiteSpace: 'pre-wrap' }}>«{t.text}»</p>
+                        <p className="faint" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                          {t.game && <Link href={`/igra/${t.game.slug}`}>{t.game.title}</Link>}
+                          {t.chatDeleted ? ' · удалено' : ''}
+                          {t.chatMutedUntil && new Date(t.chatMutedUntil) > new Date() ? ` · автору нельзя писать до ${when(t.chatMutedUntil)}` : ''}
+                        </p>
+                      </>
+                    )}
                     {r.targetType === 'buy_request' && (
                       <>
                         <p style={{ margin: '4px 0 0', fontSize: 14, whiteSpace: 'pre-wrap' }}>
@@ -224,7 +238,7 @@ export function ReportsSection() {
                     )}
                     {t.user && (
                       <div className="row" style={{ gap: 8, marginTop: 6, fontSize: 14, flexWrap: 'wrap' }}>
-                        <span className="faint">{r.targetType === 'listing' ? 'Продавец' : r.targetType === 'message' ? 'Автор' : r.targetType === 'buy_request' ? 'Покупатель' : 'Аккаунт'}</span>
+                        <span className="faint">{r.targetType === 'listing' ? 'Продавец' : r.targetType === 'message' || r.targetType === 'game_chat' ? 'Автор' : r.targetType === 'buy_request' ? 'Покупатель' : 'Аккаунт'}</span>
                         <Link href={`/prodavec/${t.user.id}`}>{t.user.username ?? t.user.id.slice(0, 8)}</Link>
                         <StatusBadge status={t.user.status} labels={USER_STATUS} />
                       </div>
@@ -244,6 +258,16 @@ export function ReportsSection() {
                     <button type="button" className="btn" disabled={busy === r.id} onClick={() => void handle(r, 'resolved', 'remove_request')}>
                       Снять запрос
                     </button>
+                  )}
+                  {r.targetType === 'game_chat' && t && !t.chatDeleted && (
+                    <>
+                      <button type="button" className="btn" disabled={busy === r.id} onClick={() => void handle(r, 'resolved', 'delete_chat_message')}>
+                        Удалить сообщение
+                      </button>
+                      <button type="button" className="chip" disabled={busy === r.id} onClick={() => void handle(r, 'resolved', 'mute_chat')}>
+                        Удалить и запретить писать неделю
+                      </button>
+                    </>
                   )}
                   {t?.user && t.user.status === 'active' && (
                     <>

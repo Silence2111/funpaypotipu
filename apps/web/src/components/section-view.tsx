@@ -15,6 +15,7 @@ import { SaveSearch } from './save-search';
 import { RequestForm } from './buy-requests';
 import { SectionRequests } from './section-requests';
 import { JsonLd, breadcrumbLd } from './json-ld';
+import { GameChat } from './game-chat';
 
 /** Параметры адреса раздела: f_<ключ>, online, drop, q, max (цена до, ₽), sort, page. */
 export type SectionSearch = Record<string, string | undefined>;
@@ -285,6 +286,9 @@ export async function SectionView({
         items={requests?.items ?? []}
         sellHref={sellHref}
       />
+
+      {/* Общий чат игры (часть 133): один на все разделы игры. */}
+      <GameChat slug={game.slug} title={game.title} />
     </div>
   );
 }
