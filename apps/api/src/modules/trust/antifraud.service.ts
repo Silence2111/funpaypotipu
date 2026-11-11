@@ -11,6 +11,7 @@ import {
   type LinkReason,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
+import { utc } from '../../common/sql-time';
 import { AuditService } from '../access/audit.service';
 import { TrustService } from './trust.service';
 
@@ -211,7 +212,7 @@ export class AntifraudService {
       JOIN auth_sessions b ON b.device_fingerprint = s.device_fingerprint AND b.user_id <> s.user_id
       JOIN users bu ON bu.id = b.user_id AND bu.status = 'banned'
       JOIN users su ON su.id = s.user_id AND su.status <> 'banned'
-      WHERE s.created_at >= ${since} AND b.created_at >= ${deviceSince} AND s.device_fingerprint IS NOT NULL
+      WHERE s.created_at >= ${utc(since)} AND b.created_at >= ${utc(deviceSince)} AND s.device_fingerprint IS NOT NULL
       LIMIT 200`;
     for (const r of rows) {
       const already = await this.prisma.riskSignal.count({
@@ -230,7 +231,7 @@ export class AntifraudService {
       this.prisma.$queryRaw<Array<{ n: number }>>`
         SELECT 1 AS n FROM auth_sessions s1 JOIN auth_sessions s2 ON s2.device_fingerprint = s1.device_fingerprint
         WHERE s1.user_id = ${a}::uuid AND s2.user_id = ${b}::uuid AND s1.device_fingerprint IS NOT NULL
-          AND s1.created_at >= ${since} AND s2.created_at >= ${since}
+          AND s1.created_at >= ${utc(since)} AND s2.created_at >= ${utc(since)}
         LIMIT 1`,
       this.prisma.$queryRaw<Array<{ n: number }>>`
         WITH fa AS (
@@ -261,7 +262,7 @@ export class AntifraudService {
       SELECT DISTINCT s2.user_id, 'device' AS reason
         FROM auth_sessions s1 JOIN auth_sessions s2 ON s2.device_fingerprint = s1.device_fingerprint
         WHERE s1.user_id = ${userId}::uuid AND s2.user_id <> ${userId}::uuid AND s1.device_fingerprint IS NOT NULL
-          AND s1.created_at >= ${since} AND s2.created_at >= ${since}
+          AND s1.created_at >= ${utc(since)} AND s2.created_at >= ${utc(since)}
       UNION
       SELECT DISTINCT o.user_id, 'requisites' AS reason FROM (
           SELECT destination_fp AS fp FROM payouts WHERE user_id = ${userId}::uuid AND destination_fp IS NOT NULL AND method <> 'card'
@@ -277,7 +278,7 @@ export class AntifraudService {
         WHERE s1.user_id = ${userId}::uuid AND s2.user_id <> ${userId}::uuid AND s1.ip IS NOT NULL
           -- Запросы с самого сервера (проверки, e2e) — не адрес человека.
           AND s1.ip NOT IN ('127.0.0.1', '::1', '::ffff:127.0.0.1')
-          AND s1.created_at >= ${ipSince} AND s2.created_at >= ${ipSince}
+          AND s1.created_at >= ${utc(ipSince)} AND s2.created_at >= ${utc(ipSince)}
       LIMIT ${LINKS_MAX * 3}`;
     const byUser = new Map<string, Set<LinkReason>>();
     for (const r of rows) byUser.set(r.user_id, (byUser.get(r.user_id) ?? new Set()).add(r.reason));
