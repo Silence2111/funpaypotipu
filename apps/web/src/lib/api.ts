@@ -77,6 +77,8 @@ export interface ListingCard {
   stock?: number | null;
   /** Скидка за количество: «от 10 000 — 5%», по возрастанию. */
   qtyDiscounts?: Array<{ from: number; pct: number }> | null;
+  /** Срок выполнения услуги в часах (часть 125). */
+  serviceHours?: number | null;
   /** Платное продвижение до этого времени. */
   promotedUntil?: string | null;
   /** Скидка: прежняя цена и срок; price — уже со скидкой. */

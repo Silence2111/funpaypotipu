@@ -1122,6 +1122,83 @@ async function scenarioSafeDeal(rnd) {
 }
 
 /**
+ * Услуги со сроком выполнения (часть 125): срок у лота услуги, «выполнить
+ * до» у заказа, «взял в работу» (покупатель уже не отменяет сам), вместо 24 ч
+ * с оплаты — просрочка по сроку с уведомлением обеим сторонам, а через сутки
+ * без выдачи и спора — возврат.
+ */
+async function scenarioServiceTerm(rnd) {
+  console.log('\n— Услуги со сроком —');
+  const seller = await register('sts', rnd);
+  const buyer = await register('stb', rnd);
+  const lot = await createListing(seller.token, 'other', '30000', { title: `Обучение раскидке ${rnd}`, serviceHours: 72 });
+  const shown = await j(`/listings/${lot}`);
+  const notService = await j('/listings', {
+    method: 'POST', token: seller.token,
+    body: JSON.stringify({ gameId: shown.body.gameId ?? (await j('/catalog/games/cs2')).body.id, categoryId: (await j('/catalog/games/cs2')).body.categories.find((c) => c.slug === 'skins').id,
+      title: `Скин со сроком ${rnd}`, description: 'test', price: '1000', currency: 'RUB', attributes: { rarity: 'Covert' }, serviceHours: 72 }),
+  });
+  const odd = await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ serviceHours: 73 }) });
+  const two = await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ serviceHours: 48 }) });
+  check(
+    'Срок у лота услуги: виден на лоте, меняется; у не-услуги — 400, срок не из списка — 400',
+    shown.body.serviceHours === 72 && notService.status === 400 && notService.body.message === 'Срок выполнения задают только у услуг' &&
+      odd.status === 400 && two.status === 200,
+    JSON.stringify({ shown: shown.body.serviceHours, notService: [notService.status, notService.body?.message], odd: odd.status, two: two.status }),
+  );
+
+  const order = (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) })).body;
+  await pay(buyer.token, order.id);
+  const paid = (await j(`/orders/${order.id}`, { token: buyer.token })).body;
+  const due = new Date(paid.serviceDueAt).getTime() - new Date(paid.paidAt).getTime();
+  const notMine = await j(`/orders/${order.id}/start`, { method: 'POST', token: buyer.token });
+  const start = await j(`/orders/${order.id}/start`, { method: 'POST', token: seller.token });
+  const cancel = await j(`/orders/${order.id}/cancel`, { method: 'POST', token: buyer.token });
+  const startedNote = await prisma.notification.findFirst({ where: { userId: buyer.id, type: 'order_started' } });
+  check(
+    '«Выполнить до» = оплата + 48 ч; «взял в работу» — продавец, покупателю уведомление; после этого покупатель сам не отменяет (409)',
+    paid.status === 'paid' && due === 48 * 3600_000 && notMine.status === 403 && start.status === 201 && !!start.body.serviceStartedAt &&
+      cancel.status === 409 && !!startedNote,
+    JSON.stringify({ due, notMine: notMine.status, start: [start.status, start.body?.serviceStartedAt], cancel: [cancel.status, cancel.body?.message], note: !!startedNote }),
+  );
+
+  // Сутки с оплаты прошли, срок — ещё нет: обычный возврат через 24 ч услугу не трогает.
+  await prisma.order.update({ where: { id: order.id }, data: { paidAt: new Date(Date.now() - 25 * 3600_000) } });
+  await wait(5000);
+  const still = (await j(`/orders/${order.id}`, { token: buyer.token })).body;
+  // Срок вышел — обе стороны узнают, в чате — что делать.
+  await prisma.order.update({ where: { id: order.id }, data: { serviceDueAt: new Date(Date.now() - 1000) } });
+  let late = null;
+  for (let i = 0; i < 20 && !late?.serviceOverdueAt; i++) {
+    await wait(500);
+    late = (await j(`/orders/${order.id}`, { token: buyer.token })).body;
+  }
+  const notes = await prisma.notification.findMany({ where: { type: 'service_overdue', payload: { path: ['orderId'], equals: order.id } }, select: { userId: true } });
+  const sys = await prisma.message.findMany({ where: { conversation: { orderId: order.id } }, select: { body: true } });
+  check(
+    'Сутки с оплаты услугу не возвращают; срок вышел — отметка, уведомление обеим сторонам, сообщение в чате; заказ ещё оплачен',
+    still.status === 'paid' && late?.status === 'paid' && !!late?.serviceOverdueAt &&
+      notes.some((n) => n.userId === buyer.id) && notes.some((n) => n.userId === seller.id) &&
+      sys.some((m) => m.body.startsWith('Срок выполнения вышел')) && sys.some((m) => m.body === 'Продавец взял заказ в работу.'),
+    JSON.stringify({ still: still.status, late: [late?.status, late?.serviceOverdueAt], notes: notes.length, sys: sys.map((m) => m.body) }),
+  );
+
+  // Ещё сутки без выдачи и спора — деньги покупателю.
+  await prisma.order.update({ where: { id: order.id }, data: { serviceDueAt: new Date(Date.now() - 25 * 3600_000) } });
+  let back = null;
+  for (let i = 0; i < 20 && back?.status !== 'refunded'; i++) {
+    await wait(500);
+    back = (await j(`/orders/${order.id}`, { token: buyer.token })).body;
+  }
+  const wallet = (await j('/wallet', { token: buyer.token })).body;
+  check(
+    'Сутки после срока без выдачи и спора — возврат покупателю',
+    back?.status === 'refunded' && wallet.balance === order.amount,
+    JSON.stringify({ status: back?.status, balance: wallet.balance, amount: order.amount }),
+  );
+}
+
+/**
  * API для продавцов (часть 127): ключ показывается один раз и работает
  * вместо входа; лоты — цена, снять и вернуть, склад автовыдачи; продажи и
  * выдача с сообщением; вебхук «оплачен новый заказ» с подписью и повтором
@@ -5123,6 +5200,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioPhoneLogin(rnd);
   await scenarioSafeDeal(rnd);
   await scenarioSellerApi(rnd);
+  await scenarioServiceTerm(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

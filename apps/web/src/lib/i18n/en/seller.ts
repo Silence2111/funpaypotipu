@@ -67,8 +67,8 @@ export const SELLER: Record<string, string> = {
   'Строки на складе останутся: включите автовыдачу снова — и они вернутся в продажу.':
     'Lines in stock stay: turn auto-delivery back on and they return to sale.',
   Целиком: 'As a whole',
-  'Один товар или услуга за одну цену: аккаунт, буст, предмет':
-    'One item or service for one price: account, boost, item',
+  'Один товар или услуга за одну цену: предмет, обучение, подписка':
+    'One item or service for one price: an item, coaching, a subscription',
   Поштучно: 'By quantity',
   'Валюта или одинаковые предметы: цена за пачку, количество выбирает покупатель':
     'Currency or identical items: price per pack, the buyer picks the quantity',
@@ -380,4 +380,11 @@ export const SELLER: Record<string, string> = {
   'повтор': 'retrying',
   'Последние запросы': 'Recent requests',
   'Свой бот или склад — через API по ключу, без пароля от аккаунта.': 'Your own bot or warehouse — via the API with a key, without your account password.',
+  // Услуги со сроком (часть 125)
+  'Срок выполнения': 'Deadline',
+  'Без срока — выдам в течение суток': 'No deadline: I deliver within a day',
+  'Считается от оплаты. Не успели — покупатель сразу может открыть спор, а без выдачи и спора деньги вернутся ему через сутки после срока.':
+    'Counted from payment. Miss it and the buyer can open a dispute right away; with no delivery and no dispute, the money goes back to them a day after the deadline.',
+  '«Взять в работу»: покупатель увидит отметку в заказе. У услуг со сроком в заказе есть serviceDueAt — выполнить до.':
+    '“Take on”: the buyer sees the mark on the order. Services with a deadline carry serviceDueAt, the time to complete by.',
 };

@@ -36,6 +36,7 @@ import {
   DISPUTE_NOTES,
   SALE_MIN_PRICE,
   sellerPromoDiscount,
+  serviceDueAt,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { likeText } from '../../common/like';
@@ -255,6 +256,8 @@ export class OrdersService {
         ...(account ? { account } : {}),
         ...(topupNominal != null ? { topupAmount: topupNominal.toString() } : {}),
         ...(buyerData.length ? { buyerData } : {}),
+        // Срок выполнения услуги (часть 125): «выполнить до» считается от оплаты.
+        ...(listing.serviceHours && listing.fulfillmentType === 'manual' ? { serviceHours: listing.serviceHours } : {}),
         // Автовыдача аккаунта или предмета: заказ называет выданное
         // товаром, а не ключом. Ключи и прежние заказы — без пометки.
         ...(listing.fulfillmentType === 'auto_key' && listing.category.fulfillmentType === 'manual'
@@ -422,9 +425,17 @@ export class OrdersService {
 
   /** Общий пост-оплатный шаг: наличие → уведомления → авто-исполнение. Статус paid уже стоит. */
   private async afterPaid(orderId: string) {
-    const paid = await this.get(orderId);
+    let paid = await this.get(orderId);
     this.logEconomics(paid);
     if (!(await this.takeStock(paid))) return this.get(paid.id);
+    // Услуга со сроком (часть 125): «выполнить до» — от оплаты.
+    const hours = (paid.listingSnapshot as { serviceHours?: number } | null)?.serviceHours;
+    if (hours && paid.fulfillmentType === 'manual' && !paid.serviceDueAt) {
+      paid = await this.prisma.order.update({
+        where: { id: paid.id },
+        data: { serviceDueAt: serviceDueAt(paid.paidAt ?? new Date(), hours) },
+      });
+    }
     // manual — выдаёт сам продавец: в Telegram под уведомлением «Отметить выдачу».
     await this.notifications.notify(paid.sellerId, 'order_paid', {
       orderId: paid.id,
@@ -446,6 +457,8 @@ export class OrdersService {
         buyerData: snap.buyerData ?? [],
         autoDelivery: paid.fulfillmentType !== 'manual',
         paidAt: paid.paidAt,
+        // Услуга со сроком (часть 125): выполнить до; null — сутки на выдачу.
+        serviceDueAt: paid.serviceDueAt,
       })
       .catch((e: Error) => this.logger.warn(`Вебхук заказа ${paid.id}: ${e.message}`));
     // Сколько передать — первым сообщением в чате сделки, как на FunPay.
@@ -457,6 +470,12 @@ export class OrdersService {
     // В «Безопасной сделке» (часть 123) деньги держит ЮKassa, а не площадка.
     const held = paid.dealId ? 'деньги держит ЮKassa в «Безопасной сделке»' : 'средства защищены эскроу';
     await this.sys(paid.id, `Оплата поступила — ${held}.${howMany}`);
+    if (paid.serviceDueAt) {
+      await this.sys(
+        paid.id,
+        'Срок выполнения — на странице заказа. Не успеет продавец — можно сразу открыть спор; без выдачи и спора деньги вернутся через сутки после срока.',
+      );
+    }
 
     if (paid.fulfillmentType !== 'manual') {
       await this.fulfillment.autoFulfill(paid.id);
@@ -570,6 +589,43 @@ export class OrdersService {
     return { key: keys[0], keys };
   }
 
+  /**
+   * «Взял в работу» (часть 125): продавец показывает покупателю, что заказ не
+   * забыт. Статус не меняется — заказ оплачен и ждёт выдачи, сроки те же.
+   */
+  async startWork(orderId: string, sellerId: string) {
+    const order = await this.get(orderId);
+    if (order.sellerId !== sellerId) throw new ForbiddenException('Это не ваш заказ');
+    if (order.status !== 'paid' || order.fulfillmentType !== 'manual') {
+      throw new BadRequestException('В работу берут оплаченный заказ, который ещё не выдан');
+    }
+    if (order.serviceStartedAt) return order;
+    const started = await this.prisma.order.update({ where: { id: order.id }, data: { serviceStartedAt: new Date() } });
+    await this.notifications.notify(order.buyerId, 'order_started', { orderId: order.id });
+    await this.sys(order.id, 'Продавец взял заказ в работу.');
+    return started;
+  }
+
+  /**
+   * Срок услуги вышел, а выдачи нет (часть 125): обе стороны узнают об этом
+   * один раз; у покупателя — спор сразу, через сутки без выдачи и спора
+   * деньги вернутся сами (refundOverdue из фоновой задачи).
+   */
+  async markServiceOverdue(orderId: string) {
+    const claimed = await this.prisma.order.updateMany({
+      where: { id: orderId, status: 'paid', serviceOverdueAt: null },
+      data: { serviceOverdueAt: new Date() },
+    });
+    if (claimed.count === 0) return;
+    const order = await this.get(orderId);
+    await this.notifications.notify(order.buyerId, 'service_overdue', { orderId, side: 'buyer' });
+    await this.notifications.notify(order.sellerId, 'service_overdue', { orderId, side: 'seller' });
+    await this.sys(
+      order.id,
+      'Срок выполнения вышел. Покупатель может открыть спор; без выдачи и спора деньги вернутся покупателю через сутки.',
+    );
+  }
+
   async markDelivered(orderId: string, sellerId: string) {
     const order = await this.get(orderId);
     if (order.sellerId !== sellerId) throw new ForbiddenException('Это не ваш заказ');
@@ -678,6 +734,11 @@ export class OrdersService {
     }
 
     if (order.status === 'paid') {
+      // Продавец уже взял заказ в работу (часть 125): покупатель не отменяет
+      // его в одиночку — работа могла быть сделана. Спор или возврат продавцом.
+      if (order.serviceStartedAt && userId === order.buyerId) {
+        throw new ConflictException('Продавец уже взял заказ в работу: отменить можно через спор или попросить продавца вернуть деньги');
+      }
       this.assertTransition(order.status, 'refunded');
       await this.refundBuyer(order, 'order_refund');
       const res = await this.prisma.order.update({

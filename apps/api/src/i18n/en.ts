@@ -566,4 +566,11 @@ export const EN_API: Phrasebook = {
     'To turn the program on, set a share and a term above zero',
   'Доля партнёра — не больше 50%': 'The partner share can be at most 50%',
   'Срок — не больше 3650 дней': 'The term can be at most 3650 days',
+  // Услуги со сроком (часть 125)
+  'Срок выполнения — 1, 2, 3, 5, 7, 14 или 30 дней': 'The deadline is 1, 2, 3, 5, 7, 14 or 30 days',
+  'Срок выполнения задают только у услуг': 'A deadline is set only for services',
+  'Срок выполнения — у услуг, которые выполняют вручную': 'A deadline is for services done by hand',
+  'В работу берут оплаченный заказ, который ещё не выдан': 'Only a paid order that has not been delivered can be started',
+  'Продавец уже взял заказ в работу: отменить можно через спор или попросить продавца вернуть деньги':
+    'The seller has already started on the order: cancel it through a dispute or ask the seller for a refund',
 };

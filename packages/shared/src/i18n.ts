@@ -254,6 +254,8 @@ export const EN_SHARED: Phrasebook = {
   // Уведомления: события
   'Новый заказ по вашему лоту': 'New order for your listing',
   'Заказ оплачен — выдайте товар': 'Order paid — deliver the goods',
+  'Продавец взял заказ в работу': 'The seller has started on your order',
+  'Срок выполнения заказа вышел': 'The order deadline has passed',
   'Товар выдан — подтвердите получение': 'Goods delivered — confirm receipt',
   'Сделка завершена, деньги зачислены': 'Deal completed, money credited',
   'Заказ отменён': 'Order cancelled',

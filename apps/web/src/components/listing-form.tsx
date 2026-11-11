@@ -20,6 +20,7 @@ import { backToMyLots } from '@/lib/my-lots';
 import { useT } from '@/lib/i18n/client';
 import { shrink } from '@/lib/photo';
 import { PriceHint } from './price-hint';
+import { serviceTermOptions } from '@/lib/service-term';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -34,6 +35,8 @@ interface Category {
   pricePerUnits?: number | null;
   /** Закрыт для продажи (часть 122): в форме не выбрать, причина — подсказкой. */
   salesClosed?: boolean;
+  /** service — услуги: у них срок выполнения (часть 125). */
+  segment?: string;
   closedReason?: string | null;
 }
 interface Attr { key: string; label: string; type: string; options?: string[] | null; isRequired: boolean }
@@ -62,8 +65,10 @@ export interface EditableListing {
   /** auto_key — выдаётся со склада: ключи или строки товара. */
   fulfillmentType: string;
   deliveryTemplate: string | null;
+  /** Срок выполнения услуги в часах (часть 125). */
+  serviceHours?: number | null;
   game: { slug: string; title: string };
-  category: { slug: string; title: string; fulfillmentType: string; unitName?: string | null; pricePerUnits?: number | null };
+  category: { slug: string; title: string; fulfillmentType: string; unitName?: string | null; pricePerUnits?: number | null; segment?: string };
 }
 
 const rubOf = (minor: string | null | undefined) => (minor ? String(Number(BigInt(minor)) / 100) : '');
@@ -172,6 +177,8 @@ export function ListingForm({
   const [autoDelivery, setAutoDelivery] = useState(base?.fulfillmentType === 'auto_key');
   // Сообщение покупателю в чат заказа сразу после оплаты.
   const [template, setTemplate] = useState(base?.deliveryTemplate ?? '');
+  // Срок выполнения услуги (часть 125): после него у покупателя спор сразу.
+  const [serviceHours, setServiceHours] = useState<number | null>(base?.serviceHours ?? null);
 
   // Копия — как «Продать в разделе»: подгружаются все разделы её игры.
   const presetGame = preset?.game ?? copyOf?.game.slug;
@@ -223,6 +230,7 @@ export function ListingForm({
   const autoLines = canAuto && autoDelivery;
   const manualLot = selected?.fulfillmentType === 'manual' && !autoLines;
   const perPiece = byQty && manualLot;
+  const serviceLot = manualLot && selected?.segment === 'service';
   // Пополнение выполняет провайдер — инструкция продавца там ни к чему.
   const withNote = !!selected && selected.fulfillmentType !== 'provider';
   const qtyTerms = {
@@ -423,6 +431,7 @@ export function ListingForm({
             ...(manualLot ? { buyerFields: cleanFields.length ? cleanFields : null } : {}),
             ...(canAuto ? { autoDelivery: autoLines } : {}),
             ...(withNote ? { deliveryTemplate: cleanTemplate || null } : {}),
+            ...(serviceLot ? { serviceHours } : {}),
           }),
         });
         // Только что включили автовыдачу, а склад пуст — сразу к складу на странице лота.
@@ -462,6 +471,7 @@ export function ListingForm({
           ...(manualLot && cleanFields.length ? { buyerFields: cleanFields } : {}),
           ...(autoLines ? { autoDelivery: true } : {}),
           ...(withNote && cleanTemplate ? { deliveryTemplate: cleanTemplate } : {}),
+          ...(serviceLot && serviceHours ? { serviceHours } : {}),
         }),
       });
       // Ответ на запрос покупателя: лот — ему сразу. Не ушёл (лот ещё без
@@ -703,6 +713,22 @@ export function ListingForm({
           </div>
         )}
 
+        {serviceLot && (
+          <div className="field">
+            <label className="label" htmlFor="service-term">{t('Срок выполнения')}</label>
+            <select id="service-term" className="input" value={serviceHours ?? ''}
+              onChange={(e) => setServiceHours(e.target.value ? Number(e.target.value) : null)}>
+              <option value="">{t('Без срока — выдам в течение суток')}</option>
+              {serviceTermOptions(t).map((o) => (
+                <option key={o.hours} value={o.hours}>{o.label}</option>
+              ))}
+            </select>
+            <p className="hint">
+              {t('Считается от оплаты. Не успели — покупатель сразу может открыть спор, а без выдачи и спора деньги вернутся ему через сутки после срока.')}
+            </p>
+          </div>
+        )}
+
         {withNote && (
           <div className="field">
             <label className="label" htmlFor="note">{t('Сообщение покупателю после оплаты — необязательно')}</label>
@@ -734,7 +760,7 @@ export function ListingForm({
           <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="label" style={{ marginBottom: 6, padding: 0 }}>{t('Как продаёте')}</legend>
             {[
-              { v: false, t: t('Целиком'), d: t('Один товар или услуга за одну цену: аккаунт, буст, предмет') },
+              { v: false, t: t('Целиком'), d: t('Один товар или услуга за одну цену: предмет, обучение, подписка') },
               {
                 v: true,
                 t: t('Поштучно'),

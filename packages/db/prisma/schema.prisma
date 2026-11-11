@@ -550,6 +550,9 @@ model Listing {
   pausedForSection Boolean         @default(false) @map("paused_for_section")
   /// Почему на проверке: найденная фраза о передаче аккаунта.
   reviewReason     String?         @map("review_reason")
+  /// Срок выполнения услуги в часах (часть 125): 24…720. null — без срока,
+  /// ручная выдача в течение суток с оплаты.
+  serviceHours     Int?            @map("service_hours")
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
 
@@ -622,6 +625,12 @@ model Order {
   /// Сделка ЮKassa («Безопасная сделка», часть 123): деньги держит ЮKassa,
   /// возврат — на карту, продавцу — выплата по сделке. null — схема escrow.
   dealId             String?         @map("deal_id")
+  /// Услуга со сроком (часть 125): выполнить до; взято в работу; когда срок
+  /// вышел и обе стороны об этом узнали. Вышел и сутки без выдачи и спора —
+  /// деньги возвращаются покупателю.
+  serviceDueAt       DateTime?       @map("service_due_at")
+  serviceStartedAt   DateTime?       @map("service_started_at")
+  serviceOverdueAt   DateTime?       @map("service_overdue_at")
   createdAt          DateTime        @default(now()) @map("created_at")
   updatedAt          DateTime        @updatedAt @map("updated_at")
 

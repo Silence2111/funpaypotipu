@@ -14,6 +14,7 @@ import {
 import { PriceHistory } from '@/components/price-history';
 import { isPriceLow } from '@gamemarket/shared/price-history';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
+import { serviceTermText } from '@/lib/service-term';
 import { BuyButton } from '@/components/buy-button';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
@@ -313,6 +314,13 @@ export default async function ListingPage({
             {topup && (
               <p className="hint" style={{ marginBottom: 16 }}>
                 {t('Сумму выбираете вы, наценка продавца — {pct}', { pct: markupLabel(topup.markupBps) })}
+              </p>
+            )}
+            {listing.serviceHours && listing.fulfillmentType === 'manual' && (
+              <p className="hint" style={{ marginBottom: 16 }}>
+                {t('Срок выполнения — {term} с оплаты. Не успеет продавец — можно сразу открыть спор.', {
+                  term: serviceTermText(t, listing.serviceHours),
+                })}
               </p>
             )}
             {pack && !unavailable && (
