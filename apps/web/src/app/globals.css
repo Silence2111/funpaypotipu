@@ -3559,11 +3559,6 @@ a.my-lot-title:hover {
   height: 1px;
   background: var(--border);
 }
-.tg-login {
-  display: flex;
-  justify-content: center;
-  min-height: 40px;
-}
 .social-way {
   display: flex;
   align-items: center;

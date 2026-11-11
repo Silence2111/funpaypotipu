@@ -1,9 +1,12 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 /**
- * Сервисы входа. Google нет: российский сайт пускает россиян только через
- * российские системы входа (149-ФЗ, ст. 10.6, с 01.12.2023), — поэтому
- * Яндекс ID и VK ID, как на остальных проектах владельца.
+ * Сервисы входа. Россиян сайт пускает только способами из ч. 10 ст. 8
+ * 149-ФЗ (с 01.12.2023, штрафы — ст. 13.55 КоАП с 07.07.2026, 199-ФЗ):
+ * номер телефона, Госуслуги, биометрия или российская система входа, —
+ * поэтому Яндекс ID и VK ID. Google и Telegram в перечень не входят: вход
+ * через Telegram убран (часть 118), бот Telegram остался для уведомлений.
+ * 'telegram' в типе — для старых привязок в базе: войти по ним нельзя.
  */
 export type SocialProvider = 'yandex' | 'vk' | 'telegram';
 export const OAUTH_PROVIDERS = ['yandex', 'vk'] as const;
@@ -208,39 +211,3 @@ export async function fetchProfile(
   };
 }
 
-/** Данные виджета входа Telegram живут сутки — старые не принимаем. */
-const TELEGRAM_MAX_AGE_SEC = 86_400;
-
-/**
- * Проверка данных виджета входа Telegram: подпись — HMAC-SHA256 от
- * отсортированных полей ключом SHA-256(токен бота), как описано в
- * core.telegram.org/widgets/login. Проверяются все пришедшие поля: если
- * Telegram добавит новые, подпись не сломается.
- */
-export function verifyTelegramLogin(
-  data: Record<string, string | number>,
-  botToken: string,
-  now = Date.now(),
-): SocialProfile | null {
-  const { hash, ...fields } = data;
-  if (typeof hash !== 'string' || !/^[0-9a-f]{64}$/.test(hash) || !botToken) return null;
-  const check = Object.keys(fields)
-    .sort()
-    .map((k) => `${k}=${fields[k]}`)
-    .join('\n');
-  const secret = createHash('sha256').update(botToken).digest();
-  const want = createHmac('sha256', secret).update(check).digest('hex');
-  if (!timingSafeEqual(Buffer.from(want), Buffer.from(hash))) return null;
-  const authDate = Number(fields.auth_date);
-  if (!Number.isFinite(authDate) || now / 1000 - authDate > TELEGRAM_MAX_AGE_SEC) return null;
-  if (!/^\d+$/.test(String(fields.id ?? ''))) return null;
-  const name = [fields.first_name, fields.last_name].filter(Boolean).join(' ');
-  return {
-    provider: 'telegram',
-    subject: String(fields.id),
-    email: null,
-    emailVerified: false,
-    name: name || null,
-    nick: typeof fields.username === 'string' ? fields.username : null,
-  };
-}

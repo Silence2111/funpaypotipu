@@ -65,6 +65,7 @@ jobs:
       AUTO_RAISE_INTERVAL_MS: 2000
       # Сохранённые поиски раз в 2 с: e2e ждёт уведомления о новом лоте.
       SAVED_SEARCH_INTERVAL_MS: 2000
+      TELEGRAM_OFF_SWEEP_MS: 2000
       # Цены в избранном раз в 2 с: e2e ждёт уведомления о снижении.
       PRICE_DROP_INTERVAL_MS: 2000
       # Скидки раз в 2 с: e2e ждёт, что цена вернётся по сроку.

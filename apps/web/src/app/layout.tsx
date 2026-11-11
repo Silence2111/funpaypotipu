@@ -6,6 +6,7 @@ import { InstallApp } from '@/components/install-app';
 import { PwaRegister } from '@/components/pwa-register';
 import { PartnerRef } from '@/components/partner-ref';
 import { ConsentBanner } from '@/components/consent';
+import { LoginMethodBanner } from '@/components/login-method-banner';
 import { SiteHeader } from '@/components/site-header';
 import { TabBar } from '@/components/tab-bar';
 import { DisputeBanner } from '@/components/dispute-banner';
@@ -75,6 +76,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <SiteHeader />
         <DisputeBanner />
         <ConsentBanner />
+        <LoginMethodBanner />
         <main>{children}</main>
         <footer className="container" style={{ padding: '48px 24px 40px', marginTop: 64 }}>
           <hr className="divider" style={{ marginBottom: 20 }} />

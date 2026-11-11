@@ -498,6 +498,9 @@ export const EN_API: Phrasebook = {
   'Это ваш запрос': 'This is your request',
   'На свой запрос жаловаться не нужно': 'No need to report your own request',
   'Снять можно только запрос покупателя': 'Only a buyer request can be removed',
+  // Вход через Telegram убран (часть 118)
+  'Вход через Telegram отключён по закону (149-ФЗ, ч. 10 ст. 8). Войдите по почте и паролю, через Яндекс ID или VK ID':
+    'Sign-in with Telegram is turned off by law (Federal Law 149-FZ, Art. 8 Part 10). Sign in with email and password, Yandex ID or VK ID',
   // Сотрудники — только с входом с кодом (часть 119)
   'Включите вход с кодом: консоль и действия сотрудника — только с ним':
     'Turn on sign-in with a code: the console and staff actions require it',

@@ -26,6 +26,7 @@ import {
   STATE_PATH,
   SocialService,
   TICKET_COOKIE,
+  telegramLoginRemoved,
 } from './social.service';
 import { RateLimit } from '../../../common/rate-limit';
 
@@ -41,9 +42,6 @@ const cookie = (path: string): CookieOptions => ({
 
 // Данные виджета Telegram: id, имя, ник, фото, время, подпись — и всё, что
 // Telegram добавит потом: подпись проверяется по всем полям.
-const telegramSchema = z
-  .record(z.union([z.string().max(512), z.number()]))
-  .refine((d) => Object.keys(d).length <= 16, 'Слишком много полей');
 const completeSchema = z.object({
   code: z.string().trim().max(20).optional(),
   username: z.string().trim().max(32).optional(),
@@ -104,25 +102,15 @@ export class SocialController {
     res.redirect(302, r.redirect);
   }
 
-  @Post('social/telegram')
-  @RateLimit('auth-oauth', 30, 600)
-  @HttpCode(200)
-  telegram(
-    @Body(new ZodValidationPipe(telegramSchema)) data: Record<string, string | number>,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    res.cookie(TICKET_COOKIE, this.social.telegramTicket(data), cookie(SOCIAL_PATH));
-    return { ok: true };
-  }
-
-  @Post('social/telegram/link')
-  @HttpCode(200)
-  @UseGuards(JwtAuthGuard)
-  linkTelegram(
-    @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(telegramSchema)) data: Record<string, string | number>,
-  ) {
-    return this.social.linkTelegram(user.userId, data);
+  /**
+   * Вход и привязка входа через Telegram убраны (часть 118, 149-ФЗ ч. 10
+   * ст. 8): старым версиям сайта — 410 с объяснением. Бот для уведомлений
+   * подключается в настройках уведомлений, как раньше.
+   */
+  @Post(['social/telegram', 'social/telegram/link'])
+  @HttpCode(410)
+  telegramRemoved() {
+    throw telegramLoginRemoved();
   }
 
   /** Завершить вход по билету: ник для нового аккаунта, код — если включена защита. */

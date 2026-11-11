@@ -54,6 +54,7 @@ export const NOTIFY_GROUPS = [
       'recovery_requested',
       'recovery_restored',
       'recovery_rejected',
+      'login_method_needed',
     ],
   },
   {
@@ -105,6 +106,7 @@ export const NOTIFY_LABELS: Record<string, string> = {
   recovery_requested: 'Заявка на восстановление доступа',
   recovery_restored: 'Доступ к аккаунту восстановлен',
   recovery_rejected: 'Заявка на восстановление отклонена',
+  login_method_needed: 'Вход через Telegram отключён — добавьте почту и пароль',
   cashback: 'Кэшбэк за покупку зачислен на баланс',
   partner_reward: 'Партнёрское вознаграждение зачислено на баланс',
   new_message: 'Новое сообщение',
@@ -181,6 +183,7 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
     return session ? `/cabinet/security?session=${encodeURIComponent(session)}` : '/cabinet/security';
   }
   if (
+    type === 'login_method_needed' ||
     type === 'password_changed' ||
     type === 'email_changed' ||
     type.startsWith('two_factor_') ||
