@@ -1467,6 +1467,102 @@ async function scenarioGameChat(rnd) {
 }
 
 /**
+ * Блокировки без «чёрного ящика» (часть 134): решение — с пунктом правил,
+ * в кабинете «Решения модерации»; обжалование одно, решает другой
+ * сотрудник, отмена возвращает как было; удержание только спорной суммы —
+ * остальное доступно; обжалование и вывод без ответа сверх срока —
+ * эскалация администратору и финансам.
+ */
+async function scenarioAppeals(rnd) {
+  console.log('\n— Решения модерации и обжалования —');
+  const modA = await register('apm', rnd);
+  const modB = await register('apn', rnd);
+  const admin = await register('apa', rnd);
+  const user = await register('apu', rnd);
+  await grant(modA, 'moderator');
+  await grant(modB, 'moderator');
+  await grant(admin, 'admin');
+  const U = { token: user.token };
+
+  const freeze = await j(`/moderation/users/${user.id}/status`, { method: 'POST', token: modA.token, body: JSON.stringify({ status: 'frozen', reason: 'Не выдал товар трём покупателям', rule: '1.3' }) });
+  const badRule = await j(`/moderation/users/${user.id}/status`, { method: 'POST', token: modA.token, body: JSON.stringify({ status: 'frozen', rule: '9.9' }) });
+  const note = await prisma.notification.findFirst({ where: { userId: user.id, type: 'account_status' }, orderBy: { createdAt: 'desc' } });
+  const list = (await j('/account/decisions', U)).body;
+  const d = list[0];
+  check(
+    'Заморозка — с пунктом правил: в уведомлении пункт и id решения; в «Решениях модерации» — вид, пункт, причина, можно обжаловать; пункт не из правил — 400',
+    freeze.status === 201 && badRule.status === 400 && note?.payload?.rule === '1.3' && !!note?.payload?.decisionId &&
+      d?.kind === 'Заморозка аккаунта' && d.rule === '1.3' && d.reason === 'Не выдал товар трём покупателям' && d.canAppeal === true,
+    JSON.stringify({ freeze: freeze.status, badRule: badRule.status, note: note?.payload, d }),
+  );
+
+  const short = await j(`/account/decisions/${d.id}/appeal`, { method: 'POST', ...U, body: JSON.stringify({ text: 'нет' }) });
+  const appeal = await j(`/account/decisions/${d.id}/appeal`, { method: 'POST', ...U, body: JSON.stringify({ text: 'Товар выдан всем троим — скриншоты в чатах заказов' }) });
+  const again = await j(`/account/decisions/${d.id}/appeal`, { method: 'POST', ...U, body: JSON.stringify({ text: 'Повторно прошу пересмотреть решение' }) });
+  const queue = (await j('/moderation/appeals', { token: modB.token })).body;
+  const own = await j(`/moderation/appeals/${appeal.body.id}/decide`, { method: 'POST', token: modA.token, body: JSON.stringify({ outcome: 'overturned', note: 'Сам отменю' }) });
+  const decided = await j(`/moderation/appeals/${appeal.body.id}/decide`, { method: 'POST', token: modB.token, body: JSON.stringify({ outcome: 'overturned', note: 'Выдача подтверждена в чатах' }) });
+  const status = (await prisma.user.findUnique({ where: { id: user.id }, select: { status: true } }))?.status;
+  const after = (await j('/account/decisions', U)).body.find((x) => x.id === d.id);
+  check(
+    'Обжалование: короткое — 400; одно — 201, второе — 409; в очереди у другого модератора; своё решение не решить — 403; другой отменил — аккаунт активен, ответ в кабинете',
+    short.status === 400 && appeal.status === 201 && again.status === 409 && queue.some?.((q) => q.id === appeal.body.id && q.decision.rule === '1.3') &&
+      own.status === 403 && decided.status === 200 && status === 'active' && after?.appeal?.status === 'overturned' && after.appeal.note === 'Выдача подтверждена в чатах',
+    JSON.stringify({ short: short.status, appeal: appeal.status, again: again.status, own: own.status, decided: decided.status, status, after: after?.appeal }),
+  );
+
+  // Удержание только спорной суммы: 300 из 500 ₽, остальное доступно.
+  const top = await j('/payments/topup', { method: 'POST', ...U, body: JSON.stringify({ amount: '50000', method: 'sbp' }) });
+  await j('/payments/mock/callback?providerRef=' + top.body.providerRef, { method: 'POST' });
+  const tooMuch = await j(`/moderation/users/${user.id}/hold`, { method: 'POST', token: modA.token, body: JSON.stringify({ amount: '60000', reason: 'Спорная сумма', rule: '1.3' }) });
+  const hold = await j(`/moderation/users/${user.id}/hold`, { method: 'POST', token: modA.token, body: JSON.stringify({ amount: '30000', reason: 'Спор по заказу с отозванным платежом', rule: '1.3' }) });
+  const w = (await j('/wallet', U)).body;
+  const over = await j('/payouts', { method: 'POST', ...U, body: JSON.stringify({ amount: '30000', method: 'usdt', destination: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE' }) });
+  const holds = (await j('/account/holds', U)).body;
+  check(
+    'Удержание: больше баланса — 400; 300 ₽ — доступно 200, удержано 300; вывести 300 нельзя; у человека — причина и пункт',
+    tooMuch.status === 400 && hold.status === 200 && w.balance === '20000' && w.held?.amount === '30000' && over.status === 400 &&
+      holds[0]?.reason === 'Спор по заказу с отозванным платежом' && holds[0]?.rule === '1.3',
+    JSON.stringify({ tooMuch: tooMuch.status, hold: hold.status, balance: w.balance, held: w.held, over: over.status, holds }),
+  );
+
+  const holdDecision = (await j('/account/decisions', U)).body.find((x) => x.kind === 'Удержание суммы');
+  const holdAppeal = await j(`/account/decisions/${holdDecision?.id}/appeal`, { method: 'POST', ...U, body: JSON.stringify({ text: 'Платёж не отзывал, вот выписка банка' }) });
+  const released = await j(`/moderation/appeals/${holdAppeal.body.id}/decide`, { method: 'POST', token: modB.token, body: JSON.stringify({ outcome: 'overturned', note: 'Выписка подтверждает' }) });
+  const w2 = (await j('/wallet', U)).body;
+  check(
+    'Обжалование удержания отменено — деньги снова доступны, удержаний нет',
+    holdAppeal.status === 201 && released.status === 200 && w2.balance === '50000' && (w2.held?.count ?? 0) === 0,
+    JSON.stringify({ holdAppeal: holdAppeal.status, released: released.status, balance: w2.balance, held: w2.held }),
+  );
+
+  // Сроки: обжалование без ответа и вывод без решения — эскалация.
+  const block = await j(`/moderation/game-chat/users/${user.id}/mute`, { method: 'POST', token: modA.token, body: JSON.stringify({ hours: 24, reason: 'Спам', rule: '3.2' }) });
+  const muteDecision = (await j('/account/decisions', U)).body.find((x) => x.kind === 'Запрет писать в чаты игр');
+  const late = await j(`/account/decisions/${muteDecision?.id}/appeal`, { method: 'POST', ...U, body: JSON.stringify({ text: 'Это было одно сообщение, не спам' }) });
+  await prisma.appeal.update({ where: { id: late.body.id }, data: { dueAt: new Date(Date.now() - 1000) } });
+  const payout = await j('/payouts', { method: 'POST', ...U, body: JSON.stringify({ amount: '50000', method: 'usdt', destination: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE' }) });
+  await prisma.payout.update({ where: { id: payout.body.id }, data: { createdAt: new Date(Date.now() - 25 * 3_600_000), holdUntil: null } });
+  let escalated = null;
+  for (let i = 0; i < 20 && !escalated?.escalatedAt; i++) {
+    await wait(500);
+    escalated = await prisma.appeal.findUnique({ where: { id: late.body.id }, select: { escalatedAt: true } });
+  }
+  let mine = null;
+  for (let i = 0; i < 20 && !mine?.escalatedAt; i++) {
+    await wait(500);
+    mine = (await j('/payouts/mine', U)).body.find?.((p) => p.id === payout.body.id);
+  }
+  const adminNote = await prisma.notification.findFirst({ where: { userId: admin.id, type: 'appeal_overdue' } });
+  const userNote = await prisma.notification.findFirst({ where: { userId: user.id, type: 'payout_delayed' } });
+  check(
+    'Сроки: обжалование дольше 48 ч и вывод дольше суток — эскалация, администратору уведомление, человеку — что заявку подняли',
+    block.status === 200 && late.status === 201 && !!escalated?.escalatedAt && payout.status === 201 && !!mine?.escalatedAt && !!adminNote && !!userNote,
+    JSON.stringify({ block: block.status, late: late.status, escalated: escalated?.escalatedAt, payout: payout.status, mine: mine?.escalatedAt, adminNote: !!adminNote, userNote: !!userNote }),
+  );
+}
+
+/**
  * API для продавцов (часть 127): ключ показывается один раз и работает
  * вместо входа; лоты — цена, снять и вернуть, склад автовыдачи; продажи и
  * выдача с сообщением; вебхук «оплачен новый заказ» с подписью и повтором
@@ -5472,6 +5568,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioWarranty(rnd);
   await scenarioAntifraud(rnd);
   await scenarioGameChat(rnd);
+  await scenarioAppeals(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

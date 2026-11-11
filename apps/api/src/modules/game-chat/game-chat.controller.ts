@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
-import { GAME_CHAT_MAX_LEN, GAME_CHAT_MUTE_HOURS } from '@gamemarket/shared';
+import { GAME_CHAT_MAX_LEN, GAME_CHAT_MUTE_HOURS, RULE_IDS } from '@gamemarket/shared';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { RateLimit } from '../../common/rate-limit';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -49,13 +49,15 @@ const modQuery = z.object({
   deleted: z.enum(['1']).optional(),
   before: z.string().uuid().optional(),
 });
-const reasonBody = z.object({ reason: z.string().trim().min(3, 'Причина — от 3 знаков').max(300) });
+const ruleField = z.enum(RULE_IDS as [string, ...string[]]).optional();
+const reasonBody = z.object({ reason: z.string().trim().min(3, 'Причина — от 3 знаков').max(300), rule: ruleField });
 const muteBody = z.object({
   hours: z
     .number()
     .int()
     .refine((h) => h === 0 || (GAME_CHAT_MUTE_HOURS as readonly number[]).includes(h), 'Срок запрета — сутки, неделя или месяц'),
   reason: z.string().trim().max(300).default(''),
+  rule: ruleField,
 });
 
 /** Чаты игр в консоли: лента всех игр, жалобы, удаление и запрет писать. */
@@ -73,12 +75,12 @@ export class GameChatModerationController {
   @Post(':id/delete')
   @HttpCode(200)
   remove(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodValidationPipe(reasonBody)) body: z.infer<typeof reasonBody>) {
-    return this.chat.remove(u.userId, id, body.reason);
+    return this.chat.remove(u.userId, id, body.reason, body.rule);
   }
 
   @Post('users/:id/mute')
   @HttpCode(200)
   mute(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodValidationPipe(muteBody)) body: z.infer<typeof muteBody>) {
-    return this.chat.mute(u.userId, id, body.hours, body.reason || 'Нарушение правил чата');
+    return this.chat.mute(u.userId, id, body.hours, body.reason || 'Нарушение правил чата', body.rule);
   }
 }

@@ -11,7 +11,9 @@ export type AccountKind =
   | 'revenue'
   | 'fees_payable'
   | 'gateway_clearing'
-  | 'payout_payable';
+  | 'payout_payable'
+  // Удержано модератором (часть 134): не тратится и не выводится.
+  | 'held';
 
 export type OwnerType = 'user' | 'platform' | 'external';
 export type Direction = 'debit' | 'credit';
@@ -130,6 +132,18 @@ export const chargeFromBalance = (userId: string, amount: Minor): PostingLeg[] =
 ];
 
 /** Заявка на вывод: резервируем сумму с баланса в обязательства к выплате. */
+/** Удержать спорную сумму (часть 134): с доступного — на «удержано» того же человека. */
+export const holdFunds = (userId: string, amount: Minor): PostingLeg[] => [
+  debit(userAccount(userId, 'available'), amount),
+  credit(userAccount(userId, 'held'), amount),
+];
+
+/** Снять удержание: деньги снова доступны. */
+export const releaseHeldFunds = (userId: string, amount: Minor): PostingLeg[] => [
+  debit(userAccount(userId, 'held'), amount),
+  credit(userAccount(userId, 'available'), amount),
+];
+
 export const holdForPayout = (userId: string, amount: Minor): PostingLeg[] => [
   debit(userAccount(userId, 'available'), amount),
   credit(platformAccount('payout_payable'), amount),

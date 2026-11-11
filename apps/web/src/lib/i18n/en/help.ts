@@ -86,4 +86,8 @@ export const HELP: Record<string, string> = {
     'New accounts: one message a minute and up to 20 a day until the first deal or 3 days after sign-up.',
   'На сообщение можно пожаловаться. Модератор удаляет нарушения и может запретить писать в чат на сутки, неделю или месяц.':
     'You can report a message. A moderator removes violations and can bar the author from the chat for a day, a week or a month.',
+  // Нарушения по пунктам (часть 134)
+  'Нарушения по пунктам': 'Violations by rule',
+  'Решение модератора всегда называет пункт и причину. Не согласны — обжалуйте в кабинете, «Решения модерации»: один раз, решает другой сотрудник, ответ — в течение 48 ч. Если спорна только часть денег, удерживается только она, остальное можно выводить.':
+    'A moderator’s decision always names the rule and the reason. Disagree? Appeal in your account under “Moderation decisions”: once, another staff member decides, the answer comes within 48 h. If only part of the money is in dispute, only that part is held and you can withdraw the rest.',
 };

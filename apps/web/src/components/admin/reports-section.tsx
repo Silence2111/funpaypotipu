@@ -9,6 +9,7 @@ import { formatPrice } from '@/lib/format';
 import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
 import { Empty, LISTING_STATUS, StatusBadge, USER_STATUS, when } from './shared';
 import { usePaged } from './use-paged';
+import { useDecisionDialog } from './decision-dialog';
 
 interface Person { id: string; username: string | null; status: string }
 /** Карточка очереди — одна цель и все её жалобы (у решённых — одно решение). */
@@ -75,6 +76,7 @@ function complaints(n: number) {
  * Фильтр и поиск — в адресе страницы.
  */
 export function ReportsSection() {
+  const { dialog, ask } = useDecisionDialog();
   const params = useSearchParams();
   const [filter, setFilter] = useState(readFilter(params.get('status')));
   const [text, setText] = useState(params.get('q') ?? '');
@@ -115,12 +117,27 @@ export function ReportsSection() {
 
   async function handle(r: Row, status: 'resolved' | 'rejected', action?: 'block_listing' | 'remove_request' | 'delete_chat_message' | 'mute_chat' | 'freeze_user' | 'ban_user') {
     const who = r.target?.user?.username ?? 'пользователя';
-    if (action === 'ban_user' && !window.confirm(`Забанить ${who}? Он не сможет войти, его лоты уйдут из каталога.`)) return;
-    if (action === 'freeze_user' && !window.confirm(`Заморозить ${who}? Покупки, продажи и вывод станут недоступны.`)) return;
+    // Решение против человека — с пунктом правил и причиной (часть 134):
+    // их увидит нарушитель в «Решениях модерации» и сможет обжаловать.
+    const TITLE: Record<string, string> = {
+      ban_user: `Забанить ${who}? Он не сможет войти, его лоты уйдут из каталога.`,
+      freeze_user: `Заморозить ${who}? Покупки, продажи и вывод станут недоступны.`,
+      block_listing: 'Заблокировать лот?',
+      delete_chat_message: 'Удалить сообщение?',
+      mute_chat: `Удалить сообщение и запретить ${who} писать в чаты игр на неделю?`,
+    };
+    let decision: { reason: string; rule?: string } | null = null;
+    if (action && TITLE[action]) {
+      decision = await ask({ title: TITLE[action]!, reason: r.reasons[0]?.reason ?? '', confirm: 'Подтвердить' });
+      if (!decision) return;
+    }
     setBusy(r.id);
     setErr(null);
     try {
-      await apiFetch(`/moderation/reports/${r.id}/handle`, { method: 'POST', body: JSON.stringify({ status, action }) });
+      await apiFetch(`/moderation/reports/${r.id}/handle`, {
+        method: 'POST',
+        body: JSON.stringify({ status, action, ...(decision ? { note: decision.reason, ...(decision.rule ? { rule: decision.rule } : {}) } : {}) }),
+      });
       // Решение закрывает все жалобы карточки — она уходит из списка сразу,
       // подгруженные страницы остаются на месте.
       setRows((prev) => prev?.filter((x) => x.id !== r.id) ?? prev);
@@ -134,6 +151,7 @@ export function ReportsSection() {
 
   return (
     <section className="stack-form" style={{ gap: 16 }}>
+      {dialog}
       <form
         onSubmit={(e: FormEvent) => {
           e.preventDefault();

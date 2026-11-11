@@ -30,7 +30,7 @@ export const NOTIFY_GROUPS = [
   { key: 'messages', label: 'Сообщения', hint: 'новые сообщения в чатах', types: ['new_message'] },
   { key: 'disputes', label: 'Споры', hint: 'открыт спор, ждём вашего ответа, срок ответа подходит к концу, решение арбитра', types: ['dispute_opened', 'dispute_reply_needed', 'dispute_reply_soon', 'dispute_resolved'] },
   { key: 'reviews', label: 'Отзывы', hint: 'новый отзыв, ответ продавца, оценка вас как покупателя', types: ['review_received', 'review_reply', 'buyer_review'] },
-  { key: 'finance', label: 'Деньги', hint: 'кэшбэк, выплаты и партнёрские начисления', types: ['cashback', 'payout_paid', 'payout_rejected', 'partner_reward', 'deal_payout_waiting'] },
+  { key: 'finance', label: 'Деньги', hint: 'кэшбэк, выплаты и партнёрские начисления', types: ['cashback', 'payout_paid', 'payout_rejected', 'partner_reward', 'deal_payout_waiting', 'payout_delayed', 'payout_overdue'] },
   { key: 'support', label: 'Поддержка', hint: 'ответы на ваши обращения', types: ['support_reply'] },
   {
     key: 'searches',
@@ -75,6 +75,11 @@ export const NOTIFY_GROUPS = [
       'section_opened',
       'account_status',
       'chat_muted',
+      'chat_message_removed',
+      'balance_held',
+      'balance_released',
+      'appeal_decided',
+      'appeal_overdue',
       'kyc_approved',
       'kyc_rejected',
     ],
@@ -144,6 +149,13 @@ export const NOTIFY_LABELS: Record<string, string> = {
   section_closed: 'Раздел закрыт для продажи — ваши лоты сняты с витрины',
   section_opened: 'Раздел снова открыт — ваши лоты вернулись в продажу',
   account_status: 'Статус аккаунта изменён',
+  chat_message_removed: 'Модератор удалил ваше сообщение в чате игры',
+  balance_held: 'Модератор удержал часть баланса',
+  balance_released: 'Удержание с баланса снято',
+  appeal_decided: 'Решение по вашему обжалованию',
+  appeal_overdue: 'Обжалование ждёт ответа дольше срока',
+  payout_delayed: 'Проверка вывода затянулась — заявку передали старшему сотруднику',
+  payout_overdue: 'Заявка на вывод ждёт решения дольше срока',
   kyc_approved: 'Документы проверены — вывод без ограничения суммы',
   kyc_rejected: 'Документы не приняты — посмотрите причину',
   payout_paid: 'Выплата отправлена',
@@ -220,6 +232,12 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
   }
   // Просьба подтвердить сделку — в кабинет, где на неё отвечают, а не в сам заказ.
   if (type === 'deal_check') return '/cabinet/deal-checks';
+  // Решения модерации и обжалования (часть 134) — в кабинет «Решения модерации»;
+  // сотруднику — в очередь обжалований и вывода.
+  if (type === 'appeal_overdue') return '/admin?tab=appeals';
+  if (type === 'payout_overdue') return '/admin?tab=payouts';
+  if (id('decisionId') || type === 'appeal_decided') return '/cabinet/decisions';
+  if (type === 'balance_released' || type === 'payout_delayed') return '/cabinet/wallet';
   // Выплата по «Безопасной сделке» ждёт реквизиты — в кошелёк, где их указывают.
   if (type === 'deal_payout_waiting') return '/cabinet/wallet';
   if (type === 'new_message' && id('conversationId')) return `/chat/${id('conversationId')}`;

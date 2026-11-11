@@ -8,6 +8,7 @@ import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
 import { isCurrentQuery, isPlainClick, replaceUrl, withQuery } from '@/lib/url';
 import { Empty, LISTING_STATUS, StatusBadge, USER_STATUS, when } from './shared';
+import { useDecisionDialog } from './decision-dialog';
 import { usePaged, type Paged } from './use-paged';
 
 type Filter = '' | 'review' | 'active' | 'paused' | 'sold_out' | 'blocked' | 'archived';
@@ -73,6 +74,7 @@ const listingsUrl = (f: Filters) =>
  * причины блокировки в консоли не было. Фильтры — в адресе страницы.
  */
 export function ListingsSection({ isAdmin }: { isAdmin: boolean }) {
+  const { dialog, ask } = useDecisionDialog();
   const params = useSearchParams();
   const [f, setF] = useState<Filters>(() => read(params));
   const [text, setText] = useState(f.q);
@@ -122,15 +124,19 @@ export function ListingsSection({ isAdmin }: { isAdmin: boolean }) {
    * счётчики сдвигаются.
    */
   async function setListing(l: Row, to: 'active' | 'blocked') {
-    const reason =
-      to === 'blocked' ? window.prompt(`Причина блокировки «${l.title}» — её увидит продавец`, 'Нарушение правил площадки') : '';
-    if (reason === null) return;
+    // Блокировка — с пунктом правил и причиной: продавец видит их и может
+    // обжаловать (часть 134). Снятие блокировки — без вопросов.
+    const d =
+      to === 'blocked'
+        ? await ask({ title: `Заблокировать «${l.title}»?`, hint: 'Причину и пункт увидит продавец и сможет обжаловать.', confirm: 'Заблокировать' })
+        : { reason: '' };
+    if (!d) return;
     setWorking(l.id);
     setErr(null);
     try {
       await apiFetch(`/moderation/listings/${l.id}/status`, {
         method: 'POST',
-        body: JSON.stringify({ status: to, ...(reason.trim() ? { reason: reason.trim() } : {}) }),
+        body: JSON.stringify({ status: to, ...(d.reason ? { reason: d.reason } : {}), ...(d.rule ? { rule: d.rule } : {}) }),
       });
       const page = await apiFetch<Page>(`/moderation/listings?q=${l.id}`).catch(() => null);
       const fresh = page?.items.find((x) => x.id === l.id);
@@ -159,6 +165,7 @@ export function ListingsSection({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <section className="stack-form" style={{ gap: 16 }}>
+      {dialog}
       <form
         onSubmit={(e: FormEvent) => {
           e.preventDefault();

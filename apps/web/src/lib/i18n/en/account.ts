@@ -279,5 +279,22 @@ export const ACCOUNT: Record<string, string> = {
   'На балансе {sum} — меньше минимального вывода. Понимаю, что при удалении они сгорят.':
     '{sum} on your balance — below the minimum withdrawal. I understand it will be forfeited on deletion.',
   'Удаляем…': 'Deleting…',
+  // Решения модерации и обжалования (часть 134)
+  'Обжалование на рассмотрении': 'Appeal under review',
+  'Решение оставлено в силе': 'The decision stands',
+  'Решение отменено': 'The decision was reversed',
+  'Не удалось загрузить решения.': 'Couldn’t load the decisions.',
+  'Не удалось отправить обжалование.': 'Couldn’t send the appeal.',
+  'Решения модерации': 'Moderation decisions',
+  'Что решили модераторы о вас, ваших лотах и сообщениях, по какому пункту правил и почему. Не согласны — обжалуйте: решит другой сотрудник.':
+    'What moderators decided about you, your listings and messages, under which rule and why. Disagree? Appeal — another staff member will decide.',
+  'Решений о вас нет.': 'There are no decisions about you.',
+  'Пункт {n} правил': 'Rule {n}',
+  'Ответим до {date}.': 'We’ll reply by {date}.',
+  'Ответ: {note}': 'Reply: {note}',
+  'Почему решение неверно': 'Why the decision is wrong',
+  'Обжаловать можно один раз. Решит другой сотрудник, не тот, кто принимал решение, — в течение {hours} ч.':
+    'You can appeal once. Another staff member, not the one who decided, will answer within {hours} h.',
+  'Обжаловать': 'Appeal',
+  'Срок обжалования — {days} дней — прошёл.': 'The {days}-day appeal window has passed.',
 };
-

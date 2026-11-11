@@ -230,13 +230,23 @@ export class GameChatService {
     };
   }
 
-  async remove(staffId: string, id: string, reason: string) {
+  async remove(staffId: string, id: string, reason: string, rule?: string) {
     const m = await this.prisma.gameChatMessage.findUnique({ where: { id }, select: { id: true, userId: true, body: true, deletedAt: true } });
     if (!m) throw new NotFoundException('Сообщение не найдено');
     if (!m.deletedAt) {
       await this.prisma.gameChatMessage.update({
         where: { id },
         data: { deletedAt: new Date(), deletedBy: staffId, deleteReason: reason },
+      });
+      // Решение — с пунктом правил и обжалованием (часть 134).
+      const decision = await this.prisma.moderationAction.create({
+        data: { actorId: staffId, targetType: 'game_chat', targetId: id, action: 'delete', reason, rule },
+      });
+      await this.notifications.notify(m.userId, 'chat_message_removed', {
+        reason,
+        ...(rule ? { rule } : {}),
+        decisionId: decision.id,
+        preview: m.body.length > 140 ? `${m.body.slice(0, 140)}…` : m.body,
       });
     }
     // Жалобы на него решены: сообщения больше нет.
@@ -256,7 +266,7 @@ export class GameChatService {
   }
 
   /** Запрет писать в чаты игр на срок; 0 часов — снять запрет. */
-  async mute(staffId: string, userId: string, hours: number, reason: string) {
+  async mute(staffId: string, userId: string, hours: number, reason: string, rule?: string) {
     const profile = await this.prisma.profile.findUnique({ where: { userId }, select: { chatMutedUntil: true } });
     if (!profile) throw new NotFoundException('Пользователь не найден');
     const until = hours > 0 ? new Date(Date.now() + hours * 3_600_000) : null;
@@ -272,7 +282,17 @@ export class GameChatService {
       before: { until: profile.chatMutedUntil },
       after: { until, reason },
     });
-    if (until) await this.notifications.notify(userId, 'chat_muted', { until: until.toISOString(), reason });
+    if (until) {
+      const decision = await this.prisma.moderationAction.create({
+        data: { actorId: staffId, targetType: 'user', targetId: userId, action: 'mute', reason, rule },
+      });
+      await this.notifications.notify(userId, 'chat_muted', {
+        until: until.toISOString(),
+        reason,
+        ...(rule ? { rule } : {}),
+        decisionId: decision.id,
+      });
+    }
     return { userId, chatMutedUntil: until };
   }
 }

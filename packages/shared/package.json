@@ -116,6 +116,10 @@
     "./game-chat": {
       "types": "./dist/game-chat.d.ts",
       "default": "./dist/game-chat.js"
+    },
+    "./rules": {
+      "types": "./dist/rules.d.ts",
+      "default": "./dist/rules.js"
     }
   },
   "scripts": {

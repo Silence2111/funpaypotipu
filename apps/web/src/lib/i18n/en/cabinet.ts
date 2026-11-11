@@ -623,4 +623,10 @@ export const CABINET: Record<string, string> = {
     'The wallet must be named or identified: YooKassa doesn’t pay out to anonymous wallets.',
   'Оплата через «Безопасную сделку» ЮKassa: деньги держит ЮKassa, продавец получит их после вашего подтверждения, возврат — на карту.':
     'Payment through a YooKassa Safe Deal: YooKassa holds the money, the seller gets it after you confirm, refunds go back to your card.',
+  // Удержания и срок проверки вывода (часть 134)
+  'Удержано': 'On hold',
+  'Модератор удержал спорную сумму, остальное можно выводить.': 'A moderator put the disputed amount on hold; you can withdraw the rest.',
+  'Причина и обжалование': 'Reason and appeal',
+  'Проверка затянулась — заявку передали старшему сотруднику.': 'The check is taking longer — your request went to a senior staff member.',
+  'Проверим до {date}.': 'We’ll check it by {date}.',
 };

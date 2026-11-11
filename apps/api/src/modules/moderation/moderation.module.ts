@@ -9,5 +9,7 @@ import { ModerationService } from './moderation.service';
   imports: [AuthModule, GameChatModule],
   controllers: [ModerationController],
   providers: [ModerationService],
+  // Обжалования (часть 134) отменяют заморозку и блокировку лота теми же путями.
+  exports: [ModerationService],
 })
 export class ModerationModule {}

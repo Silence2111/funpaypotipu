@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { Empty, StatusBadge, USER_STATUS, when } from './shared';
+import { useDecisionDialog } from './decision-dialog';
 
 interface Row {
   id: string;
@@ -36,6 +37,7 @@ const MUTES = [
  * месяц; всё в журнал.
  */
 export function GameChatSection() {
+  const { dialog, ask } = useDecisionDialog();
   const [filter, setFilter] = useState<Filter>('');
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
@@ -79,25 +81,27 @@ export function GameChatSection() {
     }
   }
 
-  function remove(row: Row) {
-    const reason = window.prompt('Удалить сообщение? Причина:', 'Нарушение правил чата');
-    if (reason === null || reason.trim().length < 3) return;
+  async function remove(row: Row) {
+    const d = await ask({ title: 'Удалить сообщение?', hint: 'Автор увидит причину и пункт и сможет обжаловать.', confirm: 'Удалить' });
+    if (!d) return;
     void act(
       row,
-      () => apiFetch(`/moderation/game-chat/${row.id}/delete`, { method: 'POST', body: JSON.stringify({ reason: reason.trim() }) }),
+      () => apiFetch(`/moderation/game-chat/${row.id}/delete`, { method: 'POST', body: JSON.stringify({ reason: d.reason, ...(d.rule ? { rule: d.rule } : {}) }) }),
       'Не удалось удалить.',
-      { deletedAt: new Date().toISOString(), deleteReason: reason.trim(), openReports: 0 },
+      { deletedAt: new Date().toISOString(), deleteReason: d.reason, openReports: 0 },
     );
   }
 
-  function mute(row: Row, hours: number) {
+  async function mute(row: Row, hours: number) {
     const name = row.user.profile?.username ?? row.user.id.slice(0, 8);
-    const reason = hours ? window.prompt(`Запретить ${name} писать в чаты игр? Причина:`, 'Спам и реклама') : '';
-    if (reason === null) return;
+    const d = hours
+      ? await ask({ title: `Запретить ${name} писать в чаты игр ${MUTES.find((m) => m.hours === hours)?.label ?? ''}?`, confirm: 'Запретить' })
+      : { reason: 'Запрет снят' };
+    if (!d) return;
     const until = hours ? new Date(Date.now() + hours * 3_600_000).toISOString() : null;
     void act(
       row,
-      () => apiFetch(`/moderation/game-chat/users/${row.user.id}/mute`, { method: 'POST', body: JSON.stringify({ hours, reason: reason.trim() }) }),
+      () => apiFetch(`/moderation/game-chat/users/${row.user.id}/mute`, { method: 'POST', body: JSON.stringify({ hours, reason: d.reason, ...(d.rule ? { rule: d.rule } : {}) }) }),
       'Не удалось изменить запрет.',
       { user: { ...row.user, profile: row.user.profile ? { ...row.user.profile, chatMutedUntil: until } : null } },
     );
@@ -105,6 +109,7 @@ export function GameChatSection() {
 
   return (
     <section className="stack-form" style={{ gap: 16 }}>
+      {dialog}
       <form
         onSubmit={(e: FormEvent) => {
           e.preventDefault();
