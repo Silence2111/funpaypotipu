@@ -295,6 +295,9 @@ model Profile {
   // выключено) и автоподнятие лотов, как только проходит пауза.
   greetingText     String?   @map("greeting_text")
   autoRaise        Boolean   @default(false) @map("auto_raise")
+  /// Ссылка на обмен Steam (часть 142): запоминается из заказа и
+  /// подставляется в следующий; меняется в «Настройках».
+  steamTradeUrl    String?   @map("steam_trade_url")
   /// Кому продавать (часть 136): возраст аккаунта, проигранные споры, оценки
   /// продавцов — shared/buyer-filter.ts. null — всем.
   buyerFilter      Json?     @map("buyer_filter")

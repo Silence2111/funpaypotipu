@@ -218,6 +218,12 @@ export class OrdersService {
     const buyerDataErr = buyerDataError(buyerFields, opts.buyerData);
     if (buyerDataErr) throw new BadRequestException(buyerDataErr);
     const buyerData = cleanBuyerData(buyerFields, opts.buyerData);
+    // Ссылка на обмен Steam (часть 142) — в профиль: подставится в следующий заказ.
+    const steamField = buyerFields.find((f) => f.kind === 'steam_trade');
+    const steamUrl = steamField ? buyerData.find((a) => a.label === steamField.label)?.value : undefined;
+    if (steamUrl) {
+      await this.prisma.profile.updateMany({ where: { userId: buyerId }, data: { steamTradeUrl: steamUrl } }).catch(() => null);
+    }
 
     // Промокод продавца — раньше кода площадки: скидка за счёт продавца,
     // цена снижается до расчёта комиссии, и площадка берёт её с того, что

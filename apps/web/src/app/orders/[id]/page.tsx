@@ -15,6 +15,7 @@ import { PayMethods, priceFor, type PayMethod } from '@/components/pay-methods';
 import { payOrder } from '@/lib/checkout';
 import { useT } from '@/lib/i18n/client';
 import { msg, type T } from '@/lib/i18n/lang';
+import { STEAM_TRADE_LABEL, isSteamTradeUrl } from '@gamemarket/shared/buyer-data';
 import { SERVICE_GRACE_HOURS } from '@gamemarket/shared/service-term';
 import { warrantyActive } from '@gamemarket/shared/warranty';
 import { canRefundToOriginal } from '@gamemarket/shared/refund';
@@ -429,8 +430,15 @@ export default function OrderPage() {
           <dl style={{ margin: '14px 0 0', display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '4px 12px', fontSize: 15 }}>
             {order.listingSnapshot.buyerData.map((a) => (
               <div key={a.label} style={{ display: 'contents' }}>
-                <dt className="faint">{a.label}</dt>
-                <dd style={{ margin: 0, fontWeight: 600, wordBreak: 'break-word' }}>{a.value}</dd>
+                <dt className="faint">{a.label === STEAM_TRADE_LABEL ? t.d(a.label) : a.label}</dt>
+                <dd style={{ margin: 0, fontWeight: 600, wordBreak: 'break-word' }}>
+                  {/* Ссылка на обмен Steam (часть 142) — кнопкой: продавец сразу открывает обмен. */}
+                  {isSteamTradeUrl(a.value) ? (
+                    <a href={a.value} target="_blank" rel="noopener noreferrer">{a.value}</a>
+                  ) : (
+                    a.value
+                  )}
+                </dd>
               </div>
             ))}
           </dl>

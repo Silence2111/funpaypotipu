@@ -309,4 +309,11 @@ export const ACCOUNT: Record<string, string> = {
   'Вставить заготовку…': 'Insert a template…',
   'Обычно отвечаем за {n} мин': 'We usually reply within {n} min',
   'Обычно отвечаем за {n} ч': 'We usually reply within {n} h',
+  // Ссылка на обмен Steam (часть 142)
+  'Сохранили — подставим в следующий заказ.': 'Saved — we’ll prefill it in your next order.',
+  'Ссылку стёрли.': 'Link removed.',
+  'Ссылка вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=…':
+    'The link looks like https://steamcommunity.com/tradeoffer/new/?partner=…&token=…',
+  'Для скинов и предметов Steam: подставим в заказ сами. Где взять: Steam → Инвентарь → Предложения обмена → «Кто может отправлять мне предложения».':
+    'For Steam skins and items: we’ll fill it into orders for you. Where to find it: Steam → Inventory → Trade Offers → “Who can send me trade offers?”.',
 };

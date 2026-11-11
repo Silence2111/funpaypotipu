@@ -164,4 +164,15 @@ export class AccountService {
     await this.prisma.profile.update({ where: { userId }, data: { avatarUrl: null } });
     return { avatarUrl: null };
   }
+
+  /** Ссылка на обмен Steam (часть 142). */
+  async steamTrade(userId: string) {
+    const p = await this.prisma.profile.findUnique({ where: { userId }, select: { steamTradeUrl: true } });
+    return { url: p?.steamTradeUrl ?? null };
+  }
+
+  async setSteamTrade(userId: string, url: string | null) {
+    await this.prisma.profile.update({ where: { userId }, data: { steamTradeUrl: url } });
+    return { url };
+  }
 }

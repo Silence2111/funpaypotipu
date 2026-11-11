@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { nextQtyTier, qtyError, qtyPrice, type QtyTier } from '@gamemarket/shared/quantity';
 import { buyerDataError, type BuyerField } from '@gamemarket/shared/buyer-data';
@@ -69,6 +69,16 @@ export function BuyButton({
   const [method, setMethod] = useState<PayMethod>('sbp');
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
+
+  // Ссылка на обмен Steam (часть 142): сохранённая с прошлого заказа или из
+  // настроек — подставляется сама, покупателю не надо искать её снова.
+  const steamLabel = buyerFields.find((f) => f.kind === 'steam_trade')?.label;
+  useEffect(() => {
+    if (!steamLabel || !getToken()) return;
+    apiFetch<{ url: string | null }>('/account/steam-trade')
+      .then((r) => r.url && setAnswers((a) => (a[steamLabel] ? a : { ...a, [steamLabel]: r.url! })))
+      .catch(() => null);
+  }, [steamLabel]);
 
   const isTopUp = fulfillmentType === 'provider';
   const qty = parseQty(qtyInput);
@@ -208,15 +218,22 @@ export function BuyButton({
           {buyerFields.map((f, i) => (
             <div key={f.label} className="field">
               <label className="label" htmlFor={`buyer-field-${i}`}>
-                {f.label}
+                {f.kind === 'steam_trade' ? t.d(f.label) : f.label}
                 {f.required ? '' : ` — ${t('необязательно')}`}
               </label>
               <input id={`buyer-field-${i}`} className="input" maxLength={100} value={answers[f.label] ?? ''}
+                type={f.kind === 'steam_trade' ? 'url' : 'text'} inputMode={f.kind === 'steam_trade' ? 'url' : undefined}
+                placeholder={f.kind === 'steam_trade' ? 'https://steamcommunity.com/tradeoffer/new/?partner=…&token=…' : undefined}
                 autoCapitalize="none" autoCorrect="off" spellCheck={false}
                 onChange={(e) => {
                   setAnswers((a) => ({ ...a, [f.label]: e.target.value }));
                   setErr(null);
                 }} />
+              {f.kind === 'steam_trade' && (
+                <span className="hint">
+                  {t('Где взять: Steam → Инвентарь → Предложения обмена → «Кто может отправлять мне предложения». Запомним для следующих заказов.')}
+                </span>
+              )}
             </div>
           ))}
           <p className="hint" style={{ margin: 0 }}>{t('Продавец увидит это в заказе — переписываться не придётся.')}</p>

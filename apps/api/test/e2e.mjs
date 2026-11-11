@@ -2369,6 +2369,35 @@ async function scenarioBuyerData(rnd) {
   check('Продавец убрал поля — покупать без них', (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) })).status === 201);
 }
 
+/**
+ * Ссылка на обмен Steam (часть 142): поле лота с типом steam_trade —
+ * формат проверяется, ссылка запоминается в профиле и отдаётся для
+ * подстановки в следующий заказ; в настройках её можно стереть.
+ */
+async function scenarioSteamTrade(rnd) {
+  console.log('\n— Ссылка на обмен Steam —');
+  const seller = await register('tsl', rnd);
+  const buyer = await register('tsb', rnd);
+  const label = 'Ссылка на обмен Steam';
+  const lot = await createListing(seller.token, 'skins', '31000', { buyerFields: [{ label, required: true, kind: 'steam_trade' }] });
+  const page = await j(`/listings/${lot}`);
+  check('Тип поля виден на странице лота', page.body.buyerFields?.[0]?.kind === 'steam_trade', JSON.stringify(page.body.buyerFields));
+  const empty = await j('/account/steam-trade', { token: buyer.token });
+  check('Новому покупателю подставлять нечего', empty.status === 200 && empty.body.url === null);
+  const bad = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot, buyerData: { [label]: 'https://steamcommunity.com/id/me' } }) });
+  check('Не та ссылка — заказ не создаётся', bad.status === 400 && /tradeoffer/.test(bad.body.message), bad.body.message);
+  const url = 'https://steamcommunity.com/tradeoffer/new/?partner=123456789&token=AbC-d_9x';
+  const ok = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot, buyerData: { [label]: ` ${url} ` } }) });
+  check('Верная ссылка — заказ создан, ссылка в заказе', ok.status === 201 && ok.body.listingSnapshot?.buyerData?.[0]?.value === url, JSON.stringify(ok.body.listingSnapshot?.buyerData));
+  const saved = await j('/account/steam-trade', { token: buyer.token });
+  check('Ссылка запомнилась для следующего заказа', saved.body.url === url, JSON.stringify(saved.body));
+  const badPut = await j('/account/steam-trade', { method: 'PUT', token: buyer.token, body: JSON.stringify({ url: 'steam' }) });
+  check('В настройках кривую ссылку не сохранить', badPut.status === 400);
+  const cleared = await j('/account/steam-trade', { method: 'PUT', token: buyer.token, body: JSON.stringify({ url: '' }) });
+  check('Ссылку можно стереть', cleared.status === 200 && (await j('/account/steam-trade', { token: buyer.token })).body.url === null);
+  await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
+}
+
 async function scenarioPromotion(rnd) {
   console.log('\n— Продвижение с баланса —');
   const seller = await register('prs', rnd);
@@ -5893,6 +5922,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioPartialRefund(rnd);
   await scenarioInstantFilter(rnd);
   await scenarioBuyerData(rnd);
+  await scenarioSteamTrade(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);
   await scenarioSellerTools(rnd);

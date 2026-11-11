@@ -402,4 +402,8 @@ export const SELLER: Record<string, string> = {
   'Ни одного': 'None',
   'Не продавать тем, кого другие продавцы чаще не рекомендуют': 'Don’t sell to buyers whom other sellers more often don’t recommend',
   'Сохранено.': 'Saved.',
+  // Ссылка на обмен Steam (часть 142)
+  'Проверим формат ссылки и запомним её у покупателя': 'We’ll check the link format and remember it for the buyer',
+  'Ссылку на обмен Steam проверим по формату и подставим покупателю в следующий заказ.':
+    'We’ll check the Steam trade link format and prefill it in the buyer’s next order.',
 };

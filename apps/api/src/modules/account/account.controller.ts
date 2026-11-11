@@ -11,7 +11,7 @@ import { ConsentService } from './consent.service';
 import { DeletionService } from './deletion.service';
 import { ctxOf } from '../auth/auth-http';
 import { PushService, type PushSubscriptionInput } from '../notifications/push.service';
-import { NOTIFY_GROUPS } from '@gamemarket/shared';
+import { NOTIFY_GROUPS, isSteamTradeUrl } from '@gamemarket/shared';
 import { RateLimit } from '../../common/rate-limit';
 
 // Группы — ровно те, что в shared/notify.ts: лишний ключ не попадёт в базу.
@@ -44,6 +44,16 @@ const deletionSchema = z.object({
   code: z.string().trim().max(20).optional(),
   // Остаток меньше вывода сгорит — человек это подтвердил.
   forfeit: z.boolean().optional(),
+});
+
+const steamTradeSchema = z.object({
+  url: z
+    .string()
+    .trim()
+    .max(100)
+    .refine((v) => v === '' || isSteamTradeUrl(v), 'Ссылка на обмен Steam — вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=…')
+    .transform((v) => v || null)
+    .nullable(),
 });
 
 @Controller('account')
@@ -121,6 +131,17 @@ export class AccountController {
   @Delete('avatar')
   removeAvatar(@CurrentUser() user: AuthUser) {
     return this.account.removeAvatar(user.userId);
+  }
+
+  /** Ссылка на обмен Steam (часть 142): подстановка в заказ и правка в «Настройках». */
+  @Get('steam-trade')
+  steamTrade(@CurrentUser() user: AuthUser) {
+    return this.account.steamTrade(user.userId);
+  }
+
+  @Put('steam-trade')
+  setSteamTrade(@CurrentUser() user: AuthUser, @Body(new ZodValidationPipe(steamTradeSchema)) body: { url: string | null }) {
+    return this.account.setSteamTrade(user.userId, body.url);
   }
 
   /** Язык писем, Telegram и пушей — сайт присылает его при смене языка. */
