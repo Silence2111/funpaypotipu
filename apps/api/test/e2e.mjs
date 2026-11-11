@@ -12,6 +12,7 @@
  * Выход 0 — все проверки пройдены, иначе 1.
  */
 import { spawn } from 'node:child_process';
+import { createServer } from 'node:http';
 import { createECDH, createHmac, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { authenticator } from 'otplib';
@@ -1118,6 +1119,107 @@ async function scenarioSafeDeal(rnd) {
 
   const off = await scheme('escrow');
   check('Схема снова escrow — витрина предлагает все способы', off.status === 200 && (await j('/fees/public')).body.payMethods.length > 1);
+}
+
+/**
+ * API для продавцов (часть 127): ключ показывается один раз и работает
+ * вместо входа; лоты — цена, снять и вернуть, склад автовыдачи; продажи и
+ * выдача с сообщением; вебхук «оплачен новый заказ» с подписью и повтором
+ * после 500; лимит 60 запросов в минуту; журнал; отозванный ключ — 401.
+ */
+async function scenarioSellerApi(rnd) {
+  console.log('\n— API для продавцов —');
+  const seller = await register('aps', rnd);
+  const buyer = await register('apb', rnd);
+  const other = await register('apo', rnd);
+  const S = { token: seller.token };
+  const made = await j('/account/api/keys', { method: 'POST', ...S, body: JSON.stringify({ name: 'бот склада' }) });
+  const key = made.body.key;
+  const K = { token: key };
+  const list = await j('/account/api/keys', S);
+  const me = await j('/v1/me', K);
+  const noKey = await j('/v1/me');
+  const jwt = await j('/v1/me', S);
+  check(
+    'Ключ: «gm_live_…» показан один раз, в списке — только начало; по ключу — вход, без ключа и с паролем входа сайта — 401',
+    made.status === 201 && key?.startsWith('gm_live_') && list.body.length === 1 && !JSON.stringify(list.body).includes(key) &&
+      me.status === 200 && me.body.username === `aps${rnd}` && noKey.status === 401 && jwt.status === 401,
+    JSON.stringify({ made: made.status, list: list.body, me: [me.status, me.body?.username], noKey: noKey.status, jwt: jwt.status }),
+  );
+
+  const lot = await createListing(seller.token, 'skins', '30000', { title: `API ${rnd}` });
+  const foreign = await createListing(other.token, 'skins', '30000', { title: `API чужой ${rnd}` });
+  const lots = await j('/v1/listings?status=active', K);
+  const price = await j(`/v1/listings/${lot}`, { method: 'PATCH', ...K, body: JSON.stringify({ price: '25000' }) });
+  const pause = await j(`/v1/listings/${lot}`, { method: 'PATCH', ...K, body: JSON.stringify({ status: 'paused' }) });
+  const back = await j(`/v1/listings/${lot}`, { method: 'PATCH', ...K, body: JSON.stringify({ status: 'active' }) });
+  const notMine = await j(`/v1/listings/${foreign}`, { method: 'PATCH', ...K, body: JSON.stringify({ price: '1000' }) });
+  const auto = await createListing(seller.token, 'skins', '5000', { title: `API склад ${rnd}`, autoDelivery: true });
+  const stock = await j(`/v1/listings/${auto}/stock`, { method: 'POST', ...K, body: JSON.stringify({ items: [`k1-${rnd}`, `k2-${rnd}`, `k1-${rnd}`] }) });
+  const autoRow = (await j('/v1/listings?limit=100', K)).body.items.find((l) => l.id === auto);
+  check(
+    'Лоты по API: список, цена, снять и вернуть; чужой — 403; склад автовыдачи — повтор пропущен, лот в продаже',
+    lots.body.items?.some((l) => l.id === lot) && price.body.price === '25000' && pause.body.status === 'paused' &&
+      back.body.status === 'active' && notMine.status === 403 && stock.status === 200 && stock.body.added === 2 &&
+      autoRow?.stock === 2 && autoRow?.status === 'active',
+    JSON.stringify({ price: price.body, pause: pause.body?.status, back: back.body?.status, notMine: notMine.status, stock: [stock.status, stock.body], autoRow }),
+  );
+
+  // Приёмник вебхука: первый раз — 500, потом — 200.
+  const got = [];
+  const server = createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      got.push({ headers: req.headers, body });
+      res.statusCode = got.length === 1 ? 500 : 200;
+      res.end('ok');
+    });
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = server.address().port;
+  const hook = await j('/account/api/webhook', { method: 'PUT', ...S, body: JSON.stringify({ url: `http://127.0.0.1:${port}/hook` }) });
+  const order = (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) })).body;
+  await pay(buyer.token, order.id);
+  for (let i = 0; i < 30 && got.length < 2; i++) await wait(500);
+  const last = got[got.length - 1];
+  const sig = last ? 'sha256=' + createHmac('sha256', hook.body.secret).update(last.body).digest('hex') : null;
+  const payload = last ? JSON.parse(last.body) : null;
+  const deliveries = (await j('/account/api/webhook', S)).body.deliveries ?? [];
+  server.close();
+  check(
+    'Вебхук: оплачен заказ — POST с подписью секретом; ответ 500 — повтор, со второго раза доставлено',
+    hook.status === 200 && hook.body.secret?.startsWith('whsec_') && got.length === 2 && last.headers['x-gm-event'] === 'order.paid' &&
+      last.headers['x-gm-signature'] === sig && payload?.data?.publicNumber === order.publicNumber &&
+      deliveries[0]?.status === 'delivered' && deliveries[0]?.attempts === 2,
+    JSON.stringify({ hook: hook.status, got: got.length, event: last?.headers['x-gm-event'], sigOk: last?.headers['x-gm-signature'] === sig, d: deliveries[0] }),
+  );
+
+  const sales = await j('/v1/orders?status=paid', K);
+  const deliver = await j(`/v1/orders/${order.id}/deliver`, { method: 'POST', ...K, body: JSON.stringify({ message: `Ваш скин передан, проверьте обмен ${rnd}` }) });
+  const msg = await prisma.message.findFirst({ where: { conversation: { orderId: order.id }, senderId: seller.id }, select: { body: true } });
+  check(
+    'Продажи по API: оплаченный заказ в списке; выдача с сообщением покупателю — заказ выдан, сообщение в чате',
+    sales.body.items?.some((o) => o.id === order.id && o.sellerPayout) && deliver.status === 200 && deliver.body.status === 'delivered' &&
+      msg?.body.includes(`проверьте обмен ${rnd}`),
+    JSON.stringify({ sales: sales.body.items?.length, deliver: [deliver.status, deliver.body?.status], msg: msg?.body }),
+  );
+
+  let limited = null;
+  for (let i = 0; i < 70 && !limited; i++) {
+    const r = await j('/v1/me', K);
+    if (r.status === 429) limited = r;
+  }
+  const log = (await j('/account/api/requests', S)).body;
+  const revoked = await j(`/account/api/keys/${made.body.id}`, { method: 'DELETE', ...S });
+  const after = await j('/v1/me', K);
+  check(
+    'Лимит 60 в минуту — 429 с паузой; журнал — пути и ответы; отозванный ключ — 401',
+    !!limited && limited.body.error === 'rate_limited' && limited.body.retryAfter > 0 &&
+      log.some((r) => r.path === '/api/v1/me' && r.status === 200) && log.some((r) => r.status === 429) &&
+      revoked.status === 200 && after.status === 401,
+    JSON.stringify({ limited: limited?.body, log: log.slice(0, 3).map((r) => [r.path, r.status]), revoked: revoked.status, after: after.status }),
+  );
 }
 
 /** «Продавать на GameMarket»: сколько на руки — без входа, по правилу раздела. */
@@ -5020,6 +5122,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioAccountDeletion(rnd);
   await scenarioPhoneLogin(rnd);
   await scenarioSafeDeal(rnd);
+  await scenarioSellerApi(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

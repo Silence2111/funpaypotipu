@@ -6,6 +6,7 @@ import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { CabinetNav } from '@/components/cabinet-nav';
 import { SellerPromos } from '@/components/seller-promos';
+import { SellerApi } from '@/components/seller-api';
 import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
 import { COMMAND_MAX } from '@gamemarket/shared';
@@ -383,6 +384,7 @@ export default function ToolsPage() {
           </section>
 
           <SellerPromos />
+          <SellerApi />
         </>
       )}
     </div>

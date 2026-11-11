@@ -7,5 +7,7 @@ import { InventoryService } from './inventory.service';
   imports: [AuthModule],
   controllers: [InventoryController],
   providers: [InventoryService],
+  // API продавцов (часть 127) пополняет склад тем же путём, что сайт.
+  exports: [InventoryService],
 })
 export class InventoryModule {}

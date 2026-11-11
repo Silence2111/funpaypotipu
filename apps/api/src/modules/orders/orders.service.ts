@@ -6,6 +6,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient, type Order, type OrderStatus, type Payment } from '@gamemarket/db';
@@ -46,6 +47,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { ChatService } from '../chat/chat.service';
 import { PartnersService } from '../partners/partners.service';
 import { SafeDealService } from '../safe-deal/safe-deal.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import { FeesService } from './fees.service';
 import { FulfillmentService } from './fulfillment.service';
 
@@ -74,6 +76,8 @@ export class OrdersService {
     private readonly sellerPromos: SellerPromosService,
     private readonly partners: PartnersService,
     private readonly safeDeal: SafeDealService,
+    // Вебхук продавца (часть 127); в юнит-тестах может не быть.
+    @Optional() private readonly webhooks?: WebhooksService,
   ) {}
 
   /**
@@ -426,6 +430,24 @@ export class OrdersService {
       orderId: paid.id,
       ...(paid.fulfillmentType === 'manual' ? { manual: true } : {}),
     });
+    // API продавца (часть 127): «оплачен новый заказ» — на его вебхук, если задан.
+    // Сбой вебхука не мешает сделке: доставка повторится сама.
+    const snap = (paid.listingSnapshot ?? {}) as { title?: string; buyerData?: unknown };
+    await this.webhooks
+      ?.enqueue(paid.sellerId, 'order.paid', {
+        id: paid.id,
+        publicNumber: paid.publicNumber,
+        listingId: paid.listingId,
+        title: snap.title ?? null,
+        qty: paid.qty,
+        amount: paid.amount.toString(),
+        sellerPayout: paid.sellerPayoutAmount.toString(),
+        currency: paid.currency,
+        buyerData: snap.buyerData ?? [],
+        autoDelivery: paid.fulfillmentType !== 'manual',
+        paidAt: paid.paidAt,
+      })
+      .catch((e: Error) => this.logger.warn(`Вебхук заказа ${paid.id}: ${e.message}`));
     // Сколько передать — первым сообщением в чате сделки, как на FunPay.
     const unit = (paid.listingSnapshot as { unitName?: string } | null)?.unitName;
     const howMany =
