@@ -68,6 +68,7 @@ const JOURNAL: Record<string, string> = {
   delivered_manual: msg('Продавец отметил выдачу'),
   delivered_auto: msg('Выдано автоматически'),
   first_view: msg('Покупатель впервые открыл товар'),
+  received: msg('Покупатель отметил: данные получены'),
   confirmed: msg('Покупатель подтвердил получение'),
   service_due: msg('Срок выполнения'),
   warranty_until: msg('Гарантия до'),

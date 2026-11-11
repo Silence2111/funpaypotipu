@@ -116,6 +116,13 @@ export default async function ListingPage({
     .filter((l) => l.id !== listing.id && l.seller.id !== listing.seller.id)
     .slice(0, 6);
   const demo = isDemoSeller(listing.seller.profile?.username);
+  // Условия продавца для покупателя (часть 136) — до заказа, а не отказом после.
+  const bf = listing.seller.profile?.buyerFilter;
+  const buyerTerms = [
+    ...(bf?.minAgeDays ? [t('аккаунт от {days}', { days: t.n(bf.minAgeDays, 'день', 'дня', 'дней') })] : []),
+    ...(bf?.maxLostDisputes === 0 ? [t('без проигранных споров')] : bf?.maxLostDisputes ? [t('не больше {n} проигранных споров', { n: bf.maxLostDisputes })] : []),
+    ...(bf?.noBadReviews ? [t('без плохих оценок от продавцов')] : []),
+  ];
   const auto = listing.fulfillmentType === 'auto_key';
   // Автовыдача у аккаунтов и предметов — строка со склада продавца, а не ключ.
   const keys = auto && listing.category.fulfillmentType !== 'manual';
@@ -322,6 +329,11 @@ export default async function ListingPage({
                 {t('Срок выполнения — {term} с оплаты. Не успеет продавец — можно сразу открыть спор.', {
                   term: serviceTermText(t, listing.serviceHours),
                 })}
+              </p>
+            )}
+            {buyerTerms.length > 0 && (
+              <p className="hint" style={{ marginBottom: 16 }}>
+                {t('Продавец продаёт покупателям: {terms}.', { terms: buyerTerms.join(', ') })}
               </p>
             )}
             {listing.warrantyDays ? (

@@ -6,6 +6,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  HttpException,
 } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { randomUUID } from 'node:crypto';
@@ -18,6 +19,7 @@ import {
   DISPUTE_REMIND_HOURS,
   DISPUTE_RESPONSE_HOURS,
   disputeEvidence,
+  BUYER_OPEN_DISPUTES_MAX,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { OrdersService } from '../orders/orders.service';
@@ -80,6 +82,17 @@ export class DisputesService {
   async open(orderId: string, userId: string, reason: string) {
     const existing = await this.prisma.dispute.findUnique({ where: { orderId } });
     if (existing) throw new ConflictException('Спор по этому заказу уже открыт');
+    // Защита продавца (часть 136): покупатель держит не больше трёх споров
+    // открытыми сразу — споры «на всякий случай» по всем заказам не пройдут.
+    const mineOpen = await this.prisma.dispute.count({
+      where: { openedBy: userId, status: { in: OPEN }, order: { buyerId: userId } },
+    });
+    if (mineOpen >= BUYER_OPEN_DISPUTES_MAX) {
+      throw new HttpException(
+        { statusCode: 429, error: 'dispute_limit', message: `Открыто ${mineOpen} спора — дождитесь решения по ним, потом открывайте новый.` },
+        429,
+      );
+    }
 
     const order = await this.orders.markDisputed(orderId, userId); // проверит участие/переход
     // Вторая сторона отвечает в срок: молчание видно арбитру и поднимает спор в очереди.
@@ -580,6 +593,7 @@ export class DisputesService {
   private async journal(order: {
     id: string; sellerId: string; paidAt: Date | null; deliveredAt: Date | null; completedAt: Date | null;
     fulfillmentType: string; serviceStartedAt?: Date | null; serviceDueAt?: Date | null; warrantyUntil?: Date | null;
+    receivedAt?: Date | null;
   }) {
     const [delivery, sellerMsgs] = await Promise.all([
       this.prisma.delivery.findUnique({ where: { orderId: order.id }, select: { firstViewedAt: true, viewCount: true } }),
@@ -597,6 +611,7 @@ export class DisputesService {
     if (sellerMsgs.length) events.push({ at: sellerMsgs[0]!.createdAt, code: 'seller_messages', count: sellerMsgs.length });
     if (order.deliveredAt) events.push({ at: order.deliveredAt, code: order.fulfillmentType === 'manual' ? 'delivered_manual' : 'delivered_auto' });
     if (delivery?.firstViewedAt) events.push({ at: delivery.firstViewedAt, code: 'first_view', count: delivery.viewCount });
+    if (order.receivedAt) events.push({ at: order.receivedAt, code: 'received' });
     if (order.completedAt) events.push({ at: order.completedAt, code: 'confirmed' });
     if (order.serviceDueAt) events.push({ at: order.serviceDueAt, code: 'service_due' });
     if (order.warrantyUntil) events.push({ at: order.warrantyUntil, code: 'warranty_until' });

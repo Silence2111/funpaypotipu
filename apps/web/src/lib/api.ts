@@ -105,6 +105,8 @@ export interface SellerBrief {
   username: string;
   displayName?: string;
   avatarUrl?: string | null;
+  /** Кому продавец продаёт (часть 136) — только на странице лота. */
+  buyerFilter?: { minAgeDays: number; maxLostDisputes: number | null; noBadReviews: boolean } | null;
   ratingAvg: number;
   ratingCount?: number;
   onlineAt?: string | null;

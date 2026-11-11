@@ -244,4 +244,10 @@ export const LOT: Record<string, string> = {
   'Гарантия продавца — {term} после получения: что-то не так — спор, деньги до конца гарантии у площадки.':
     'Seller’s warranty: {term} after receipt. Something wrong? Open a dispute; the marketplace holds the money until the warranty ends.',
   'Что не так с сообщением': 'What’s wrong with the message',
+  // Кому продаёт продавец (часть 136)
+  'Продавец продаёт покупателям: {terms}.': 'The seller sells to buyers with {terms}.',
+  'аккаунт от {days}': 'an account at least {days} old',
+  'без проигранных споров': 'no lost disputes',
+  'не больше {n} проигранных споров': 'no more than {n} lost disputes',
+  'без плохих оценок от продавцов': 'no bad ratings from sellers',
 };

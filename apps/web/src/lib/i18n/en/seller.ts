@@ -392,4 +392,14 @@ export const SELLER: Record<string, string> = {
   'Без гарантии': 'No warranty',
   'Столько дней после подтверждения покупатель может открыть спор, если с товаром что-то не так. Деньги придут вам, когда гарантия закончится. Покупатели выбирают лоты с гарантией охотнее.':
     'For this many days after confirming, the buyer can open a dispute if something is wrong with the goods. You get the money when the warranty ends. Buyers prefer listings with a warranty.',
+  // Кому продавать (часть 136)
+  'Кому продавать': 'Who to sell to',
+  'Отсейте рискованных покупателей. Условия покупатель увидит на странице лота до заказа.': 'Filter out risky buyers. Buyers see the conditions on the listing page before ordering.',
+  'Аккаунт покупателя не моложе': 'Buyer account at least',
+  'Любой': 'Any age',
+  'Проигранных споров за 90 дней — не больше': 'Lost disputes in 90 days — no more than',
+  'Не важно': 'Doesn’t matter',
+  'Ни одного': 'None',
+  'Не продавать тем, кого другие продавцы чаще не рекомендуют': 'Don’t sell to buyers whom other sellers more often don’t recommend',
+  'Сохранено.': 'Saved.',
 };

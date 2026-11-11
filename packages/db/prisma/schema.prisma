@@ -295,6 +295,9 @@ model Profile {
   // выключено) и автоподнятие лотов, как только проходит пауза.
   greetingText     String?   @map("greeting_text")
   autoRaise        Boolean   @default(false) @map("auto_raise")
+  /// Кому продавать (часть 136): возраст аккаунта, проигранные споры, оценки
+  /// продавцов — shared/buyer-filter.ts. null — всем.
+  buyerFilter      Json?     @map("buyer_filter")
   // Последние живые ответы продавца покупателям: [[когда, сколько ждали]],
   // секунды. Из них — «обычно отвечает за …» (packages/shared/src/reply.ts).
   replySamples     Json      @default("[]") @map("reply_samples")
@@ -674,6 +677,9 @@ model Order {
   serviceDueAt       DateTime?       @map("service_due_at")
   serviceStartedAt   DateTime?       @map("service_started_at")
   serviceOverdueAt   DateTime?       @map("service_overdue_at")
+  /// «Данные получены» (часть 136): покупатель отметил, что продавец передал
+  /// данные при ручной выдаче, — в журнал выдачи спора.
+  receivedAt         DateTime?       @map("received_at")
   /// Гарантия продавца (часть 126): до какого времени покупатель может
   /// открыть спор после подтверждения; когда деньги переданы продавцу.
   warrantyUntil      DateTime?       @map("warranty_until")

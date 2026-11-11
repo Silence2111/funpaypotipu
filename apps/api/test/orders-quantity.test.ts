@@ -89,6 +89,8 @@ function setup(listing: Record<string, unknown>, order: Record<string, unknown> 
     Object.assign(l, rest);
   };
   const prisma = {
+    // Фильтр покупателей продавца (часть 136) — у этого продавца нет.
+    profile: { findUnique: vi.fn(async () => ({ buyerFilter: null })) },
     listing: {
       findUnique: vi.fn(async () => state.listing),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {

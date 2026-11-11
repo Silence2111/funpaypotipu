@@ -94,6 +94,12 @@ export class OrdersController {
     return this.orders.payFromBalance(id, user.userId);
   }
 
+  /** «Данные получены» — покупатель после ручной выдачи (часть 136). */
+  @Post(':id/received')
+  received(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.orders.markReceived(id, user.userId);
+  }
+
   /** «Взял в работу» — заказ оплачен и ждёт выдачи (часть 125). */
   @Post(':id/start')
   start(@CurrentUser() user: AuthUser, @Param('id') id: string) {

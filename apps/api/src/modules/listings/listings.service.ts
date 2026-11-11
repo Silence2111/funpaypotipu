@@ -565,7 +565,8 @@ export class ListingsService {
         seller: {
           select: {
             id: true,
-            profile: { select: { username: true, ratingAvg: true, ratingCount: true } },
+            // Кому продавец продаёт (часть 136) — покупатель видит до заказа.
+            profile: { select: { username: true, ratingAvg: true, ratingCount: true, buyerFilter: true } },
           },
         },
       },
