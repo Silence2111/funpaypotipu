@@ -17,6 +17,7 @@ import { useT } from '@/lib/i18n/client';
 import { msg, type T } from '@/lib/i18n/lang';
 import { SERVICE_GRACE_HOURS } from '@gamemarket/shared/service-term';
 import { warrantyActive } from '@gamemarket/shared/warranty';
+import { canRefundToOriginal } from '@gamemarket/shared/refund';
 
 interface Order {
   id: string; publicNumber: string; status: string; amount: string; currency: string;
@@ -145,6 +146,8 @@ export default function OrderPage() {
   // Вернулись со страницы платёжного шлюза: оплату подтверждает его вебхук,
   // поэтому несколько секунд заказ может ещё ждать оплаты.
   const [returned, setReturned] = useState<'waiting' | 'slow' | null>(null);
+  // Отмена оплаченного: куда вернуть деньги (часть 137).
+  const [cancelling, setCancelling] = useState(false);
 
   const { ready, token, user: me } = useSession();
 
@@ -192,6 +195,20 @@ export default function OrderPage() {
       await loadOrder();
     } catch (e) {
       setErr(apiErrorMessage(e, t('Не получилось. Обновите страницу — возможно, статус заказа уже изменился.')));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Отмена с возвратом тем же способом оплаты — через шлюз (часть 137). */
+  async function cancelToOriginal() {
+    setErr(null);
+    setBusy(true);
+    try {
+      await apiFetch(`/payments/orders/${id}/cancel-to-original`, { method: 'POST' });
+      await loadOrder();
+    } catch (e) {
+      setErr(apiErrorMessage(e, t('Не удалось вернуть деньги на карту — попробуйте вернуть на баланс.')));
     } finally {
       setBusy(false);
     }
@@ -486,10 +503,12 @@ export default function OrderPage() {
               <AlertTriangle size={16} strokeWidth={1.75} /> {t('Открыть спор')}
             </button>
           )}
-          {order.status === 'paid' && role === 'buyer' && !order.serviceStartedAt && (
+          {order.status === 'paid' && role === 'buyer' && !order.serviceStartedAt && !cancelling && (
             <button className="btn ghost" disabled={busy} type="button"
               onClick={() => {
-                if (window.confirm(t('Отменить заказ? Деньги вернутся на ваш баланс.'))) act('cancel');
+                // Оплачено картой или по СБП — выбор, куда вернуть (часть 137).
+                if (canRefundToOriginal(order)) setCancelling(true);
+                else if (window.confirm(t('Отменить заказ? Деньги вернутся на ваш баланс.'))) act('cancel');
               }}>
               {t('Отменить заказ')}
             </button>
@@ -508,6 +527,28 @@ export default function OrderPage() {
             </button>
           )}
         </div>
+
+        {cancelling && order.status === 'paid' && (
+          <div className="card flat" style={{ marginTop: 16, padding: 16, background: 'var(--page)', display: 'grid', gap: 10 }}>
+            <b style={{ fontSize: 15 }}>{t('Куда вернуть деньги?')}</b>
+            <button className="btn secondary" type="button" disabled={busy} style={{ justifyContent: 'space-between', gap: 12 }}
+              onClick={() => { setCancelling(false); act('cancel'); }}>
+              <span style={{ textAlign: 'left' }}>{t('На баланс — сразу')}</span>
+              <span style={{ whiteSpace: 'nowrap' }}>{formatPrice(order.amount, order.currency, t)}</span>
+            </button>
+            <button className="btn secondary" type="button" disabled={busy} style={{ justifyContent: 'space-between', gap: 12 }}
+              onClick={() => { setCancelling(false); void cancelToOriginal(); }}>
+              <span style={{ textAlign: 'left' }}>{t('Тем же способом оплаты — 1–10 дней')}</span>
+              <span style={{ whiteSpace: 'nowrap' }}>{formatPrice((BigInt(order.amount) + BigInt(order.paymentSurcharge ?? '0')).toString(), order.currency, t)}</span>
+            </button>
+            <p className="hint" style={{ margin: 0 }}>
+              {order.paymentSurcharge && order.paymentSurcharge !== '0'
+                ? t('На баланс — сумма заказа, комиссия способа оплаты {fee} не возвращается. Тем же способом — всё, что списали, вместе с комиссией.', { fee: formatPrice(order.paymentSurcharge, order.currency, t) })
+                : t('На баланс деньги придут сразу, тем же способом — когда банк зачислит возврат.')}
+            </p>
+            <button className="btn ghost" type="button" onClick={() => setCancelling(false)}>{t('Не отменять')}</button>
+          </div>
+        )}
 
         {keys && (
           <div className="card flat" style={{ marginTop: 16, padding: 16, background: 'var(--page)' }}>

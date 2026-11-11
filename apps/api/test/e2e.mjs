@@ -1735,6 +1735,49 @@ async function scenarioSellerProtection(rnd) {
 }
 
 /**
+ * Возврат при отмене (часть 137): оплачено картой — покупатель выбирает
+ * «тем же способом» (шлюз возвращает всё, вместе с надбавкой способа) или
+ * «на баланс» (сразу, сумма заказа); оплачено с баланса — только на баланс.
+ */
+async function scenarioRefundChoice(rnd) {
+  console.log('\n— Возврат при отмене: баланс или карта —');
+  const seller = await register('rfs', rnd);
+  const buyer = await register('rfb', rnd);
+  const B = { token: buyer.token };
+  const lot = await createListing(seller.token, 'skins', '10000', { title: `Возврат ${rnd}` });
+  const orderBy = async (method) => {
+    const o = (await j('/orders', { method: 'POST', ...B, body: JSON.stringify({ listingId: lot }) })).body;
+    const dep = await j('/payments/deposit', { method: 'POST', ...B, body: JSON.stringify({ orderId: o.id, method }) });
+    await j('/payments/mock/callback?providerRef=' + dep.body.providerRef, { method: 'POST' });
+    return o;
+  };
+
+  const card = await orderBy('card');
+  const back = await j(`/payments/orders/${card.id}/cancel-to-original`, { method: 'POST', ...B });
+  const again = await j(`/payments/orders/${card.id}/cancel-to-original`, { method: 'POST', ...B });
+  const payment = await prisma.payment.findFirst({ where: { orderId: card.id }, select: { status: true, amount: true } });
+  const w0 = (await j('/wallet', B)).body;
+  check(
+    'Отмена с возвратом на карту: заказ отменён, платёж возвращён шлюзом целиком (с надбавкой 4,4%), на баланс ничего; повтор — 409',
+    back.status === 201 && back.body.status === 'refunded' && payment?.status === 'refunded' && payment?.amount === 10440n &&
+      w0.balance === '0' && again.status === 409,
+    JSON.stringify({ back: [back.status, back.body?.status], payment: [payment?.status, String(payment?.amount)], balance: w0.balance, again: again.status }),
+  );
+
+  const sbp = await orderBy('sbp');
+  const toBalance = await j(`/orders/${sbp.id}/cancel`, { method: 'POST', ...B });
+  const w1 = (await j('/wallet', B)).body;
+  const fromBalance = (await j('/orders', { method: 'POST', ...B, body: JSON.stringify({ listingId: lot }) })).body;
+  await j(`/orders/${fromBalance.id}/pay-from-balance`, { method: 'POST', ...B });
+  const noCard = await j(`/payments/orders/${fromBalance.id}/cancel-to-original`, { method: 'POST', ...B });
+  check(
+    'На баланс — сразу сумма заказа; оплачено с баланса — на карту нельзя (400)',
+    toBalance.status === 201 && w1.balance === '10000' && noCard.status === 400,
+    JSON.stringify({ toBalance: toBalance.status, balance: w1.balance, noCard: [noCard.status, noCard.body?.message] }),
+  );
+}
+
+/**
  * API для продавцов (часть 127): ключ показывается один раз и работает
  * вместо входа; лоты — цена, снять и вернуть, склад автовыдачи; продажи и
  * выдача с сообщением; вебхук «оплачен новый заказ» с подписью и повтором
@@ -5743,6 +5786,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioAppeals(rnd);
   await scenarioArbitration(rnd);
   await scenarioSellerProtection(rnd);
+  await scenarioRefundChoice(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

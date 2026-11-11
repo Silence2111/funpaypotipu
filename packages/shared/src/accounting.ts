@@ -113,6 +113,18 @@ export const refundToGateway = (amount: Minor): PostingLeg[] => [
   credit(gatewayClearing(), amount),
 ];
 
+/**
+ * Отмена с возвратом на карту или по СБП (часть 137): эскроу и надбавка
+ * способа уходят обратно шлюзу — покупателю возвращается всё, что списали.
+ * Надбавка из обязательства перед платёжной системой возвращается вместе с
+ * суммой: её потерю площадка берёт на себя.
+ */
+export const refundToOriginal = (amount: Minor, surcharge: Minor = 0n): PostingLeg[] => [
+  debit(escrowHolding(), amount),
+  ...(surcharge > 0n ? [debit(platformAccount('fees_payable'), surcharge)] : []),
+  credit(gatewayClearing(), amount + surcharge),
+];
+
 /** Кэшбэк покупателю на баланс за завершённую покупку (за счёт дохода площадки). */
 export const cashbackToBalance = (buyerId: string, amount: Minor): PostingLeg[] => [
   debit(platformRevenue(), amount),

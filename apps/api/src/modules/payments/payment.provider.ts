@@ -62,4 +62,20 @@ export interface PaymentProvider {
    * 200, чтобы шлюз не повторял); null — подделка.
    */
   parseWebhook(body: unknown): Promise<WebhookEvent | 'ignore' | null>;
+  /**
+   * Возврат платежа исходным способом (часть 137): карта, СБП. Ошибка —
+   * исключение: деньги у покупателя не списываются повторно, заказ остаётся
+   * оплаченным.
+   */
+  refund?(input: RefundInput): Promise<{ id: string }>;
+}
+
+export interface RefundInput {
+  /** Номер платежа у шлюза (у ЮKassa — id платежа). */
+  externalId: string | null;
+  providerRef: string;
+  amount: bigint;
+  currency: string;
+  idempotenceKey: string;
+  description: string;
 }

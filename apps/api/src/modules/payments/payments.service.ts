@@ -101,6 +101,31 @@ export class PaymentsService {
    * Платёж у шлюза: строка в базе до запроса (по ней придёт вебхук), потом
    * сессия оплаты. Шлюз не принял — платёж помечается неудачным, а не висит.
    */
+  /**
+   * Отмена с возвратом исходным способом (часть 137): шлюз возвращает всё,
+   * что списал, — сумму и надбавку способа. Платёж — тот, которым оплачен заказ.
+   */
+  async cancelToOriginal(orderId: string, userId: string) {
+    return this.orders.cancelToOriginal(orderId, userId, async (order) => {
+      const payment = await this.prisma.payment.findFirst({
+        where: { orderId: order.id, status: 'succeeded' },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!payment) throw new Error('Платёж заказа не найден');
+      const provider = this.registry.get(payment.provider);
+      if (!provider.refund) throw new Error(`Шлюз ${payment.provider} не умеет возвраты`);
+      await provider.refund({
+        externalId: payment.externalId,
+        providerRef: payment.providerRef,
+        amount: payment.amount,
+        currency: payment.currency,
+        idempotenceKey: `refund-${order.id}`,
+        description: `Возврат по заказу ${order.publicNumber}`,
+      });
+      await this.prisma.payment.update({ where: { id: payment.id }, data: { status: 'refunded' } });
+    });
+  }
+
   private async openDeposit(p: {
     userId: string;
     orderId: string | null;

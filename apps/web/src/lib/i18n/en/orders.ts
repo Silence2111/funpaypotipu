@@ -396,4 +396,15 @@ export const ORDERS: Record<string, string> = {
     'Did the seller hand over the details? Mark “Details received” — this doesn’t confirm the deal: you can still check the goods, and the seller is paid only after you confirm.',
   'Покупатель отметил: данные получены': 'The buyer marked: details received',
   'Покупатель отметил: данные получены.': 'The buyer marked: details received.',
+  // Возврат при отмене (часть 137)
+  'Куда вернуть деньги?': 'Where should we return the money?',
+  'На баланс — сразу': 'To the balance — instantly',
+  'Тем же способом оплаты — 1–10 дней': 'The same payment method — 1–10 days',
+  'На баланс — сумма заказа, комиссия способа оплаты {fee} не возвращается. Тем же способом — всё, что списали, вместе с комиссией.':
+    'To the balance: the order amount; the {fee} payment-method fee isn’t returned. The same method: everything that was charged, including the fee.',
+  'На баланс деньги придут сразу, тем же способом — когда банк зачислит возврат.': 'To the balance the money arrives at once; via the same method — when the bank credits the refund.',
+  'Не отменять': 'Don’t cancel',
+  'Не удалось вернуть деньги на карту — попробуйте вернуть на баланс.': 'Couldn’t refund to the card — try refunding to the balance.',
+  'Заказ отменён, деньги возвращаются тем же способом оплаты — банк зачислит их за 1–10 дней.':
+    'The order was cancelled; the money is going back via the same payment method — the bank will credit it within 1–10 days.',
 };
