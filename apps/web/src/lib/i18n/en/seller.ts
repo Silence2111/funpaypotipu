@@ -387,4 +387,9 @@ export const SELLER: Record<string, string> = {
     'Counted from payment. Miss it and the buyer can open a dispute right away; with no delivery and no dispute, the money goes back to them a day after the deadline.',
   '«Взять в работу»: покупатель увидит отметку в заказе. У услуг со сроком в заказе есть serviceDueAt — выполнить до.':
     '“Take on”: the buyer sees the mark on the order. Services with a deadline carry serviceDueAt, the time to complete by.',
+  // Гарантия продавца (часть 126)
+  'Гарантия': 'Warranty',
+  'Без гарантии': 'No warranty',
+  'Столько дней после подтверждения покупатель может открыть спор, если с товаром что-то не так. Деньги придут вам, когда гарантия закончится. Покупатели выбирают лоты с гарантией охотнее.':
+    'For this many days after confirming, the buyer can open a dispute if something is wrong with the goods. You get the money when the warranty ends. Buyers prefer listings with a warranty.',
 };

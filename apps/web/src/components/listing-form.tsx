@@ -21,6 +21,7 @@ import { useT } from '@/lib/i18n/client';
 import { shrink } from '@/lib/photo';
 import { PriceHint } from './price-hint';
 import { serviceTermOptions } from '@/lib/service-term';
+import { warrantyAllowed, warrantyOptions } from '@/lib/warranty';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -67,6 +68,8 @@ export interface EditableListing {
   deliveryTemplate: string | null;
   /** Срок выполнения услуги в часах (часть 125). */
   serviceHours?: number | null;
+  /** Гарантия продавца в днях (часть 126). */
+  warrantyDays?: number | null;
   game: { slug: string; title: string };
   category: { slug: string; title: string; fulfillmentType: string; unitName?: string | null; pricePerUnits?: number | null; segment?: string };
 }
@@ -179,6 +182,8 @@ export function ListingForm({
   const [template, setTemplate] = useState(base?.deliveryTemplate ?? '');
   // Срок выполнения услуги (часть 125): после него у покупателя спор сразу.
   const [serviceHours, setServiceHours] = useState<number | null>(base?.serviceHours ?? null);
+  // Гарантия продавца (часть 126): спор после подтверждения в этот срок.
+  const [warrantyDays, setWarrantyDays] = useState<number | null>(base?.warrantyDays ?? null);
 
   // Копия — как «Продать в разделе»: подгружаются все разделы её игры.
   const presetGame = preset?.game ?? copyOf?.game.slug;
@@ -231,6 +236,7 @@ export function ListingForm({
   const manualLot = selected?.fulfillmentType === 'manual' && !autoLines;
   const perPiece = byQty && manualLot;
   const serviceLot = manualLot && selected?.segment === 'service';
+  const withWarranty = warrantyAllowed(selected);
   // Пополнение выполняет провайдер — инструкция продавца там ни к чему.
   const withNote = !!selected && selected.fulfillmentType !== 'provider';
   const qtyTerms = {
@@ -432,6 +438,7 @@ export function ListingForm({
             ...(canAuto ? { autoDelivery: autoLines } : {}),
             ...(withNote ? { deliveryTemplate: cleanTemplate || null } : {}),
             ...(serviceLot ? { serviceHours } : {}),
+            ...(withWarranty ? { warrantyDays } : {}),
           }),
         });
         // Только что включили автовыдачу, а склад пуст — сразу к складу на странице лота.
@@ -472,6 +479,7 @@ export function ListingForm({
           ...(autoLines ? { autoDelivery: true } : {}),
           ...(withNote && cleanTemplate ? { deliveryTemplate: cleanTemplate } : {}),
           ...(serviceLot && serviceHours ? { serviceHours } : {}),
+          ...(withWarranty && warrantyDays ? { warrantyDays } : {}),
         }),
       });
       // Ответ на запрос покупателя: лот — ему сразу. Не ушёл (лот ещё без
@@ -725,6 +733,22 @@ export function ListingForm({
             </select>
             <p className="hint">
               {t('Считается от оплаты. Не успели — покупатель сразу может открыть спор, а без выдачи и спора деньги вернутся ему через сутки после срока.')}
+            </p>
+          </div>
+        )}
+
+        {withWarranty && (
+          <div className="field">
+            <label className="label" htmlFor="warranty">{t('Гарантия')}</label>
+            <select id="warranty" className="input" value={warrantyDays ?? ''}
+              onChange={(e) => setWarrantyDays(e.target.value ? Number(e.target.value) : null)}>
+              <option value="">{t('Без гарантии')}</option>
+              {warrantyOptions(t).map((o) => (
+                <option key={o.days} value={o.days}>{o.label}</option>
+              ))}
+            </select>
+            <p className="hint">
+              {t('Столько дней после подтверждения покупатель может открыть спор, если с товаром что-то не так. Деньги придут вам, когда гарантия закончится. Покупатели выбирают лоты с гарантией охотнее.')}
             </p>
           </div>
         )}

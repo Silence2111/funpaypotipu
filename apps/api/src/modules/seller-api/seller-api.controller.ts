@@ -164,6 +164,8 @@ export class SellerApiController {
         deliveredAt: true,
         serviceDueAt: true,
         serviceStartedAt: true,
+        warrantyUntil: true,
+        warrantyReleasedAt: true,
         buyer: { select: { profile: { select: { username: true } } } },
       },
     });
@@ -189,6 +191,9 @@ export class SellerApiController {
           // Услуга со сроком (часть 125): выполнить до и когда взято в работу.
           serviceDueAt: o.serviceDueAt,
           serviceStartedAt: o.serviceStartedAt,
+          // Гарантия (часть 126): до какого времени возможен спор; деньги придут после.
+          warrantyUntil: o.warrantyUntil,
+          warrantyReleasedAt: o.warrantyReleasedAt,
         };
       }),
     };

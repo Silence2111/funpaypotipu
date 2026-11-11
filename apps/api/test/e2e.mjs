@@ -1196,6 +1196,76 @@ async function scenarioServiceTerm(rnd) {
     back?.status === 'refunded' && wallet.balance === order.amount,
     JSON.stringify({ status: back?.status, balance: wallet.balance, amount: order.amount }),
   );
+  // Лот — в «Прочем»: снимаем, «Подсказка цены» ждёт раздел пустым.
+  await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
+}
+
+/**
+ * Гарантия продавца (часть 126): срок у лота; подтверждение не отдаёт
+ * деньги продавцу, пока идёт гарантия, — в этот срок покупатель открывает
+ * спор; гарантия кончилась — деньги продавцу, спор уже нельзя.
+ */
+async function scenarioWarranty(rnd) {
+  console.log('\n— Гарантия продавца —');
+  const seller = await register('wrs', rnd);
+  const buyer = await register('wrb', rnd);
+  const agent = await register('wra', rnd);
+  await grant(agent, 'agent');
+  const lot = await createListing(seller.token, 'skins', '40000', { title: `Скин с гарантией ${rnd}`, warrantyDays: 7 });
+  const shown = await j(`/listings/${lot}`);
+  const odd = await j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ warrantyDays: 8 }) });
+  check(
+    'Гарантия у лота: 7 дней видна на лоте; срок не из списка — 400',
+    shown.body.warrantyDays === 7 && odd.status === 400,
+    JSON.stringify({ shown: shown.body.warrantyDays, odd: odd.status }),
+  );
+
+  const buy = async () => {
+    const o = (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) })).body;
+    await pay(buyer.token, o.id);
+    await j(`/orders/${o.id}/deliver`, { method: 'POST', token: seller.token });
+    const c = await j(`/orders/${o.id}/confirm`, { method: 'POST', token: buyer.token });
+    return { ...o, confirmed: c.body };
+  };
+
+  const first = await buy();
+  const left = new Date(first.confirmed.warrantyUntil).getTime() - Date.now();
+  const w0 = (await j('/wallet', { token: seller.token })).body;
+  const started = await prisma.notification.findFirst({ where: { userId: seller.id, type: 'warranty_started' } });
+  check(
+    'Подтверждение с гарантией: заказ завершён, гарантия ~7 дней, деньги продавцу не ушли — «в сделках»; продавцу уведомление',
+    first.confirmed.status === 'completed' && left > 6.9 * 86_400_000 && left <= 7 * 86_400_000 && w0.balance === '0' &&
+      w0.inDeals.count === 1 && w0.inDeals.amount === first.sellerPayoutAmount && !!started,
+    JSON.stringify({ status: first.confirmed.status, left, w0, started: !!started }),
+  );
+
+  const sellerTry = await j('/disputes', { method: 'POST', token: seller.token, body: JSON.stringify({ orderId: first.id, reason: 'Покупатель пишет, что скин пропал' }) });
+  const dispute = await j('/disputes', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: first.id, reason: 'Скин забрали обратно через день' }) });
+  await j(`/disputes/${dispute.body.id}/take`, { method: 'POST', token: agent.token });
+  await j(`/disputes/${dispute.body.id}/resolve`, { method: 'POST', token: agent.token, body: JSON.stringify({ outcome: 'buyer', note: 'Предмет вернули продавцу' }) });
+  const refunded = (await j(`/orders/${first.id}`, { token: buyer.token })).body;
+  const wb = (await j('/wallet', { token: buyer.token })).body;
+  const profile = await prisma.profile.findUnique({ where: { userId: seller.id }, select: { salesCount: true } });
+  check(
+    'Спор по гарантии открывает покупатель (продавцу — 409); решение в его пользу — деньги на баланс, продажа не засчитана',
+    dispute.status === 201 && sellerTry.status === 409 && refunded.status === 'refunded' && wb.balance === first.amount && profile?.salesCount === 0,
+    JSON.stringify({ dispute: dispute.status, sellerTry: sellerTry.status, status: refunded.status, balance: wb.balance, sales: profile?.salesCount }),
+  );
+
+  const second = await buy();
+  await prisma.order.update({ where: { id: second.id }, data: { warrantyUntil: new Date(Date.now() - 1000) } });
+  let done = null;
+  for (let i = 0; i < 20 && !done?.warrantyReleasedAt; i++) {
+    await wait(500);
+    done = (await j(`/orders/${second.id}`, { token: buyer.token })).body;
+  }
+  const w1 = (await j('/wallet', { token: seller.token })).body;
+  const late = await j('/disputes', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: second.id, reason: 'Поздно' }) });
+  check(
+    'Гарантия кончилась без спора — деньги продавцу, «в сделках» пусто; спор после неё — 409',
+    !!done?.warrantyReleasedAt && w1.balance === second.sellerPayoutAmount && w1.inDeals.count === 0 && late.status === 409,
+    JSON.stringify({ released: done?.warrantyReleasedAt, w1, late: late.status }),
+  );
 }
 
 /**
@@ -5201,6 +5271,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioSafeDeal(rnd);
   await scenarioSellerApi(rnd);
   await scenarioServiceTerm(rnd);
+  await scenarioWarranty(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

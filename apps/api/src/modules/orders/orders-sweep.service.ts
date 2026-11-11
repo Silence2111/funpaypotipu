@@ -44,6 +44,20 @@ export class OrdersSweepService {
       }
     }
 
+    // Гарантия продавца закончилась без спора (часть 126) — деньги продавцу.
+    const warranties = await this.prisma.order.findMany({
+      where: { status: 'completed', warrantyReleasedAt: null, warrantyUntil: { lte: now } },
+      select: { id: true },
+      take: 500,
+    });
+    for (const o of warranties) {
+      try {
+        await this.orders.releaseWarranty(o.id);
+      } catch (e) {
+        this.logger.warn(`Конец гарантии ${o.id}: ${(e as Error).message}`);
+      }
+    }
+
     // Истёкшее продвижение — в ноль: иначе в выдаче оно стояло бы выше
     // лотов, которые не продвигались никогда.
     await this.prisma.listing.updateMany({ where: { promotedUntil: { lte: now } }, data: { promotedUntil: null } });

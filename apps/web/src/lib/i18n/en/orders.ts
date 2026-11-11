@@ -351,4 +351,15 @@ export const ORDERS: Record<string, string> = {
   'Покупатель оплатил, деньги у площадки. Выполните заказ до {due} и нажмите «Отметить выдачу».':
     'The buyer has paid, the money is held by the marketplace. Complete the order by {due} and press “Mark as delivered”.',
   'В работе с {date}': 'In progress since {date}',
+  // Гарантия продавца (часть 126)
+  'Покупатель подтвердил получение. Идёт гарантия продавца: срок — на странице заказа, в этот срок покупатель может открыть спор, деньги до её конца у площадки.':
+    'The buyer confirmed receipt. The seller’s warranty is running: the end date is on the order page; until then the buyer can open a dispute, and the marketplace holds the money.',
+  'Срок проверки истёк — заказ подтверждён автоматически. Идёт гарантия продавца: срок — на странице заказа, в этот срок покупатель может открыть спор, деньги до её конца у площадки.':
+    'The check period is over and the order was confirmed automatically. The seller’s warranty is running: the end date is on the order page; until then the buyer can open a dispute, and the marketplace holds the money.',
+  'Гарантия закончилась — средства переданы продавцу.': 'The warranty has ended and the money has gone to the seller.',
+  'Вы подтвердили получение. Гарантия продавца — до {date}: если с товаром что-то не так, откройте спор. Деньги до этого времени у площадки.':
+    'You confirmed receipt. The seller’s warranty runs until {date}: if something is wrong with the goods, open a dispute. Until then the marketplace holds the money.',
+  'Покупатель подтвердил получение. Ваша гарантия — до {date}: в этот срок покупатель может открыть спор. Деньги придут на баланс, когда она закончится.':
+    'The buyer confirmed receipt. Your warranty runs until {date}: until then the buyer can open a dispute. The money reaches your balance when it ends.',
+  'Подтверждён, идёт гарантия': 'Confirmed, under warranty',
 };

@@ -79,6 +79,8 @@ export interface ListingCard {
   qtyDiscounts?: Array<{ from: number; pct: number }> | null;
   /** Срок выполнения услуги в часах (часть 125). */
   serviceHours?: number | null;
+  /** Гарантия продавца в днях (часть 126). */
+  warrantyDays?: number | null;
   /** Платное продвижение до этого времени. */
   promotedUntil?: string | null;
   /** Скидка: прежняя цена и срок; price — уже со скидкой. */

@@ -573,4 +573,10 @@ export const EN_API: Phrasebook = {
   'В работу берут оплаченный заказ, который ещё не выдан': 'Only a paid order that has not been delivered can be started',
   'Продавец уже взял заказ в работу: отменить можно через спор или попросить продавца вернуть деньги':
     'The seller has already started on the order: cancel it through a dispute or ask the seller for a refund',
+  // Гарантия продавца (часть 126)
+  'Гарантия — 1, 3, 7, 14 или 30 дней': 'The warranty is 1, 3, 7, 14 or 30 days',
+  'Гарантию дают на ключи, предметы и услуги — у валюты и пополнений её нет':
+    'A warranty is for keys, items and services — currency and top-ups have none',
+  'Заказ завершён, гарантии по нему нет или она закончилась — спор открыть нельзя':
+    'The order is complete and has no warranty, or it has ended — a dispute cannot be opened',
 };

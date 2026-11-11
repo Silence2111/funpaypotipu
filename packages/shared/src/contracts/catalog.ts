@@ -61,6 +61,13 @@ export const createListingSchema = z.object({
     .refine((h) => [24, 48, 72, 120, 168, 336, 720].includes(h), 'Срок выполнения — 1, 2, 3, 5, 7, 14 или 30 дней')
     .nullable()
     .optional(),
+  // Гарантия продавца в днях (часть 126): спор после подтверждения в этот срок.
+  warrantyDays: z
+    .number()
+    .int()
+    .refine((d) => [1, 3, 7, 14, 30].includes(d), 'Гарантия — 1, 3, 7, 14 или 30 дней')
+    .nullable()
+    .optional(),
 });
 export type CreateListingInput = z.infer<typeof createListingSchema>;
 

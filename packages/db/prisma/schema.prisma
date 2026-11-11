@@ -553,6 +553,10 @@ model Listing {
   /// Срок выполнения услуги в часах (часть 125): 24…720. null — без срока,
   /// ручная выдача в течение суток с оплаты.
   serviceHours     Int?            @map("service_hours")
+  /// Гарантия продавца в днях (часть 126): 1, 3, 7, 14 или 30. После
+  /// подтверждения покупатель ещё столько дней может открыть спор, деньги
+  /// продавцу — когда гарантия закончится. null — без гарантии.
+  warrantyDays     Int?            @map("warranty_days")
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
 
@@ -631,6 +635,10 @@ model Order {
   serviceDueAt       DateTime?       @map("service_due_at")
   serviceStartedAt   DateTime?       @map("service_started_at")
   serviceOverdueAt   DateTime?       @map("service_overdue_at")
+  /// Гарантия продавца (часть 126): до какого времени покупатель может
+  /// открыть спор после подтверждения; когда деньги переданы продавцу.
+  warrantyUntil      DateTime?       @map("warranty_until")
+  warrantyReleasedAt DateTime?       @map("warranty_released_at")
   createdAt          DateTime        @default(now()) @map("created_at")
   updatedAt          DateTime        @updatedAt @map("updated_at")
 
@@ -654,6 +662,8 @@ model Order {
   // «Заказы» в кабинете: свои покупки или продажи новыми сверху.
   @@index([buyerId, createdAt])
   @@index([sellerId, createdAt])
+  // Гарантии, у которых вышел срок, — фоновая задача передаёт деньги.
+  @@index([warrantyUntil])
   // Поиск в «Заказах» по части номера — триграммы (pg_trgm) вместе со своей
   // стороной сделки (btree_gin). Такие же индексы по названию из снимка
   // (`listing_snapshot ->> 'title'`) — только в миграции orders_search_trgm:

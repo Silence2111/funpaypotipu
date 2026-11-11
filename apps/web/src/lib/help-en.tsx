@@ -223,6 +223,11 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           day after the deadline.
         </li>
         <li>
+          <b>A warranty, if you want one.</b> Keys, items and services can carry a warranty of 1, 3,
+          7, 14 or 30 days: after confirming, the buyer can still open a dispute for that long, and
+          the money reaches you when the warranty ends. The warranty is shown on the listing page.
+        </li>
+        <li>
           <b>Get paid.</b> The money arrives on your balance when the buyer confirms receipt or the
           check period ends. From the balance you can withdraw to a card, via SBP, to YooMoney or in
           USDT.

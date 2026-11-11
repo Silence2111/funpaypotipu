@@ -16,6 +16,7 @@ import { payOrder } from '@/lib/checkout';
 import { useT } from '@/lib/i18n/client';
 import { msg, type T } from '@/lib/i18n/lang';
 import { SERVICE_GRACE_HOURS } from '@gamemarket/shared/service-term';
+import { warrantyActive } from '@gamemarket/shared/warranty';
 
 interface Order {
   id: string; publicNumber: string; status: string; amount: string; currency: string;
@@ -38,6 +39,8 @@ interface Order {
   autoConfirmAt?: string | null; sellerPayoutAmount?: string;
   /** Услуга со сроком (часть 125): выполнить до, взято в работу, срок вышел. */
   serviceDueAt?: string | null; serviceStartedAt?: string | null; serviceOverdueAt?: string | null;
+  /** Гарантия продавца (часть 126): спор до этого времени, деньги продавцу — после. */
+  warrantyUntil?: string | null; warrantyReleasedAt?: string | null;
   /** Диалог сделки — приходит с заказом, а не поиском по списку мессенджера. */
   conversationId?: string | null;
 }
@@ -78,6 +81,14 @@ function explainService(t: T, role: 'buyer' | 'seller', dueAt: string, overdue: 
   return overdue
     ? t('Срок выполнения вышел ({due}). Покупатель может открыть спор; без выдачи деньги вернутся ему {back}. Выполнили — отметьте выдачу.', { due, back })
     : t('Покупатель оплатил, деньги у площадки. Выполните заказ до {due} и нажмите «Отметить выдачу».', { due });
+}
+
+/** Заказ подтверждён, идёт гарантия продавца (часть 126). */
+function explainWarranty(t: T, role: 'buyer' | 'seller', until: string) {
+  const date = when(t, until);
+  return role === 'buyer'
+    ? t('Вы подтвердили получение. Гарантия продавца — до {date}: если с товаром что-то не так, откройте спор. Деньги до этого времени у площадки.', { date })
+    : t('Покупатель подтвердил получение. Ваша гарантия — до {date}: в этот срок покупатель может открыть спор. Деньги придут на баланс, когда она закончится.', { date });
 }
 
 /** Что сейчас происходит и что делать — отдельно для покупателя и продавца. */
@@ -298,9 +309,13 @@ export default function OrderPage() {
   // Услуга со сроком (часть 125): пока заказ ждёт выдачи — свой текст.
   const service = order.status === 'paid' && kind === 'manual' && order.serviceDueAt ? order.serviceDueAt : null;
   const serviceLate = !!service && (!!order.serviceOverdueAt || new Date(service).getTime() <= Date.now());
+  // Гарантия продавца (часть 126): подтверждён, а деньги ещё у площадки.
+  const warranty = warrantyActive(order) ? order.warrantyUntil! : null;
   const text = service
     ? explainService(t, role, service, serviceLate)
-    : explain(t, order.status, role, kind, order.autoConfirmAt ?? null);
+    : warranty
+      ? explainWarranty(t, role, warranty)
+      : explain(t, order.status, role, kind, order.autoConfirmAt ?? null);
   const title = order.listingSnapshot?.title;
   const topupAccount = order.listingSnapshot?.account;
   const topupAmount = order.listingSnapshot?.topupAmount;
@@ -367,7 +382,7 @@ export default function OrderPage() {
             order.status === 'completed' ? 'badge success'
               : order.status === 'disputed' ? 'badge warning'
                 : closed ? 'badge' : 'badge accent'}>
-            {STATUS[order.status] ? t(STATUS[order.status]!) : order.status}
+            {warranty ? t('Подтверждён, идёт гарантия') : STATUS[order.status] ? t(STATUS[order.status]!) : order.status}
           </span>
           <span className="row faint" style={{ gap: 6, fontSize: 13 }}>
             <ShieldCheck size={15} strokeWidth={1.75} /> {t('Защита сделки')}
@@ -449,7 +464,7 @@ export default function OrderPage() {
               <CheckCircle2 size={16} /> {t('Всё получил, подтвердить')}
             </button>
           )}
-          {role === 'buyer' && (order.status === 'paid' || order.status === 'delivered') && (
+          {role === 'buyer' && (order.status === 'paid' || order.status === 'delivered' || !!warranty) && (
             <button className={serviceLate ? 'btn' : 'btn secondary'} onClick={() => setShowDispute((v) => !v)} type="button">
               <AlertTriangle size={16} strokeWidth={1.75} /> {t('Открыть спор')}
             </button>

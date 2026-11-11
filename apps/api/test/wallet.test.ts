@@ -12,7 +12,7 @@ import { ReportsService } from '../src/modules/reports/reports.service';
 type Where = Record<string, unknown>;
 
 describe('кошелёк', () => {
-  it('в сделках — оплаченные и выданные продажи, на выводе — невыплаченные заявки', async () => {
+  it('в сделках — оплаченные, выданные и на гарантии продажи, на выводе — невыплаченные заявки', async () => {
     const orderWhere: Where[] = [];
     const payoutWhere: Where[] = [];
     const prisma = {
@@ -44,10 +44,14 @@ describe('кошелёк', () => {
       withdrawing: { count: 0, amount: 0n },
       dealPayouts: { count: 1, amount: 90000n, waiting: 1 },
     });
+    // Подтверждённые, но на гарантии продавца (часть 126): деньги ещё у площадки.
     expect(orderWhere[0]).toEqual({
       sellerId: 'me',
       currency: 'RUB',
-      status: { in: ['paid', 'delivered'] },
+      OR: [
+        { status: { in: ['paid', 'delivered'] } },
+        { status: 'completed', warrantyUntil: { not: null }, warrantyReleasedAt: null },
+      ],
     });
     expect(payoutWhere[0]).toEqual({
       userId: 'me',

@@ -23,6 +23,8 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   // покупатель после выдачи идёт в спор, иначе «получил ключ — отменил заказ».
   delivered: ['completed', 'disputed', 'refunded'],
   disputed: ['refunded', 'completed'],
+  // Спор по завершённому — только во время гарантии продавца (часть 126):
+  // отдельная проверка в OrdersService.markDisputed, не общий переход.
   completed: [],
   refunded: [],
   cancelled: [],

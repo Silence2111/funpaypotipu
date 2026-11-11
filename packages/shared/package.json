@@ -104,6 +104,10 @@
     "./service-term": {
       "types": "./dist/service-term.d.ts",
       "default": "./dist/service-term.js"
+    },
+    "./warranty": {
+      "types": "./dist/warranty.d.ts",
+      "default": "./dist/warranty.js"
     }
   },
   "scripts": {

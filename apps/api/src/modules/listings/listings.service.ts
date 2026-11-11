@@ -43,6 +43,7 @@ import {
   type UpdateListingInput,
   accountTransferMatch,
   attributeText,
+  NO_WARRANTY_SEGMENTS,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { SearchService } from '../search/search.service';
@@ -118,8 +119,10 @@ const cardSelect = {
   stock: true,
   // Скидка за количество: страница лота считает сумму, строка раздела — «до −10%».
   qtyDiscounts: true,
-  // Срок выполнения услуги (часть 125): «Выполнение — до 3 дней».
+  // Срок выполнения услуги (часть 125): «Срок выполнения — 3 дня с оплаты».
   serviceHours: true,
+  // Гарантия продавца в днях (часть 126): «Гарантия 7 дней» у лота.
+  warrantyDays: true,
   // Параметры раздела (звание, регион, сервер) — колонки таблицы раздела.
   attributes: true,
   // Продавец в строке раздела, как на FunPay: имя, аватар, рейтинг с числом
@@ -1024,6 +1027,7 @@ export class ListingsService {
         autoDelivery: fulfillment !== 'manual',
         deliveryTemplate: this.template(input.deliveryTemplate),
         serviceHours: this.serviceTerm(category, fulfillment, input.serviceHours),
+        warrantyDays: this.warranty(category, fulfillment, input.warrantyDays),
       },
       select: cardSelect,
     });
@@ -1227,6 +1231,18 @@ export class ListingsService {
   }
 
   /**
+   * Гарантия продавца (часть 126) — у ключей, предметов и услуг: валюту и
+   * пополнение проверяют сразу при получении, гарантия им ни к чему.
+   */
+  private warranty(category: { segment: string }, fulfillment: FulfillmentType, days: number | null | undefined) {
+    if (days == null) return null;
+    if ((NO_WARRANTY_SEGMENTS as readonly string[]).includes(category.segment) || fulfillment === 'provider') {
+      throw new BadRequestException('Гарантию дают на ключи, предметы и услуги — у валюты и пополнений её нет');
+    }
+    return days;
+  }
+
+  /**
    * Условия продажи поштучно. Без единицы лот продаётся целиком: пачка и
    * минимум сбрасываются, наличие — как задал продавец. У пополнений
    * «количества» нет — у них сумма на выбор покупателя.
@@ -1416,6 +1432,7 @@ export class ListingsService {
     // Срок услуги: включили автовыдачу — срок не нужен, выдача мгновенная.
     if (input.serviceHours !== undefined) data.serviceHours = this.serviceTerm(current.category, fulfillment, input.serviceHours);
     else if (switched && fulfillment !== 'manual') data.serviceHours = null;
+    if (input.warrantyDays !== undefined) data.warrantyDays = this.warranty(current.category, fulfillment, input.warrantyDays);
     if (input.currency !== undefined) data.currency = input.currency;
     if (input.attributes !== undefined) data.attributes = input.attributes as Prisma.InputJsonValue;
     if (input.images !== undefined) data.images = input.images as Prisma.InputJsonValue;

@@ -15,6 +15,7 @@ import { PriceHistory } from '@/components/price-history';
 import { isPriceLow } from '@gamemarket/shared/price-history';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { serviceTermText } from '@/lib/service-term';
+import { warrantyText } from '@/lib/warranty';
 import { BuyButton } from '@/components/buy-button';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { FavoriteButton } from '@/components/favorite-button';
@@ -323,6 +324,13 @@ export default async function ListingPage({
                 })}
               </p>
             )}
+            {listing.warrantyDays ? (
+              <p className="hint" style={{ marginBottom: 16 }}>
+                {t('Гарантия продавца — {term} после получения: что-то не так — спор, деньги до конца гарантии у площадки.', {
+                  term: warrantyText(t, listing.warrantyDays),
+                })}
+              </p>
+            ) : null}
             {pack && !unavailable && (
               <p className="hint" style={{ marginBottom: 16 }}>
                 {listing.minQty && listing.minQty > 1
