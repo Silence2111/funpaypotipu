@@ -300,6 +300,7 @@ export const EN_SHARED: Phrasebook = {
   'Партнёрское вознаграждение зачислено на баланс': 'Partner reward credited to your balance',
   'Партнёрское вознаграждение': 'Partner reward',
   'Партнёрская программа': 'Partner program',
+  'Вход через Telegram отключён — добавьте почту и пароль': 'Sign-in with Telegram is off — add an email and a password',
   'Нужно согласие на обработку персональных данных': 'Consent to the processing of personal data is required',
   'Покупатель ищет в вашем разделе': 'A buyer is looking in your category',
   'Продавец ответил лотом на ваш запрос': 'A seller answered your request with a listing',

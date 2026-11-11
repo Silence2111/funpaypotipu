@@ -9,32 +9,20 @@ import {
   isOAuthProvider,
   oauthConfig,
   pkce,
-  verifyTelegramLogin,
 } from '../src/modules/auth/social/providers';
-import { SocialService, safeNext } from '../src/modules/auth/social/social.service';
+import { SocialService, canSignIn, safeNext } from '../src/modules/auth/social/social.service';
 
 /**
- * Вход через Telegram, VK ID и Яндекс ID. Ошибка здесь отдаёт чужой аккаунт,
- * поэтому проверяется прежде всего то, что запрещено: поддельные данные
- * Telegram, чужой state, вход в аккаунт по неподтверждённой почте, уход
- * на чужой адрес после входа.
+ * Вход через VK ID и Яндекс ID. Ошибка здесь отдаёт чужой аккаунт, поэтому
+ * проверяется прежде всего то, что запрещено: чужой state, вход в аккаунт по
+ * неподтверждённой почте, уход на чужой адрес после входа, вход через
+ * Telegram (убран, часть 118).
  */
 
 process.env.JWT_ACCESS_SECRET = 'test-access-secret';
 const tokens = new TokenService(new JwtService({}));
 
 const BOT = '123456:TEST-bot-token';
-function signTelegram(fields: Record<string, string | number>, token = BOT) {
-  const check = Object.keys(fields)
-    .sort()
-    .map((k) => `${k}=${fields[k]}`)
-    .join('\n');
-  const hash = createHmac('sha256', createHash('sha256').update(token).digest())
-    .update(check)
-    .digest('hex');
-  return { ...fields, hash };
-}
-const now = () => Math.floor(Date.now() / 1000);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -45,38 +33,26 @@ beforeEach(() => {
   process.env.TELEGRAM_BOT_USERNAME = 'gm_test_bot';
 });
 
-describe('данные виджета Telegram', () => {
-  const data = () =>
-    signTelegram({ id: 777, first_name: 'Мирослава', username: 'mirka', auth_date: now() });
-
-  it('подпись верная — это человек из Telegram', () => {
-    expect(verifyTelegramLogin(data(), BOT)).toMatchObject({
-      provider: 'telegram',
-      subject: '777',
-      nick: 'mirka',
-    });
+describe('вход через Telegram убран (часть 118, 149-ФЗ ч. 10 ст. 8)', () => {
+  it('кнопки нет, даже если бот подключён к уведомлениям', () => {
+    expect(service({}).svc.providers()).toMatchObject({ telegram: null });
   });
 
-  it('подменили id или подписали другим ботом — не проходит', () => {
-    expect(verifyTelegramLogin({ ...data(), id: 778 }, BOT)).toBeNull();
-    expect(
-      verifyTelegramLogin(signTelegram({ id: 777, auth_date: now() }, '999:other'), BOT),
-    ).toBeNull();
+  it('билет Telegram, выданный раньше, — 410, а не вход и не новый аккаунт', async () => {
+    const { svc, auth, created } = service({ users: [{ id: 'u2', telegramId: '777' }] });
+    const t = ticketFor({ provider: 'telegram', subject: '777' });
+    await expect(svc.complete(t, {}, {})).rejects.toMatchObject({ status: 410, response: { error: 'telegram_login_removed' } });
+    await expect(svc.complete(t, { username: 'tg_user', pdConsent: true }, {})).rejects.toMatchObject({ status: 410 });
+    expect(auth.loginVerified).not.toHaveBeenCalled();
+    expect(created).toHaveLength(0);
   });
 
-  it('данные старше суток не принимаются', () => {
-    expect(
-      verifyTelegramLogin(signTelegram({ id: 777, auth_date: now() - 2 * 86400 }), BOT),
-    ).toBeNull();
-  });
-
-  it('новые поля Telegram подпись не ломают', () => {
-    expect(
-      verifyTelegramLogin(
-        signTelegram({ id: 777, auth_date: now(), photo_url: 'https://t.me/i/x.jpg' }),
-        BOT,
-      ),
-    ).not.toBeNull();
+  it('войти можно почтой с паролем или Яндекс ID / VK ID; старый Telegram — не способ', () => {
+    expect(canSignIn({ passwordHash: 'h', email: 'a@b.ru', socialAccounts: [] })).toBe(true);
+    expect(canSignIn({ passwordHash: null, email: null, socialAccounts: [{ provider: 'yandex' }] })).toBe(true);
+    expect(canSignIn({ passwordHash: null, email: null, socialAccounts: [{ provider: 'telegram' }] })).toBe(false);
+    expect(canSignIn({ passwordHash: 'h', email: null, socialAccounts: [{ provider: 'telegram' }] })).toBe(false);
+    expect(canSignIn({ passwordHash: null, email: 'a@b.ru', socialAccounts: [{ provider: 'telegram' }] })).toBe(false);
   });
 });
 
@@ -253,7 +229,7 @@ function service(db: {
     })),
   };
   return {
-    svc: new SocialService(prisma as never, tokens, auth as never),
+    svc: new SocialService(prisma as never, tokens, auth as never, { notify: vi.fn(async () => undefined) } as never),
     auth,
     created,
     links,
@@ -275,13 +251,6 @@ describe('завершение входа', () => {
     });
     await svc.complete(ticketFor({ provider: 'yandex', subject: 'g-1' }), { code: '123456' }, {});
     expect(auth.loginVerified).toHaveBeenCalledWith('u1', '123456', {});
-  });
-
-  it('Telegram уже подключён к уведомлениям — это тот же человек', async () => {
-    const { svc, auth, links } = service({ users: [{ id: 'u2', telegramId: '777' }] });
-    await svc.complete(ticketFor({ provider: 'telegram', subject: '777' }), {}, {});
-    expect(auth.loginVerified).toHaveBeenCalledWith('u2', undefined, {});
-    expect(links).toMatchObject([{ userId: 'u2', provider: 'telegram', subject: '777' }]);
   });
 
   it('почту подтвердили и Яндекс ID, и площадка — аккаунт находится', async () => {
@@ -334,16 +303,6 @@ describe('завершение входа', () => {
       socialAccounts: { create: { provider: 'vk', subject: 'vk-5' } },
       consents: { create: { method: 'vk', ip: '10.0.0.5' } },
     });
-  });
-
-  it('новый из Telegram — уведомления в Telegram сразу', async () => {
-    const { svc, created } = service({});
-    await svc.complete(
-      ticketFor({ provider: 'telegram', subject: '888', nick: 'tg_user' }),
-      { username: 'tg_user', pdConsent: true },
-      {},
-    );
-    expect(created[0]).toMatchObject({ telegramId: '888', consents: { create: { method: 'telegram' } } });
   });
 
   it('билета нет или он чужого назначения — вход не начинается', async () => {

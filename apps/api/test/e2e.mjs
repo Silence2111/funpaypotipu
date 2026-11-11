@@ -833,6 +833,63 @@ async function scenarioConsent(rnd) {
   );
 }
 
+/**
+ * Вход через Telegram убран (часть 118, 149-ФЗ ч. 10 ст. 8): вход и привязка
+ * — 410; у аккаунта, которым входили только через Telegram, «нечем войти»
+ * и одно уведомление; почта и пароль — вход снова есть, старую привязку
+ * Telegram можно убрать.
+ */
+async function scenarioTelegramLoginOff(rnd) {
+  console.log('\n— Вход через Telegram убран —');
+  const providers = (await j('/auth/social')).body;
+  const login = await j('/auth/social/telegram', { method: 'POST', body: JSON.stringify({ id: 1, hash: 'x' }) });
+  const u = await register('tgo', rnd);
+  const link = await j('/auth/social/telegram/link', { method: 'POST', token: u.token, body: JSON.stringify({ id: 1, hash: 'x' }) });
+  check(
+    'Кнопки Telegram нет; вход и привязка входа через Telegram — 410 с объяснением',
+    providers.telegram === null && login.status === 410 && login.body.error === 'telegram_login_removed' &&
+      /ч\. 10 ст\. 8/.test(login.body.message) && link.status === 410,
+    JSON.stringify({ providers, login: login.body, link: link.status }),
+  );
+
+  // Аккаунт из Telegram, заведённый до части 118: ни почты, ни пароля.
+  await prisma.user.update({
+    where: { id: u.id },
+    data: {
+      email: null,
+      passwordHash: null,
+      telegramId: String(900000000 + (rnd % 1000000)),
+      socialAccounts: { create: { provider: 'telegram', subject: String(900000000 + (rnd % 1000000)), name: 'TG' } },
+    },
+  });
+  const ways = (await j('/auth/social/accounts', { token: u.token })).body;
+  let note = null;
+  for (let i = 0; i < 20 && !note; i++) {
+    note = (await j('/notifications', { token: u.token })).body.find((n) => n.type === 'login_method_needed');
+    if (!note) await wait(500);
+  }
+  await wait(2500);
+  const notes = (await j('/notifications', { token: u.token })).body.filter((n) => n.type === 'login_method_needed');
+  check(
+    'Только Telegram: «нечем войти», привязка Telegram помечена отключённой; одно уведомление «добавьте почту и пароль»',
+    ways.needsLoginMethod === true && ways.accounts?.[0]?.provider === 'telegram' && ways.accounts[0].disabled === true &&
+      !!note && notes.length === 1,
+    JSON.stringify({ ways, notes: notes.length }),
+  );
+
+  const pwd = await j('/auth/password', { method: 'POST', token: u.token, body: JSON.stringify({ next: 'new-password-118' }) });
+  await prisma.user.update({ where: { id: u.id }, data: { email: `tgo${rnd}@e2e.local`, emailVerified: new Date() } });
+  const after = (await j('/auth/social/accounts', { token: u.token })).body;
+  const unlink = await j('/auth/social/telegram', { method: 'DELETE', token: u.token });
+  const signin = await j('/auth/login', { method: 'POST', body: JSON.stringify({ email: `tgo${rnd}@e2e.local`, password: 'new-password-118' }) });
+  check(
+    'Задал пароль и почту — вход есть; старую привязку Telegram убрал; вход по почте и паролю — 200',
+    pwd.status === 200 && after.needsLoginMethod === false && unlink.status === 200 && unlink.body.accounts?.length === 0 &&
+      signin.status === 200,
+    JSON.stringify({ pwd: pwd.status, after: after.needsLoginMethod, unlink: unlink.status, signin: signin.status }),
+  );
+}
+
 async function scenarioSupport(rnd) {
   console.log('\n— Поддержка —');
   const user = await register('spu', rnd);
@@ -1193,7 +1250,7 @@ async function scenarioSocial(rnd, mock) {
   };
 
   const on = await j('/auth/social');
-  check('Кнопки — у подключённых сервисов: Яндекс и VK есть, Telegram без бота и Google нет', on.body.yandex && on.body.vk && on.body.telegram === null && !('google' in on.body), JSON.stringify(on.body));
+  check('Кнопки — у подключённых сервисов: Яндекс и VK есть, Telegram (убран, часть 118) и Google нет', on.body.yandex && on.body.vk && on.body.telegram === null && !('google' in on.body), JSON.stringify(on.body));
 
   // Как login.yandex.ru/info: id, логин, основная почта, имя.
   mock.as('yandex', { id: `y-${rnd}`, login: 'anna.smirnova', default_email: `anna${rnd}@yandex.test`, real_name: 'Анна Смирнова', display_name: 'anna.smirnova' });
@@ -4435,6 +4492,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioAccount(rnd);
   await scenarioStaffTwoFactor(rnd);
   await scenarioConsent(rnd);
+  await scenarioTelegramLoginOff(rnd);
   await scenarioSupport(rnd);
   await scenarioCatalog(rnd);
   await scenarioSellEstimate();

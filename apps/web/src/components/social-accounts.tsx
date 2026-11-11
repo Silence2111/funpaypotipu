@@ -4,32 +4,33 @@ import { useState } from 'react';
 import { Link2 } from 'lucide-react';
 import { apiFetch } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
-import {
-  TelegramButton,
-  oauthStart,
-  type SocialProviders,
-  type TelegramData,
-} from '@/components/social-login';
+import { oauthStart, type SocialProviders } from '@/components/social-login';
 import { useT } from '@/lib/i18n/client';
 
 export interface LoginWays {
   hasPassword: boolean;
   email: string | null;
   providers: SocialProviders;
+  /** Войти нечем, кроме отключённого Telegram (часть 118): нужны почта и пароль. */
+  needsLoginMethod?: boolean;
   accounts: Array<{
     provider: 'yandex' | 'vk' | 'telegram';
     name: string | null;
     email: string | null;
     since: string;
+    /** Старая привязка Telegram: вход через неё отключён. */
+    disabled?: boolean;
   }>;
 }
 
 const ORDER = ['yandex', 'vk', 'telegram'] as const;
 
 /**
- * Способы входа: Яндекс ID, VK ID, Telegram — подключить и отключить. Сервис
- * без ключей на сервере не показывается, если он не подключён раньше.
+ * Способы входа: Яндекс ID и VK ID — подключить и отключить. Сервис без
+ * ключей на сервере не показывается, если он не подключён раньше.
  * Последний способ входа без пароля не отключается — сначала пароль.
+ * Telegram — только старая привязка: вход через него отключён по закону
+ * (часть 118), её можно убрать.
  */
 export function SocialAccounts({
   ways,
@@ -45,9 +46,7 @@ export function SocialAccounts({
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const shown = ORDER.filter(
-    (p) =>
-      ways.accounts.some((a) => a.provider === p) ||
-      (p === 'telegram' ? !!ways.providers.telegram : ways.providers[p]),
+    (p) => ways.accounts.some((a) => a.provider === p) || (p !== 'telegram' && ways.providers[p]),
   );
   if (!shown.length) return null;
 
@@ -76,16 +75,6 @@ export function SocialAccounts({
     }
   }
 
-  const linkTelegram = (data: TelegramData) =>
-    void run(
-      () =>
-        apiFetch<LoginWays>('/auth/social/telegram/link', {
-          method: 'POST',
-          body: JSON.stringify(data),
-        }),
-      t('Telegram подключён: теперь можно входить через него.'),
-      t('Telegram не подключился.'),
-    );
 
   return (
     <section className="card" style={{ padding: 24, maxWidth: 600 }}>
@@ -93,8 +82,15 @@ export function SocialAccounts({
         <Link2 size={18} strokeWidth={1.75} /> {t('Вход через сервисы')}
       </h2>
       <p className="muted" style={{ fontSize: 14, margin: '8px 0 6px' }}>
-        {t('Входить в один аккаунт по паролю, через Яндекс ID, VK ID или Telegram — как удобнее.')}
+        {t('Входить в один аккаунт по паролю, через Яндекс ID или VK ID — как удобнее.')}
       </p>
+      {ways.needsLoginMethod && (
+        <div className="alert error" role="alert" style={{ margin: '8px 0' }}>
+          {t(
+            'Вход через Telegram отключён по закону (149-ФЗ, ч. 10 ст. 8). Чтобы не потерять аккаунт, пока вы в нём, добавьте почту и задайте пароль — выше на этой странице.',
+          )}
+        </div>
+      )}
       {msg && (
         <div
           className={msg.ok ? 'alert success' : 'alert error'}
@@ -112,9 +108,11 @@ export function SocialAccounts({
               <span>
                 <span style={{ fontWeight: 600 }}>{LABEL[p]}</span>
                 <span className="faint" style={{ display: 'block', fontSize: 13 }}>
-                  {acc
-                    ? `${t('Подключён')}${acc.name ? ` · ${acc.name}` : ''}${acc.email ? ` · ${acc.email}` : ''}`
-                    : t('Не подключён')}
+                  {acc?.disabled
+                    ? t('Вход отключён по закону · уведомления в Telegram — в настройках уведомлений')
+                    : acc
+                      ? `${t('Подключён')}${acc.name ? ` · ${acc.name}` : ''}${acc.email ? ` · ${acc.email}` : ''}`
+                      : t('Не подключён')}
                 </span>
               </span>
               {acc ? (
@@ -130,13 +128,9 @@ export function SocialAccounts({
                     )
                   }
                 >
-                  {t('Отключить')}
+                  {acc.disabled ? t('Убрать') : t('Отключить')}
                 </button>
-              ) : p === 'telegram' ? (
-                ways.providers.telegram && (
-                  <TelegramButton bot={ways.providers.telegram.bot} onAuth={linkTelegram} />
-                )
-              ) : (
+              ) : p === 'telegram' ? null : (
                 <button
                   type="button"
                   className="btn secondary"
@@ -150,7 +144,7 @@ export function SocialAccounts({
           );
         })}
       </div>
-      {!ways.hasPassword && (
+      {!ways.hasPassword && !ways.needsLoginMethod && (
         <p className="hint" style={{ marginTop: 10 }}>
           {t(
             'Пароля у аккаунта нет — вход только через сервис. Задайте пароль выше, чтобы не зависеть от него.',

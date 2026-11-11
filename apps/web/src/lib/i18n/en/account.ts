@@ -182,12 +182,7 @@ export const ACCOUNT: Record<string, string> = {
 
   // Вход через сервисы
   'Не удалось начать подключение.': 'Couldn’t start connecting.',
-  'Telegram подключён: теперь можно входить через него.':
-    'Telegram connected: you can now sign in with it.',
-  'Telegram не подключился.': 'Telegram didn’t connect.',
   'Вход через сервисы': 'Sign in with services',
-  'Входить в один аккаунт по паролю, через Яндекс ID, VK ID или Telegram — как удобнее.':
-    'Sign in to one account with a password, Yandex ID, VK ID or Telegram — whichever is easier.',
   'Не подключён': 'Not connected',
   '{name} отключён.': '{name} disconnected.',
   'Не удалось отключить.': 'Couldn’t disconnect.',
@@ -258,4 +253,14 @@ export const ACCOUNT: Record<string, string> = {
     'A confirmation link will be sent to the email. With an email you can sign in with a password and recover access.',
   'Сменить почту': 'Change email',
   'Добавить почту': 'Add email',
+  // Вход через Telegram убран (часть 118)
+  'Входить в один аккаунт по паролю, через Яндекс ID или VK ID — как удобнее.':
+    'Sign in to one account with a password, Yandex ID or VK ID — whichever is easier.',
+  'Вход отключён по закону · уведомления в Telegram — в настройках уведомлений':
+    'Sign-in is off by law · Telegram notifications are in notification settings',
+  'Вход через Telegram отключён по закону (149-ФЗ, ч. 10 ст. 8). Чтобы не потерять аккаунт, пока вы в нём, добавьте почту и задайте пароль — выше на этой странице.':
+    'Sign-in with Telegram is off by law (Federal Law 149-FZ, Art. 8 Part 10). To keep your account, add an email and set a password while you are signed in — above on this page.',
+  'Вход через Telegram отключён по закону. Добавьте почту и пароль, пока вы в аккаунте, — иначе после выхода войти будет нечем.':
+    'Sign-in with Telegram is off by law. Add an email and a password while you are signed in — otherwise you won’t be able to sign in after signing out.',
+  'Добавить почту и пароль': 'Add email and password',
 };
