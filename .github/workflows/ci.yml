@@ -91,6 +91,9 @@ jobs:
       ANTIFRAUD_SWEEP_MS: 2000
       # Сроки обжалований и проверки вывода (часть 134) — проход раз в 2 с.
       APPEALS_SWEEP_MS: 2000
+      # Решение арбитра исполняется сразу (окно обжалования 0 ч), как раньше;
+      # сценарий 135 задаёт окно в консоли сам (часть 135).
+      DISPUTE_APPEAL_HOURS: 0
       # Вход через Яндекс ID и VK ID — против тестового сервера из e2e (apps/api/test/oauth-mock.mjs).
       OAUTH_TEST_ISSUER: http://localhost:4999
       YANDEX_CLIENT_ID: ci-yandex

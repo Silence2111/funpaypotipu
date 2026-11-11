@@ -595,6 +595,13 @@ export class OrdersService {
     if (goods.length !== ids.length) throw new NotFoundException('Ключ не найден');
     const byId = new Map(goods.map((g) => [g.id, g]));
     const keys = ids.map((id) => this.encryption.decrypt(byId.get(id)!.payloadEnc));
+    // Журнал выдачи (часть 135): когда покупатель впервые открыл товар и сколько раз.
+    await this.prisma.delivery
+      .update({
+        where: { orderId },
+        data: { viewCount: { increment: 1 }, ...(delivery?.firstViewedAt ? {} : { firstViewedAt: new Date() }) },
+      })
+      .catch(() => null);
     return { key: keys[0], keys };
   }
 

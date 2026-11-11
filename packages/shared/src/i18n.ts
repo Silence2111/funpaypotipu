@@ -153,6 +153,12 @@ export const EN_SHARED: Phrasebook = {
     'The buyer closed the dispute with no claims. The money went to the seller.',
   'Продавец вернул деньги покупателю. Спор закрыт.':
     'The seller refunded the buyer. The dispute is closed.',
+  'Арбитр вынес решение. Оно вступит в силу в срок на этой странице: сторона, против которой оно вынесено, может один раз обжаловать или принять его сразу.':
+    'The arbiter has made a decision. It takes effect at the time shown on this page: the side it went against can appeal once or accept it right away.',
+  'Решение обжаловано. Спор пересмотрит другой арбитр — его решение окончательное.':
+    'The decision was appealed. Another arbiter will review the dispute — their decision is final.',
+  'Сторона приняла решение арбитра — оно исполнено.': 'A party accepted the arbiter’s decision — it has been carried out.',
+  'Решение арбитра вступило в силу и исполнено.': 'The arbiter’s decision has taken effect and been carried out.',
 
   // Уровни продавца
   Новичок: 'Newcomer',
@@ -301,6 +307,29 @@ export const EN_SHARED: Phrasebook = {
   'Модератор удержал часть баланса': 'A moderator has put part of your balance on hold',
   'Удержание с баланса снято': 'The hold on your balance has been lifted',
   'Решение по вашему обжалованию': 'A decision on your appeal',
+  'Решение по спору обжаловано — пересмотрит другой арбитр': 'The dispute decision was appealed — another arbiter will review it',
+  // Доказательства в споре (часть 135)
+  'Скриншот того, что не так: ошибка, пустой инвентарь, другой товар.': 'A screenshot of what’s wrong: an error, an empty inventory, a different item.',
+  'Скриншот или запись момента передачи.': 'A screenshot or recording of the handover.',
+  'Скриншот ошибки активации с текстом ошибки.': 'A screenshot of the activation error with its text.',
+  'Страница магазина с регионом аккаунта.': 'The store page showing your account region.',
+  'Откуда ключ: чек или скриншот покупки у официального продавца.': 'Where the key came from: a receipt or screenshot of the purchase from an official seller.',
+  'Регион ключа.': 'The key’s region.',
+  'История обменов Steam или инвентарь игры после получения.': 'Steam trade history or the game inventory after receipt.',
+  'Ссылка на ваш профиль или трейд-ссылка.': 'Your profile link or trade link.',
+  'История обменов: предмет ушёл покупателю, дата и время.': 'Trade history: the item went to the buyer, with date and time.',
+  'Трейд-ссылка, на которую отправлен предмет.': 'The trade link the item was sent to.',
+  'Баланс в игре до и после, лог почты или передачи.': 'The in-game balance before and after, the mail or transfer log.',
+  'Лог передачи в игре: кому, сколько, когда.': 'The in-game transfer log: to whom, how much, when.',
+  'Что было обещано в описании лота и в чате.': 'What was promised in the listing and in the chat.',
+  'Что получено: скриншоты результата или его отсутствия.': 'What you got: screenshots of the result or its absence.',
+  'Скриншоты результата и переписка о сроке.': 'Screenshots of the result and the messages about the deadline.',
+  'Время начала и окончания работы.': 'When the work started and finished.',
+  'Баланс аккаунта до и после пополнения.': 'The account balance before and after the top-up.',
+  'ID аккаунта, на который ждали зачисление.': 'The ID of the account the top-up was expected on.',
+  'Чек или статус пополнения у провайдера.': 'A receipt or the top-up status from the provider.',
+  'Что не совпало с описанием: скриншоты.': 'Screenshots of what didn’t match the description.',
+  'Данные, переданные покупателю, и время передачи.': 'The details handed to the buyer and when.',
   'Обжалование ждёт ответа дольше срока': 'An appeal is waiting past its deadline',
   'Проверка вывода затянулась — заявку передали старшему сотруднику': 'The withdrawal check is taking longer — your request went to a senior staff member',
   'Заявка на вывод ждёт решения дольше срока': 'A withdrawal request is waiting past its deadline',

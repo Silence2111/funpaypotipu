@@ -1563,6 +1563,105 @@ async function scenarioAppeals(rnd) {
 }
 
 /**
+ * Арбитраж (часть 135): решение вступает в силу через окно обжалования;
+ * сторона, против которой оно, обжалует один раз (решит другой арбитр,
+ * окончательно) или принимает сразу; срок прошёл — исполняется само. Журнал
+ * выдачи и список доказательств — на странице спора.
+ */
+async function scenarioArbitration(rnd) {
+  console.log('\n— Арбитраж: обжалование решения —');
+  const admin = await register('arb', rnd);
+  const agentA = await register('ara', rnd);
+  const agentB = await register('arc', rnd);
+  const seller = await register('ars', rnd);
+  const buyer = await register('arq', rnd);
+  await grant(admin, 'admin');
+  await grant(agentA, 'agent');
+  await grant(agentB, 'agent');
+  const A = { token: admin.token };
+  const win = await j('/admin/disputes/appeal-window', { method: 'PUT', ...A, body: JSON.stringify({ hours: 24 }) });
+  const badWin = await j('/admin/disputes/appeal-window', { method: 'PUT', ...A, body: JSON.stringify({ hours: 80 }) });
+
+  try {
+    const lot = await createListing(seller.token, 'skins', '40000', { title: `Арбитраж ${rnd}` });
+    const deal = async () => {
+      const o = (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) })).body;
+      await pay(buyer.token, o.id);
+      const conv = await prisma.conversation.findFirst({ where: { orderId: o.id }, select: { id: true } });
+      await j(`/conversations/${conv.id}/messages`, { method: 'POST', token: seller.token, body: JSON.stringify({ body: 'Отправил обмен, примите в Steam' }) });
+      await j(`/orders/${o.id}/deliver`, { method: 'POST', token: seller.token });
+      const d = (await j('/disputes', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: o.id, reason: 'Обмен не пришёл' }) })).body;
+      return { order: o, dispute: d };
+    };
+
+    const first = await deal();
+    const view = (await j(`/disputes/${first.dispute.id}`, { token: buyer.token })).body;
+    const codes = (view.journal ?? []).map((e) => e.code);
+    check(
+      'Спор: журнал выдачи из системы (оплата, сообщения продавца, выдача) и список доказательств по типу товара; окно обжалования — 24 ч, 80 — 400',
+      win.status === 200 && win.body.hours === 24 && badWin.status === 400 &&
+        codes.includes('paid') && codes.includes('seller_messages') && codes.includes('delivered_manual') &&
+        view.evidence?.buyer?.some((x) => x.includes('История обменов Steam')),
+      JSON.stringify({ win: win.body, badWin: badWin.status, codes, evidence: view.evidence }),
+    );
+
+    await j(`/disputes/${first.dispute.id}/take`, { method: 'POST', token: agentA.token });
+    const decided = await j(`/disputes/${first.dispute.id}/resolve`, { method: 'POST', token: agentA.token, body: JSON.stringify({ outcome: 'seller', note: 'Обмен в истории Steam есть' }) });
+    const orderMid = (await j(`/orders/${first.order.id}`, { token: buyer.token })).body;
+    const wSeller = (await j('/wallet', { token: seller.token })).body;
+    const sellerView = (await j(`/disputes/${first.dispute.id}`, { token: seller.token })).body;
+    const buyerView = (await j(`/disputes/${first.dispute.id}`, { token: buyer.token })).body;
+    const sellerAppeal = await j(`/disputes/${first.dispute.id}/appeal`, { method: 'POST', token: seller.token, body: JSON.stringify({ text: 'Я тоже хочу обжаловать' }) });
+    check(
+      'Решение в пользу продавца ждёт окна: заказ ещё в споре, денег у продавца нет; обжаловать может только покупатель',
+      decided.status === 201 && decided.body.status === 'resolved_seller' && !decided.body.executedAt && orderMid.status === 'disputed' &&
+        wSeller.balance === '0' && sellerView.canAppeal === false && buyerView.canAppeal === true && buyerView.canAccept === true && sellerAppeal.status === 403,
+      JSON.stringify({ decided: [decided.status, decided.body?.status, decided.body?.executedAt], order: orderMid.status, balance: wSeller.balance, sellerCan: sellerView.canAppeal, buyerCan: buyerView.canAppeal, sellerAppeal: sellerAppeal.status }),
+    );
+
+    const appeal = await j(`/disputes/${first.dispute.id}/appeal`, { method: 'POST', token: buyer.token, body: JSON.stringify({ text: 'В истории обмен на другой аккаунт, не мой' }) });
+    const twice = await j(`/disputes/${first.dispute.id}/appeal`, { method: 'POST', token: buyer.token, body: JSON.stringify({ text: 'Ещё раз прошу пересмотреть' }) });
+    const sameTake = await j(`/disputes/${first.dispute.id}/take`, { method: 'POST', token: agentA.token });
+    const otherTake = await j(`/disputes/${first.dispute.id}/take`, { method: 'POST', token: agentB.token });
+    const final = await j(`/disputes/${first.dispute.id}/resolve`, { method: 'POST', token: agentB.token, body: JSON.stringify({ outcome: 'buyer', note: 'Обмен ушёл на чужой аккаунт' }) });
+    const refunded = (await j(`/orders/${first.order.id}`, { token: buyer.token })).body;
+    const wBuyer = (await j('/wallet', { token: buyer.token })).body;
+    check(
+      'Обжалование: одно (второе — 409), первый арбитр не берёт (403), другой решает — сразу и окончательно: деньги покупателю',
+      appeal.status === 201 && appeal.body.status === 'open' && appeal.body.firstOutcome === 'seller' && twice.status === 409 &&
+        sameTake.status === 403 && otherTake.status === 201 && final.status === 201 && !!final.body.executedAt &&
+        refunded.status === 'refunded' && wBuyer.balance === '40000',
+      JSON.stringify({ appeal: [appeal.status, appeal.body?.status, appeal.body?.firstOutcome], twice: twice.status, sameTake: sameTake.status, otherTake: otherTake.status, final: [final.status, final.body?.executedAt], order: refunded.status, balance: wBuyer.balance }),
+    );
+
+    // Принять сразу: продавец согласен с возвратом.
+    const second = await deal();
+    await j(`/disputes/${second.dispute.id}/take`, { method: 'POST', token: agentA.token });
+    await j(`/disputes/${second.dispute.id}/resolve`, { method: 'POST', token: agentA.token, body: JSON.stringify({ outcome: 'buyer' }) });
+    const accepted = await j(`/disputes/${second.dispute.id}/accept`, { method: 'POST', token: seller.token });
+    const o2 = (await j(`/orders/${second.order.id}`, { token: buyer.token })).body;
+    // Окно прошло — исполняется само.
+    const third = await deal();
+    await j(`/disputes/${third.dispute.id}/take`, { method: 'POST', token: agentA.token });
+    await j(`/disputes/${third.dispute.id}/resolve`, { method: 'POST', token: agentA.token, body: JSON.stringify({ outcome: 'buyer' }) });
+    await prisma.dispute.update({ where: { id: third.dispute.id }, data: { finalizeAt: new Date(Date.now() - 1000) } });
+    let o3 = null;
+    for (let i = 0; i < 20 && o3?.status !== 'refunded'; i++) {
+      await wait(500);
+      o3 = (await j(`/orders/${third.order.id}`, { token: buyer.token })).body;
+    }
+    check(
+      'Проигравший принял решение — исполнено сразу; окно прошло без обжалования — исполнено само',
+      accepted.status === 201 && !!accepted.body.executedAt && o2.status === 'refunded' && o3?.status === 'refunded',
+      JSON.stringify({ accepted: [accepted.status, accepted.body?.executedAt], o2: o2.status, o3: o3?.status }),
+    );
+  } finally {
+    const reset = await j('/admin/disputes/appeal-window', { method: 'DELETE', ...A });
+    check('Окно обжалования — снова по умолчанию (в e2e 0 ч)', reset.status === 200 && reset.body.hours === 0, JSON.stringify(reset.body));
+  }
+}
+
+/**
  * API для продавцов (часть 127): ключ показывается один раз и работает
  * вместо входа; лоты — цена, снять и вернуть, склад автовыдачи; продажи и
  * выдача с сообщением; вебхук «оплачен новый заказ» с подписью и повтором
@@ -5569,6 +5668,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioAntifraud(rnd);
   await scenarioGameChat(rnd);
   await scenarioAppeals(rnd);
+  await scenarioArbitration(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

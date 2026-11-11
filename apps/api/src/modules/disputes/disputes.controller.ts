@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { DISPUTE_APPEAL_MAX_HOURS } from '@gamemarket/shared';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -46,6 +47,13 @@ const requestSchema = z.object({ side: z.enum(['buyer', 'seller']) });
 const resolveSchema = z.object({
   outcome: z.enum(['seller', 'buyer']),
   note: z.string().max(2000).optional(),
+});
+
+const appealSchema = z.object({
+  text: z.string().trim().min(10, 'Объясните, почему решение неверно, — от 10 знаков').max(2000),
+});
+const windowSchema = z.object({
+  hours: z.number().int().min(0, 'Окно обжалования — от 0 до 72 часов').max(DISPUTE_APPEAL_MAX_HOURS, 'Окно обжалования — от 0 до 72 часов'),
 });
 
 @Controller('disputes')
@@ -146,5 +154,45 @@ export class DisputesController {
     @Body(new ZodValidationPipe(resolveSchema)) body: { outcome: 'seller' | 'buyer'; note?: string },
   ) {
     return this.disputes.resolve(id, user.userId, body.outcome, body.note);
+  }
+
+  /** Обжаловать решение арбитра (часть 135): один раз, пока оно не вступило в силу. */
+  @Post(':id/appeal')
+  @RateLimit('dispute-appeal', 10, 3600)
+  appeal(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(appealSchema)) body: { text: string },
+  ) {
+    return this.disputes.appeal(id, user.userId, body.text);
+  }
+
+  /** Принять решение сразу — исполняется, не дожидаясь срока. */
+  @Post(':id/accept')
+  accept(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.disputes.accept(id, user.userId);
+  }
+}
+
+/** Окно обжалования решений арбитра (часть 135) — у администратора. */
+@Controller('admin/disputes')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin')
+export class DisputeSettingsController {
+  constructor(private readonly disputes: DisputesService) {}
+
+  @Get('appeal-window')
+  async get() {
+    return { hours: await this.disputes.appealHours() };
+  }
+
+  @Put('appeal-window')
+  set(@CurrentUser() user: AuthUser, @Body(new ZodValidationPipe(windowSchema)) body: { hours: number }) {
+    return this.disputes.setAppealHours(user.userId, body.hours);
+  }
+
+  @Delete('appeal-window')
+  reset(@CurrentUser() user: AuthUser) {
+    return this.disputes.setAppealHours(user.userId, null);
   }
 }

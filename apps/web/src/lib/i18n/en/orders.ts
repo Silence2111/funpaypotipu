@@ -193,10 +193,6 @@ export const ORDERS: Record<string, string> = {
   'Взять в работу': 'Take on',
   'Не удалось взять спор': 'Couldn’t take the dispute',
   'Отдать деньги продавцу': 'Release to the seller',
-  'Решение: вернуть деньги покупателю. Отменить его будет нельзя.':
-    'Decision: refund the buyer. It can’t be undone.',
-  'Решение: отдать деньги продавцу. Отменить его будет нельзя.':
-    'Decision: release the money to the seller. It can’t be undone.',
   'Комментарий для сторон:': 'Comment for both parties:',
   'Не удалось принять решение': 'Couldn’t record the decision',
   'Деньги сразу уходят выбранной стороне, стороны получат уведомление.':
@@ -362,4 +358,35 @@ export const ORDERS: Record<string, string> = {
   'Покупатель подтвердил получение. Ваша гарантия — до {date}: в этот срок покупатель может открыть спор. Деньги придут на баланс, когда она закончится.':
     'The buyer confirmed receipt. Your warranty runs until {date}: until then the buyer can open a dispute. The money reaches your balance when it ends.',
   'Подтверждён, идёт гарантия': 'Confirmed, under warranty',
+  // Арбитраж: окно обжалования, журнал выдачи, доказательства (часть 135)
+  'Продавец взял заказ в работу': 'The seller started on the order',
+  'Продавец писал в чат заказа': 'The seller wrote in the order chat',
+  'Продавец отметил выдачу': 'The seller marked it delivered',
+  'Выдано автоматически': 'Delivered automatically',
+  'Покупатель впервые открыл товар': 'The buyer first opened the goods',
+  'Покупатель подтвердил получение': 'The buyer confirmed receipt',
+  'Гарантия до': 'Warranty until',
+  'Решение: вернуть деньги покупателю. Сторона, против которой оно, сможет один раз обжаловать до вступления в силу.':
+    'Decision: refund the buyer. The side it goes against can appeal once before it takes effect.',
+  'Решение: отдать деньги продавцу. Сторона, против которой оно, сможет один раз обжаловать до вступления в силу.':
+    'Decision: pay the seller. The side it goes against can appeal once before it takes effect.',
+  'Не удалось обжаловать решение': 'Couldn’t appeal the decision',
+  'Принять решение арбитра? Оно исполнится сразу, обжаловать будет нельзя.': 'Accept the arbiter’s decision? It will be carried out at once and can’t be appealed.',
+  'Решение — в пользу покупателя.': 'Decision: in the buyer’s favour.',
+  'Решение — в пользу продавца.': 'Decision: in the seller’s favour.',
+  'Вступит в силу {date}.': 'Takes effect {date}.',
+  'Не согласны — обжалуйте один раз: спор пересмотрит другой арбитр, его решение окончательное. Согласны — примите, и решение исполнится сразу.':
+    'Disagree? Appeal once: another arbiter will review the dispute and their decision is final. Agree? Accept it and it will be carried out at once.',
+  'Принять решение': 'Accept the decision',
+  'Решение обжаловано': 'The decision was appealed',
+  'Первое решение — в пользу покупателя': 'First decision: in the buyer’s favour',
+  'Первое решение — в пользу продавца': 'First decision: in the seller’s favour',
+  'Пересматривает другой арбитр — его решение окончательное.': 'Another arbiter is reviewing it — their decision is final.',
+  'Журнал выдачи': 'Delivery log',
+  'Из системы площадки — не со слов сторон.': 'From the marketplace’s records, not the parties’ words.',
+  'открывал {n}': 'opened {n}',
+  'Что приложить': 'What to attach',
+  'Что приложить покупателю': 'What the buyer should attach',
+  'Что приложить продавцу': 'What the seller should attach',
+  'Файлы — скрепкой под перепиской. Чем точнее доказательства, тем быстрее решение.': 'Attach files with the paperclip below the conversation. The clearer the evidence, the faster the decision.',
 };

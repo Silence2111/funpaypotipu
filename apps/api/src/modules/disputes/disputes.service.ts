@@ -9,8 +9,16 @@ import {
 } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { randomUUID } from 'node:crypto';
-import { Prisma, PrismaClient, type DisputeStatus } from '@gamemarket/db';
-import { DISPUTE_NOTES, DISPUTE_REMIND_HOURS, DISPUTE_RESPONSE_HOURS } from '@gamemarket/shared';
+import { Prisma, PrismaClient, type Dispute, type DisputeStatus } from '@gamemarket/db';
+import {
+  DISPUTE_APPEAL_HOURS,
+  DISPUTE_APPEAL_KEY,
+  DISPUTE_APPEAL_MAX_HOURS,
+  DISPUTE_NOTES,
+  DISPUTE_REMIND_HOURS,
+  DISPUTE_RESPONSE_HOURS,
+  disputeEvidence,
+} from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { OrdersService } from '../orders/orders.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -242,6 +250,7 @@ export class DisputesService {
   @Interval('disputes-deadlines', SWEEP_MS)
   async sweep(now = new Date()) {
     await this.remind(now);
+    await this.finalizeDue(now);
     const due = await this.prisma.dispute.findMany({
       where: { status: { in: OPEN }, awaitingFrom: { not: null }, respondBy: { lt: now } },
       take: 100,
@@ -310,31 +319,50 @@ export class DisputesService {
   async take(disputeId: string, arbiterId: string) {
     const dispute = await this.get(disputeId);
     if (dispute.status !== 'open') throw new ConflictException('Спор уже в работе или закрыт');
+    // Обжалованный спор берёт другой арбитр (часть 135).
+    if (dispute.appealedAt && dispute.firstArbiterId === arbiterId) {
+      throw new ForbiddenException('Обжалование решает другой арбитр — не тот, кто вынес первое решение');
+    }
     return this.prisma.dispute.update({
       where: { id: disputeId },
       data: { status: 'in_review', arbiterId },
     });
   }
 
-  /** Решение арбитра: деньги двигаются через OrdersService. */
+  /**
+   * Решение арбитра (часть 135): вступает в силу через окно обжалования —
+   * сторона, против которой оно вынесено, может один раз обжаловать (решит
+   * другой арбитр) или принять его сразу. Решение по обжалованию и окно 0 ч
+   * исполняются сразу. Деньги двигаются через OrdersService.
+   */
   async resolve(disputeId: string, arbiterId: string, outcome: 'seller' | 'buyer', note?: string) {
     const dispute = await this.get(disputeId);
     if (dispute.status !== 'in_review' && dispute.status !== 'open') {
       throw new ConflictException('Спор уже разрешён');
     }
+    if (dispute.appealedAt && dispute.firstArbiterId === arbiterId) {
+      throw new ForbiddenException('Обжалование решает другой арбитр — не тот, кто вынес первое решение');
+    }
 
-    await this.orders.applyDisputeResolution(dispute.orderId, outcome);
+    const hours = dispute.appealedAt ? 0 : await this.appealHours();
+    const now = new Date();
     const updated = await this.prisma.dispute.update({
       where: { id: disputeId },
       data: {
         status: outcome === 'seller' ? 'resolved_seller' : 'resolved_buyer',
         arbiterId,
         resolutionNote: note,
-        resolvedAt: new Date(),
+        resolvedAt: now,
         awaitingFrom: null,
         respondBy: null,
+        finalizeAt: new Date(now.getTime() + hours * 3_600_000),
       },
     });
+    if (hours === 0) {
+      await this.execute(updated.id);
+    } else {
+      await this.note(disputeId, DISPUTE_NOTES.decided);
+    }
 
     await this.audit.log({
       actorId: arbiterId,
@@ -346,10 +374,134 @@ export class DisputesService {
 
     const order = await this.prisma.order.findUnique({ where: { id: dispute.orderId } });
     if (order) {
-      await this.notifications.notify(order.buyerId, 'dispute_resolved', { disputeId, outcome });
-      await this.notifications.notify(order.sellerId, 'dispute_resolved', { disputeId, outcome });
+      const extra = hours ? { finalizeAt: updated.finalizeAt!.toISOString() } : {};
+      await this.notifications.notify(order.buyerId, 'dispute_resolved', { disputeId, outcome, ...extra });
+      await this.notifications.notify(order.sellerId, 'dispute_resolved', { disputeId, outcome, ...extra });
     }
-    return updated;
+    return this.get(disputeId);
+  }
+
+  /** Окно обжалования, часы: настройка администратора, иначе DISPUTE_APPEAL_HOURS (e2e — 0). */
+  async appealHours(): Promise<number> {
+    const row = await this.prisma.systemSetting.findUnique({ where: { key: DISPUTE_APPEAL_KEY } });
+    const saved = (row?.value as { hours?: unknown } | null)?.hours;
+    if (typeof saved === 'number' && Number.isInteger(saved) && saved >= 0 && saved <= DISPUTE_APPEAL_MAX_HOURS) return saved;
+    const env = Number(process.env.DISPUTE_APPEAL_HOURS ?? DISPUTE_APPEAL_HOURS);
+    return Number.isFinite(env) && env >= 0 ? env : DISPUTE_APPEAL_HOURS;
+  }
+
+  async setAppealHours(actorId: string, hours: number | null) {
+    const before = await this.appealHours();
+    if (hours === null) await this.prisma.systemSetting.deleteMany({ where: { key: DISPUTE_APPEAL_KEY } });
+    else {
+      await this.prisma.systemSetting.upsert({
+        where: { key: DISPUTE_APPEAL_KEY },
+        create: { key: DISPUTE_APPEAL_KEY, value: { hours } },
+        update: { value: { hours } },
+      });
+    }
+    const after = await this.appealHours();
+    await this.audit.log({ actorId, action: 'settings.dispute_appeal', entityType: 'setting', entityId: DISPUTE_APPEAL_KEY, before: { hours: before }, after: { hours: after } });
+    return { hours: after, saved: hours !== null };
+  }
+
+  /**
+   * Исполнить решение: деньги по исходу. Занимаем первыми — второй экземпляр
+   * не проведёт дважды; заказ уже не в споре (продавец вернул деньги сам) —
+   * исполнять нечего. Сбой — решение снова ждёт исполнения.
+   */
+  private async execute(disputeId: string) {
+    const claimed = await this.prisma.dispute.updateMany({
+      where: { id: disputeId, executedAt: null, status: { in: ['resolved_buyer', 'resolved_seller'] } },
+      data: { executedAt: new Date() },
+    });
+    if (!claimed.count) return;
+    const d = await this.get(disputeId);
+    const order = await this.prisma.order.findUnique({ where: { id: d.orderId }, select: { status: true } });
+    if (order?.status !== 'disputed') return;
+    try {
+      await this.orders.applyDisputeResolution(d.orderId, d.status === 'resolved_seller' ? 'seller' : 'buyer');
+    } catch (e) {
+      await this.prisma.dispute.update({ where: { id: disputeId }, data: { executedAt: null } });
+      throw e;
+    }
+  }
+
+  /** Решение против этой стороны: она может обжаловать или принять. */
+  private loserOf(d: Dispute, order: { buyerId: string; sellerId: string }) {
+    return d.status === 'resolved_buyer' ? order.sellerId : d.status === 'resolved_seller' ? order.buyerId : null;
+  }
+
+  private pending(d: Dispute) {
+    return (d.status === 'resolved_buyer' || d.status === 'resolved_seller') && !d.executedAt && !!d.finalizeAt && d.finalizeAt > new Date();
+  }
+
+  /**
+   * Обжалование (часть 135): одно, сторона, против которой решение, пока
+   * оно не вступило в силу. Спор возвращается в очередь — его берёт другой
+   * арбитр; первое решение остаётся видно ему.
+   */
+  async appeal(disputeId: string, userId: string, text: string) {
+    const { dispute, order } = await this.accessible(disputeId, userId);
+    if (!order) throw new NotFoundException('Заказ не найден');
+    if (dispute.appealedAt) throw new ConflictException('Решение по спору обжалуется один раз');
+    if (!this.pending(dispute)) throw new ConflictException('Решение уже вступило в силу — обжаловать нельзя');
+    if (this.loserOf(dispute, order) !== userId) {
+      throw new ForbiddenException('Обжаловать может сторона, против которой вынесено решение');
+    }
+    const claimed = await this.prisma.dispute.updateMany({
+      where: { id: disputeId, appealedAt: null, executedAt: null },
+      data: {
+        status: 'open',
+        appealedBy: userId,
+        appealedAt: new Date(),
+        appealText: text,
+        firstArbiterId: dispute.arbiterId,
+        firstOutcome: dispute.status === 'resolved_buyer' ? 'buyer' : 'seller',
+        firstNote: dispute.resolutionNote,
+        arbiterId: null,
+        resolutionNote: null,
+        resolvedAt: null,
+        finalizeAt: null,
+      },
+    });
+    if (!claimed.count) throw new ConflictException('Решение уже вступило в силу — обжаловать нельзя');
+    await this.note(disputeId, DISPUTE_NOTES.appealed);
+    await this.audit.log({ actorId: userId, action: 'dispute.appeal', entityType: 'dispute', entityId: disputeId, after: { text } });
+    const other = order.buyerId === userId ? order.sellerId : order.buyerId;
+    await this.notifications.notify(other, 'dispute_appealed', { disputeId, orderId: order.id });
+    return this.get(disputeId);
+  }
+
+  /** Сторона, против которой решение, принимает его — исполняется сразу. */
+  async accept(disputeId: string, userId: string) {
+    const { dispute, order } = await this.accessible(disputeId, userId);
+    if (!order) throw new NotFoundException('Заказ не найден');
+    if (!this.pending(dispute)) throw new ConflictException('Решение уже вступило в силу');
+    if (this.loserOf(dispute, order) !== userId) {
+      throw new ForbiddenException('Принять решение может сторона, против которой оно вынесено');
+    }
+    await this.prisma.dispute.update({ where: { id: disputeId }, data: { finalizeAt: new Date() } });
+    await this.execute(disputeId);
+    await this.note(disputeId, DISPUTE_NOTES.accepted);
+    return this.get(disputeId);
+  }
+
+  /** Окно обжалования прошло — решение исполняется (из прохода по срокам). */
+  private async finalizeDue(now: Date) {
+    const due = await this.prisma.dispute.findMany({
+      where: { status: { in: ['resolved_buyer', 'resolved_seller'] }, executedAt: null, finalizeAt: { lte: now } },
+      select: { id: true },
+      take: 100,
+    });
+    for (const d of due) {
+      try {
+        await this.execute(d.id);
+        await this.note(d.id, DISPUTE_NOTES.executed);
+      } catch (e) {
+        this.logger.warn(`Исполнение решения по спору ${d.id}: ${(e as Error).message}`);
+      }
+    }
   }
 
   /**
@@ -373,18 +525,35 @@ export class DisputesService {
         attachments: await this.presignAttachments(m.attachments),
       })),
     );
-    const names = await this.usernames([order?.buyerId, order?.sellerId, dispute.arbiterId]);
+    const names = await this.usernames([order?.buyerId, order?.sellerId, dispute.arbiterId, dispute.firstArbiterId]);
     // Решает спор арбитр или администратор; модератор видит переписку, но денег не двигает.
+    // Обжалованный — не тот, кто вынес первое решение (часть 135).
     const canResolve =
       isStaff &&
+      !(dispute.appealedAt && dispute.firstArbiterId === userId) &&
       (await this.prisma.userRole.count({ where: { userId, role: { key: { in: ['agent', 'admin'] } } } })) > 0;
+    const side = order?.buyerId === userId ? 'buyer' : order?.sellerId === userId ? 'seller' : null;
+    const loser = order ? this.loserOf(dispute, order) : null;
+    const segment = order
+      ? (await this.prisma.listing.findUnique({ where: { id: order.listingId }, select: { category: { select: { segment: true } } } }))?.category.segment ?? null
+      : null;
     return {
       dispute,
       messages,
       isStaff,
       canResolve,
+      // Решение ждёт вступления в силу: проигравшая сторона — обжаловать (один раз) или принять.
+      canAppeal: !!loser && loser === userId && !dispute.appealedAt && this.pending(dispute),
+      canAccept: !!loser && loser === userId && this.pending(dispute),
+      firstArbiter: dispute.firstArbiterId ? { id: dispute.firstArbiterId, username: names.get(dispute.firstArbiterId) ?? null } : null,
+      // Что приложить — по типу товара: стороне — своё, арбитру — обеим.
+      evidence: side
+        ? { [side]: disputeEvidence(segment, side) }
+        : { buyer: disputeEvidence(segment, 'buyer'), seller: disputeEvidence(segment, 'seller') },
+      // Журнал выдачи — площадка прикладывает сама (часть 135).
+      journal: order ? await this.journal(order) : [],
       // Сторона спора: покупателю — «претензий нет», продавцу — «вернуть деньги».
-      side: order?.buyerId === userId ? 'buyer' : order?.sellerId === userId ? 'seller' : null,
+      side,
       order: order
         ? {
             id: order.id,
@@ -401,6 +570,37 @@ export class DisputesService {
         arbiter: dispute.arbiterId ? { id: dispute.arbiterId, username: names.get(dispute.arbiterId) ?? null } : null,
       },
     };
+  }
+
+  /**
+   * Журнал выдачи: оплата, «взял в работу», выдача (сам или автоматически),
+   * когда покупатель впервые открыл товар и сколько раз, сообщения продавца
+   * в чате заказа, подтверждение и гарантия. Из базы, не со слов сторон.
+   */
+  private async journal(order: {
+    id: string; sellerId: string; paidAt: Date | null; deliveredAt: Date | null; completedAt: Date | null;
+    fulfillmentType: string; serviceStartedAt?: Date | null; serviceDueAt?: Date | null; warrantyUntil?: Date | null;
+  }) {
+    const [delivery, sellerMsgs] = await Promise.all([
+      this.prisma.delivery.findUnique({ where: { orderId: order.id }, select: { firstViewedAt: true, viewCount: true } }),
+      order.paidAt
+        ? this.prisma.message.findMany({
+            where: { conversation: { orderId: order.id }, senderId: order.sellerId, createdAt: { gte: order.paidAt } },
+            orderBy: { createdAt: 'asc' },
+            select: { createdAt: true },
+          })
+        : [],
+    ]);
+    const events: Array<{ at: Date; code: string; count?: number }> = [];
+    if (order.paidAt) events.push({ at: order.paidAt, code: 'paid' });
+    if (order.serviceStartedAt) events.push({ at: order.serviceStartedAt, code: 'service_started' });
+    if (sellerMsgs.length) events.push({ at: sellerMsgs[0]!.createdAt, code: 'seller_messages', count: sellerMsgs.length });
+    if (order.deliveredAt) events.push({ at: order.deliveredAt, code: order.fulfillmentType === 'manual' ? 'delivered_manual' : 'delivered_auto' });
+    if (delivery?.firstViewedAt) events.push({ at: delivery.firstViewedAt, code: 'first_view', count: delivery.viewCount });
+    if (order.completedAt) events.push({ at: order.completedAt, code: 'confirmed' });
+    if (order.serviceDueAt) events.push({ at: order.serviceDueAt, code: 'service_due' });
+    if (order.warrantyUntil) events.push({ at: order.warrantyUntil, code: 'warranty_until' });
+    return events.sort((a, b) => a.at.getTime() - b.at.getTime());
   }
 
   private async usernames(ids: Array<string | null | undefined>) {

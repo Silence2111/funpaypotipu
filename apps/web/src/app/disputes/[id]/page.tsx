@@ -10,6 +10,7 @@ import { formatPrice, timeLeft } from '@/lib/format';
 import { DISPUTE_STATUS } from '@/lib/disputes';
 import { uploadViaPresignedUrl } from '@/lib/upload';
 import { useT } from '@/lib/i18n/client';
+import { msg } from '@/lib/i18n/lang';
 import { backToDisputesQueue } from '@/lib/disputes-queue';
 
 interface Attach { url: string; mime: string }
@@ -33,7 +34,17 @@ interface Dispute {
   awaitingFrom: 'buyer' | 'seller' | null;
   respondBy: string | null;
   missedBy: 'buyer' | 'seller' | null;
+  /** Решение вступает в силу (часть 135); обжалование — одно. */
+  finalizeAt?: string | null;
+  executedAt?: string | null;
+  appealedBy?: string | null;
+  appealedAt?: string | null;
+  appealText?: string | null;
+  firstOutcome?: 'buyer' | 'seller' | null;
+  firstNote?: string | null;
 }
+/** Журнал выдачи — из базы площадки, не со слов сторон (часть 135). */
+interface JournalEvent { at: string; code: string; count?: number }
 interface Party { id: string; username: string | null }
 interface DisputeView {
   dispute: Dispute;
@@ -43,7 +54,24 @@ interface DisputeView {
   side?: 'buyer' | 'seller' | null;
   order?: { id: string; publicNumber: string; amount: string; currency: string; title: string | null } | null;
   parties?: { buyer: Party | null; seller: Party | null; arbiter: Party | null };
+  canAppeal?: boolean;
+  canAccept?: boolean;
+  firstArbiter?: Party | null;
+  evidence?: { buyer?: string[]; seller?: string[] };
+  journal?: JournalEvent[];
 }
+
+const JOURNAL: Record<string, string> = {
+  paid: msg('Оплачен'),
+  service_started: msg('Продавец взял заказ в работу'),
+  seller_messages: msg('Продавец писал в чат заказа'),
+  delivered_manual: msg('Продавец отметил выдачу'),
+  delivered_auto: msg('Выдано автоматически'),
+  first_view: msg('Покупатель впервые открыл товар'),
+  confirmed: msg('Покупатель подтвердил получение'),
+  service_due: msg('Срок выполнения'),
+  warranty_until: msg('Гарантия до'),
+};
 
 const STATUS = DISPUTE_STATUS;
 
@@ -114,14 +142,30 @@ function Dispute() {
   function resolve(outcome: 'buyer' | 'seller') {
     const decision =
       outcome === 'buyer'
-        ? t('Решение: вернуть деньги покупателю. Отменить его будет нельзя.')
-        : t('Решение: отдать деньги продавцу. Отменить его будет нельзя.');
+        ? t('Решение: вернуть деньги покупателю. Сторона, против которой оно, сможет один раз обжаловать до вступления в силу.')
+        : t('Решение: отдать деньги продавцу. Сторона, против которой оно, сможет один раз обжаловать до вступления в силу.');
     const note = window.prompt(`${decision}\n${t('Комментарий для сторон:')}`, '');
     if (note === null) return;
     void run(
       () => apiFetch(`/disputes/${id}/resolve`, { method: 'POST', body: JSON.stringify({ outcome, ...(note.trim() ? { note: note.trim() } : {}) }) }),
       t('Не удалось принять решение'),
     );
+  }
+
+  const [appealText, setAppealText] = useState('');
+  const [appealing, setAppealing] = useState(false);
+
+  function appeal(e: FormEvent) {
+    e.preventDefault();
+    void run(
+      () => apiFetch(`/disputes/${id}/appeal`, { method: 'POST', body: JSON.stringify({ text: appealText.trim() }) }),
+      t('Не удалось обжаловать решение'),
+    ).then(() => setAppealing(false));
+  }
+
+  function accept() {
+    if (!window.confirm(t('Принять решение арбитра? Оно исполнится сразу, обжаловать будет нельзя.'))) return;
+    void run(() => apiFetch(`/disputes/${id}/accept`, { method: 'POST' }), t('Не удалось принять решение'));
   }
 
   function withdraw() {
@@ -156,6 +200,12 @@ function Dispute() {
     : null;
   const left = dispute.respondBy ? timeLeft(dispute.respondBy, t) : null;
   const myTurn = !!dispute.awaitingFrom && dispute.awaitingFrom === view.side;
+  const when = (iso: string) => new Date(iso).toLocaleString(t.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const pending =
+    (dispute.status === 'resolved_buyer' || dispute.status === 'resolved_seller') &&
+    !dispute.executedAt && !!dispute.finalizeAt && new Date(dispute.finalizeAt) > new Date();
+  const journal = view.journal ?? [];
+  const evidence = Object.entries(view.evidence ?? {}).filter((x): x is [string, string[]] => Array.isArray(x[1]) && x[1].length > 0);
   // Подпись автора: арбитру важно видеть, кто есть кто, сторонам — где арбитр.
   const author = (m: DMsg) =>
     m.senderId === me?.id
@@ -209,6 +259,96 @@ function Dispute() {
           </p>
         )}
       </div>
+
+      {/* Решение ждёт вступления в силу (часть 135): обжаловать один раз или принять сразу. */}
+      {pending && (
+        <div className="card" style={{ marginTop: 12, padding: 16, display: 'grid', gap: 10 }}>
+          <div className="row" style={{ gap: 8 }}>
+            <Clock size={16} strokeWidth={1.75} aria-hidden />
+            <b style={{ fontSize: 15 }}>
+              {dispute.status === 'resolved_buyer' ? t('Решение — в пользу покупателя.') : t('Решение — в пользу продавца.')}{' '}
+              {t('Вступит в силу {date}.', { date: when(dispute.finalizeAt!) })}
+            </b>
+          </div>
+          {view.canAppeal && !appealing && (
+            <p className="hint" style={{ margin: 0 }}>
+              {t('Не согласны — обжалуйте один раз: спор пересмотрит другой арбитр, его решение окончательное. Согласны — примите, и решение исполнится сразу.')}
+            </p>
+          )}
+          {appealing ? (
+            <form onSubmit={appeal} style={{ display: 'grid', gap: 8 }}>
+              <label className="label" htmlFor="dispute-appeal">{t('Почему решение неверно')}</label>
+              <textarea id="dispute-appeal" className="input" rows={4} maxLength={2000} value={appealText}
+                onChange={(e) => setAppealText(e.target.value)} style={{ resize: 'vertical' }} />
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn" type="submit" disabled={busy || appealText.trim().length < 10}>{t('Обжаловать')}</button>
+                <button className="btn ghost" type="button" onClick={() => setAppealing(false)}>{t('Отмена')}</button>
+              </div>
+            </form>
+          ) : (
+            (view.canAppeal || view.canAccept) && (
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                {view.canAppeal && (
+                  <button type="button" className="btn secondary" disabled={busy} onClick={() => setAppealing(true)}>{t('Обжаловать')}</button>
+                )}
+                {view.canAccept && (
+                  <button type="button" className="chip" disabled={busy} onClick={accept}>{t('Принять решение')}</button>
+                )}
+              </div>
+            )
+          )}
+        </div>
+      )}
+
+      {dispute.appealedAt && (
+        <div className="card flat" style={{ marginTop: 12, padding: 16, background: 'var(--page)', display: 'grid', gap: 6, fontSize: 14 }}>
+          <b>{t('Решение обжаловано')}</b>
+          {dispute.appealText && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>«{dispute.appealText}»</p>}
+          {dispute.firstOutcome && (
+            <span className="faint">
+              {dispute.firstOutcome === 'buyer' ? t('Первое решение — в пользу покупателя') : t('Первое решение — в пользу продавца')}
+              {view.firstArbiter?.username ? ` · ${t('арбитр {name}', { name: view.firstArbiter.username })}` : ''}
+              {dispute.firstNote ? ` · «${dispute.firstNote}»` : ''}
+            </span>
+          )}
+          {open && <span className="hint">{t('Пересматривает другой арбитр — его решение окончательное.')}</span>}
+        </div>
+      )}
+
+      {journal.length > 0 && (
+        <div className="card" style={{ marginTop: 12, padding: 16 }}>
+          <div className="label" style={{ marginBottom: 6 }}>{t('Журнал выдачи')}</div>
+          <p className="hint" style={{ margin: '0 0 8px' }}>{t('Из системы площадки — не со слов сторон.')}</p>
+          <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 4, fontSize: 14 }}>
+            {journal.map((e, i) => (
+              <li key={i} className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                <span className="faint" style={{ minWidth: 130 }}>{when(e.at)}</span>
+                <span>
+                  {JOURNAL[e.code] ? t(JOURNAL[e.code]!) : e.code}
+                  {e.code === 'first_view' && e.count ? ` · ${t('открывал {n}', { n: t.n(e.count, 'раз', 'раза', 'раз') })}` : ''}
+                  {e.code === 'seller_messages' && e.count ? ` · ${t.n(e.count, 'сообщение', 'сообщения', 'сообщений')}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {open && evidence.length > 0 && (
+        <div className="card" style={{ marginTop: 12, padding: 16 }}>
+          {evidence.map(([who, items]) => (
+            <div key={who}>
+              <div className="label" style={{ marginBottom: 6 }}>
+                {view.side ? t('Что приложить') : who === 'buyer' ? t('Что приложить покупателю') : t('Что приложить продавцу')}
+              </div>
+              <ul className="muted" style={{ margin: '0 0 8px', paddingLeft: 18, fontSize: 14, lineHeight: 1.6 }}>
+                {items.map((x) => <li key={x}>{t.d(x)}</li>)}
+              </ul>
+            </div>
+          ))}
+          <p className="hint" style={{ margin: 0 }}>{t('Файлы — скрепкой под перепиской. Чем точнее доказательства, тем быстрее решение.')}</p>
+        </div>
+      )}
 
       {open && dispute.awaitingFrom && deadline && (
         <div className={myTurn ? 'alert warning' : 'alert'} role="status" style={{ marginTop: 12 }}>
