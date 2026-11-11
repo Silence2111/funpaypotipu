@@ -22,13 +22,33 @@ export const CLOSED_REASON_DEFAULT = 'Продажа в разделе закр�
 export const CLOSED_REASON_MAX = 400;
 
 /**
- * Закрыт ли раздел при запуске: аккаунты и буст (с прокачкой — это тоже
- * игра на чужом аккаунте). Смешанные «Услуги» открыты: их лоты с
- * передачей аккаунта ловит `accountTransferMatch`.
+ * Услуги, где исполнитель играет с аккаунта покупателя: без логина и
+ * пароля их не выполнить. Раздел, в котором все виды услуг такие, на
+ * запуске закрыт, как буст.
  */
-export function launchClosedReason(section: { segment: string; title: string }): string | null {
+export const ACCOUNT_PLAY_KINDS = [
+  'Прокачка',
+  'Прокачка ветки',
+  'Фарм серебра',
+  'Отметки на стволе',
+  'Исследование мира',
+  'Витая бездна',
+  'Ежедневные поручения',
+  'Калибровка',
+] as const;
+
+/**
+ * Закрыт ли раздел при запуске: аккаунты, буст, прокачка и прохождение, а
+ * также «Услуги», где все виды — игра с чужого аккаунта. Смешанные «Услуги»
+ * (рейды, квесты, сопровождение, обучение) открыты: их лоты с передачей
+ * аккаунта ловит `accountTransferMatch`.
+ */
+export function launchClosedReason(section: { segment: string; title: string; kinds?: readonly string[] }): string | null {
   if (section.segment === 'accounts') return CLOSED_REASON_ACCOUNTS;
-  if (section.segment === 'service' && /буст|прокачк/i.test(section.title)) return CLOSED_REASON_BOOST;
+  if (section.segment !== 'service') return null;
+  if (/буст|прокачк|прохожден/i.test(section.title)) return CLOSED_REASON_BOOST;
+  const kinds = section.kinds?.filter((k) => k !== 'Другое') ?? [];
+  if (kinds.length && kinds.every((k) => (ACCOUNT_PLAY_KINDS as readonly string[]).includes(k))) return CLOSED_REASON_BOOST;
   return null;
 }
 

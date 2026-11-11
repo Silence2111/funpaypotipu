@@ -611,7 +611,9 @@ export class OrdersService {
     );
 
     // Кэшбэк покупателю на баланс — наш ответ на «токены P» конкурентов (живые деньги).
-    const cashback = cashbackFor(order.amount);
+    // В «Безопасной сделке» (часть 123) — пауза: баланс в ней не потратить, а
+    // выплата 20 ₽ на карту стоит дороже самих 20 ₽. Бонусы-скидка — часть 146.
+    const cashback = order.dealId ? 0n : cashbackFor(order.amount);
     if (cashback > 0n) {
       await this.ledger.post({
         legs: cashbackToBalance(order.buyerId, cashback),

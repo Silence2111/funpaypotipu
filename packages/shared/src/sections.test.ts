@@ -14,6 +14,14 @@ describe('launchClosedReason', () => {
     expect(launchClosedReason({ segment: 'service', title: 'Буст кубков' })).toBe(CLOSED_REASON_BOOST);
     expect(launchClosedReason({ segment: 'service', title: 'Прокачка' })).toBe(CLOSED_REASON_BOOST);
     expect(launchClosedReason({ segment: 'service', title: 'Услуги' })).toBeNull();
+    expect(launchClosedReason({ segment: 'service', title: 'Прохождение' })).toBe(CLOSED_REASON_BOOST);
+    // Все виды услуг — игра с чужого аккаунта: закрыт; смешанные — открыты.
+    expect(
+      launchClosedReason({ segment: 'service', title: 'Услуги', kinds: ['Прокачка ветки', 'Фарм серебра', 'Отметки на стволе'] }),
+    ).toBe(CLOSED_REASON_BOOST);
+    expect(
+      launchClosedReason({ segment: 'service', title: 'Услуги', kinds: ['Квесты', 'Прокачка', 'Сопровождение в рейдах', 'Другое'] }),
+    ).toBeNull();
     expect(launchClosedReason({ segment: 'items', title: 'Скины' })).toBeNull();
     expect(launchClosedReason({ segment: 'key', title: 'Ключи' })).toBeNull();
   });

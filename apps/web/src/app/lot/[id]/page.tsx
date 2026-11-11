@@ -400,7 +400,7 @@ export default async function ListingPage({
                   {t('После выдачи у вас {h} ч на проверку: подтвердить или открыть спор с арбитром.', { h: confirmH })}
                 </li>
               </ul>
-              {pricing && (
+              {pricing && pricing.cashbackPct > 0 && (
                 <p className="hint" style={{ marginTop: 10 }}>
                   {t('+{pct}% кэшбэк на баланс после подтверждения', { pct: Math.round(pricing.cashbackPct * 100) })}
                 </p>

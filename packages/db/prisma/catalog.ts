@@ -1049,7 +1049,11 @@ export async function seedCatalog(prisma: PrismaClient) {
       // Аккаунты и буст на запуске закрыты (часть 122). Решает сид один раз —
       // при создании раздела или для раздела, о котором ещё не решали;
       // открыли или закрыли в консоли — сид больше не вмешивается.
-      const closedReason = launchClosedReason(s);
+      const closedReason = launchClosedReason({
+        ...s,
+        // Виды услуг: раздел, где все они — игра с аккаунта покупателя, закрыт.
+        kinds: s.attrs?.find((a) => a.key === 'kind')?.options,
+      });
       const closure = closedReason ? { salesClosed: true, closedReason, closedAt: new Date() } : {};
       const category = !had
         ? await prisma.category.create({
