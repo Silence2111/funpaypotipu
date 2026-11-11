@@ -10,6 +10,20 @@
 export interface BuyerField {
   label: string;
   required: boolean;
+  /**
+   * Тип поля (часть 142): «steam_trade» — ссылка на обмен Steam, с проверкой
+   * формата; запоминается в профиле покупателя и подставляется в следующий
+   * заказ. Без типа — обычный текст.
+   */
+  kind?: 'steam_trade';
+}
+
+export const STEAM_TRADE_LABEL = 'Ссылка на обмен Steam';
+const STEAM_TRADE = /^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d{1,12}&token=[A-Za-z0-9_-]{8}$/;
+
+/** Ссылка на обмен Steam: https://steamcommunity.com/tradeoffer/new/?partner=…&token=… */
+export function isSteamTradeUrl(v: string): boolean {
+  return STEAM_TRADE.test(v.trim());
 }
 
 export const BUYER_FIELDS_MAX = 3;
@@ -20,7 +34,7 @@ export function buyerFieldsOf(raw: unknown): BuyerField[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter((f): f is BuyerField => !!f && typeof f.label === 'string' && f.label.trim().length > 0)
-    .map((f) => ({ label: f.label.trim(), required: f.required !== false }))
+    .map((f) => ({ label: f.label.trim(), required: f.required !== false, ...(f.kind === 'steam_trade' ? { kind: 'steam_trade' as const } : {}) }))
     .slice(0, BUYER_FIELDS_MAX);
 }
 
@@ -30,6 +44,9 @@ export function buyerDataError(fields: BuyerField[], data: Record<string, string
     const v = data?.[f.label]?.trim() ?? '';
     if (f.required && !v) return `Укажите «${f.label}»`;
     if (v.length > BUYER_VALUE_MAX) return `«${f.label}» — не длиннее ${BUYER_VALUE_MAX} символов`;
+    if (f.kind === 'steam_trade' && v && !isSteamTradeUrl(v)) {
+      return 'Ссылка на обмен Steam — вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=… (Steam → Инвентарь → Предложения обмена → «Кто может отправлять мне предложения»)';
+    }
   }
   return null;
 }

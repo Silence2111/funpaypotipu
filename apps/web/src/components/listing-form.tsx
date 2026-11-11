@@ -13,6 +13,7 @@ import {
   qtyTermsError,
   qtyTiersError,
 } from '@gamemarket/shared/quantity';
+import { STEAM_TRADE_LABEL, type BuyerField } from '@gamemarket/shared/buyer-data';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice, formatQty } from '@/lib/format';
@@ -62,7 +63,7 @@ export interface EditableListing {
   minQty: number;
   stock: number | null;
   qtyDiscounts?: Array<{ from: number; pct: number }> | null;
-  buyerFields: Array<{ label: string; required: boolean }> | null;
+  buyerFields: BuyerField[] | null;
   /** auto_key — выдаётся со склада: ключи или строки товара. */
   fulfillmentType: string;
   deliveryTemplate: string | null;
@@ -175,7 +176,7 @@ export function ListingForm({
     () => base?.qtyDiscounts?.map((x) => ({ from: String(x.from), pct: String(x.pct) })) ?? [],
   );
   // Что спросить у покупателя до оплаты: ник, сервер — как поля лота на Playerok.
-  const [buyerFields, setBuyerFields] = useState<Array<{ label: string; required: boolean }>>(base?.buyerFields ?? []);
+  const [buyerFields, setBuyerFields] = useState<BuyerField[]>(base?.buyerFields ?? []);
   // Автовыдача со склада строк у аккаунтов и предметов, как боты на FunPay.
   const [autoDelivery, setAutoDelivery] = useState(base?.fulfillmentType === 'auto_key');
   // Сообщение покупателю в чат заказа сразу после оплаты.
@@ -381,7 +382,7 @@ export function ListingForm({
             : null,
   };
   const cleanTemplate = template.trim();
-  const cleanFields = buyerFields.map((f) => ({ label: f.label.trim(), required: f.required }));
+  const cleanFields = buyerFields.map((f) => ({ label: f.label.trim(), required: f.required, ...(f.kind ? { kind: f.kind } : {}) }));
   const showErr = (k: string) => (touched[k] ? fieldErrors[k] : null);
 
   async function submit(e: FormEvent) {
@@ -686,7 +687,8 @@ export function ListingForm({
             <span className="label">{t('Что спросить у покупателя — необязательно')}</span>
             {buyerFields.map((f, i) => (
               <div key={i} className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                <input className="input" style={{ flex: 1, minWidth: 160 }} maxLength={40} value={f.label}
+                <input className="input" style={{ flex: 1, minWidth: 160 }} maxLength={40} value={f.kind === 'steam_trade' ? t.d(f.label) : f.label}
+                  readOnly={f.kind === 'steam_trade'} title={f.kind === 'steam_trade' ? t('Проверим формат ссылки и запомним её у покупателя') : undefined}
                   aria-label={t('Поле {n}', { n: i + 1 })} placeholder={t('Например, ник в игре')} onBlur={() => touch('buyer')}
                   onChange={(e) => setBuyerFields((list) => list.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
                 <label className="row hint" style={{ gap: 6, cursor: 'pointer', minHeight: 44 }}>
@@ -706,6 +708,12 @@ export function ListingForm({
                     <button key={l} type="button" className="chip"
                       onClick={() => setBuyerFields((list) => [...list, { label: l, required: true }])}>+ {l}</button>
                   ))}
+                {!buyerFields.some((f) => f.kind === 'steam_trade') && (
+                  <button type="button" className="chip"
+                    onClick={() => setBuyerFields((list) => [...list, { label: STEAM_TRADE_LABEL, required: true, kind: 'steam_trade' }])}>
+                    + {t.d(STEAM_TRADE_LABEL)}
+                  </button>
+                )}
                 <button type="button" className="chip" onClick={() => setBuyerFields((list) => [...list, { label: '', required: true }])}>
                   + {t('Своё поле')}
                 </button>
@@ -716,6 +724,7 @@ export function ListingForm({
             ) : (
               <p className="hint">
                 {t('Покупатель заполнит это до оплаты, ответы будут в заказе. Пароли и коды не спрашивайте.')}
+                {buyerFields.some((f) => f.kind === 'steam_trade') && ` ${t('Ссылку на обмен Steam проверим по формату и подставим покупателю в следующий заказ.')}`}
               </p>
             )}
           </div>

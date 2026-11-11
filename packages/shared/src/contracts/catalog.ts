@@ -34,7 +34,14 @@ export const createListingSchema = z.object({
   topup: topupTermsInputSchema.nullable().default(null),
   // Что спросить у покупателя при покупке (buyer-data.ts): до трёх полей с разными названиями.
   buyerFields: z
-    .array(z.object({ label: z.string().trim().min(2, 'Название поля — от 2 символов').max(40), required: z.boolean().default(true) }))
+    .array(
+      z.object({
+        label: z.string().trim().min(2, 'Название поля — от 2 символов').max(40),
+        required: z.boolean().default(true),
+        // Часть 142: ссылка на обмен Steam — с проверкой формата.
+        kind: z.enum(['steam_trade']).optional(),
+      }),
+    )
     .max(3, 'Не больше трёх полей')
     .refine((a) => new Set(a.map((f) => f.label.toLowerCase())).size === a.length, 'Названия полей не должны повторяться')
     .nullable()

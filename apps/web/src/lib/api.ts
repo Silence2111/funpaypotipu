@@ -116,7 +116,7 @@ export type ListingDetail = ListingCard & {
   description: string;
   attributes: Record<string, unknown>;
   /** Что продавец спрашивает у покупателя при покупке. */
-  buyerFields?: Array<{ label: string; required: boolean }> | null;
+  buyerFields?: Array<{ label: string; required: boolean; kind?: 'steam_trade' }> | null;
   fulfillmentType: string;
   salesCount: number;
   /** Выдача раздела: автовыдача у аккаунтов — со склада строк, а не ключи. */

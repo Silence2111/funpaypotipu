@@ -223,6 +223,9 @@ export const EN_SHARED: Phrasebook = {
   // Данные покупателя
   'Укажите «{label}»': 'Fill in “{label}”',
   '«{label}» — не длиннее {n} символов': '“{label}” must be at most {n} characters',
+  'Ссылка на обмен Steam': 'Steam trade link',
+  'Ссылка на обмен Steam — вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=… (Steam → Инвентарь → Предложения обмена → «Кто может отправлять мне предложения»)':
+    'A Steam trade link looks like https://steamcommunity.com/tradeoffer/new/?partner=…&token=… (Steam → Inventory → Trade Offers → “Who can send me trade offers?”)',
 
   // Проверки форм
   'только строчные латинские буквы, цифры и _': 'only lowercase Latin letters, digits and _',

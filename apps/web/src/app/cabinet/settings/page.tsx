@@ -10,6 +10,7 @@ import { NotificationSettings } from '@/components/notification-settings';
 import { useT } from '@/lib/i18n/client';
 import { ConsentSettings } from '@/components/consent';
 import { AccountDeletion } from '@/components/account-deletion';
+import { SteamTradeSettings } from '@/components/steam-trade-settings';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -187,6 +188,8 @@ export default function SettingsPage() {
           </div>
         </form>
       )}
+
+      <SteamTradeSettings />
 
       <NotificationSettings />
 

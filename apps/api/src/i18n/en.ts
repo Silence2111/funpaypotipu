@@ -655,4 +655,9 @@ export const EN_API: Phrasebook = {
   'Заготовок не больше 100 — удалите ненужные': 'No more than 100 templates — delete the ones you don’t need',
   // Частичный возврат по спору (часть 140)
   'Доля возврата — 25, 50, 75 или 100%': 'The refund share is 25, 50, 75 or 100%',
+  // Ссылка на обмен Steam (часть 142)
+  'Ссылка на обмен Steam — вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=…':
+    'A Steam trade link looks like https://steamcommunity.com/tradeoffer/new/?partner=…&token=…',
+  'Ссылка на обмен Steam — вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=… (Steam → Инвентарь → Предложения обмена → «Кто может отправлять мне предложения»)':
+    'A Steam trade link looks like https://steamcommunity.com/tradeoffer/new/?partner=…&token=… (Steam → Inventory → Trade Offers → “Who can send me trade offers?”)',
 };

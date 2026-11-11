@@ -1222,7 +1222,7 @@ export class ListingsService {
     if (fulfillmentType !== 'manual') {
       throw new BadRequestException('Данные от покупателя спрашивают только у лотов с ручной выдачей');
     }
-    return raw.map((f) => ({ label: f.label, required: f.required })) as Prisma.InputJsonValue;
+    return raw.map((f) => ({ label: f.label, required: f.required, ...(f.kind ? { kind: f.kind } : {}) })) as Prisma.InputJsonValue;
   }
 
   /**

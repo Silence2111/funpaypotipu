@@ -250,4 +250,7 @@ export const LOT: Record<string, string> = {
   'без проигранных споров': 'no lost disputes',
   'не больше {n} проигранных споров': 'no more than {n} lost disputes',
   'без плохих оценок от продавцов': 'no bad ratings from sellers',
+  // Ссылка на обмен Steam (часть 142)
+  'Где взять: Steam → Инвентарь → Предложения обмена → «Кто может отправлять мне предложения». Запомним для следующих заказов.':
+    'Where to find it: Steam → Inventory → Trade Offers → “Who can send me trade offers?”. We’ll remember it for next orders.',
 };
