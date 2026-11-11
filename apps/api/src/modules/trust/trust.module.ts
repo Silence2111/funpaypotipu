@@ -1,13 +1,14 @@
 import { Global, Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
-import { TrustController } from './trust.controller';
+import { AntifraudController, TrustController } from './trust.controller';
 import { TrustService } from './trust.service';
+import { AntifraudService } from './antifraud.service';
 
 @Global()
 @Module({
   imports: [AuthModule],
-  controllers: [TrustController],
-  providers: [TrustService],
-  exports: [TrustService],
+  controllers: [TrustController, AntifraudController],
+  providers: [TrustService, AntifraudService],
+  exports: [TrustService, AntifraudService],
 })
 export class TrustModule {}

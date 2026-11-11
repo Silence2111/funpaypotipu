@@ -26,13 +26,16 @@ export function ReportButton({
   targetId,
   ownerId,
   inline = false,
+  compact = false,
 }: {
-  targetType: 'listing' | 'user' | 'buy_request';
+  targetType: 'listing' | 'user' | 'buy_request' | 'game_chat';
   targetId: string;
   /** Чей лот или профиль: себе жаловаться не нужно. */
   ownerId: string;
   /** В строке с другими кнопками: закрытая — по ширине кнопки, открытая — на всю. */
   inline?: boolean;
+  /** Только значок флажка — в строке сообщения чата, где кнопка под каждым шумит. */
+  compact?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -78,13 +81,15 @@ export function ReportButton({
       {!open && (
         <button
           type="button"
-          className="chip"
+          className={compact ? 'icon-btn' : 'chip'}
+          aria-label={compact ? t('Пожаловаться') : undefined}
+          title={compact ? t('Пожаловаться') : undefined}
           onClick={() => {
             if (!getToken()) return router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`);
             setOpen(true);
           }}
         >
-          <Flag size={15} strokeWidth={1.75} /> {t('Пожаловаться')}
+          <Flag size={15} strokeWidth={1.75} /> {!compact && t('Пожаловаться')}
         </button>
       )}
       {open && (
@@ -95,7 +100,9 @@ export function ReportButton({
                 ? t('Что не так с лотом')
                 : targetType === 'buy_request'
                   ? t('Что не так с запросом')
-                  : t('Что не так с пользователем')}
+                  : targetType === 'game_chat'
+                    ? t('Что не так с сообщением')
+                    : t('Что не так с пользователем')}
             </legend>
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
               {REASONS.map((r) => (

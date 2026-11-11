@@ -15,6 +15,7 @@ import { SupportSection } from './support-section';
 import { StatsSection } from './stats-section';
 import { RecoverySection } from './recovery-section';
 import { CatalogSection } from './catalog-section';
+import { GameChatSection } from './game-chat-section';
 
 /** Разделы консоли и роли, которым они открыты. Администратору открыто всё. */
 const TABS = [
@@ -25,6 +26,7 @@ const TABS = [
   { key: 'recovery', label: 'Восстановление', roles: ['agent', 'moderator'] },
   { key: 'listings', label: 'Лоты', roles: ['moderator'] },
   { key: 'users', label: 'Пользователи', roles: ['moderator'] },
+  { key: 'game-chat', label: 'Чаты игр', roles: ['moderator'] },
   { key: 'payouts', label: 'Выплаты', roles: ['finance'] },
   { key: 'kyc', label: 'Проверка личности', roles: ['moderator'] },
   { key: 'fees', label: 'Комиссии и промокоды', roles: [] as string[] },
@@ -118,6 +120,8 @@ export function AdminConsole() {
         <ListingsSection isAdmin={isAdmin} />
       ) : tab.key === 'users' ? (
         <UsersSection isAdmin={isAdmin} meId={me?.userId ?? null} />
+      ) : tab.key === 'game-chat' ? (
+        <GameChatSection />
       ) : tab.key === 'payouts' ? (
         <PayoutsSection />
       ) : tab.key === 'kyc' ? (

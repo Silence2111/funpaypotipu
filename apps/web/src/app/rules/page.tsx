@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ShieldCheck, AlertTriangle, Percent, Scale, Ban } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, Percent, Scale, Ban, MessagesSquare } from 'lucide-react';
 import { PROHIBITED_GOODS } from '@gamemarket/shared/sections';
 import { getT } from '@/lib/i18n/server';
 
@@ -84,6 +84,17 @@ export default async function RulesPage() {
             <li>{t('Обмен контактами и увод сделки в обход площадки (контакты в чате маскируются).')}</li>
             <li>{t('Фиктивные сделки и накрутка отзывов.')}</li>
             <li>{t('Фишинг и вредоносные вложения.')}</li>
+            <li>{t('Торговля между своими аккаунтами: покупка у аккаунта с тем же браузером или реквизитами вывода не пройдёт.')}</li>
+          </ul>
+        </Section>
+
+        <Section id="chat" icon={<MessagesSquare size={20} strokeWidth={1.75} />} title={t('Чат игры')}>
+          <ul className="muted" style={{ margin: 0, paddingLeft: 18, fontSize: 15, lineHeight: 1.7 }}>
+            <li>{t('Пишите, что ищете или предлагаете; сама сделка — только через лот, иначе защиты сделки нет.')}</li>
+            <li>{t('Контакты и ссылки скрываются автоматически.')}</li>
+            <li>{t('Нельзя: спам и повторы, сообщения заглавными, оскорбления, реклама других площадок.')}</li>
+            <li>{t('Новым аккаунтам — сообщение раз в минуту и до 20 в сутки, пока нет первой сделки и не прошло 3 дня.')}</li>
+            <li>{t('На сообщение можно пожаловаться. Модератор удаляет нарушения и может запретить писать в чат на сутки, неделю или месяц.')}</li>
           </ul>
         </Section>
       </div>

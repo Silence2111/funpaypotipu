@@ -6,6 +6,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { randomUUID } from 'node:crypto';
@@ -46,6 +47,7 @@ import {
   NO_WARRANTY_SEGMENTS,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
+import { AntifraudService } from '../trust/antifraud.service';
 import { SearchService } from '../search/search.service';
 import { StorageService } from '../storage/storage.service';
 import { LedgerService } from '../ledger/ledger.service';
@@ -211,6 +213,8 @@ export class ListingsService {
     private readonly search: SearchService,
     private readonly storage: StorageService,
     private readonly ledger: LedgerService,
+    // Лимит лотов новичка (часть 128); в юнит-тестах сервис без него.
+    @Optional() private readonly antifraud?: AntifraudService,
   ) {}
 
   /**
@@ -979,6 +983,7 @@ export class ListingsService {
     });
     if (!category) throw new NotFoundException('Категория не найдена для указанной игры');
     if (category.salesClosed) throw sectionClosedError(category.closedReason);
+    await this.antifraud?.assertCanList(sellerId);
 
     await this.validateAttributes(input.categoryId, input.attributes);
     // Слова о передаче аккаунта — лот на проверку модератору (часть 122).

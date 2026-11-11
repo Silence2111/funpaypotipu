@@ -51,6 +51,7 @@ import { ChatService } from '../chat/chat.service';
 import { PartnersService } from '../partners/partners.service';
 import { SafeDealService } from '../safe-deal/safe-deal.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
+import { AntifraudService } from '../trust/antifraud.service';
 import { FeesService } from './fees.service';
 import { FulfillmentService } from './fulfillment.service';
 
@@ -81,6 +82,8 @@ export class OrdersService {
     private readonly safeDeal: SafeDealService,
     // Вебхук продавца (часть 127); в юнит-тестах может не быть.
     @Optional() private readonly webhooks?: WebhooksService,
+    // Сделки между связанными аккаунтами (часть 128); в юнит-тестах — без него.
+    @Optional() private readonly antifraud?: AntifraudService,
   ) {}
 
   /**
@@ -154,6 +157,8 @@ export class OrdersService {
     if (listing?.status === 'sold_out') throw new BadRequestException('Лот закончился');
     if (!listing || listing.status !== 'active') throw new NotFoundException('Лот недоступен');
     if (listing.sellerId === buyerId) throw new BadRequestException('Нельзя купить собственный лот');
+    // Свой второй аккаунт — тоже свой лот: накрутка продаж и кэшбэк с себя (часть 128).
+    await this.antifraud?.assertNotLinked(buyerId, listing.sellerId);
     if (listing.fulfillmentType === 'provider') {
       const accountError = topupAccountError(listing.game.slug, account);
       if (accountError) throw new BadRequestException(accountError);

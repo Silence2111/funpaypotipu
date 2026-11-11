@@ -1269,6 +1269,204 @@ async function scenarioWarranty(rnd) {
 }
 
 /**
+ * Защита от мошенничества (часть 128): лимиты новичков (лоты за сутки,
+ * оплаты за сутки, попытки оплаты в час), связанные аккаунты — общий
+ * браузер и реквизиты: покупка между ними и вывод на реквизиты забаненного
+ * запрещены, вход с браузера забаненного — сигнал. Риск и связи — в
+ * консоли. Лимиты включает сценарий (в e2e по умолчанию выключены) и в
+ * конце возвращает значения по умолчанию.
+ */
+async function scenarioAntifraud(rnd) {
+  console.log('\n— Защита от мошенничества —');
+  const admin = await register('afa', rnd);
+  await grant(admin, 'admin');
+  const A = { token: admin.token };
+  const regOn = async (prefix, device) => {
+    const r = await j('/auth/register', {
+      method: 'POST',
+      headers: { 'X-Device-Fingerprint': device },
+      body: JSON.stringify({ email: `${prefix}${rnd}@e2e.local`, password: 'password123', username: `${prefix}${rnd}`, pdConsent: true }),
+    });
+    return { token: r.body.accessToken, id: r.body.user?.id };
+  };
+  const set = await j('/admin/antifraud', {
+    method: 'PUT', ...A,
+    body: JSON.stringify({ enabled: true, newbiePayDay: 100000, paymentsPerHour: 20, newbiePaymentsPerHour: 2, newbieLotsPerDay: 2, blockLinkedDeals: true }),
+  });
+  const bad = await j('/admin/antifraud', { method: 'PUT', ...A, body: JSON.stringify({ ...set.body, paymentsPerHour: 1 }) });
+  check(
+    'Лимиты в консоли: администратор сохраняет, вне пределов — 400 с подсказкой',
+    set.status === 200 && set.body.enabled === true && set.body.newbieLotsPerDay === 2 && bad.status === 400 && bad.body.paymentsPerHour?.[0] === 'Оплат в час — от 3 до 200',
+    JSON.stringify({ set: [set.status, set.body], bad: [bad.status, bad.body] }),
+  );
+
+  try {
+    const seller = await register('afs', rnd);
+    const seller2 = await register('afc', rnd);
+    const buyer = await register('afb', rnd);
+    const lotA = await createListing(seller.token, 'skins', '30000', { title: `Антифрод А ${rnd}` });
+    const lotB = await createListing(seller.token, 'skins', '90000', { title: `Антифрод Б ${rnd}` });
+    const game = (await j('/catalog/games/cs2')).body;
+    const skins = game.categories.find((c) => c.slug === 'skins');
+    const third = await j('/listings', { method: 'POST', token: seller.token, body: JSON.stringify({ gameId: game.id, categoryId: skins.id, title: `Антифрод третий ${rnd}`, description: 'test', price: '1000', currency: 'RUB', attributes: { rarity: 'Covert' } }) });
+    check(
+      'Новичок: 2 лота за сутки — можно, третий — 429 «newbie_lot_limit» с объяснением',
+      third.status === 429 && third.body.error === 'newbie_lot_limit' && third.body.message?.includes('до 2 лотов'),
+      JSON.stringify({ third: [third.status, third.body] }),
+    );
+
+    const lotC = await createListing(seller2.token, 'skins', '10000', { title: `Антифрод В ${rnd}` });
+    const order = async (listingId) => (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) })).body;
+    const deposit = (orderId) => j('/payments/deposit', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId }) });
+    const o1 = await order(lotA);
+    const d1 = await deposit(o1.id);
+    await j('/payments/mock/callback?providerRef=' + d1.body.providerRef, { method: 'POST' });
+    const d2 = await deposit((await order(lotB)).id);
+    const d3 = await deposit((await order(lotC)).id);
+    const d4 = await deposit((await order(lotC)).id);
+    check(
+      'Новичок: оплата 300 ₽ — да; ещё 900 ₽ сверх 1 000 ₽ за сутки — 403; 100 ₽ — да; третья попытка за час — 429',
+      d1.status === 201 && d2.status === 403 && d2.body.error === 'newbie_pay_limit' && d3.status === 201 &&
+        d4.status === 429 && d4.body.error === 'payments_too_often',
+      JSON.stringify({ d1: d1.status, d2: [d2.status, d2.body?.error], d3: d3.status, d4: [d4.status, d4.body?.error] }),
+    );
+
+    // Один браузер — два аккаунта: покупка у себя самого.
+    const dev = `dev-${rnd}`;
+    const twinSeller = await regOn('aft', dev);
+    const twinBuyer = await regOn('afu', dev);
+    const twinLot = await createListing(twinSeller.token, 'skins', '20000', { title: `Антифрод близнец ${rnd}` });
+    const twin = await j('/orders', { method: 'POST', token: twinBuyer.token, body: JSON.stringify({ listingId: twinLot }) });
+    // Одни реквизиты ЮMoney у двух аккаунтов — то же самое.
+    const wallet = `4100${String(Date.now()).slice(-9)}7`;
+    const rs = await register('afr', rnd);
+    const rb = await register('afq', rnd);
+    await j('/payouts/destinations', { method: 'POST', token: rs.token, body: JSON.stringify({ method: 'yoomoney', destination: wallet }) });
+    await j('/payouts/destinations', { method: 'POST', token: rb.token, body: JSON.stringify({ method: 'yoomoney', destination: wallet }) });
+    const rLot = await createListing(rs.token, 'skins', '20000', { title: `Антифрод реквизиты ${rnd}` });
+    const viaReq = await j('/orders', { method: 'POST', token: rb.token, body: JSON.stringify({ listingId: rLot }) });
+    const plain = await j('/orders', { method: 'POST', token: rb.token, body: JSON.stringify({ listingId: lotA }) });
+    check(
+      'Связанные аккаунты: общий браузер и общий кошелёк ЮMoney — покупка 409 «linked_accounts»; у чужого — можно',
+      twin.status === 409 && twin.body.error === 'linked_accounts' && viaReq.status === 409 && viaReq.body.error === 'linked_accounts' &&
+        plain.status === 201,
+      JSON.stringify({ twin: [twin.status, twin.body?.error], viaReq: [viaReq.status, viaReq.body?.error], plain: plain.status }),
+    );
+
+    // Забанили — его браузер и реквизиты больше не работают на новые аккаунты.
+    await j(`/moderation/users/${rs.id}/status`, { method: 'POST', ...A, body: JSON.stringify({ status: 'banned', reason: 'Накрутка' }) });
+    await j(`/moderation/users/${twinSeller.id}/status`, { method: 'POST', ...A, body: JSON.stringify({ status: 'banned', reason: 'Накрутка' }) });
+    const evader = await register('afe', rnd);
+    const evade = await j('/payouts/destinations', { method: 'POST', token: evader.token, body: JSON.stringify({ method: 'yoomoney', destination: wallet }) });
+    const comeback = await regOn('afv', dev);
+    let seen = null;
+    for (let i = 0; i < 20 && !seen; i++) {
+      await wait(500);
+      const t = (await j(`/trust/users/${comeback.id}`, A)).body;
+      if (t.recent?.some((x) => x.payload?.what === 'banned_device')) seen = t;
+    }
+    const risk = (await j(`/trust/users/${twinBuyer.id}`, A)).body;
+    const row = (await j(`/moderation/users?q=${twinBuyer.id}`, A)).body.items?.[0];
+    const link = risk.links?.find((l) => l.userId === twinSeller.id);
+    check(
+      'Реквизиты забаненного — 403 «requisites_blocked»; вход с его браузера — сигнал; в консоли риск, связь «общий браузер» и бан',
+      evade.status === 403 && evade.body.error === 'requisites_blocked' && !!seen && risk.score > 0 &&
+        link?.reasons?.includes('device') && link?.status === 'banned' && row?.risk > 0,
+      JSON.stringify({ evade: [evade.status, evade.body?.error], seen: !!seen, score: risk.score, link, rowRisk: row?.risk }),
+    );
+  } finally {
+    const reset = await j('/admin/antifraud', { method: 'DELETE', ...A });
+    check('Лимиты — снова по умолчанию (в e2e выключены)', reset.status === 200 && reset.body.saved === false && reset.body.enabled === false, JSON.stringify(reset.body));
+  }
+}
+
+/**
+ * Общий чат игры (часть 133): читать — всем, писать — после входа; контакты
+ * скрываются с сигналом риска; пауза, повтор и крик — отказ; у новичка — до
+ * 20 в сутки; жалоба — в очередь, решение «удалить и запретить» убирает
+ * сообщение и закрывает автору чат на неделю; запрет снимается в консоли.
+ */
+async function scenarioGameChat(rnd) {
+  console.log('\n— Чат игры —');
+  const poster = await register('gcp', rnd);
+  const other = await register('gco', rnd);
+  const mod = await register('gcm', rnd);
+  await grant(mod, 'moderator');
+  const P = { token: poster.token };
+  const say = (body, who = P) => j('/game-chat/cs2', { method: 'POST', ...who, body: JSON.stringify({ body }) });
+  // Пауза новичка — минута: сдвигаем прежние на 65 с назад, повтор (10 мин) их ещё видит.
+  const rewind = () => prisma.gameChatMessage.updateMany({ where: { userId: poster.id }, data: { createdAt: new Date(Date.now() - 65_000) } });
+
+  const anon = await j('/game-chat/cs2', { method: 'POST', body: JSON.stringify({ body: 'привет' }) });
+  const first = await say(`Скупаю скины AWP ${rnd}, предлагайте лоты`);
+  const tooSoon = await say(`Ещё скупаю ножи ${rnd}`);
+  await rewind();
+  const contacts = await say(`Пиши в телегу @seller${rnd} или t.me/seller${rnd}`);
+  const leak = await prisma.riskSignal.findFirst({ where: { userId: poster.id, type: 'contact_leak' } });
+  await rewind();
+  const repeat = await say(`скупаю СКИНЫ awp ${rnd} — предлагайте лоты!`);
+  const shout = await say('СКУПАЮ ВСЕ СКИНЫ ДОРОГО СРОЧНО');
+  const list = (await j('/game-chat/cs2')).body;
+  check(
+    'Чат игры: без входа — 401; сообщения — в ленте; через секунду — 429 с паузой; контакты скрыты с сигналом; повтор и крик — отказ',
+    anon.status === 401 && first.status === 201 && tooSoon.status === 429 && tooSoon.body.error === 'chat_cooldown' &&
+      contacts.status === 201 && contacts.body.masked === true && !contacts.body.body.includes(`@seller${rnd}`) && !!leak &&
+      repeat.status === 429 && repeat.body.error === 'chat_repeat' && shout.status === 400 &&
+      list.items?.some((m) => m.id === contacts.body.id) && list.items.some((m) => m.id === first.body.id),
+    JSON.stringify({ anon: anon.status, first: first.status, tooSoon: tooSoon.body?.error, contacts: contacts.body?.body, leak: !!leak, repeat: repeat.body?.error, shout: shout.status, last: list.items?.at(-1)?.id }),
+  );
+
+  // Новичок — до 20 сообщений в сутки.
+  const game = await prisma.game.findUnique({ where: { slug: 'cs2' }, select: { id: true } });
+  await prisma.gameChatMessage.createMany({
+    data: Array.from({ length: 18 }, (_, i) => ({ gameId: game.id, userId: poster.id, body: `старое ${i}`, fingerprint: `old${i}${rnd}`, createdAt: new Date(Date.now() - 3 * 3_600_000) })),
+  });
+  await rewind();
+  const limit = await say(`Двадцать первое ${rnd}`);
+  check(
+    'Новичок: 21-е сообщение за сутки — 429 «chat_newbie_limit»',
+    limit.status === 429 && limit.body.error === 'chat_newbie_limit',
+    JSON.stringify({ limit: [limit.status, limit.body?.error] }),
+  );
+  await prisma.gameChatMessage.deleteMany({ where: { userId: poster.id, body: { startsWith: 'старое ' } } });
+
+  const own = await j('/reports', { method: 'POST', token: poster.token, body: JSON.stringify({ targetType: 'game_chat', targetId: first.body.id, reason: 'Спам' }) });
+  const rep = await j('/reports', { method: 'POST', token: other.token, body: JSON.stringify({ targetType: 'game_chat', targetId: first.body.id, reason: 'Спам' }) });
+  const queue = (await j('/moderation/game-chat?reported=1', { token: mod.token })).body;
+  const inQueue = queue.items?.find((m) => m.id === first.body.id);
+  const handled = await j(`/moderation/reports/${rep.body.id}/handle`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'resolved', action: 'mute_chat', note: 'Спам в чате' }) });
+  const after = (await j('/game-chat/cs2')).body;
+  await rewind();
+  const muted = await say(`Можно писать? ${rnd}`);
+  const note = await prisma.notification.findFirst({ where: { userId: poster.id, type: 'chat_muted' } });
+  check(
+    'Жалоба на сообщение чата: на своё — 400; в консоли «С жалобами»; «удалить и запретить» — сообщения нет, автору 403 «chat_muted» с датой и уведомление',
+    own.status === 400 && rep.status === 201 && inQueue?.openReports === 1 && (handled.status === 200 || handled.status === 201),
+    JSON.stringify({ own: own.status, rep: rep.status, inQueue: inQueue?.openReports, handled: handled.status }),
+  );
+  check(
+    'После решения: сообщения в чате нет, писать нельзя до даты, уведомление пришло',
+    !after.items?.some((m) => m.id === first.body.id) && muted.status === 403 && muted.body.error === 'chat_muted' &&
+      new Date(muted.body.until).getTime() > Date.now() + 6 * 86_400_000 && !!note,
+    JSON.stringify({ gone: !after.items?.some((m) => m.id === first.body.id), muted: [muted.status, muted.body?.error, muted.body?.until], note: !!note }),
+  );
+
+  const unmute = await j(`/moderation/game-chat/users/${poster.id}/mute`, { method: 'POST', token: mod.token, body: JSON.stringify({ hours: 0 }) });
+  await rewind();
+  const again = await say(`Снова пишу ${rnd}`);
+  const removed = await j(`/game-chat/messages/${again.body.id}`, { method: 'DELETE', token: poster.token });
+  const foreign = await j(`/game-chat/messages/${contacts.body.id}`, { method: 'DELETE', token: other.token });
+  const final = (await j('/game-chat/cs2')).body;
+  const log = await prisma.auditLog.findFirst({ where: { action: 'game_chat.mute', entityId: poster.id } });
+  check(
+    'Запрет снят — снова можно писать; своё удаляется, чужое — 403; в журнале — запрет',
+    unmute.status === 200 && again.status === 201 && removed.status === 200 && foreign.status === 403 &&
+      !final.items?.some((m) => m.id === again.body.id) && !!log,
+    JSON.stringify({ unmute: unmute.status, again: again.status, removed: removed.status, foreign: foreign.status, log: !!log }),
+  );
+}
+
+/**
  * API для продавцов (часть 127): ключ показывается один раз и работает
  * вместо входа; лоты — цена, снять и вернуть, склад автовыдачи; продажи и
  * выдача с сообщением; вебхук «оплачен новый заказ» с подписью и повтором
@@ -5272,6 +5470,8 @@ async function scenarioTelegramBot(rnd) {
   await scenarioSellerApi(rnd);
   await scenarioServiceTerm(rnd);
   await scenarioWarranty(rnd);
+  await scenarioAntifraud(rnd);
+  await scenarioGameChat(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

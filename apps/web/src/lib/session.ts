@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { documentLang } from './i18n/lang';
+import { deviceHeader } from './device';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 const TOKEN_KEY = 'gm_access';
@@ -50,6 +51,8 @@ function rawFetch(path: string, opts: RequestInit, token: string | null) {
       'Content-Type': 'application/json',
       // Ошибки API — на языке сайта, а не браузера.
       'Accept-Language': documentLang(),
+      // Браузер — для «связанных аккаунтов» (часть 128).
+      ...deviceHeader(),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...opts.headers,
     },
@@ -65,7 +68,7 @@ async function tryRefresh(): Promise<string | null> {
       const res = await fetch(`${API_URL}/api/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...deviceHeader() },
       });
       if (!res.ok) return null;
       const data = (await res.json()) as { user: SessionUser; accessToken: string };

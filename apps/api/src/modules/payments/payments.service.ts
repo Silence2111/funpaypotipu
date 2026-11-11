@@ -6,11 +6,13 @@ import {
   Logger,
   NotFoundException,
   UnauthorizedException,
+  Optional,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@gamemarket/db';
 import { chargeFor, depositToBalance, type GatewayMethodKey } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
+import { AntifraudService } from '../trust/antifraud.service';
 import { OrdersService } from '../orders/orders.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { SafeDealService } from '../safe-deal/safe-deal.service';
@@ -31,6 +33,8 @@ export class PaymentsService {
     private readonly orders: OrdersService,
     private readonly ledger: LedgerService,
     private readonly safeDeal: SafeDealService,
+    // Частота оплат и лимит новичка (часть 128); в юнит-тестах — без него.
+    @Optional() private readonly antifraud?: AntifraudService,
   ) {}
 
   /**
@@ -113,6 +117,7 @@ export class PaymentsService {
       throw new BadRequestException('Этот способ оплаты сейчас недоступен — выберите другой.');
     }
     const { charge, surcharge } = chargeFor(p.amount, p.method);
+    await this.antifraud?.assertCanPay(p.userId, charge);
     const providerRef = randomUUID();
     await this.prisma.payment.create({
       data: {

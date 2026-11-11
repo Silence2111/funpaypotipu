@@ -579,4 +579,34 @@ export const EN_API: Phrasebook = {
     'A warranty is for keys, items and services — currency and top-ups have none',
   'Заказ завершён, гарантии по нему нет или она закончилась — спор открыть нельзя':
     'The order is complete and has no warranty, or it has ended — a dispute cannot be opened',
+  // Защита от мошенничества (часть 128)
+  'Слишком много попыток оплаты за час — не больше {0}. Попробуйте позже или напишите в поддержку.':
+    'Too many payment attempts this hour — the limit is {0}. Try again later or contact support.',
+  'Новым аккаунтам — до {0} ₽ оплат картой и по СБП за сутки. Ограничение снимется после первой завершённой сделки или через 3 дня после регистрации.':
+    'New accounts can pay up to {0} ₽ a day by card or SBP. The limit lifts after the first completed deal or 3 days after sign-up.',
+  'Новым продавцам — до {0} лотов за сутки. Ограничение снимется после первой завершённой сделки или через 3 дня после регистрации.':
+    'New sellers can list up to {0} items a day. The limit lifts after the first completed deal or 3 days after sign-up.',
+  'Покупка недоступна: аккаунты покупателя и продавца связаны — общий браузер или реквизиты вывода. Если это ошибка, напишите в поддержку.':
+    'This purchase is unavailable: the buyer’s and seller’s accounts are linked by a shared browser or payout details. If this is a mistake, contact support.',
+  'Вывод на эти реквизиты недоступен: они связаны с заблокированным аккаунтом. Напишите в поддержку.':
+    'Withdrawals to these details are unavailable: they are linked to a blocked account. Contact support.',
+  'Оплаты новичка за сутки — от 1 000 до 1 000 000 ₽': 'New account payments per day: from 1,000 to 1,000,000 ₽',
+  'Оплат в час — от 3 до 200': 'Payments per hour: from 3 to 200',
+  'Оплат в час у новичка — от 1 до 100': 'New account payments per hour: from 1 to 100',
+  'Лотов в сутки у новичка — от 1 до 1000': 'New seller listings per day: from 1 to 1000',
+  // Общий чат игры (часть 133)
+  'Сообщение — до {0} знаков': 'A message can be up to {0} characters',
+  'Сообщение — от 2 знаков': 'A message needs at least 2 characters',
+  'Причина — от 3 знаков': 'The reason needs at least 3 characters',
+  'Срок запрета — сутки, неделя или месяц': 'The ban lasts a day, a week or a month',
+  'Модератор запретил вам писать в чат игр. Причина и срок — ниже.': 'A moderator has barred you from posting in game chats. The reason and end date are below.',
+  'Не пишите заглавными — так сообщение похоже на спам': 'Please don’t write in capitals — it looks like spam',
+  'Следующее сообщение — через {0} с.': 'You can send the next message in {0} s.',
+  'Новым аккаунтам — до {0} сообщений в чатах игр за сутки. Ограничение снимется после первой сделки или через 3 дня.':
+    'New accounts can post up to {0} messages a day in game chats. The limit lifts after the first deal or in 3 days.',
+  'Напишите сообщение словами': 'Please write the message in words',
+  'Это сообщение уже было — повторить можно через {0} минут.': 'You already sent this message — you can repeat it in {0} minutes.',
+  'Это не ваше сообщение': 'This is not your message',
+  'Удалить и запретить писать можно по жалобе на сообщение в чате игры':
+    'Deleting and barring from posting only apply to a report about a game chat message',
 };

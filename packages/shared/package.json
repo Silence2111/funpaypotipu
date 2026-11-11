@@ -108,6 +108,14 @@
     "./warranty": {
       "types": "./dist/warranty.d.ts",
       "default": "./dist/warranty.js"
+    },
+    "./antifraud": {
+      "types": "./dist/antifraud.d.ts",
+      "default": "./dist/antifraud.js"
+    },
+    "./game-chat": {
+      "types": "./dist/game-chat.d.ts",
+      "default": "./dist/game-chat.js"
     }
   },
   "scripts": {

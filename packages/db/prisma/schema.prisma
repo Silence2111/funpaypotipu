@@ -255,6 +255,7 @@ model User {
   stockWatches         StockWatch[]
   roles                UserRole[]
   riskSignals          RiskSignal[]
+  gameChat             GameChatMessage[]
   recoveries           AccountRecovery[]
   emailChanges         EmailChange[]
 
@@ -280,6 +281,9 @@ model Profile {
   onlineAt         DateTime? @map("online_at")
   // «Отпуск»: продавец снял лоты разом и вернёт их одной кнопкой. null — работает.
   awaySince        DateTime? @map("away_since")
+  /// Запрет писать в общий чат игр до этого времени (часть 133), с причиной.
+  chatMutedUntil   DateTime? @map("chat_muted_until")
+  chatMuteReason   String?   @map("chat_mute_reason")
   // Инструменты продавца: приветствие покупателю в новом диалоге (null —
   // выключено) и автоподнятие лотов, как только проходит пауза.
   greetingText     String?   @map("greeting_text")
@@ -356,6 +360,9 @@ model AuthSession {
   @@index([userId])
   @@index([refreshTokenHash])
   @@index([familyId])
+  // Связанные аккаунты (часть 128): общий браузер и общий адрес.
+  @@index([fingerprint])
+  @@index([ip])
   @@map("auth_sessions")
 }
 
@@ -424,8 +431,33 @@ model Game {
 
   categories Category[]
   listings   Listing[]
+  chat       GameChatMessage[]
 
   @@map("games")
+}
+
+/// Общий чат игры (часть 133): «скупаю скины», «кто продаст голду». Текст —
+/// уже со скрытыми контактами. Удалённое сотрудником остаётся в базе с
+/// причиной (доказательства по жалобам), на сайте его нет.
+model GameChatMessage {
+  id           String    @id @default(uuid()) @db.Uuid
+  gameId       String    @map("game_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  body         String
+  /// Отпечаток текста для повторов (shared/game-chat.ts chatFingerprint).
+  fingerprint  String
+  deletedAt    DateTime? @map("deleted_at")
+  deletedBy    String?   @map("deleted_by") @db.Uuid
+  deleteReason String?   @map("delete_reason")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, createdAt])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("game_chat_messages")
 }
 
 model Category {
@@ -776,6 +808,9 @@ model Payout {
   failureReason  String?      @map("failure_reason")
   // Почему отклонил сотрудник: продавец видит её в кошельке и уведомлении.
   rejectReason   String?      @map("reject_reason")
+  /// HMAC реквизитов (как у сохранённых): один человек — несколько аккаунтов
+  /// с одними реквизитами (часть 128). По нему реквизиты не восстановить.
+  destinationFp  String?      @map("destination_fp")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
@@ -783,6 +818,7 @@ model Payout {
 
   @@index([userId])
   @@index([status])
+  @@index([destinationFp])
   @@map("payouts")
 }
 
@@ -802,6 +838,7 @@ model PayoutDestination {
 
   @@unique([userId, fingerprint])
   @@index([userId, lastUsedAt])
+  @@index([fingerprint])
   @@map("payout_destinations")
 }
 
@@ -1728,4 +1765,3 @@ model WebhookDelivery {
   @@index([webhookId, createdAt])
   @@map("webhook_deliveries")
 }
-

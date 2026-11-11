@@ -292,4 +292,19 @@ export const CATALOG: Record<string, string> = {
   'Раздел закрыт для продажи': 'This section is closed for sales',
   'Продажа в разделе закрыта правилами площадки.': 'Sales in this section are closed by the marketplace rules.',
   'Что нельзя продавать на GameMarket': 'What you can’t sell on GameMarket',
+  // Общий чат игры (часть 133)
+  'Контакты и ссылки скрыты: договариваться и платить — только через лоты.':
+    'Contacts and links are hidden: agree and pay only through listings.',
+  'Писать в чаты игр нельзя до {until}. Причина: {reason}': 'You can’t post in game chats until {until}. Reason: {reason}',
+  'нарушение правил чата': 'breaking the chat rules',
+  'Не удалось отправить сообщение.': 'Couldn’t send the message.',
+  'Удалить сообщение?': 'Delete the message?',
+  'Не удалось удалить сообщение.': 'Couldn’t delete the message.',
+  'Чат игры {game}': '{game} chat',
+  'Общий чат: ищут и предлагают. Контакты и ссылки скрываются — сделки только через лоты, иначе защиты сделки нет.':
+    'A shared chat for asks and offers. Contacts and links are hidden — deal only through listings, or there is no deal protection.',
+  'Пока тихо. Напишите первым: что ищете или что предлагаете.': 'Quiet so far. Be the first: say what you’re looking for or offering.',
+  'Например: скупаю скины, кто продаст голду': 'E.g. buying skins, who sells gold',
+  'Войдите': 'Sign in',
+  'чтобы писать в чат.': 'to post in the chat.',
 };

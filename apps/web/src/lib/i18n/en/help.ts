@@ -73,4 +73,17 @@ export const HELP: Record<string, string> = {
   'Разделы с аккаунтами и бустом закрыты для продажи: продать аккаунт — значит передать другому человеку логин и пароль, а это закон ограничивает (ст. 13.29.2 КоАП). Лот со словами о передаче аккаунта в других разделах уходит на проверку к модератору и не появляется в каталоге, пока его не одобрят.':
     'Account and boosting sections are closed for sales: selling an account means handing your login and password to someone else, which Russian law restricts (Art. 13.29.2 of the Administrative Code). A listing in other sections that mentions handing over an account goes to a moderator for review and stays out of the catalogue until approved.',
   'Фишинг и вредоносные вложения.': 'Phishing and malicious attachments.',
+  // Правила: связанные аккаунты (часть 128) и чат игры (часть 133)
+  'Торговля между своими аккаунтами: покупка у аккаунта с тем же браузером или реквизитами вывода не пройдёт.':
+    'Trading between your own accounts: a purchase from an account with the same browser or payout details won’t go through.',
+  'Чат игры': 'Game chat',
+  'Пишите, что ищете или предлагаете; сама сделка — только через лот, иначе защиты сделки нет.':
+    'Post what you’re looking for or offering; the deal itself goes only through a listing, or there is no deal protection.',
+  'Контакты и ссылки скрываются автоматически.': 'Contacts and links are hidden automatically.',
+  'Нельзя: спам и повторы, сообщения заглавными, оскорбления, реклама других площадок.':
+    'Not allowed: spam and repeats, all-caps messages, insults, ads for other marketplaces.',
+  'Новым аккаунтам — сообщение раз в минуту и до 20 в сутки, пока нет первой сделки и не прошло 3 дня.':
+    'New accounts: one message a minute and up to 20 a day until the first deal or 3 days after sign-up.',
+  'На сообщение можно пожаловаться. Модератор удаляет нарушения и может запретить писать в чат на сутки, неделю или месяц.':
+    'You can report a message. A moderator removes violations and can bar the author from the chat for a day, a week or a month.',
 };
