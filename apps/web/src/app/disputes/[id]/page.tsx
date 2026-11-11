@@ -11,6 +11,7 @@ import { DISPUTE_STATUS } from '@/lib/disputes';
 import { uploadViaPresignedUrl } from '@/lib/upload';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
+import { useDecisionDialog } from '@/components/admin/decision-dialog';
 import { backToDisputesQueue } from '@/lib/disputes-queue';
 
 interface Attach { url: string; mime: string }
@@ -140,19 +141,34 @@ function Dispute() {
     }, t('Файл отклонён (антивирус) или хранилище недоступно'));
   }
 
-  function resolve(outcome: 'buyer' | 'seller') {
-    const decision =
-      outcome === 'buyer'
-        ? t('Решение: вернуть деньги покупателю. Сторона, против которой оно, сможет один раз обжаловать до вступления в силу.')
-        : t('Решение: отдать деньги продавцу. Сторона, против которой оно, сможет один раз обжаловать до вступления в силу.');
-    const note = window.prompt(`${decision}\n${t('Комментарий для сторон:')}`, '');
-    if (note === null) return;
+  /**
+   * Решение арбитра (часть 140): пункт правил, комментарий сторонам и доля
+   * возврата покупателю — 100, 75, 50 или 25%; остаток — продавцу.
+   */
+  async function resolve(outcome: 'buyer' | 'seller', refundPct = 100) {
+    const d = await askDecision({
+      title:
+        outcome === 'buyer'
+          ? refundPct === 100
+            ? t('Решение: вернуть деньги покупателю. Сторона, против которой оно, сможет один раз обжаловать до вступления в силу.')
+            : t('Вернуть покупателю {pct}%, остаток — продавцу?', { pct: refundPct })
+          : t('Решение: отдать деньги продавцу. Сторона, против которой оно, сможет один раз обжаловать до вступления в силу.'),
+      hint: t('Комментарий для сторон:'),
+      withRule: outcome === 'buyer',
+      confirm: t('Принять решение'),
+    });
+    if (!d) return;
     void run(
-      () => apiFetch(`/disputes/${id}/resolve`, { method: 'POST', body: JSON.stringify({ outcome, ...(note.trim() ? { note: note.trim() } : {}) }) }),
+      () =>
+        apiFetch(`/disputes/${id}/resolve`, {
+          method: 'POST',
+          body: JSON.stringify({ outcome, note: d.reason, ...(outcome === 'buyer' ? { refundPct } : {}), ...(d.rule ? { rule: d.rule } : {}) }),
+        }),
       t('Не удалось принять решение'),
     );
   }
 
+  const { dialog: decisionDialog, ask: askDecision } = useDecisionDialog();
   const [appealText, setAppealText] = useState('');
   const [appealing, setAppealing] = useState(false);
 
@@ -219,6 +235,7 @@ function Dispute() {
 
   return (
     <div className="container" style={{ paddingTop: 48, maxWidth: 720 }}>
+      {decisionDialog}
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6, gap: 12, flexWrap: 'wrap' }}>
         <h1 className="h2" style={{ fontSize: 22 }}>
           <ShieldAlert size={20} strokeWidth={1.75} style={{ verticalAlign: -3, marginRight: 6 }} />
@@ -403,14 +420,20 @@ function Dispute() {
                 {t('Взять в работу')}
               </button>
             )}
-            <button type="button" className="chip" disabled={busy} onClick={() => resolve('buyer')}>
+            <button type="button" className="chip" disabled={busy} onClick={() => void resolve('buyer')}>
               {t('Вернуть деньги покупателю')}
             </button>
-            <button type="button" className="chip" disabled={busy} onClick={() => resolve('seller')}>
+            {/* Частичный возврат (часть 140): товар частично не соответствует описанию — пункт 2.2. */}
+            {[75, 50, 25].map((p) => (
+              <button key={p} type="button" className="chip" disabled={busy} onClick={() => void resolve('buyer', p)}>
+                {t('Вернуть {pct}%', { pct: p })}
+              </button>
+            ))}
+            <button type="button" className="chip" disabled={busy} onClick={() => void resolve('seller')}>
               {t('Отдать деньги продавцу')}
             </button>
           </div>
-          <p className="hint" style={{ marginTop: 8 }}>{t('Деньги сразу уходят выбранной стороне, стороны получат уведомление.')}</p>
+          <p className="hint" style={{ marginTop: 8 }}>{t('Решение вступит в силу после окна обжалования, стороны получат уведомление. Частичный возврат — когда товар не совпал с описанием лишь отчасти (пункт 2.2).')}</p>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
             <span className="hint" style={{ alignSelf: 'center' }}>{t('Запросить пояснения:')}</span>
             <button type="button" className="chip" disabled={busy} onClick={() => ask('buyer')}>

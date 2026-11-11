@@ -195,8 +195,6 @@ export const ORDERS: Record<string, string> = {
   'Отдать деньги продавцу': 'Release to the seller',
   'Комментарий для сторон:': 'Comment for both parties:',
   'Не удалось принять решение': 'Couldn’t record the decision',
-  'Деньги сразу уходят выбранной стороне, стороны получат уведомление.':
-    'The money goes to the chosen party right away; both parties will be notified.',
   'заметка, стороны её не видят': 'note, hidden from the parties',
   доказательство: 'evidence',
   'Файл-доказательство': 'Evidence file',
@@ -407,4 +405,10 @@ export const ORDERS: Record<string, string> = {
   'Не удалось вернуть деньги на карту — попробуйте вернуть на баланс.': 'Couldn’t refund to the card — try refunding to the balance.',
   'Заказ отменён, деньги возвращаются тем же способом оплаты — банк зачислит их за 1–10 дней.':
     'The order was cancelled; the money is going back via the same payment method — the bank will credit it within 1–10 days.',
+  // Частичный возврат по спору (часть 140)
+  'Спор решён: покупателю возвращено {pct}% суммы, остаток — продавцу.': 'Dispute resolved: the buyer got {pct}% back, the rest went to the seller.',
+  'Вернуть покупателю {pct}%, остаток — продавцу?': 'Refund {pct}% to the buyer and the rest to the seller?',
+  'Вернуть {pct}%': 'Refund {pct}%',
+  'Решение вступит в силу после окна обжалования, стороны получат уведомление. Частичный возврат — когда товар не совпал с описанием лишь отчасти (пункт 2.2).':
+    'The decision takes effect after the appeal window; both sides are notified. A partial refund is for goods that only partly didn’t match the description (rule 2.2).',
 };

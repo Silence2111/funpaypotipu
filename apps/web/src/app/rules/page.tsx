@@ -102,8 +102,15 @@ export default async function RulesPage() {
                 <h3 style={{ fontSize: 15, margin: '0 0 4px' }}>{t.d(g.title)}</h3>
                 <ol className="muted" style={{ margin: 0, paddingLeft: 0, listStyle: 'none', fontSize: 15, lineHeight: 1.7 }}>
                   {g.clauses.map((c) => (
-                    <li key={c.id} id={ruleAnchor(c.id)} style={{ scrollMarginTop: 80 }}>
+                    <li key={c.id} id={ruleAnchor(c.id)} style={{ scrollMarginTop: 80, marginBottom: 6 }}>
                       <b>{c.id}</b> {t.d(c.title)}
+                      {/* «Нарушение → санкция» и ответственность продавца (часть 140). */}
+                      {(c.sanction || c.refund) && (
+                        <span className="hint" style={{ display: 'block', margin: 0 }}>
+                          {c.sanction ? t.d(c.sanction) : ''}
+                          {c.refund ? ` ${t('Возврат покупателю: {pct}.', { pct: t.d(c.refund) })}` : ''}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ol>

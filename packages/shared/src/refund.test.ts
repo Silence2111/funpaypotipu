@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertBalanced, refundToOriginal } from './accounting';
+import { assertBalanced, disputeSplit, refundToOriginal, splitEscrow } from './accounting';
 import { canRefundToOriginal, refundAmount } from './refund';
 
 describe('возврат при отмене', () => {
@@ -18,3 +18,13 @@ describe('возврат при отмене', () => {
     expect(() => assertBalanced(refundToOriginal(10000n))).not.toThrow();
   });
 });
+
+describe('частичный возврат по спору (часть 140)', () => {
+  it('50% — покупателю половина, продавцу половина его выплаты, площадке остаток; проводки сходятся', () => {
+    const split = disputeSplit(10000n, 9000n, 50);
+    expect(split).toEqual({ refund: 5000n, sellerPayout: 4500n, revenue: 500n });
+    expect(() => assertBalanced(splitEscrow('b', 's', split))).not.toThrow();
+    expect(disputeSplit(10000n, 9000n, 100)).toEqual({ refund: 10000n, sellerPayout: 0n, revenue: 0n });
+  });
+});
+

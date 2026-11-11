@@ -94,6 +94,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <Link href="/privacy" className="footer-link">{t('Персональные данные')}</Link>
               <Link href="/contacts" className="footer-link">{t('Контакты')}</Link>
               <Link href="/podbor" className="footer-link">{t('Как мы меряем выдачу')}</Link>
+              <Link href="/prilozhenie" className="footer-link">{t('Приложение')}</Link>
             </nav>
             <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
               <InstallApp />

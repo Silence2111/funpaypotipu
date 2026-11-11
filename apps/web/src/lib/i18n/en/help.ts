@@ -92,4 +92,5 @@ export const HELP: Record<string, string> = {
     'A moderator’s decision always names the rule and the reason. Disagree? Appeal in your account under “Moderation decisions”: once, another staff member decides, the answer comes within 48 h. If only part of the money is in dispute, only that part is held and you can withdraw the rest.',
   'Решение арбитра вступает в силу через сутки. Сторона, против которой оно вынесено, может один раз его обжаловать — спор пересмотрит другой арбитр, и его решение окончательное. Журнал выдачи (оплата, выдача, когда покупатель открыл товар) площадка прикладывает к спору сама; что приложить сторонам — подсказано на странице спора.':
     'An arbiter’s decision takes effect after a day. The side it went against can appeal once — another arbiter reviews the dispute and their decision is final. The marketplace attaches the delivery log (payment, delivery, when the buyer opened the goods) itself; what each side should attach is shown on the dispute page.',
+  'Возврат покупателю: {pct}.': 'Refund to the buyer: {pct}.',
 };

@@ -194,7 +194,9 @@ export function systemText(t: T, body: string): string {
   const about = /^Вопрос о лоте «(.+)»$/s.exec(body);
   const qty = /^(.+?) Количество: (.+)\.$/s.exec(body);
   const why = /^(.+?) Причина: (.+)$/s.exec(body);
+  const split = /^Спор решён: покупателю возвращено (\d+)% суммы, остаток — продавцу\.$/.exec(body);
   // i18n-ignore-end
+  if (split) return t('Спор решён: покупателю возвращено {pct}% суммы, остаток — продавцу.', { pct: split[1]! });
   if (about) return t('Вопрос о лоте «{title}»', { title: about[1]! });
   if (qty) return `${systemText(t, qty[1]!)} ${t('Количество: {qty}.', { qty: qtyText(t, qty[2]!) })}`;
   if (why) return `${systemText(t, why[1]!)} ${t('Причина: {reason}', { reason: userText(t, why[2]!) })}`;

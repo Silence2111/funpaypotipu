@@ -1277,6 +1277,10 @@ model Dispute {
   firstArbiterId String?       @map("first_arbiter_id") @db.Uuid
   firstOutcome   String?       @map("first_outcome") @db.VarChar(10)
   firstNote      String?       @map("first_note")
+  /// Решение по пункту правил и доля возврата покупателю (часть 140):
+  /// 100 — всё покупателю, меньше — остаток продавцу и площадке.
+  rule           String?
+  refundPct      Int?          @map("refund_pct") @db.SmallInt
   createdAt      DateTime      @default(now()) @map("created_at")
 
   order    Order            @relation(fields: [orderId], references: [id])

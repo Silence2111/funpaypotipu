@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { DISPUTE_APPEAL_MAX_HOURS } from '@gamemarket/shared';
+import { DISPUTE_APPEAL_MAX_HOURS, DISPUTE_REFUND_PCTS, RULE_IDS } from '@gamemarket/shared';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -47,6 +47,13 @@ const requestSchema = z.object({ side: z.enum(['buyer', 'seller']) });
 const resolveSchema = z.object({
   outcome: z.enum(['seller', 'buyer']),
   note: z.string().max(2000).optional(),
+  // Часть 140: доля возврата покупателю и пункт правил.
+  refundPct: z
+    .number()
+    .int()
+    .refine((p) => (DISPUTE_REFUND_PCTS as readonly number[]).includes(p), 'Доля возврата — 25, 50, 75 или 100%')
+    .optional(),
+  rule: z.enum(RULE_IDS as [string, ...string[]]).optional(),
 });
 
 const appealSchema = z.object({
@@ -151,9 +158,9 @@ export class DisputesController {
   resolve(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(resolveSchema)) body: { outcome: 'seller' | 'buyer'; note?: string },
+    @Body(new ZodValidationPipe(resolveSchema)) body: { outcome: 'seller' | 'buyer'; note?: string; refundPct?: number; rule?: string },
   ) {
-    return this.disputes.resolve(id, user.userId, body.outcome, body.note);
+    return this.disputes.resolve(id, user.userId, body.outcome, body.note, { refundPct: body.refundPct, rule: body.rule });
   }
 
   /** Обжаловать решение арбитра (часть 135): один раз, пока оно не вступило в силу. */

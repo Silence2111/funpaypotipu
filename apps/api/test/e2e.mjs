@@ -1830,6 +1830,36 @@ async function scenarioSupportQuality(rnd) {
 }
 
 /**
+ * Правила «нарушение → санкция» (часть 140): арбитр возвращает покупателю
+ * долю — 25, 50, 75 или 100% — по пункту правил; остаток — продавцу и
+ * площадке в той же пропорции.
+ */
+async function scenarioPartialRefund(rnd) {
+  console.log('\n— Частичный возврат по спору —');
+  const seller = await register('pqs', rnd);
+  const buyer = await register('prb', rnd);
+  const agent = await register('pra', rnd);
+  await grant(agent, 'agent');
+  const lot = await createListing(seller.token, 'skins', '10000', { title: `Частично ${rnd}` });
+  const o = (await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) })).body;
+  await pay(buyer.token, o.id);
+  await j(`/orders/${o.id}/deliver`, { method: 'POST', token: seller.token });
+  const d = (await j('/disputes', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: o.id, reason: 'Скин другого качества, чем в описании' }) })).body;
+  await j(`/disputes/${d.id}/take`, { method: 'POST', token: agent.token });
+  const bad = await j(`/disputes/${d.id}/resolve`, { method: 'POST', token: agent.token, body: JSON.stringify({ outcome: 'buyer', refundPct: 30 }) });
+  const half = await j(`/disputes/${d.id}/resolve`, { method: 'POST', token: agent.token, body: JSON.stringify({ outcome: 'buyer', refundPct: 50, rule: '2.2', note: 'Износ хуже заявленного' }) });
+  const order = (await j(`/orders/${o.id}`, { token: buyer.token })).body;
+  const wb = (await j('/wallet', { token: buyer.token })).body;
+  const ws = (await j('/wallet', { token: seller.token })).body;
+  check(
+    'Частичный возврат: 30% — 400; 50% по пункту 2.2 — покупателю 50 ₽, продавцу половина его выплаты 45 ₽, заказ завершён',
+    bad.status === 400 && half.status === 201 && half.body.refundPct === 50 && half.body.rule === '2.2' &&
+      order.status === 'completed' && wb.balance === '5000' && ws.balance === '4500',
+    JSON.stringify({ bad: bad.status, half: [half.status, half.body?.refundPct, half.body?.rule], order: order.status, buyer: wb.balance, seller: ws.balance }),
+  );
+}
+
+/**
  * API для продавцов (часть 127): ключ показывается один раз и работает
  * вместо входа; лоты — цена, снять и вернуть, склад автовыдачи; продажи и
  * выдача с сообщением; вебхук «оплачен новый заказ» с подписью и повтором
@@ -5840,6 +5870,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioSellerProtection(rnd);
   await scenarioRefundChoice(rnd);
   await scenarioSupportQuality(rnd);
+  await scenarioPartialRefund(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);
