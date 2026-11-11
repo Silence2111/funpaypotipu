@@ -713,15 +713,19 @@ model Order {
 }
 
 model Delivery {
-  id          String         @id @default(uuid()) @db.Uuid
-  orderId     String         @unique @map("order_id") @db.Uuid
-  method      DeliveryMethod
-  payloadRef  Json?          @map("payload_ref")
-  providerRef String?        @unique @map("provider_ref") // идемпотентность
-  status      DeliveryStatus @default(pending)
-  deliveredAt DateTime?      @map("delivered_at")
-  confirmedAt DateTime?      @map("confirmed_at")
-  createdAt   DateTime       @default(now()) @map("created_at")
+  id            String         @id @default(uuid()) @db.Uuid
+  orderId       String         @unique @map("order_id") @db.Uuid
+  method        DeliveryMethod
+  payloadRef    Json?          @map("payload_ref")
+  providerRef   String?        @unique @map("provider_ref") // идемпотентность
+  status        DeliveryStatus @default(pending)
+  deliveredAt   DateTime?      @map("delivered_at")
+  confirmedAt   DateTime?      @map("confirmed_at")
+  /// Журнал выдачи (часть 135): когда покупатель впервые открыл ключ или
+  /// товар и сколько раз смотрел — в спор автоматически.
+  firstViewedAt DateTime?      @map("first_viewed_at")
+  viewCount     Int            @default(0) @map("view_count")
+  createdAt     DateTime       @default(now()) @map("created_at")
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -1236,6 +1240,18 @@ model Dispute {
   missedAt       DateTime?     @map("missed_at")
   // О каком сроке уже напомнили: новый срок от арбитра — новое напоминание.
   remindedFor    DateTime?     @map("reminded_for")
+  /// Решение вступает в силу (часть 135): до этого проигравшая сторона может
+  /// один раз обжаловать или принять решение сразу. executedAt — деньги
+  /// переданы по решению.
+  finalizeAt     DateTime?     @map("finalize_at")
+  executedAt     DateTime?     @map("executed_at")
+  /// Обжалование: кто, когда, почему; первое решение — для второго арбитра.
+  appealedBy     String?       @map("appealed_by") @db.Uuid
+  appealedAt     DateTime?     @map("appealed_at")
+  appealText     String?       @map("appeal_text")
+  firstArbiterId String?       @map("first_arbiter_id") @db.Uuid
+  firstOutcome   String?       @map("first_outcome") @db.VarChar(10)
+  firstNote      String?       @map("first_note")
   createdAt      DateTime      @default(now()) @map("created_at")
 
   order    Order            @relation(fields: [orderId], references: [id])

@@ -120,6 +120,10 @@
     "./rules": {
       "types": "./dist/rules.d.ts",
       "default": "./dist/rules.js"
+    },
+    "./dispute-evidence": {
+      "types": "./dist/dispute-evidence.d.ts",
+      "default": "./dist/dispute-evidence.js"
     }
   },
   "scripts": {

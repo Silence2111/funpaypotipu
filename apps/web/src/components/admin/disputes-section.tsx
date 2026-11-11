@@ -24,6 +24,10 @@ interface Row {
   respondBy: string | null;
   missedBy: 'buyer' | 'seller' | null;
   order: { publicNumber: string; amount: string; currency: string; title: string | null } | null;
+  /** Арбитраж (часть 135): обжалован — решает другой арбитр; решение ждёт вступления. */
+  appealedAt?: string | null;
+  finalizeAt?: string | null;
+  executedAt?: string | null;
 }
 
 /** Сколько открытых (из них пропустили срок) и решённых; в поиске — найденных. */
@@ -189,11 +193,16 @@ export function DisputesSection() {
                     {d.resolvedAt ? ` · ${when(d.resolvedAt)}` : ''}
                     {d.arbiter ? ` · ${d.arbiter}` : ''}
                   </span>
-                ) : (
+                ) : null}
+                {OUTCOME[d.status] && !d.executedAt && d.finalizeAt && new Date(d.finalizeAt) > new Date() ? (
+                  <span className="badge warning">вступит в силу {when(d.finalizeAt)}</span>
+                ) : null}
+                {OUTCOME[d.status] ? null : (
                   <>
                     <span className={d.status === 'open' ? 'badge accent' : 'badge'}>
                       {d.status === 'open' ? 'ждёт арбитра' : `в работе${d.arbiter ? ` · ${d.arbiter}` : ''}`}
                     </span>
+                    {d.appealedAt && <span className="badge warning">обжалование — решает другой арбитр</span>}
                     {d.missedBy && <span className="badge warning">{WHO[d.missedBy]} не ответил в срок</span>}
                     {d.awaitingFrom && d.respondBy && (
                       <span className="badge">ждём {WHOM[d.awaitingFrom]} до {when(d.respondBy)}</span>

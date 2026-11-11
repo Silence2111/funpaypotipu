@@ -625,4 +625,13 @@ export const EN_API: Phrasebook = {
   'Свой баланс так не удерживают': 'You cannot put a hold on your own balance',
   'На балансе {0} ₽ — удержать больше нельзя': 'The balance is {0} ₽ — you cannot hold more',
   'Удержание не найдено': 'Hold not found',
+  // Арбитраж: обжалование решения (часть 135)
+  'Объясните, почему решение неверно, — от 10 знаков': 'Explain why the decision is wrong — at least 10 characters',
+  'Окно обжалования — от 0 до 72 часов': 'The appeal window is 0 to 72 hours',
+  'Обжалование решает другой арбитр — не тот, кто вынес первое решение': 'An appeal is decided by another arbiter — not the one who made the first decision',
+  'Решение по спору обжалуется один раз': 'A dispute decision can be appealed only once',
+  'Решение уже вступило в силу — обжаловать нельзя': 'The decision has already taken effect — it can’t be appealed',
+  'Обжаловать может сторона, против которой вынесено решение': 'Only the side the decision went against can appeal',
+  'Решение уже вступило в силу': 'The decision has already taken effect',
+  'Принять решение может сторона, против которой оно вынесено': 'Only the side the decision went against can accept it',
 };
