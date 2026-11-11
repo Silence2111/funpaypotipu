@@ -96,6 +96,10 @@
     "./safe-deal": {
       "types": "./dist/safe-deal.d.ts",
       "default": "./dist/safe-deal.js"
+    },
+    "./seller-api": {
+      "types": "./dist/seller-api.d.ts",
+      "default": "./dist/seller-api.js"
     }
   },
   "scripts": {

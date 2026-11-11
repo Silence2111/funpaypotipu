@@ -88,6 +88,13 @@ export default async function SellPage() {
             <Zap size={20} strokeWidth={1.75} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
             <span>{t('Ключи и коды можно выдавать автоматически: загрузите их на склад лота — покупатель получит сразу после оплаты.')}</span>
           </li>
+          <li className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
+            <Zap size={20} strokeWidth={1.75} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
+            <span>
+              {t('Свой бот или склад — через API по ключу, без пароля от аккаунта.')}{' '}
+              <Link href="/prodavat/api" style={{ color: 'var(--accent)' }}>{t('API для продавцов')}</Link>
+            </span>
+          </li>
           {pricing?.fulfillHours !== undefined && (
             <li className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
               <Clock size={20} strokeWidth={1.75} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />

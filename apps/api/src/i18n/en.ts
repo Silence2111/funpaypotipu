@@ -20,6 +20,20 @@ export const EN_API: Phrasebook = {
     'The listing is under moderator review: the moderator will put it back on sale',
   'Причина — до {n} символов': 'Reason must be at most {n} characters',
 
+  // API для продавцов (часть 127)
+  'Нужен действующий ключ API: «Инструменты» → «API»': 'A valid API key is required: “Tools” → “API”',
+  'Не больше 60 запросов в минуту на ключ. Подождите {n} сек.': 'No more than 60 requests per minute per key. Wait {n} s.',
+  'Не больше {n} ключей — отзовите ненужный': 'No more than {n} keys — revoke one you don’t need',
+  'Нечего менять: price, stock или status': 'Nothing to change: price, stock or status',
+  'Цена — целое число копеек, например 49000': 'The price is a whole number of kopecks, for example 49000',
+  'Не больше {n} строк за раз': 'No more than {n} lines at a time',
+  'Назовите ключ — например, «бот склада»': 'Name the key — for example, “stock bot”',
+  'Адрес вебхука — полный URL, например https://example.com/gamemarket': 'The webhook address must be a full URL, for example https://example.com/gamemarket',
+  'Адрес вебхука — только https': 'The webhook address must use https',
+  'Адрес вебхука — публичный: на локальные и внутренние адреса не отправляем': 'The webhook address must be public: we don’t send to local or internal addresses',
+  'Адрес вебхука — без логина и пароля в ссылке': 'The webhook address must not contain a login or password',
+  'Сначала задайте адрес вебхука': 'Set the webhook address first',
+
   // «Безопасная сделка» ЮKassa (часть 123)
   'Оплата с баланса недоступна: платежи идут через «Безопасную сделку» ЮKassa — оплатите картой':
     'Paying from balance is unavailable: payments go through a YooKassa Safe Deal — pay by card',

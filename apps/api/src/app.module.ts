@@ -11,6 +11,8 @@ import { AccessModule } from './modules/access/access.module';
 import { CryptoModule } from './modules/crypto/crypto.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { SmsModule } from './modules/sms/sms.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { SellerApiModule } from './modules/seller-api/seller-api.module';
 import { AntivirusModule } from './modules/antivirus/antivirus.module';
 import { MailModule } from './modules/mail/mail.module';
 import { SearchModule } from './modules/search/search.module';
@@ -58,6 +60,8 @@ import { TelegramActionsModule } from './modules/telegram-actions/telegram-actio
     CryptoModule,
     StorageModule,
     SmsModule,
+    WebhooksModule,
+    SellerApiModule,
     AntivirusModule,
     MailModule,
     SearchModule,
