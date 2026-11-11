@@ -1860,6 +1860,26 @@ async function scenarioPartialRefund(rnd) {
 }
 
 /**
+ * «Выдача сразу» (часть 141): фильтр раздела и каталога отдаёт только лоты
+ * с автовыдачей и пополнения; ручные — нет.
+ */
+async function scenarioInstantFilter(rnd) {
+  console.log('\n— Фильтр «Выдача сразу» —');
+  const seller = await register('ifs', rnd);
+  const manual = await createListing(seller.token, 'skins', '7000', { title: `Вручную ${rnd}` });
+  const auto = await createListing(seller.token, 'skins', '7000', { title: `Сразу ${rnd}`, autoDelivery: true });
+  await j(`/listings/${auto}/keys`, { method: 'POST', token: seller.token, body: JSON.stringify({ keys: [`скин-${rnd}`] }) });
+  const all = (await j(`/listings?gameSlug=cs2&categorySlug=skins&q=${encodeURIComponent(rnd)}&limit=50`)).body;
+  const fast = (await j(`/listings?gameSlug=cs2&categorySlug=skins&q=${encodeURIComponent(rnd)}&instant=1&limit=50`)).body;
+  const ids = (r) => (r.items ?? []).map((l) => l.id);
+  check(
+    '«Выдача сразу»: без фильтра — оба лота, с фильтром — только автовыдача',
+    ids(all).includes(manual) && ids(all).includes(auto) && ids(fast).includes(auto) && !ids(fast).includes(manual),
+    JSON.stringify({ all: ids(all).length, fast: ids(fast), manual, auto }),
+  );
+}
+
+/**
  * API для продавцов (часть 127): ключ показывается один раз и работает
  * вместо входа; лоты — цена, снять и вернуть, склад автовыдачи; продажи и
  * выдача с сообщением; вебхук «оплачен новый заказ» с подписью и повтором
@@ -5871,6 +5891,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioRefundChoice(rnd);
   await scenarioSupportQuality(rnd);
   await scenarioPartialRefund(rnd);
+  await scenarioInstantFilter(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);
