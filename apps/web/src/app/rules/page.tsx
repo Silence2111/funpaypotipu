@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { ShieldCheck, AlertTriangle, Percent, Scale, Ban, MessagesSquare, Gavel } from 'lucide-react';
-import { RULE_GROUPS, ruleAnchor } from '@gamemarket/shared/rules';
+import { ShieldCheck, AlertTriangle, Percent, Scale, Ban, MessagesSquare, Gavel, History } from 'lucide-react';
+import { RULE_GROUPS, RULES_EDITIONS, ruleAnchor } from '@gamemarket/shared/rules';
 import { PROHIBITED_GOODS } from '@gamemarket/shared/sections';
 import { getT } from '@/lib/i18n/server';
 
@@ -30,6 +30,10 @@ export default async function RulesPage() {
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>{t('Правила и гарантии')}</h1>
         <p className="lead">{t('Условия для покупателей и продавцов — коротко.')}</p>
+        <p className="hint" style={{ margin: '8px 0 0' }}>
+          {t('Редакция от {date}.', { date: new Date(RULES_EDITIONS[0]!.from).toLocaleDateString(t.locale) })}{' '}
+          <a href="#redakcii">{t('Прежние редакции')}</a>
+        </p>
       </div>
 
       <div className="grid" style={{ gap: 16 }}>
@@ -130,6 +134,18 @@ export default async function RulesPage() {
             <li>{t('Новым аккаунтам — сообщение раз в минуту и до 20 в сутки, пока нет первой сделки и не прошло 3 дня.')}</li>
             <li>{t('На сообщение можно пожаловаться. Модератор удаляет нарушения и может запретить писать в чат на сутки, неделю или месяц.')}</li>
           </ul>
+        </Section>
+
+        {/* 289-ФЗ ст. 5 ч. 5 (часть 145): редакции с датами — что действовало на дату сделки. */}
+        <Section id="redakcii" icon={<History size={20} strokeWidth={1.75} />} title={t('Редакции правил')}>
+          <ul className="muted" style={{ margin: 0, paddingLeft: 18, fontSize: 15, lineHeight: 1.7 }}>
+            {RULES_EDITIONS.map((e) => (
+              <li key={e.from}>
+                <b>{t('с {date}', { date: new Date(e.from).toLocaleDateString(t.locale) })}</b> — {t.d(e.what)}
+              </li>
+            ))}
+          </ul>
+          <p className="hint" style={{ margin: '10px 0 0' }}>{t('Прежние редакции хранятся здесь не меньше трёх лет.')}</p>
         </Section>
       </div>
     </div>

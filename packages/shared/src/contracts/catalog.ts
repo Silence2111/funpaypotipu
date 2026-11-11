@@ -26,6 +26,23 @@ export const createListingSchema = z.object({
   categoryId: z.string().uuid(),
   title: z.string().min(3).max(120),
   description: z.string().min(1).max(10000),
+  // Лот на английском (часть 144) — необязательно; пусто — показываем русские.
+  titleEn: z
+    .string()
+    .trim()
+    .max(120)
+    .refine((v) => v === '' || v.length >= 3, 'Название на английском — от 3 знаков')
+    .refine((v) => !/[а-яё]/i.test(v), 'Название на английском — латиницей')
+    .transform((v) => v || null)
+    .nullable()
+    .optional(),
+  descriptionEn: z
+    .string()
+    .trim()
+    .max(10000)
+    .transform((v) => v || null)
+    .nullable()
+    .optional(),
   price: minorString, // копейки, напр. "150000" = 1500.00
   currency: z.string().length(3).default('RUB'),
   attributes: z.record(z.unknown()).default({}),

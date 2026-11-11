@@ -253,4 +253,8 @@ export const LOT: Record<string, string> = {
   // Ссылка на обмен Steam (часть 142)
   'Где взять: Steam → Инвентарь → Предложения обмена → «Кто может отправлять мне предложения». Запомним для следующих заказов.':
     'Where to find it: Steam → Inventory → Trade Offers → “Who can send me trade offers?”. We’ll remember it for next orders.',
+  // 289-ФЗ ст. 7 (часть 145)
+  'продавец': 'the seller',
+  'GameMarket — площадка, а не продавец: продаёт {seller}, площадка проводит оплату и разбирает споры.':
+    'GameMarket is a marketplace, not the seller: {seller} sells, the marketplace handles payment and settles disputes.',
 };

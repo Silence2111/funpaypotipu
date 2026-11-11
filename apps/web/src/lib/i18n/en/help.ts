@@ -14,6 +14,9 @@ export const HELP: Record<string, string> = {
   'Выставить лот, передать товар и получить деньги.':
     'Create a listing, deliver the goods and get paid.',
   'Комиссии и уровни продавца': 'Fees and seller levels',
+  'Выдача, рейтинг и решения модерации': 'Listing order, rating and moderation decisions',
+  'Почему лот выше или ниже, как считается рейтинг и как обжаловать ограничение.':
+    'Why a listing is higher or lower, how the rating works and how to appeal a restriction.',
   'Сколько берёт площадка, что дают уровни и сколько стоит вывод.':
     'What the marketplace charges, what levels give and what withdrawals cost.',
   'Оплата, баланс и вывод': 'Payment, balance and withdrawals',

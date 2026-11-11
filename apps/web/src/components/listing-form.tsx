@@ -14,6 +14,7 @@ import {
   qtyTiersError,
 } from '@gamemarket/shared/quantity';
 import { STEAM_TRADE_LABEL, type BuyerField } from '@gamemarket/shared/buyer-data';
+import { titleNoiseError } from '@gamemarket/shared/listing-title';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice, formatQty } from '@/lib/format';
@@ -51,6 +52,8 @@ export interface EditableListing {
   categoryId: string;
   title: string;
   description: string;
+  titleEn?: string | null;
+  descriptionEn?: string | null;
   price: string;
   attributes: Record<string, unknown>;
   images: string[];
@@ -133,6 +136,9 @@ export function ListingForm({
   const [categoryId, setCategoryId] = useState(base?.categoryId ?? '');
   const [title, setTitle] = useState(base?.title ?? '');
   const [description, setDescription] = useState(base?.description ?? '');
+  // Лот на английском (часть 144) — необязательно; пусто — англоязычным русские.
+  const [titleEn, setTitleEn] = useState(base?.titleEn ?? '');
+  const [descriptionEn, setDescriptionEn] = useState(base?.descriptionEn ?? '');
   const [price, setPrice] = useState(base && base.topupMarkupBps == null ? rubOf(base.price) : '');
   const [images, setImages] = useState<{ key: string; url: string }[]>(
     base ? base.imageKeys.map((key, i) => ({ key, url: base.images[i] ?? key })) : [],
@@ -287,6 +293,27 @@ export function ListingForm({
     return () => clearTimeout(timer);
   }, [categoryId, previewMinor]);
 
+  // Такой же свой лот уже в продаже (часть 143): в разделе покажем одну
+  // карточку — предупреждаем до публикации. Параметры — как уйдут в лот.
+  const [dupe, setDupe] = useState<{ id: string; title: string } | null>(null);
+  const dupAttrs = JSON.stringify(
+    Object.fromEntries(
+      attrs.filter((a) => attrValues[a.key] !== undefined && attrValues[a.key] !== '' && attrValues[a.key] !== false).map((a) => [a.key, attrValues[a.key]]),
+    ),
+  );
+  const dupTitle = title.trim();
+  useEffect(() => {
+    setDupe(null);
+    if (!categoryId || dupTitle.length < 3 || !getToken()) return;
+    const timer = setTimeout(() => {
+      const p = new URLSearchParams({ categoryId, title: dupTitle, attrs: dupAttrs, ...(initial ? { except: initial.id } : {}) });
+      apiFetch<{ duplicate: { id: string; title: string } | null }>(`/listings/mine/duplicate?${p}`)
+        .then((r) => setDupe(r.duplicate))
+        .catch(() => setDupe(null));
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [categoryId, dupTitle, dupAttrs, initial]);
+
   // Атрибуты выбранной категории (характеристики/фильтры как на FunPay).
   // Значения сбрасываются при смене раздела (onCategory), а не здесь: иначе
   // форма изменения стирала бы сохранённые характеристики при открытии.
@@ -366,8 +393,23 @@ export function ListingForm({
   const fieldErrors: Record<string, string | null> = {
     game: gameId ? null : t('Выберите игру'),
     category: categoryId ? null : t('Выберите, что продаёте'),
-    title: title.trim().length >= 3 ? null : t('Название — от 3 знаков: его видят в каталоге'),
+    title:
+      title.trim().length < 3
+        ? t('Название — от 3 знаков: его видят в каталоге')
+        : // Шумное название (часть 143) — только новое: старое не мешает править цену.
+          title.trim() !== (initial?.title ?? '').trim() && titleNoiseError(title)
+          ? t.d(titleNoiseError(title)!)
+          : null,
     description: description.trim() ? null : t('Опишите, что получит покупатель и как передаёте'),
+    titleEn: !titleEn.trim()
+      ? null
+      : titleEn.trim().length < 3
+        ? t('Название на английском — от 3 знаков')
+        : /[\u0400-\u04FF]/.test(titleEn)
+          ? t('Название на английском — латиницей')
+          : titleEn.trim() !== (initial?.titleEn ?? '').trim() && titleNoiseError(titleEn)
+            ? t.d(titleNoiseError(titleEn)!)
+            : null,
     price: variable ? null : rubValue > 0 ? null : t('Цена в рублях, например 490'),
     topup: variable && termsError ? t.d(termsError) : null,
     qty: qtyError ? t.d(qtyError) : null,
@@ -388,7 +430,7 @@ export function ListingForm({
   async function submit(e: FormEvent) {
     e.preventDefault();
     setErr(null);
-    setTouched({ game: true, category: true, title: true, description: true, price: true, topup: true, qty: true, tiers: true, buyer: true });
+    setTouched({ game: true, category: true, title: true, description: true, titleEn: true, price: true, topup: true, qty: true, tiers: true, buyer: true });
     if (Object.values(fieldErrors).some(Boolean)) {
       setErr(
         editing
@@ -430,6 +472,8 @@ export function ListingForm({
           body: JSON.stringify({
             title: title.trim(),
             description: description.trim(),
+            titleEn: titleEn.trim() || null,
+            descriptionEn: descriptionEn.trim() || null,
             attributes: cleanAttrs,
             images: images.map((i) => i.key),
             ...pricing,
@@ -467,6 +511,8 @@ export function ListingForm({
           categoryId,
           title: title.trim(),
           description: description.trim(),
+          titleEn: titleEn.trim() || null,
+          descriptionEn: descriptionEn.trim() || null,
           // У лота на сумму покупателя цену («от») сервер считает из условий сам.
           price: variable && terms ? topupQuote(terms.min, terms.markupBps).price.toString() : String(Math.round(rubValue * 100)),
           currency: 'RUB',
@@ -603,6 +649,14 @@ export function ListingForm({
           <input id="title" className="input" placeholder={t('Например, AK-47 | Красная линия, после полевых')} value={title} maxLength={120}
             onChange={(e) => setTitle(e.target.value)} onBlur={() => touch('title')} aria-invalid={!!showErr('title')} />
           {showErr('title') && <p className="field-error">{showErr('title')}</p>}
+          {dupe && !showErr('title') && (
+            <div className="alert warning" role="status" style={{ marginTop: 8, fontSize: 14 }}>
+              <span>
+                {t('Такой лот у вас уже в продаже:')} <Link href={`/lot/${dupe.id}`}>{dupe.title}</Link>.{' '}
+                {t('В разделе покажем одну карточку — дешёвую, остальные выйдут, когда её купят. Проще добавить наличие в тот лот.')}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="field">
@@ -613,6 +667,29 @@ export function ListingForm({
             aria-invalid={!!showErr('description')} />
           {showErr('description') && <p className="field-error">{showErr('description')}</p>}
         </div>
+
+        {/* Лот на английском (часть 144): открыт сразу, если уже заполнен. */}
+        <details className="field" open={!!(base?.titleEn || base?.descriptionEn) || undefined}>
+          <summary className="label" style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>
+            {t('На английском — необязательно')}
+          </summary>
+          <p className="hint" style={{ margin: '0 0 10px' }}>
+            {t('Покупатели с английским языком сайта увидят эти название и описание. Пусто — увидят русские.')}
+          </p>
+          <div className="stack-form" style={{ gap: 12 }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label className="label" htmlFor="title-en">{t('Название на английском')}</label>
+              <input id="title-en" className="input" lang="en" placeholder="AK-47 | Redline, Field-Tested" value={titleEn} maxLength={120}
+                onChange={(e) => setTitleEn(e.target.value)} onBlur={() => touch('titleEn')} aria-invalid={!!showErr('titleEn')} />
+              {showErr('titleEn') && <p className="field-error">{showErr('titleEn')}</p>}
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label className="label" htmlFor="description-en">{t('Описание на английском')}</label>
+              <textarea id="description-en" className="input" lang="en" style={{ minHeight: 100, resize: 'vertical' }} maxLength={10000}
+                value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} />
+            </div>
+          </div>
+        </details>
 
         {selectedCategory?.fulfillmentType === 'provider' && (
           <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>

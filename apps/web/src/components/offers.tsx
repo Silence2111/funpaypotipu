@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Star, Zap } from 'lucide-react';
 import { isDemoSeller, qtyTiers } from '@gamemarket/shared';
 import { isPriceLow } from '@gamemarket/shared/price-history';
+import { lotTitle } from '@/lib/lot-text';
 import type { Attribute, ListingCard, SellerBrief } from '@/lib/api';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { SaleMark } from './sale-mark';
@@ -149,7 +150,7 @@ function OfferRow({
           />
         )}
         <span className="offer-text">
-          <span className="offer-title">{l.title}</span>
+          <span className="offer-title">{lotTitle(l, t.lang)}</span>
           <span className="offer-meta">
             {showSection && (
               <span>

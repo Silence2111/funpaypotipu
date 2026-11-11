@@ -126,4 +126,9 @@ export const COMMON: Record<string, string> = {
   'Откройте сайт в Safari и нажмите «Поделиться» внизу экрана.': 'Open the site in Safari and tap “Share” at the bottom of the screen.',
   'Выберите «На экран „Домой“» и нажмите «Добавить».': 'Choose “Add to Home Screen” and tap “Add”.',
   'Откройте GameMarket с иконки и включите уведомления: «Профиль» → «Настройки» → «Уведомления».': 'Open GameMarket from the icon and turn on notifications: Profile → Settings → Notifications.',
+  // Редакции правил (часть 145)
+  'Редакция от {date}.': 'Version of {date}.',
+  'Прежние редакции': 'Previous versions',
+  'Редакции правил': 'Rules versions',
+  'Прежние редакции хранятся здесь не меньше трёх лет.': 'Previous versions stay here for at least three years.',
 };

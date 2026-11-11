@@ -100,6 +100,13 @@ const cardsQuerySchema = z.object({
     .pipe(z.array(z.string().uuid()).max(24)),
 });
 
+const duplicateQuerySchema = z.object({
+  categoryId: z.string().uuid(),
+  title: z.string().trim().min(1).max(120),
+  attrs: z.string().max(4000).optional(),
+  except: z.string().uuid().optional(),
+});
+
 @Controller('listings')
 export class ListingsController {
   constructor(
@@ -147,6 +154,16 @@ export class ListingsController {
   @UseGuards(JwtAuthGuard)
   mineCounts(@CurrentUser() user: AuthUser) {
     return this.listings.countMine(user.userId);
+  }
+
+  /** Такой же свой лот в продаже — предупреждение в форме (часть 143). Стоит до `mine/:id`. */
+  @Get('mine/duplicate')
+  @UseGuards(JwtAuthGuard)
+  mineDuplicate(
+    @CurrentUser() user: AuthUser,
+    @Query(new ZodValidationPipe(duplicateQuerySchema)) query: z.infer<typeof duplicateQuerySchema>,
+  ) {
+    return this.listings.duplicateOf(user.userId, query);
   }
 
   /** Свой лот для формы изменения — в любом статусе, кроме архива. */

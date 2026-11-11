@@ -46,3 +46,4 @@ export * from './lot-import';
 export * from './device';
 export * from './seller-promo';
 export * from './favorites';
+export * from './listing-title';

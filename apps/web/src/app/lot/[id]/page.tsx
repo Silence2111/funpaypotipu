@@ -13,6 +13,7 @@ import {
 } from '@/lib/api';
 import { PriceHistory } from '@/components/price-history';
 import { isPriceLow } from '@gamemarket/shared/price-history';
+import { lotDescription, lotTitle } from '@/lib/lot-text';
 import { formatListingPrice, formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { serviceTermText } from '@/lib/service-term';
 import { warrantyText } from '@/lib/warranty';
@@ -57,7 +58,9 @@ export async function generateMetadata({
   const { id } = await params;
   const [listing, t] = await Promise.all([getListing(id), getT()]);
   if (!listing) return { title: t('Лот не найден') };
-  const desc = listing.description.slice(0, 160);
+  // Лот на английском (часть 144) — англоязычному и в превью.
+  const name = lotTitle(listing, t.lang);
+  const desc = lotDescription(listing, t.lang).slice(0, 160);
   // Цена — и в тексте превью: Telegram и VK показывают его под картинкой.
   const price =
     listing.topupMarkupBps != null && listing.topupMin
@@ -65,15 +68,15 @@ export async function generateMetadata({
       : formatPrice(listing.price, listing.currency, t);
   const where = `${t.d(listing.game.title)} · ${t.d(listing.category.title)}`;
   return {
-    title: listing.title,
+    title: name,
     description: desc,
     // Картинка — opengraph-image.tsx рядом: название, цена и продавец.
     openGraph: {
-      title: `${listing.title} — ${price}`,
+      title: `${name} — ${price}`,
       description: `${where}. ${desc}`,
       type: 'website',
     },
-    twitter: { card: 'summary_large_image', title: `${listing.title} — ${price}`, description: where },
+    twitter: { card: 'summary_large_image', title: `${name} — ${price}`, description: where },
     alternates: { canonical: `/lot/${id}` },
     // Раздел закрыт для продажи — лот виден по ссылке, но в поиске не нужен.
     ...(listing.category.salesClosed && listing.status === 'paused' && { robots: { index: false, follow: true } }),
@@ -102,6 +105,10 @@ export default async function ListingPage({
   const initialQty = /^\d{1,9}$/.test(qty ?? '') ? Number(qty) : undefined;
   const [listing, pricing, t] = await Promise.all([getListing(id), getPublicPricing(), getT()]);
   if (!listing) notFound();
+  // Лот на английском (часть 144): англоязычному — английские название и
+  // описание, если продавец их дал. Разметка для поисковиков — русская.
+  const name = lotTitle(listing, t.lang);
+  const about = lotDescription(listing, t.lang);
   // Всё, что вокруг лота: продавец целиком, подписи параметров, его другие
   // предложения и похожие у других продавцов — дешёвые сверху.
   const [seller, defs, mine, section, history] = await Promise.all([
@@ -157,7 +164,7 @@ export default async function ListingPage({
     listing.topupMarkupBps != null && listing.topupMin != null && listing.topupMax != null
       ? {
           listingId: listing.id,
-          title: listing.title,
+          title: name,
           currency: listing.currency,
           markupBps: listing.topupMarkupBps,
           min: listing.topupMin,
@@ -216,7 +223,7 @@ export default async function ListingPage({
           [t('Все игры'), '/igry'],
           [listing.game.title, `/igra/${listing.game.slug}`],
           [categoryTitle, sectionHref],
-          [listing.title, `/lot/${listing.id}`],
+          [name, `/lot/${listing.id}`],
         ])}
       />
       {created && (
@@ -272,7 +279,7 @@ export default async function ListingPage({
 
       <div className="lot-layout">
         <div className="lot-head">
-          <h1 className="h1 lot-title">{listing.title}</h1>
+          <h1 className="h1 lot-title">{name}</h1>
           <div className="row" style={{ gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
             <span className={auto ? 'badge success' : 'badge'}>
               {auto
@@ -427,6 +434,12 @@ export default async function ListingPage({
                 <li>
                   {t('После выдачи у вас {h} ч на проверку: подтвердить или открыть спор с арбитром.', { h: confirmH })}
                 </li>
+                {/* 289-ФЗ ст. 7 (часть 145): площадка — не продавец. */}
+                <li>
+                  {t('GameMarket — площадка, а не продавец: продаёт {seller}, площадка проводит оплату и разбирает споры.', {
+                    seller: listing.seller.profile?.username ?? t('продавец'),
+                  })}
+                </li>
               </ul>
               {pricing && pricing.cashbackPct > 0 && (
                 <p className="hint" style={{ marginTop: 10 }}>
@@ -462,7 +475,7 @@ export default async function ListingPage({
 
           {/* Фото — только настоящие. Без них страница не рисует заглушку на
               полэкрана: она выдавала себя за картинку товара. */}
-          {images.length > 0 && <LotGallery images={images.slice(0, 12)} title={listing.title} />}
+          {images.length > 0 && <LotGallery images={images.slice(0, 12)} title={name} />}
 
           {paramList.length > 0 && (
             <section>
@@ -489,7 +502,7 @@ export default async function ListingPage({
           <section>
             <h2 className="h2 lot-h2">{t('Описание')}</h2>
             <p className="muted" style={{ whiteSpace: 'pre-wrap', margin: 0, maxWidth: '68ch' }}>
-              {listing.description}
+              {about}
             </p>
           </section>
 

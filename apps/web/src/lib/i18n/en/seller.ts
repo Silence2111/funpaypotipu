@@ -406,4 +406,16 @@ export const SELLER: Record<string, string> = {
   'Проверим формат ссылки и запомним её у покупателя': 'We’ll check the link format and remember it for the buyer',
   'Ссылку на обмен Steam проверим по формату и подставим покупателю в следующий заказ.':
     'We’ll check the Steam trade link format and prefill it in the buyer’s next order.',
+  // Чистая выдача (часть 143)
+  'Такой лот у вас уже в продаже:': 'You already have this listing on sale:',
+  'В разделе покажем одну карточку — дешёвую, остальные выйдут, когда её купят. Проще добавить наличие в тот лот.':
+    'The section shows one card, the cheapest; the others appear once it is bought. It’s simpler to add stock to that listing.',
+  // Лот на английском (часть 144)
+  'На английском — необязательно': 'In English — optional',
+  'Покупатели с английским языком сайта увидят эти название и описание. Пусто — увидят русские.':
+    'Buyers using the site in English will see this title and description. Left empty — they see the Russian ones.',
+  'Название на английском': 'Title in English',
+  'Описание на английском': 'Description in English',
+  'Название на английском — от 3 знаков': 'The English title must be at least 3 characters',
+  'Название на английском — латиницей': 'Write the English title in Latin letters',
 };

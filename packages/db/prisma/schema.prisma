@@ -537,6 +537,9 @@ model Listing {
   gameId           String          @map("game_id") @db.Uuid
   categoryId       String          @map("category_id") @db.Uuid
   title            String
+  // Лот на английском (часть 144): видит англоязычный покупатель; нет — русские.
+  titleEn          String?         @map("title_en")
+  descriptionEn    String?         @map("description_en")
   description      String
   price            BigInt // минорные единицы
   currency         String          @db.Char(3)
@@ -605,6 +608,12 @@ model Listing {
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
 
+  // Чистая выдача (часть 143): ключ повтора — название без регистра, знаков
+  // и эмодзи плюс параметры; ставит триггер базы. dup_of — лот, которым
+  // повтор показан в разделе (самый дешёвый из одинаковых лотов продавца).
+  dupKey String? @map("dup_key")
+  dupOf  String? @map("dup_of") @db.Uuid
+
   seller        User                @relation(fields: [sellerId], references: [id])
   game          Game                @relation(fields: [gameId], references: [id])
   category      Category            @relation(fields: [categoryId], references: [id])
@@ -624,6 +633,7 @@ model Listing {
   @@index([createdAt, id])
   @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "listings_title_trgm_idx")
   @@index([saleUntil])
+  @@index([sellerId, categoryId, dupKey])
   @@map("listings")
 }
 

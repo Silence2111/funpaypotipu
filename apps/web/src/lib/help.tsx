@@ -17,6 +17,8 @@ import {
   SALE_MIN_PCT,
   SELLER_PROMO_MAX_PCT,
   SELLER_PROMO_MIN_PCT,
+  APPEAL_REVIEW_HOURS,
+  APPEAL_WINDOW_DAYS,
 } from '@gamemarket/shared';
 import type { PublicPricing } from './api';
 import { formatPrice } from './format';
@@ -377,6 +379,48 @@ const RU_BODIES: Record<HelpSlug, (t: Terms) => ReactNode> = {
       </div>
     </>
   ),
+  // Как устроены выдача, рейтинг и решения модерации (часть 145): то, что
+  // 289-ФЗ требует раскрывать продавцам (ст. 10, 13, 14), — открыто для всех.
+  'vydacha-i-reyting': (t) => (
+    <>
+      <h2>Порядок лотов в разделе</h2>
+      <ul>
+        <li>Сверху — лоты с продвижением, пока оно оплачено, с пометкой «продвижение».</li>
+        <li>
+          Дальше — поднятые кнопкой «Поднять»: раз в {hours(bumpCooldownHours(0))}, с 10 продаж — раз в{' '}
+          {hours(bumpCooldownHours(10))}, с 50 — раз в {hours(bumpCooldownHours(50))}. Потом — новые сверху.
+        </li>
+        <li>Покупатель может выбрать другой порядок: дешевле, дороже, популярные (по продажам), «цена снижена».</li>
+        <li>Фильтры: параметры раздела, цена, «Продавец в сети», «Выдача сразу».</li>
+        <li>
+          Одинаковые лоты одного продавца — одной карточкой, самой дешёвой: остальные выходят, когда её купят.
+          Одинаковые — то же название без учёта регистра и знаков и те же параметры.
+        </li>
+      </ul>
+      <p>
+        Продвижение — на равных для всех: {formatPrice(t.promoDay)} в сутки, пакеты на {PROMO_DAYS.join(', ')} суток.
+        Рейтинг, уровень и комиссия на место в разделе не влияют.
+      </p>
+      <h2>Рейтинг продавца</h2>
+      <p>
+        Средняя оценка из отзывов покупателей по завершённым сделкам, от 1 до 5, рядом — число отзывов. Отзыв оставляет
+        только покупатель этой сделки. От рейтинга и числа продаж зависит уровень: скидка с комиссии и срок проверки
+        заказа — в статье <Link href="/pomosch/komissii">«Комиссии и уровни продавца»</Link>.
+      </p>
+      <h2>Блокировки и другие ограничения</h2>
+      <ul>
+        <li>
+          Блокировка лота, заморозка, удержание суммы, запрет писать — только с пунктом{' '}
+          <Link href="/rules">правил</Link> и причиной. Их видно в кабинете, в «Решениях модерации».
+        </li>
+        <li>
+          Обжаловать — в течение {days(APPEAL_WINDOW_DAYS)}, там же. Ответ — за {hours(APPEAL_REVIEW_HOURS)}, решает
+          другой сотрудник, а не тот, кто ограничил.
+        </li>
+        <li>Решение отменили — ограничение снимается сразу, удержанные деньги возвращаются на баланс.</li>
+      </ul>
+    </>
+  ),
   'oplata-i-vyvod': (t) => (
     <>
       <h2>Способы оплаты</h2>
@@ -492,7 +536,15 @@ const RU_BODIES: Record<HelpSlug, (t: Terms) => ReactNode> = {
 // i18n-ignore-end
 
 export type HelpGroup = 'buyer' | 'seller' | 'money';
-export type HelpSlug = 'kak-kupit' | 'spory' | 'kak-prodat' | 'komissii' | 'oplata-i-vyvod' | 'bezopasnost' | 'prilozhenie';
+export type HelpSlug =
+  | 'kak-kupit'
+  | 'spory'
+  | 'kak-prodat'
+  | 'komissii'
+  | 'vydacha-i-reyting'
+  | 'oplata-i-vyvod'
+  | 'bezopasnost'
+  | 'prilozhenie';
 
 export interface HelpArticle {
   slug: HelpSlug;
@@ -533,6 +585,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
     group: 'seller',
     title: msg('Комиссии и уровни продавца'),
     summary: msg('Сколько берёт площадка, что дают уровни и сколько стоит вывод.'),
+  },
+  {
+    slug: 'vydacha-i-reyting',
+    group: 'seller',
+    title: msg('Выдача, рейтинг и решения модерации'),
+    summary: msg('Почему лот выше или ниже, как считается рейтинг и как обжаловать ограничение.'),
   },
   {
     slug: 'oplata-i-vyvod',

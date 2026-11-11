@@ -23,11 +23,13 @@ import { CabinetNav } from '@/components/cabinet-nav';
 import { SaleMark } from '@/components/sale-mark';
 import { PriceLowMark } from '@/components/price-low-mark';
 import { useT } from '@/lib/i18n/client';
+import { lotTitle } from '@/lib/lot-text';
 import { msg } from '@/lib/i18n/lang';
 
 interface FavListing {
   id: string;
   title: string;
+  titleEn?: string | null;
   price: string;
   currency: string;
   images: string[];
@@ -202,7 +204,7 @@ function FavoritesInner() {
                           <ImageIcon size={22} strokeWidth={1.5} />
                         )}
                       </div>
-                      <span className="fav-title">{l.title}</span>
+                      <span className="fav-title">{lotTitle(l, t.lang)}</span>
                       {l.game && <span className="fav-game">{t.d(l.game.title)}</span>}
                       <span className="row fav-price">
                         <span className="price">{formatListingPrice(l, t)}</span>
@@ -221,7 +223,7 @@ function FavoritesInner() {
                       </span>
                     </Link>
                     <button type="button" className="fav-remove" onClick={() => void remove(l)}
-                      aria-label={t('Убрать из избранного: {title}', { title: l.title })} title={t('Убрать из избранного')}>
+                      aria-label={t('Убрать из избранного: {title}', { title: lotTitle(l, t.lang) })} title={t('Убрать из избранного')}>
                       <X size={16} strokeWidth={1.75} aria-hidden />
                     </button>
                   </div>
