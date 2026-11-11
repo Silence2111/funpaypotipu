@@ -100,6 +100,14 @@
     "./seller-api": {
       "types": "./dist/seller-api.d.ts",
       "default": "./dist/seller-api.js"
+    },
+    "./service-term": {
+      "types": "./dist/service-term.d.ts",
+      "default": "./dist/service-term.js"
+    },
+    "./warranty": {
+      "types": "./dist/warranty.d.ts",
+      "default": "./dist/warranty.js"
     }
   },
   "scripts": {

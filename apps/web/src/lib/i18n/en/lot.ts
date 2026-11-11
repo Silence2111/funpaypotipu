@@ -238,4 +238,9 @@ export const LOT: Record<string, string> = {
 
   'Деньги держит ЮKassa в «Безопасной сделке». Продавец получит их, только когда вы подтвердите получение.':
     'YooKassa holds the money in a Safe Deal. The seller gets it only after you confirm receipt.',
+  // Услуги со сроком (часть 125)
+  'Срок выполнения — {term} с оплаты. Не успеет продавец — можно сразу открыть спор.':
+    'Deadline: {term} from payment. If the seller misses it, you can open a dispute right away.',
+  'Гарантия продавца — {term} после получения: что-то не так — спор, деньги до конца гарантии у площадки.':
+    'Seller’s warranty: {term} after receipt. Something wrong? Open a dispute; the marketplace holds the money until the warranty ends.',
 };

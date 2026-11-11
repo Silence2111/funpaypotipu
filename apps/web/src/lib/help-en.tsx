@@ -216,6 +216,18 @@ export const EN_BODIES: Record<HelpSlug, (c: Terms, t: T) => ReactNode> = {
           the listing form: “Message to the buyer after payment”.
         </li>
         <li>
+          <b>A service gets its own deadline.</b> For coaching, building or escort, set a “Deadline” in
+          the listing form: 1 to 30 days from payment. Started on the order? Press “Take on”: the buyer
+          sees the mark and can no longer cancel the order alone. Miss the deadline and the buyer can
+          open a dispute right away; with no delivery and no dispute, the money goes back to them a
+          day after the deadline.
+        </li>
+        <li>
+          <b>A warranty, if you want one.</b> Keys, items and services can carry a warranty of 1, 3,
+          7, 14 or 30 days: after confirming, the buyer can still open a dispute for that long, and
+          the money reaches you when the warranty ends. The warranty is shown on the listing page.
+        </li>
+        <li>
           <b>Get paid.</b> The money arrives on your balance when the buyer confirms receipt or the
           check period ends. From the balance you can withdraw to a card, via SBP, to YooMoney or in
           USDT.

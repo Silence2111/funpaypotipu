@@ -24,7 +24,15 @@ export class WalletService {
     const [balance, deals, payouts, dealPayouts, waiting] = await Promise.all([
       this.ledger.balanceOf(userId, currency),
       this.prisma.order.aggregate({
-        where: { sellerId: userId, currency, status: { in: [...DEAL_OPEN] } },
+        where: {
+          sellerId: userId,
+          currency,
+          OR: [
+            { status: { in: [...DEAL_OPEN] } },
+            // Подтверждён, но идёт гарантия продавца (часть 126): деньги ещё у площадки.
+            { status: 'completed', warrantyUntil: { not: null }, warrantyReleasedAt: null },
+          ],
+        },
         _count: { _all: true },
         _sum: { sellerPayoutAmount: true },
       }),

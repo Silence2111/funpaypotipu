@@ -37,8 +37,8 @@ export const CABINET: Record<string, string> = {
     'Balance, top-ups and withdrawals, every money transaction. You can pay for purchases or listing promotion from your balance.',
   Доступно: 'Available',
   'В сделках': 'In deals',
-  '{n} — зачислим, когда покупатели подтвердят получение':
-    '{n} — credited once buyers confirm receipt',
+  '{n} — зачислим, когда покупатели подтвердят получение, а с гарантией — когда она закончится':
+    '{n} — credited once buyers confirm receipt, or when the warranty ends if there is one',
   'На выводе': 'Being withdrawn',
   '{n} — уже не на балансе': '{n} — already off your balance',
   Пополнение: 'Top-up',

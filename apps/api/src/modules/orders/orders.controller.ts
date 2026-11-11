@@ -94,6 +94,12 @@ export class OrdersController {
     return this.orders.payFromBalance(id, user.userId);
   }
 
+  /** «Взял в работу» — заказ оплачен и ждёт выдачи (часть 125). */
+  @Post(':id/start')
+  start(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.orders.startWork(id, user.userId);
+  }
+
   @Post(':id/deliver')
   deliver(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.orders.markDelivered(id, user.userId);

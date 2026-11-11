@@ -75,6 +75,9 @@ export default async function SellerApiDocs() {
         <Endpoint method="GET" path="/api/v1/orders?status=paid&since=2026-11-01T00:00:00Z">
           {t('Свои продажи: номер, статус, сумма и сколько придёт вам, ник покупателя и его ответы на поля лота.')}
         </Endpoint>
+        <Endpoint method="POST" path="/api/v1/orders/{id}/start">
+          {t('«Взять в работу»: покупатель увидит отметку в заказе. У услуг со сроком в заказе есть serviceDueAt — выполнить до.')}
+        </Endpoint>
         <Endpoint method="POST" path="/api/v1/orders/{id}/deliver">
           {t('Отметить выдачу. С {"message": "…"} — сообщение покупателю в чат заказа (контакты скрываются, как в чате).')}
         </Endpoint>

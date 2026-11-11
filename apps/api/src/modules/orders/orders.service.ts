@@ -36,6 +36,9 @@ import {
   DISPUTE_NOTES,
   SALE_MIN_PRICE,
   sellerPromoDiscount,
+  serviceDueAt,
+  warrantyActive,
+  warrantyUntil,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { likeText } from '../../common/like';
@@ -255,6 +258,10 @@ export class OrdersService {
         ...(account ? { account } : {}),
         ...(topupNominal != null ? { topupAmount: topupNominal.toString() } : {}),
         ...(buyerData.length ? { buyerData } : {}),
+        // Срок выполнения услуги (часть 125): «выполнить до» считается от оплаты.
+        ...(listing.serviceHours && listing.fulfillmentType === 'manual' ? { serviceHours: listing.serviceHours } : {}),
+        // Гарантия продавца (часть 126): спор после подтверждения в этот срок.
+        ...(listing.warrantyDays ? { warrantyDays: listing.warrantyDays } : {}),
         // Автовыдача аккаунта или предмета: заказ называет выданное
         // товаром, а не ключом. Ключи и прежние заказы — без пометки.
         ...(listing.fulfillmentType === 'auto_key' && listing.category.fulfillmentType === 'manual'
@@ -422,9 +429,17 @@ export class OrdersService {
 
   /** Общий пост-оплатный шаг: наличие → уведомления → авто-исполнение. Статус paid уже стоит. */
   private async afterPaid(orderId: string) {
-    const paid = await this.get(orderId);
+    let paid = await this.get(orderId);
     this.logEconomics(paid);
     if (!(await this.takeStock(paid))) return this.get(paid.id);
+    // Услуга со сроком (часть 125): «выполнить до» — от оплаты.
+    const hours = (paid.listingSnapshot as { serviceHours?: number } | null)?.serviceHours;
+    if (hours && paid.fulfillmentType === 'manual' && !paid.serviceDueAt) {
+      paid = await this.prisma.order.update({
+        where: { id: paid.id },
+        data: { serviceDueAt: serviceDueAt(paid.paidAt ?? new Date(), hours) },
+      });
+    }
     // manual — выдаёт сам продавец: в Telegram под уведомлением «Отметить выдачу».
     await this.notifications.notify(paid.sellerId, 'order_paid', {
       orderId: paid.id,
@@ -446,6 +461,8 @@ export class OrdersService {
         buyerData: snap.buyerData ?? [],
         autoDelivery: paid.fulfillmentType !== 'manual',
         paidAt: paid.paidAt,
+        // Услуга со сроком (часть 125): выполнить до; null — сутки на выдачу.
+        serviceDueAt: paid.serviceDueAt,
       })
       .catch((e: Error) => this.logger.warn(`Вебхук заказа ${paid.id}: ${e.message}`));
     // Сколько передать — первым сообщением в чате сделки, как на FunPay.
@@ -457,6 +474,12 @@ export class OrdersService {
     // В «Безопасной сделке» (часть 123) деньги держит ЮKassa, а не площадка.
     const held = paid.dealId ? 'деньги держит ЮKassa в «Безопасной сделке»' : 'средства защищены эскроу';
     await this.sys(paid.id, `Оплата поступила — ${held}.${howMany}`);
+    if (paid.serviceDueAt) {
+      await this.sys(
+        paid.id,
+        'Срок выполнения — на странице заказа. Не успеет продавец — можно сразу открыть спор; без выдачи и спора деньги вернутся через сутки после срока.',
+      );
+    }
 
     if (paid.fulfillmentType !== 'manual') {
       await this.fulfillment.autoFulfill(paid.id);
@@ -570,6 +593,43 @@ export class OrdersService {
     return { key: keys[0], keys };
   }
 
+  /**
+   * «Взял в работу» (часть 125): продавец показывает покупателю, что заказ не
+   * забыт. Статус не меняется — заказ оплачен и ждёт выдачи, сроки те же.
+   */
+  async startWork(orderId: string, sellerId: string) {
+    const order = await this.get(orderId);
+    if (order.sellerId !== sellerId) throw new ForbiddenException('Это не ваш заказ');
+    if (order.status !== 'paid' || order.fulfillmentType !== 'manual') {
+      throw new BadRequestException('В работу берут оплаченный заказ, который ещё не выдан');
+    }
+    if (order.serviceStartedAt) return order;
+    const started = await this.prisma.order.update({ where: { id: order.id }, data: { serviceStartedAt: new Date() } });
+    await this.notifications.notify(order.buyerId, 'order_started', { orderId: order.id });
+    await this.sys(order.id, 'Продавец взял заказ в работу.');
+    return started;
+  }
+
+  /**
+   * Срок услуги вышел, а выдачи нет (часть 125): обе стороны узнают об этом
+   * один раз; у покупателя — спор сразу, через сутки без выдачи и спора
+   * деньги вернутся сами (refundOverdue из фоновой задачи).
+   */
+  async markServiceOverdue(orderId: string) {
+    const claimed = await this.prisma.order.updateMany({
+      where: { id: orderId, status: 'paid', serviceOverdueAt: null },
+      data: { serviceOverdueAt: new Date() },
+    });
+    if (claimed.count === 0) return;
+    const order = await this.get(orderId);
+    await this.notifications.notify(order.buyerId, 'service_overdue', { orderId, side: 'buyer' });
+    await this.notifications.notify(order.sellerId, 'service_overdue', { orderId, side: 'seller' });
+    await this.sys(
+      order.id,
+      'Срок выполнения вышел. Покупатель может открыть спор; без выдачи и спора деньги вернутся покупателю через сутки.',
+    );
+  }
+
   async markDelivered(orderId: string, sellerId: string) {
     const order = await this.get(orderId);
     if (order.sellerId !== sellerId) throw new ForbiddenException('Это не ваш заказ');
@@ -602,18 +662,24 @@ export class OrdersService {
     return delivered;
   }
 
-  /** Покупатель подтверждает получение (или система по таймауту). Релиз эскроу. */
+  /**
+   * Покупатель подтверждает получение (или система по таймауту). Релиз
+   * эскроу — сразу или, если у лота гарантия (часть 126), когда она
+   * закончится: в этот срок покупатель ещё может открыть спор.
+   */
   async confirm(orderId: string, buyerId: string, opts: { system?: boolean } = {}) {
     const order = await this.get(orderId);
     if (!opts.system && order.buyerId !== buyerId) throw new ForbiddenException('Это не ваш заказ');
     this.assertTransition(order.status, 'completed');
 
-    await this.releaseSeller(order, 'order_release');
+    const days = (order.listingSnapshot as { warrantyDays?: number } | null)?.warrantyDays;
+    const until = days ? warrantyUntil(new Date(), days) : null;
+    if (!until) await this.releaseSeller(order, 'order_release');
 
     const [updated] = await this.prisma.$transaction([
       this.prisma.order.update({
         where: { id: order.id },
-        data: { status: 'completed', completedAt: new Date() },
+        data: { status: 'completed', completedAt: new Date(), warrantyUntil: until },
       }),
       this.prisma.listing.update({
         where: { id: order.listingId },
@@ -624,6 +690,17 @@ export class OrdersService {
         data: { salesCount: { increment: 1 } },
       }),
     ]);
+    if (until) {
+      // Гарантия: деньги у площадки до её конца, кэшбэк и партнёру — тогда же.
+      await this.notifications.notify(order.sellerId, 'warranty_started', { orderId: order.id });
+      await this.sys(
+        order.id,
+        opts.system
+          ? 'Срок проверки истёк — заказ подтверждён автоматически. Идёт гарантия продавца: срок — на странице заказа, в этот срок покупатель может открыть спор, деньги до её конца у площадки.'
+          : 'Покупатель подтвердил получение. Идёт гарантия продавца: срок — на странице заказа, в этот срок покупатель может открыть спор, деньги до её конца у площадки.',
+      );
+      return updated;
+    }
     await this.notifications.notify(order.sellerId, 'order_completed', { orderId: order.id });
     await this.sys(
       order.id,
@@ -631,7 +708,31 @@ export class OrdersService {
         ? 'Срок проверки истёк — заказ подтверждён автоматически. Средства переданы продавцу.'
         : 'Покупатель подтвердил получение. Сделка завершена, средства переданы продавцу.',
     );
+    await this.settle(updated);
+    return updated;
+  }
 
+  /**
+   * Гарантия закончилась без спора (часть 126): деньги — продавцу, кэшбэк —
+   * покупателю, доля — партнёру. Проводка идемпотентна, повтор безопасен.
+   */
+  async releaseWarranty(orderId: string) {
+    const order = await this.get(orderId);
+    if (order.status !== 'completed' || !order.warrantyUntil || order.warrantyReleasedAt) return;
+    if (order.warrantyUntil.getTime() > Date.now()) return;
+    await this.releaseSeller(order, 'order_release');
+    const claimed = await this.prisma.order.updateMany({
+      where: { id: order.id, warrantyReleasedAt: null },
+      data: { warrantyReleasedAt: new Date() },
+    });
+    if (claimed.count === 0) return;
+    await this.notifications.notify(order.sellerId, 'order_completed', { orderId: order.id });
+    await this.sys(order.id, 'Гарантия закончилась — средства переданы продавцу.');
+    await this.settle(order);
+  }
+
+  /** Деньги продавцу ушли: кэшбэк покупателю и доля партнёру. */
+  private async settle(order: Order) {
     // Кэшбэк покупателю на баланс — наш ответ на «токены P» конкурентов (живые деньги).
     // В «Безопасной сделке» (часть 123) — пауза: баланс в ней не потратить, а
     // выплата 20 ₽ на карту стоит дороже самих 20 ₽. Бонусы-скидка — часть 146.
@@ -651,10 +752,9 @@ export class OrdersService {
     }
     // Партнёру — доля с этой сделки, если её участника привёл он (часть 116).
     // Сбой начисления не отменяет завершённую сделку: продавец уже с деньгами.
-    await this.partners.accrue(updated).catch((e) => {
+    await this.partners.accrue(order).catch((e) => {
       this.logger.warn(`Партнёрское начисление по ${order.id}: ${(e as Error).message}`);
     });
-    return updated;
   }
 
   /** Отмена: до оплаты — просто отмена; после оплаты — возврат на баланс покупателя. */
@@ -678,6 +778,11 @@ export class OrdersService {
     }
 
     if (order.status === 'paid') {
+      // Продавец уже взял заказ в работу (часть 125): покупатель не отменяет
+      // его в одиночку — работа могла быть сделана. Спор или возврат продавцом.
+      if (order.serviceStartedAt && userId === order.buyerId) {
+        throw new ConflictException('Продавец уже взял заказ в работу: отменить можно через спор или попросить продавца вернуть деньги');
+      }
       this.assertTransition(order.status, 'refunded');
       await this.refundBuyer(order, 'order_refund');
       const res = await this.prisma.order.update({
@@ -762,7 +867,15 @@ export class OrdersService {
     if (order.buyerId !== userId && order.sellerId !== userId) {
       throw new ForbiddenException('Нет доступа к заказу');
     }
-    this.assertTransition(order.status, 'disputed');
+    if (order.status === 'completed') {
+      // Завершённый — в спор только по гарантии продавца (часть 126), пока
+      // деньги у площадки, и только покупателем.
+      if (!warrantyActive(order) || order.buyerId !== userId) {
+        throw new ConflictException('Заказ завершён, гарантии по нему нет или она закончилась — спор открыть нельзя');
+      }
+    } else {
+      this.assertTransition(order.status, 'disputed');
+    }
     const res = await this.prisma.order.update({
       where: { id: order.id },
       data: { status: 'disputed' },
@@ -780,9 +893,15 @@ export class OrdersService {
 
     if (outcome === 'seller') {
       await this.releaseSeller(order, 'dispute_release');
+      // Спор по гарантии (часть 126): заказ уже подтверждали — дата та же,
+      // деньги переданы сейчас.
       const done = await this.prisma.order.update({
         where: { id: order.id },
-        data: { status: 'completed', completedAt: new Date() },
+        data: {
+          status: 'completed',
+          completedAt: order.completedAt ?? new Date(),
+          ...(order.warrantyUntil ? { warrantyReleasedAt: new Date() } : {}),
+        },
       });
       await this.sys(order.id, 'Спор решён в пользу продавца. Средства переданы продавцу.');
       return done;
@@ -793,6 +912,13 @@ export class OrdersService {
       where: { id: order.id },
       data: { status: 'refunded' },
     });
+    // Спор по гарантии выигран покупателем: подтверждённая продажа не состоялась.
+    if (order.completedAt) {
+      await this.prisma.$transaction([
+        this.prisma.listing.update({ where: { id: order.listingId }, data: { salesCount: { decrement: 1 } } }),
+        this.prisma.profile.update({ where: { userId: order.sellerId }, data: { salesCount: { decrement: 1 } } }),
+      ]);
+    }
     await this.sys(
       order.id,
       order.dealId

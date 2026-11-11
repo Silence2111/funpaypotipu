@@ -15,8 +15,11 @@ export const NOTIFY_GROUPS = [
     types: [
       'order_created',
       'order_paid',
+      'order_started',
+      'service_overdue',
       'order_delivered',
       'order_completed',
+      'warranty_started',
       'order_cancelled',
       'order_refunded',
       'listing_out_of_stock',
@@ -100,8 +103,11 @@ export const LOCKED_NOTIFY: Partial<Record<NotifyChannel, NotifyGroup[]>> = { em
 export const NOTIFY_LABELS: Record<string, string> = {
   order_created: 'Новый заказ по вашему лоту',
   order_paid: 'Заказ оплачен — выдайте товар',
+  order_started: 'Продавец взял заказ в работу',
+  service_overdue: 'Срок выполнения заказа вышел',
   order_delivered: 'Товар выдан — подтвердите получение',
   order_completed: 'Сделка завершена, деньги зачислены',
+  warranty_started: 'Покупатель подтвердил получение — деньги придут после гарантии',
   order_cancelled: 'Заказ отменён',
   order_refunded: 'Возврат по заказу',
   payment_to_balance: 'Повторная оплата заказа зачислена на баланс',

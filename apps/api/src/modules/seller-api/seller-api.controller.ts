@@ -162,6 +162,10 @@ export class SellerApiController {
         createdAt: true,
         paidAt: true,
         deliveredAt: true,
+        serviceDueAt: true,
+        serviceStartedAt: true,
+        warrantyUntil: true,
+        warrantyReleasedAt: true,
         buyer: { select: { profile: { select: { username: true } } } },
       },
     });
@@ -184,9 +188,23 @@ export class SellerApiController {
           createdAt: o.createdAt,
           paidAt: o.paidAt,
           deliveredAt: o.deliveredAt,
+          // Услуга со сроком (часть 125): выполнить до и когда взято в работу.
+          serviceDueAt: o.serviceDueAt,
+          serviceStartedAt: o.serviceStartedAt,
+          // Гарантия (часть 126): до какого времени возможен спор; деньги придут после.
+          warrantyUntil: o.warrantyUntil,
+          warrantyReleasedAt: o.warrantyReleasedAt,
         };
       }),
     };
+  }
+
+  /** «Взял в работу» (часть 125): покупатель видит, что заказ не забыт. */
+  @Post('orders/:id/start')
+  @HttpCode(200)
+  async start(@Req() req: ApiReq, @Param('id', ParseUUIDPipe) id: string) {
+    const res = await this.orders.startWork(id, req.apiUser.userId);
+    return { id: res.id, status: res.status, serviceStartedAt: res.serviceStartedAt };
   }
 
   /** Отметить выдачу; сообщение — покупателю в чат заказа (контакты скрываются, как в чате). */

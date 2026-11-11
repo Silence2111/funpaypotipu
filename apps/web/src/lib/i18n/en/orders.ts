@@ -336,4 +336,30 @@ export const ORDERS: Record<string, string> = {
   'Заказ отменён, средства возвращены покупателю на карту.': 'Order cancelled, the money has been returned to the buyer’s card.',
   'Продавец вернул деньги покупателю на карту.': 'The seller refunded the buyer to their card.',
   'Спор решён в пользу покупателя. Средства возвращены покупателю на карту.': 'Dispute resolved in the buyer’s favour. The money has been returned to the buyer’s card.',
+  // Услуги со сроком (часть 125)
+  'Срок выполнения — на странице заказа. Не успеет продавец — можно сразу открыть спор; без выдачи и спора деньги вернутся через сутки после срока.':
+    'The deadline is on the order page. If the seller misses it, you can open a dispute right away; with no delivery and no dispute, the money comes back a day after the deadline.',
+  'Продавец взял заказ в работу.': 'The seller has started on the order.',
+  'Срок выполнения вышел. Покупатель может открыть спор; без выдачи и спора деньги вернутся покупателю через сутки.':
+    'The deadline has passed. The buyer can open a dispute; with no delivery and no dispute, the money goes back to the buyer in a day.',
+  'Срок выполнения вышел ({due}). Можно сразу открыть спор — арбитр разберётся. Без выдачи и спора деньги вернутся {back}.':
+    'The deadline has passed ({due}). You can open a dispute right away and an arbiter will look into it. With no delivery and no dispute, the money comes back on {back}.',
+  'Оплата у площадки, продавец её не получит до вашего подтверждения. Срок выполнения — до {due}. Не успеет — откройте спор; без выдачи и спора деньги вернутся {back}.':
+    'The payment is held by the marketplace; the seller gets it only after you confirm. Deadline: {due}. If the seller misses it, open a dispute; with no delivery and no dispute, the money comes back on {back}.',
+  'Срок выполнения вышел ({due}). Покупатель может открыть спор; без выдачи деньги вернутся ему {back}. Выполнили — отметьте выдачу.':
+    'The deadline has passed ({due}). The buyer can open a dispute; with no delivery, the money goes back to them on {back}. Done? Press “Mark as delivered”.',
+  'Покупатель оплатил, деньги у площадки. Выполните заказ до {due} и нажмите «Отметить выдачу».':
+    'The buyer has paid, the money is held by the marketplace. Complete the order by {due} and press “Mark as delivered”.',
+  'В работе с {date}': 'In progress since {date}',
+  // Гарантия продавца (часть 126)
+  'Покупатель подтвердил получение. Идёт гарантия продавца: срок — на странице заказа, в этот срок покупатель может открыть спор, деньги до её конца у площадки.':
+    'The buyer confirmed receipt. The seller’s warranty is running: the end date is on the order page; until then the buyer can open a dispute, and the marketplace holds the money.',
+  'Срок проверки истёк — заказ подтверждён автоматически. Идёт гарантия продавца: срок — на странице заказа, в этот срок покупатель может открыть спор, деньги до её конца у площадки.':
+    'The check period is over and the order was confirmed automatically. The seller’s warranty is running: the end date is on the order page; until then the buyer can open a dispute, and the marketplace holds the money.',
+  'Гарантия закончилась — средства переданы продавцу.': 'The warranty has ended and the money has gone to the seller.',
+  'Вы подтвердили получение. Гарантия продавца — до {date}: если с товаром что-то не так, откройте спор. Деньги до этого времени у площадки.':
+    'You confirmed receipt. The seller’s warranty runs until {date}: if something is wrong with the goods, open a dispute. Until then the marketplace holds the money.',
+  'Покупатель подтвердил получение. Ваша гарантия — до {date}: в этот срок покупатель может открыть спор. Деньги придут на баланс, когда она закончится.':
+    'The buyer confirmed receipt. Your warranty runs until {date}: until then the buyer can open a dispute. The money reaches your balance when it ends.',
+  'Подтверждён, идёт гарантия': 'Confirmed, under warranty',
 };

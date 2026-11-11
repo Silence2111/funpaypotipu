@@ -43,6 +43,7 @@ import {
   type UpdateListingInput,
   accountTransferMatch,
   attributeText,
+  NO_WARRANTY_SEGMENTS,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { SearchService } from '../search/search.service';
@@ -118,6 +119,10 @@ const cardSelect = {
   stock: true,
   // Скидка за количество: страница лота считает сумму, строка раздела — «до −10%».
   qtyDiscounts: true,
+  // Срок выполнения услуги (часть 125): «Срок выполнения — 3 дня с оплаты».
+  serviceHours: true,
+  // Гарантия продавца в днях (часть 126): «Гарантия 7 дней» у лота.
+  warrantyDays: true,
   // Параметры раздела (звание, регион, сервер) — колонки таблицы раздела.
   attributes: true,
   // Продавец в строке раздела, как на FunPay: имя, аватар, рейтинг с числом
@@ -623,7 +628,7 @@ export class ListingsService {
         buyerFields: true,
         stock: true,
         deliveryTemplate: true,
-        category: { select: { slug: true, title: true, fulfillmentType: true, unitName: true, pricePerUnits: true } },
+        category: { select: { slug: true, title: true, fulfillmentType: true, unitName: true, pricePerUnits: true, segment: true } },
       },
     });
     if (!listing || listing.status === 'archived') throw new NotFoundException('Лот не найден');
@@ -1021,6 +1026,8 @@ export class ListingsService {
         fulfillmentType: fulfillment,
         autoDelivery: fulfillment !== 'manual',
         deliveryTemplate: this.template(input.deliveryTemplate),
+        serviceHours: this.serviceTerm(category, fulfillment, input.serviceHours),
+        warrantyDays: this.warranty(category, fulfillment, input.warrantyDays),
       },
       select: cardSelect,
     });
@@ -1213,6 +1220,29 @@ export class ListingsService {
   }
 
   /**
+   * Срок выполнения (часть 125) — у услуг, которые выполняют вручную:
+   * автовыдача мгновенна, а товару срок не нужен — у него сутки на выдачу.
+   */
+  private serviceTerm(category: { segment: string }, fulfillment: FulfillmentType, hours: number | null | undefined) {
+    if (hours == null) return null;
+    if (category.segment !== 'service') throw new BadRequestException('Срок выполнения задают только у услуг');
+    if (fulfillment !== 'manual') throw new BadRequestException('Срок выполнения — у услуг, которые выполняют вручную');
+    return hours;
+  }
+
+  /**
+   * Гарантия продавца (часть 126) — у ключей, предметов и услуг: валюту и
+   * пополнение проверяют сразу при получении, гарантия им ни к чему.
+   */
+  private warranty(category: { segment: string }, fulfillment: FulfillmentType, days: number | null | undefined) {
+    if (days == null) return null;
+    if ((NO_WARRANTY_SEGMENTS as readonly string[]).includes(category.segment) || fulfillment === 'provider') {
+      throw new BadRequestException('Гарантию дают на ключи, предметы и услуги — у валюты и пополнений её нет');
+    }
+    return days;
+  }
+
+  /**
    * Условия продажи поштучно. Без единицы лот продаётся целиком: пачка и
    * минимум сбрасываются, наличие — как задал продавец. У пополнений
    * «количества» нет — у них сумма на выбор покупателя.
@@ -1399,6 +1429,10 @@ export class ListingsService {
     // Наличие обнулили правкой — лот уходит из каталога, как после продажи последней штуки.
     if (data.stock === 0 && current.status === 'active' && input.status === undefined) data.status = 'sold_out';
     if (input.buyerFields !== undefined) data.buyerFields = this.buyerFields(fulfillment, input.buyerFields);
+    // Срок услуги: включили автовыдачу — срок не нужен, выдача мгновенная.
+    if (input.serviceHours !== undefined) data.serviceHours = this.serviceTerm(current.category, fulfillment, input.serviceHours);
+    else if (switched && fulfillment !== 'manual') data.serviceHours = null;
+    if (input.warrantyDays !== undefined) data.warrantyDays = this.warranty(current.category, fulfillment, input.warrantyDays);
     if (input.currency !== undefined) data.currency = input.currency;
     if (input.attributes !== undefined) data.attributes = input.attributes as Prisma.InputJsonValue;
     if (input.images !== undefined) data.images = input.images as Prisma.InputJsonValue;
@@ -1489,7 +1523,7 @@ export class ListingsService {
         description: true,
         attributes: true,
         category: {
-          select: { fulfillmentType: true, unitName: true, pricePerUnits: true, salesClosed: true, closedReason: true },
+          select: { fulfillmentType: true, unitName: true, pricePerUnits: true, salesClosed: true, closedReason: true, segment: true },
         },
       },
     });

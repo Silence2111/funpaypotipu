@@ -15,6 +15,8 @@ import { PayMethods, priceFor, type PayMethod } from '@/components/pay-methods';
 import { payOrder } from '@/lib/checkout';
 import { useT } from '@/lib/i18n/client';
 import { msg, type T } from '@/lib/i18n/lang';
+import { SERVICE_GRACE_HOURS } from '@gamemarket/shared/service-term';
+import { warrantyActive } from '@gamemarket/shared/warranty';
 
 interface Order {
   id: string; publicNumber: string; status: string; amount: string; currency: string;
@@ -35,6 +37,10 @@ interface Order {
     qtyDiscount?: { from: number; pct: number; discount: string };
   } | null;
   autoConfirmAt?: string | null; sellerPayoutAmount?: string;
+  /** Услуга со сроком (часть 125): выполнить до, взято в работу, срок вышел. */
+  serviceDueAt?: string | null; serviceStartedAt?: string | null; serviceOverdueAt?: string | null;
+  /** Гарантия продавца (часть 126): спор до этого времени, деньги продавцу — после. */
+  warrantyUntil?: string | null; warrantyReleasedAt?: string | null;
   /** Диалог сделки — приходит с заказом, а не поиском по списку мессенджера. */
   conversationId?: string | null;
 }
@@ -56,9 +62,38 @@ const STEPS = [msg('Оплачен'), msg('Выдан'), msg('Подтвержд
 
 type Kind = 'key' | 'item' | 'topup' | 'manual';
 
+const when = (t: T, iso: string) =>
+  new Date(iso).toLocaleString(t.locale, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+
+/**
+ * Услуга со сроком (часть 125), заказ оплачен: до какого времени выполнить,
+ * а после срока — что делать. Деньги без выдачи и спора возвращаются через
+ * сутки после срока (SERVICE_GRACE_HOURS).
+ */
+function explainService(t: T, role: 'buyer' | 'seller', dueAt: string, overdue: boolean) {
+  const due = when(t, dueAt);
+  const back = when(t, new Date(new Date(dueAt).getTime() + SERVICE_GRACE_HOURS * 3600_000).toISOString());
+  if (role === 'buyer') {
+    return overdue
+      ? t('Срок выполнения вышел ({due}). Можно сразу открыть спор — арбитр разберётся. Без выдачи и спора деньги вернутся {back}.', { due, back })
+      : t('Оплата у площадки, продавец её не получит до вашего подтверждения. Срок выполнения — до {due}. Не успеет — откройте спор; без выдачи и спора деньги вернутся {back}.', { due, back });
+  }
+  return overdue
+    ? t('Срок выполнения вышел ({due}). Покупатель может открыть спор; без выдачи деньги вернутся ему {back}. Выполнили — отметьте выдачу.', { due, back })
+    : t('Покупатель оплатил, деньги у площадки. Выполните заказ до {due} и нажмите «Отметить выдачу».', { due });
+}
+
+/** Заказ подтверждён, идёт гарантия продавца (часть 126). */
+function explainWarranty(t: T, role: 'buyer' | 'seller', until: string) {
+  const date = when(t, until);
+  return role === 'buyer'
+    ? t('Вы подтвердили получение. Гарантия продавца — до {date}: если с товаром что-то не так, откройте спор. Деньги до этого времени у площадки.', { date })
+    : t('Покупатель подтвердил получение. Ваша гарантия — до {date}: в этот срок покупатель может открыть спор. Деньги придут на баланс, когда она закончится.', { date });
+}
+
 /** Что сейчас происходит и что делать — отдельно для покупателя и продавца. */
 function explain(t: T, status: string, role: 'buyer' | 'seller', kind: Kind, confirmUntil: string | null) {
-  const until = confirmUntil ? new Date(confirmUntil).toLocaleString(t.locale, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : null;
+  const until = confirmUntil ? when(t, confirmUntil) : null;
   const autoConfirm = until ? ` ${t('Если не подтвердите и не откроете спор до {until}, заказ подтвердится сам.', { until })}` : '';
   if (role === 'buyer') {
     switch (status) {
@@ -271,7 +306,16 @@ export default function OrderPage() {
   const many = (order.qty ?? 1) > 1;
   const step = STEP_OF[order.status] ?? -1;
   const closed = ['refunded', 'cancelled', 'expired'].includes(order.status);
-  const text = explain(t, order.status, role, kind, order.autoConfirmAt ?? null);
+  // Услуга со сроком (часть 125): пока заказ ждёт выдачи — свой текст.
+  const service = order.status === 'paid' && kind === 'manual' && order.serviceDueAt ? order.serviceDueAt : null;
+  const serviceLate = !!service && (!!order.serviceOverdueAt || new Date(service).getTime() <= Date.now());
+  // Гарантия продавца (часть 126): подтверждён, а деньги ещё у площадки.
+  const warranty = warrantyActive(order) ? order.warrantyUntil! : null;
+  const text = service
+    ? explainService(t, role, service, serviceLate)
+    : warranty
+      ? explainWarranty(t, role, warranty)
+      : explain(t, order.status, role, kind, order.autoConfirmAt ?? null);
   const title = order.listingSnapshot?.title;
   const topupAccount = order.listingSnapshot?.account;
   const topupAmount = order.listingSnapshot?.topupAmount;
@@ -338,7 +382,7 @@ export default function OrderPage() {
             order.status === 'completed' ? 'badge success'
               : order.status === 'disputed' ? 'badge warning'
                 : closed ? 'badge' : 'badge accent'}>
-            {STATUS[order.status] ? t(STATUS[order.status]!) : order.status}
+            {warranty ? t('Подтверждён, идёт гарантия') : STATUS[order.status] ? t(STATUS[order.status]!) : order.status}
           </span>
           <span className="row faint" style={{ gap: 6, fontSize: 13 }}>
             <ShieldCheck size={15} strokeWidth={1.75} /> {t('Защита сделки')}
@@ -380,7 +424,16 @@ export default function OrderPage() {
             <strong style={{ wordBreak: 'break-all' }}>{topupAccount}</strong>
           </p>
         )}
-        {text && <p style={{ margin: '14px 0 0', fontSize: 15 }} className="muted">{text}</p>}
+        {order.status === 'paid' && kind === 'manual' && order.serviceStartedAt && (
+          <p style={{ margin: '14px 0 0', fontSize: 15 }}>
+            <span className="badge">{t('В работе с {date}', { date: when(t, order.serviceStartedAt) })}</span>
+          </p>
+        )}
+        {text && (
+          <p style={{ margin: '14px 0 0', fontSize: 15 }} className={serviceLate ? undefined : 'muted'} role={serviceLate ? 'status' : undefined}>
+            {text}
+          </p>
+        )}
 
         {role === 'buyer' && order.status === 'created' && (
           <div style={{ marginTop: 16, maxWidth: 440 }}>
@@ -397,6 +450,9 @@ export default function OrderPage() {
           {role === 'seller' && order.status === 'paid' && (
             <button className="btn" onClick={() => act('deliver')} disabled={busy} type="button">{t('Отметить выдачу')}</button>
           )}
+          {role === 'seller' && order.status === 'paid' && kind === 'manual' && !order.serviceStartedAt && (
+            <button className="btn secondary" onClick={() => act('start')} disabled={busy} type="button">{t('Взять в работу')}</button>
+          )}
           {role === 'buyer' && auto && (order.status === 'delivered' || order.status === 'completed') && !keys && (
             <button className={order.status === 'delivered' ? 'btn secondary' : 'btn'} onClick={revealKey} type="button">
               {kind === 'item' ? <Package size={16} strokeWidth={1.75} /> : <KeyRound size={16} strokeWidth={1.75} />}{' '}
@@ -408,12 +464,12 @@ export default function OrderPage() {
               <CheckCircle2 size={16} /> {t('Всё получил, подтвердить')}
             </button>
           )}
-          {role === 'buyer' && (order.status === 'paid' || order.status === 'delivered') && (
-            <button className="btn secondary" onClick={() => setShowDispute((v) => !v)} type="button">
+          {role === 'buyer' && (order.status === 'paid' || order.status === 'delivered' || !!warranty) && (
+            <button className={serviceLate ? 'btn' : 'btn secondary'} onClick={() => setShowDispute((v) => !v)} type="button">
               <AlertTriangle size={16} strokeWidth={1.75} /> {t('Открыть спор')}
             </button>
           )}
-          {order.status === 'paid' && role === 'buyer' && (
+          {order.status === 'paid' && role === 'buyer' && !order.serviceStartedAt && (
             <button className="btn ghost" disabled={busy} type="button"
               onClick={() => {
                 if (window.confirm(t('Отменить заказ? Деньги вернутся на ваш баланс.'))) act('cancel');

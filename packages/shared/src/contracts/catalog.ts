@@ -54,6 +54,20 @@ export const createListingSchema = z.object({
   autoDelivery: z.boolean().optional(),
   // Сообщение покупателю в чат заказа сразу после оплаты: как войти, что дальше.
   deliveryTemplate: z.string().trim().max(2000, 'Сообщение — до 2000 знаков').nullable().optional(),
+  // Срок выполнения услуги в часах (часть 125): 1, 2, 3, 5, 7, 14 или 30 дней.
+  serviceHours: z
+    .number()
+    .int()
+    .refine((h) => [24, 48, 72, 120, 168, 336, 720].includes(h), 'Срок выполнения — 1, 2, 3, 5, 7, 14 или 30 дней')
+    .nullable()
+    .optional(),
+  // Гарантия продавца в днях (часть 126): спор после подтверждения в этот срок.
+  warrantyDays: z
+    .number()
+    .int()
+    .refine((d) => [1, 3, 7, 14, 30].includes(d), 'Гарантия — 1, 3, 7, 14 или 30 дней')
+    .nullable()
+    .optional(),
 });
 export type CreateListingInput = z.infer<typeof createListingSchema>;
 
