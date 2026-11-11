@@ -47,3 +47,4 @@ export * from './device';
 export * from './seller-promo';
 export * from './favorites';
 export * from './listing-title';
+export * from './retention';

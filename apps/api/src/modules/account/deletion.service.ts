@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, Optional, UnauthorizedException } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import * as bcrypt from 'bcryptjs';
 import { Prisma, PrismaClient } from '@gamemarket/db';
@@ -18,6 +18,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { SearchService } from '../search/search.service';
 import { StorageService } from '../storage/storage.service';
 import { TwoFactorService } from '../auth/twofactor.service';
+import { RetentionService } from '../retention/retention.service';
 
 const DAY_MS = 24 * 3600_000;
 /** Проход уничтожения: раз в час; в e2e — раз в 2 с. */
@@ -55,6 +56,8 @@ export class DeletionService {
     private readonly search: SearchService,
     private readonly storage: StorageService,
     private readonly twoFactor: TwoFactorService,
+    // Журнал и акт об уничтожении (часть 147); в юнит-тестах — без него.
+    @Optional() private readonly retention?: RetentionService,
   ) {}
 
   /** Что мешает удалить аккаунт — то же, что проверит само удаление. */
@@ -234,6 +237,9 @@ export class DeletionService {
       ...kyc.flatMap((k) => fileKeys(k.documentRefs)),
     ].filter((k): k is string => !!k && !/^https?:/.test(k));
     for (const key of keys) await this.storage.remove(key).catch(() => undefined);
+    await this.retention
+      ?.record('account_deleted', { userId, categories: ['contacts', 'login', 'profile', 'payout', 'kyc', 'notifications'] }, now)
+      .catch((e) => this.logger.warn(`Журнал уничтожения: ${(e as Error).message}`));
   }
 
   /**
@@ -271,6 +277,9 @@ export class DeletionService {
       ]);
       const avatar = profile?.avatarUrl;
       if (avatar && !/^https?:/.test(avatar)) await this.storage.remove(avatar).catch(() => undefined);
+      await this.retention
+        ?.record('consent_revoked', { userId, subject: `${profile?.username ?? erasedUsername(userId)} (id ${userId})`, categories: ['profile', 'login', 'notifications', 'interests'] }, now)
+        .catch((e) => this.logger.warn(`Журнал уничтожения: ${(e as Error).message}`));
     }
     return users.length;
   }

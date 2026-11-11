@@ -17,6 +17,7 @@ import { RecoverySection } from './recovery-section';
 import { CatalogSection } from './catalog-section';
 import { GameChatSection } from './game-chat-section';
 import { AppealsSection } from './appeals-section';
+import { ErasureSection } from './erasure-section';
 
 /** Разделы консоли и роли, которым они открыты. Администратору открыто всё. */
 const TABS = [
@@ -34,6 +35,8 @@ const TABS = [
   { key: 'fees', label: 'Комиссии и промокоды', roles: [] as string[] },
   { key: 'catalog', label: 'Каталог', roles: [] as string[] },
   { key: 'audit', label: 'Журнал', roles: [] as string[] },
+  // Акты об уничтожении персональных данных (часть 147) — только администратору.
+  { key: 'erasure', label: 'Уничтожение ПД', roles: [] as string[] },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -134,6 +137,8 @@ export function AdminConsole() {
         <FeesSection />
       ) : tab.key === 'catalog' ? (
         <CatalogSection />
+      ) : tab.key === 'erasure' ? (
+        <ErasureSection />
       ) : (
         <AuditSection />
       )}
