@@ -441,6 +441,13 @@ export default async function ListingPage({
                   })}
                 </li>
               </ul>
+              {pricing && (pricing.bonusPct ?? 0) > 0 && (
+                <p className="hint" style={{ marginTop: 10 }}>
+                  {t('+{pct}% бонусами после подтверждения — спишутся скидкой в следующем заказе', {
+                    pct: Math.round((pricing.bonusPct ?? 0) * 100),
+                  })}
+                </p>
+              )}
               {pricing && pricing.cashbackPct > 0 && (
                 <p className="hint" style={{ marginTop: 10 }}>
                   {t('+{pct}% кэшбэк на баланс после подтверждения', { pct: Math.round(pricing.cashbackPct * 100) })}

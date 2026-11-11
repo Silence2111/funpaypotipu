@@ -1122,6 +1122,65 @@ async function scenarioSafeDeal(rnd) {
 }
 
 /**
+ * Бонусы вместо кэшбэка в «Безопасной сделке» (часть 146): начисляются, когда
+ * деньги ушли продавцу, списываются скидкой из вознаграждения площадки при
+ * следующей оплате; отмена заказа возвращает их (триггер базы); два заказа
+ * разом не тратят одни бонусы дважды.
+ */
+async function scenarioBonuses(rnd) {
+  console.log('\n— Бонусы в «Безопасной сделке» —');
+  const admin = await register('bna', rnd);
+  const seller = await register('bns', rnd);
+  const buyer = await register('bnb', rnd);
+  await grant(admin, 'admin');
+  const B = { token: buyer.token };
+  const S = { token: seller.token };
+  const scheme = (s) => j('/admin/payment-scheme', { method: 'PUT', token: admin.token, body: JSON.stringify({ scheme: s }) });
+  await scheme('safe_deal');
+  const pub = (await j('/fees/public')).body;
+  check('В сделке витрина обещает бонусы, а не кэшбэк', pub.cashbackPct === 0 && pub.bonusPct > 0, JSON.stringify({ cashback: pub.cashbackPct, bonus: pub.bonusPct }));
+
+  const lot = await createListing(seller.token, 'skins', '100000', { title: `Бонусы ${rnd}` });
+  const order = (await j('/orders', { method: 'POST', ...B, body: JSON.stringify({ listingId: lot }) })).body;
+  const dep = await j('/payments/deposit', { method: 'POST', ...B, body: JSON.stringify({ orderId: order.id, method: 'card' }) });
+  await j('/payments/mock/callback?providerRef=' + dep.body.providerRef, { method: 'POST' });
+  await j(`/orders/${order.id}/deliver`, { method: 'POST', ...S });
+  const walletBefore = (await j('/wallet', B)).body.balance;
+  await j(`/orders/${order.id}/confirm`, { method: 'POST', ...B });
+  const want = String(Math.floor(Number(order.amount) * pub.bonusPct));
+  const mine = (await j('/account/bonuses', B)).body;
+  const note = (await j('/notifications', B)).body.find?.((n) => n.type === 'bonus_accrued');
+  const walletAfter = (await j('/wallet', B)).body.balance;
+  check(
+    'Сделка завершена — бонусы начислены, на баланс деньгами ничего, уведомление',
+    mine.balance === want && mine.entries?.[0]?.kind === 'accrual' && walletAfter === walletBefore && !!note,
+    JSON.stringify({ want, mine, walletBefore, walletAfter, note: !!note }),
+  );
+
+  const quote = (await j(`/orders/bonus-quote?listingId=${lot}`, B)).body;
+  const o2 = (await j('/orders', { method: 'POST', ...B, body: JSON.stringify({ listingId: lot, useBonus: true }) })).body;
+  const left = (await j('/account/bonuses', B)).body.balance;
+  check(
+    'Списать бонусы: подсказка = скидка в заказе; сумма меньше, продавцу — столько же; остаток уменьшился',
+    BigInt(quote.discount) > 0n && o2.bonusDiscount === quote.discount && BigInt(o2.amount) === BigInt(order.amount) - BigInt(quote.discount) &&
+      o2.sellerPayoutAmount === order.sellerPayoutAmount && BigInt(left) === BigInt(want) - BigInt(quote.discount),
+    JSON.stringify({ quote, o2: [o2.amount, o2.bonusDiscount, o2.sellerPayoutAmount], order: [order.amount, order.sellerPayoutAmount], left }),
+  );
+  const cancel = await j(`/orders/${o2.id}/cancel`, { method: 'POST', ...B });
+  const back = (await j('/account/bonuses', B)).body;
+  check('Заказ отменён — бонусы вернулись', cancel.status === 201 && back.balance === want && back.entries?.[0]?.kind === 'refund', JSON.stringify({ cancel: cancel.status, back: back.balance, kind: back.entries?.[0]?.kind }));
+
+  const both = await Promise.all([1, 2].map(() => j('/orders', { method: 'POST', ...B, body: JSON.stringify({ listingId: lot, useBonus: true }) })));
+  const spent = both.reduce((sum, r) => sum + BigInt(r.body.bonusDiscount ?? 0), 0n);
+  const rest = (await j('/account/bonuses', B)).body.balance;
+  check('Два заказа разом не тратят одни бонусы дважды', spent <= BigInt(want) && BigInt(rest) === BigInt(want) - spent && BigInt(rest) >= 0n, JSON.stringify({ spent: String(spent), rest, want }));
+  for (const r of both) await j(`/orders/${r.body.id}/cancel`, { method: 'POST', ...B });
+
+  await scheme('escrow');
+  await j(`/listings/${lot}`, { method: 'PATCH', ...S, body: JSON.stringify({ status: 'paused' }) });
+}
+
+/**
  * Услуги со сроком выполнения (часть 125): срок у лота услуги, «выполнить
  * до» у заказа, «взял в работу» (покупатель уже не отменяет сам), вместо 24 ч
  * с оплаты — просрочка по сроку с уведомлением обеим сторонам, а через сутки
@@ -5983,6 +6042,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioAccountDeletion(rnd);
   await scenarioPhoneLogin(rnd);
   await scenarioSafeDeal(rnd);
+  await scenarioBonuses(rnd);
   await scenarioSellerApi(rnd);
   await scenarioServiceTerm(rnd);
   await scenarioWarranty(rnd);

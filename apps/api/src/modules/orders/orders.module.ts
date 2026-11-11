@@ -4,6 +4,7 @@ import { PromoModule } from '../promo/promo.module';
 import { ChatModule } from '../chat/chat.module';
 import { PartnersModule } from '../partners/partners.module';
 import { SafeDealModule } from '../safe-deal/safe-deal.module';
+import { BonusesModule } from '../bonuses/bonuses.module';
 import { OrdersController } from './orders.controller';
 import { FeesController } from './fees.controller';
 import { OrdersService } from './orders.service';
@@ -13,7 +14,7 @@ import { MockTopUpProvider } from './topup.provider';
 import { OrdersSweepService } from './orders-sweep.service';
 
 @Module({
-  imports: [AuthModule, PromoModule, ChatModule, PartnersModule, SafeDealModule],
+  imports: [AuthModule, PromoModule, ChatModule, PartnersModule, SafeDealModule, BonusesModule],
   controllers: [OrdersController, FeesController],
   providers: [OrdersService, FeesService, FulfillmentService, MockTopUpProvider, OrdersSweepService],
   exports: [OrdersService],

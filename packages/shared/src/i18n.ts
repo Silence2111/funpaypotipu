@@ -287,6 +287,8 @@ export const EN_SHARED: Phrasebook = {
   'Новый отзыв': 'New review',
   'Продавец ответил на ваш отзыв': 'The seller replied to your review',
   'Кэшбэк за покупку зачислен на баланс': 'Purchase cashback credited to your balance',
+  'Бонусы за покупку — спишутся скидкой в следующем заказе': 'Purchase bonuses — they’ll be applied as a discount on your next order',
+  'кэшбэк, бонусы, выплаты и партнёрские начисления': 'cashback, bonuses, payouts and partner rewards',
   'Новое сообщение': 'New message',
   'Спор по сделке': 'Dispute on a deal',
   'Ждём вашего ответа в споре': 'Your reply is needed in a dispute',

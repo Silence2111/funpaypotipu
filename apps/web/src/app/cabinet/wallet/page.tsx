@@ -12,6 +12,7 @@ import { PayoutForm } from '@/components/payout-form';
 import { PayoutRequests, type MyPayout } from '@/components/payout-requests';
 import { StatementView } from '@/components/statement';
 import { DealPayouts } from '@/components/deal-payouts';
+import { BonusCard } from '@/components/bonus-card';
 import Link from 'next/link';
 import { useT } from '@/lib/i18n/client';
 
@@ -193,6 +194,8 @@ function WalletInner() {
           <PayoutRequests items={payouts} />
         </section>
       )}
+
+      <BonusCard />
 
       <section className="card" style={{ padding: 24 }}>
         <h2 className="h2" style={{ fontSize: 20 }}>

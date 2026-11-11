@@ -11,6 +11,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { BonusesService } from '../bonuses/bonuses.service';
 import { Prisma, PrismaClient, type Order, type OrderStatus, type Payment } from '@gamemarket/db';
 import {
   canTransition,
@@ -94,6 +95,8 @@ export class OrdersService {
     @Optional() private readonly webhooks?: WebhooksService,
     // Сделки между связанными аккаунтами (часть 128); в юнит-тестах — без него.
     @Optional() private readonly antifraud?: AntifraudService,
+    // Бонусы вместо кэшбэка в «Безопасной сделке» (часть 146).
+    @Optional() private readonly bonuses?: BonusesService,
   ) {}
 
   /**
@@ -156,7 +159,14 @@ export class OrdersService {
   async create(
     buyerId: string,
     listingId: string,
-    opts: { promoCode?: string; account?: string; topupAmount?: string; qty?: number; buyerData?: Record<string, string> } = {},
+    opts: {
+      promoCode?: string;
+      account?: string;
+      topupAmount?: string;
+      qty?: number;
+      buyerData?: Record<string, string>;
+      useBonus?: boolean;
+    } = {},
   ) {
     const { promoCode } = opts;
     const account = opts.account?.trim() || undefined;
@@ -259,6 +269,12 @@ export class OrdersService {
       const maxDiscount = maxPromoDiscount({ amountToPay: f.amountToPay, sellerPayout: f.sellerPayout });
       amount -= await this.promo.consume(promoCode, f.amountToPay, maxDiscount);
     }
+    // Бонусы (часть 146) — тоже из вознаграждения площадки, с тем же
+    // потолком, что у её промокода, за вычетом уже данной им скидки.
+    const bonusCap =
+      opts.useBonus && this.bonuses
+        ? maxPromoDiscount({ amountToPay: f.amountToPay, sellerPayout: f.sellerPayout }) - (f.amountToPay - amount)
+        : 0n;
 
     const data: Prisma.OrderUncheckedCreateInput = {
       publicNumber: `GM-${Date.now().toString(36).toUpperCase()}-${randomUUID().slice(0, 4)}`,
@@ -319,16 +335,24 @@ export class OrdersService {
     };
     // Заказ по коду продавца — в транзакции с блокировкой кода: проверка
     // повторяется, и два заказа не займут последнее использование вдвоём.
-    const order = sellerPromo
-      ? await this.prisma.$transaction(async (tx) => {
-          await this.sellerPromos.check(promoCode!, listing, buyerId, tx, true);
-          const created = await tx.order.create({ data });
-          await tx.sellerPromoUse.create({
-            data: { promoId: sellerPromo.id, buyerId, orderId: created.id, discount: promoDiscount },
-          });
-          return created;
-        })
-      : await this.prisma.order.create({ data });
+    // Бонусы — там же, под блокировкой покупателя (часть 146).
+    const order =
+      sellerPromo || bonusCap > 0n
+        ? await this.prisma.$transaction(async (tx) => {
+            if (sellerPromo) await this.sellerPromos.check(promoCode!, listing, buyerId, tx, true);
+            const bonus = bonusCap > 0n ? await this.bonuses!.take(tx, buyerId, bonusCap) : 0n;
+            const created = await tx.order.create({
+              data: bonus > 0n ? { ...data, amount: amount - bonus, bonusDiscount: bonus } : data,
+            });
+            if (sellerPromo) {
+              await tx.sellerPromoUse.create({
+                data: { promoId: sellerPromo.id, buyerId, orderId: created.id, discount: promoDiscount },
+              });
+            }
+            if (bonus > 0n) await this.bonuses!.spend(tx, buyerId, created.id, bonus);
+            return created;
+          })
+        : await this.prisma.order.create({ data });
     await this.notifications.notify(listing.sellerId, 'order_created', {
       orderId: order.id,
       title: listing.title,
@@ -393,6 +417,30 @@ export class OrdersService {
     await this.notifications.notify(order.buyerId, 'payment_to_balance', { orderId });
     await this.sys(orderId, 'Пришла ещё одна оплата, когда заказ уже был оплачен или закрыт, — она зачислена на баланс покупателя.');
     return order;
+  }
+
+  /**
+   * Сколько бонусов спишется в заказе этого лота (часть 146) — подсказка у
+   * кнопки «Оплатить». Без промокода; у лота «на сумму покупателя» — от
+   * минимальной суммы. Окончательно считает создание заказа.
+   */
+  async bonusQuote(buyerId: string, listingId: string, qty?: number) {
+    const balance = this.bonuses ? await this.bonuses.balance(buyerId) : 0n;
+    if (balance <= 0n) return { balance: '0', discount: '0' };
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing || listing.status !== 'active') return { balance: balance.toString(), discount: '0' };
+    let base = listing.price;
+    if (listing.topupMarkupBps != null && listing.topupMin != null) {
+      base = topupQuote(listing.topupMin, listing.topupMarkupBps).price;
+    } else if (soldByQty(listing)) {
+      const n = qty ?? listing.minQty;
+      if (qtyError(n, listing)) return { balance: balance.toString(), discount: '0' };
+      base = qtyPrice(listing.price, listing.pricePerUnits, n, qtyTiers(listing.qtyDiscounts)).total;
+    }
+    const f = await this.fees.computeForCategory(base, listing.categoryId, listing.currency, listing.sellerId);
+    const cap = maxPromoDiscount({ amountToPay: f.amountToPay, sellerPayout: f.sellerPayout });
+    const discount = cap > 0n ? (balance < cap ? balance : cap) : 0n;
+    return { balance: balance.toString(), discount: discount.toString() };
   }
 
   /** Оплата заказа с баланса пользователя (без внешнего провайдера). */
@@ -815,6 +863,13 @@ export class OrdersService {
     // В «Безопасной сделке» (часть 123) — пауза: баланс в ней не потратить, а
     // выплата 20 ₽ на карту стоит дороже самих 20 ₽. Бонусы-скидка — часть 146.
     const cashback = order.dealId ? 0n : cashbackFor(order.amount);
+    // В сделке — бонусы (часть 146): спишутся скидкой в следующем заказе.
+    if (order.dealId && this.bonuses) {
+      const bonus = cashbackFor(order.amount);
+      if (await this.bonuses.accrue(order.buyerId, order.id, bonus)) {
+        await this.notifications.notify(order.buyerId, 'bonus_accrued', { orderId: order.id, amount: bonus.toString() });
+      }
+    }
     if (cashback > 0n) {
       await this.ledger.post({
         legs: cashbackToBalance(order.buyerId, cashback),

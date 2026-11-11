@@ -65,6 +65,8 @@ export class FeesController {
       levelDiscountMaxPp: Math.max(...LEVEL_DISCOUNTS) / 100,
       // В «Безопасной сделке» кэшбэк на паузе: баланс в ней не потратить (часть 123).
       cashbackPct: scheme === 'safe_deal' ? 0 : cashbackPct(),
+      // Вместо него — бонусы той же доли, скидкой в следующем заказе (часть 146).
+      bonusPct: scheme === 'safe_deal' ? cashbackPct() : 0,
       // Сколько часов у покупателя на проверку после выдачи: этот срок витрина
       // называет в гарантии сделки. Берём тот же env, что таймер заказов.
       autoConfirmHours: Math.round(
