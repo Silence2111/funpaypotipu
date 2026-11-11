@@ -229,4 +229,10 @@ export const LOT: Record<string, string> = {
   // Превью ссылки на лот (часть 113)
   'Продавец {name} · ★ {rating}': 'Seller {name} · ★ {rating}',
   'Деньги у площадки до подтверждения': 'Money is held until the buyer confirms',
+
+  // Закрытый раздел у лота (часть 122)
+  'раздел закрыт для продажи': 'section closed for sales',
+  'Раздел закрыт для продажи': 'This section is closed for sales',
+  'Продажа в разделе закрыта правилами площадки.': 'Sales in this section are closed by the marketplace rules.',
+  'Другие разделы игры': 'Other sections of the game',
 };

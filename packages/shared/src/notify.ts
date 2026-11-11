@@ -61,7 +61,17 @@ export const NOTIFY_GROUPS = [
     key: 'moderation',
     label: 'Решения модерации',
     hint: 'жалобы, блокировки, проверка документов — письмом всегда',
-    types: ['report_handled', 'listing_blocked', 'listing_unblocked', 'account_status', 'kyc_approved', 'kyc_rejected'],
+    types: [
+      'report_handled',
+      'listing_blocked',
+      'listing_unblocked',
+      'listing_approved',
+      'section_closed',
+      'section_opened',
+      'account_status',
+      'kyc_approved',
+      'kyc_rejected',
+    ],
   },
 ] as const;
 
@@ -118,6 +128,9 @@ export const NOTIFY_LABELS: Record<string, string> = {
   report_handled: 'Ваша жалоба рассмотрена',
   listing_blocked: 'Лот заблокирован модератором',
   listing_unblocked: 'Блокировка лота снята',
+  listing_approved: 'Лот прошёл проверку и вернулся в продажу',
+  section_closed: 'Раздел закрыт для продажи — ваши лоты сняты с витрины',
+  section_opened: 'Раздел снова открыт — ваши лоты вернулись в продажу',
   account_status: 'Статус аккаунта изменён',
   kyc_approved: 'Документы проверены — вывод без ограничения суммы',
   kyc_rejected: 'Документы не приняты — посмотрите причину',
@@ -196,6 +209,8 @@ export function notifyLink(type: string, payload: Record<string, unknown> | null
   if (type === 'new_message' && id('conversationId')) return `/chat/${id('conversationId')}`;
   if (id('orderId')) return `/orders/${id('orderId')}`;
   if (id('listingId')) return type === 'listing_blocked' ? '/cabinet/lots' : `/lot/${id('listingId')}`;
+  // Раздел закрыли или открыли — в «Мои лоты»: там видно, какие лоты сняты.
+  if (type === 'section_closed' || type === 'section_opened') return '/cabinet/lots';
   // Деньги — в кошелёк: там баланс, заявки на вывод и выписка.
   if (type === 'partner_reward') return '/cabinet/partner';
   if (type.startsWith('payout') || type === 'cashback') return '/cabinet/wallet';

@@ -54,7 +54,7 @@ function setup(opts: { target?: Record<string, unknown>; staffIsAdmin?: boolean;
   };
   const audit = { log: vi.fn(async () => ({})) };
   const notifications = { notify: vi.fn(async () => undefined) };
-  const svc = new ModerationService(prisma as never, audit as never, notifications as never);
+  const svc = new ModerationService(prisma as never, audit as never, notifications as never, { indexListing: async () => undefined } as never);
   return { svc, prisma, calls, state, notifications };
 }
 
@@ -203,7 +203,7 @@ describe('очередь жалоб', () => {
       // Поиск по нику: найденные люди.
       profile: { findMany: vi.fn(async () => [{ userId: U1 }]) },
     };
-    const svc = new ModerationService(prisma as never, {} as never, {} as never);
+    const svc = new ModerationService(prisma as never, {} as never, {} as never, { indexListing: async () => undefined } as never);
     return { svc, raw, prisma };
   }
 

@@ -7,7 +7,7 @@ import { SellCalculator, type SellEstimate } from '@/components/sell-calculator'
 import { MoveLots } from '@/components/move-lots';
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
-/** С чего калькулятор начинает: аккаунт CS2 за 1 000 ₽ — самая частая продажа. */
+/** С чего калькулятор начинает: скины CS2 за 1 000 ₽ (аккаунты закрыты, часть 122). */
 const START = { game: 'cs2', price: 1000 };
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t('Продавать на GameMarket'),
     description: t(
-      'Сколько вы получите с продажи аккаунта, ключа или валюты — комиссия, вывод и сумма на руки до регистрации, рядом со ставками FunPay и Playerok.',
+      'Сколько вы получите с продажи скина, ключа или валюты — комиссия, вывод и сумма на руки до регистрации, рядом со ставками FunPay и Playerok.',
     ),
     alternates: { canonical: `${SITE}/prodavat` },
   };
@@ -29,9 +29,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function SellPage() {
   const t = await getT();
   const [index, pricing] = await Promise.all([getGameIndex(), getPublicPricing()]);
-  const games = (index ?? []).filter((g) => g.categories.length > 0);
+  // Закрытые для продажи разделы (часть 122) в калькуляторе не предлагаем.
+  const games = (index ?? [])
+    .map((g) => ({ ...g, categories: g.categories.filter((c) => !c.salesClosed) }))
+    .filter((g) => g.categories.length > 0);
   const start = games.find((g) => g.slug === START.game) ?? games[0];
-  const category = start?.categories.find((c) => c.slug === 'accounts') ?? start?.categories[0];
+  const category = start?.categories.find((c) => c.slug === 'skins') ?? start?.categories[0];
   // Первый расчёт — на сервере: страница с цифрами приходит целиком.
   const initial = category
     ? await apiTry<SellEstimate>(`/fees/estimate?categoryId=${category.id}&price=${START.price * 100}`)
@@ -83,7 +86,7 @@ export default async function SellPage() {
           </li>
           <li className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
             <Zap size={20} strokeWidth={1.75} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
-            <span>{t('Ключи и аккаунты можно выдавать автоматически: загрузите их на склад лота — покупатель получит сразу после оплаты.')}</span>
+            <span>{t('Ключи и коды можно выдавать автоматически: загрузите их на склад лота — покупатель получит сразу после оплаты.')}</span>
           </li>
           {pricing?.fulfillHours !== undefined && (
             <li className="row" style={{ gap: 12, alignItems: 'flex-start' }}>

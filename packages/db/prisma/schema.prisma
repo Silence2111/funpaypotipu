@@ -57,6 +57,9 @@ enum ListingStatus {
   // Удалён продавцом, но на него ссылаются заказы: история сделок и споров
   // остаётся, из каталога и кабинета лот пропадает.
   archived
+  // На проверке у модератора: в тексте — слова о передаче аккаунта (часть
+  // 122). В каталог не выходит, пока модератор не одобрит.
+  review
 }
 
 enum DigitalGoodStatus {
@@ -168,6 +171,8 @@ enum ModerationActionType {
   ban
   hide
   delete
+  // Лот с проверки одобрен (часть 122).
+  approve
 }
 
 enum NotificationChannel {
@@ -431,6 +436,13 @@ model Category {
   unitName        String?         @map("unit_name")
   pricePerUnits   Int?            @map("price_per_units")
   isActive        Boolean         @default(true) @map("is_active")
+  /// Закрыт для продажи (часть 122): раздел виден с объяснением, новых лотов
+  /// нет, старые сняты с витрины (`Listing.pausedForSection`). Держит триггер
+  /// `listings_section_closed`: в закрытом разделе лот не продаётся.
+  salesClosed     Boolean         @default(false) @map("sales_closed")
+  closedReason    String?         @map("closed_reason")
+  /// Когда закрыли или открыли: сид не решает за консоль второй раз.
+  closedAt        DateTime?       @map("closed_at")
   sortOrder       Int             @default(0) @map("sort_order")
   createdAt       DateTime        @default(now()) @map("created_at")
   /// Изменено в консоли: сид каталога больше не перезаписывает и не удаляет.
@@ -528,6 +540,10 @@ model Listing {
   // Снят на время отпуска продавца — вернётся в продажу вместе с остальными,
   // а снятые раньше вручную останутся снятыми.
   pausedForAway    Boolean         @default(false) @map("paused_for_away")
+  /// Снят, потому что раздел закрыли: откроют — вернётся в продажу сам.
+  pausedForSection Boolean         @default(false) @map("paused_for_section")
+  /// Почему на проверке: найденная фраза о передаче аккаунта.
+  reviewReason     String?         @map("review_reason")
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
 

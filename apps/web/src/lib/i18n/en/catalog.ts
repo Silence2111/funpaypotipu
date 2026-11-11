@@ -286,4 +286,10 @@ export const CATALOG: Record<string, string> = {
   'Уведомлять о новых предложениях': 'Notify me about new offers',
   'Новый подходящий лот придёт уведомлением — на сайте, в Telegram или пушем, как настроено в уведомлениях. О каждом лоте — один раз.':
     'A new matching listing will come as a notification — on the site, in Telegram or as a push, as set in your notification settings. Once per listing.',
+
+  // Закрытые разделы (часть 122)
+  'закрыт для продажи': 'closed for sales',
+  'Раздел закрыт для продажи': 'This section is closed for sales',
+  'Продажа в разделе закрыта правилами площадки.': 'Sales in this section are closed by the marketplace rules.',
+  'Что нельзя продавать на GameMarket': 'What you can’t sell on GameMarket',
 };

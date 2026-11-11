@@ -80,6 +80,10 @@
     "./i18n": {
       "types": "./dist/i18n.d.ts",
       "default": "./dist/i18n.js"
+    },
+    "./sections": {
+      "types": "./dist/sections.d.ts",
+      "default": "./dist/sections.js"
     }
   },
   "scripts": {

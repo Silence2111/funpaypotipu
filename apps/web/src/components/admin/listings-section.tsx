@@ -10,7 +10,7 @@ import { isCurrentQuery, isPlainClick, replaceUrl, withQuery } from '@/lib/url';
 import { Empty, LISTING_STATUS, StatusBadge, USER_STATUS, when } from './shared';
 import { usePaged, type Paged } from './use-paged';
 
-type Filter = '' | 'active' | 'paused' | 'sold_out' | 'blocked' | 'archived';
+type Filter = '' | 'review' | 'active' | 'paused' | 'sold_out' | 'blocked' | 'archived';
 type Counts = Record<'all' | Exclude<Filter, ''>, number>;
 
 interface Row {
@@ -27,11 +27,16 @@ interface Row {
   seller: { id: string; status: string; profile: { username: string } | null };
   /** У заблокированного — когда, кто и за что. */
   block: { at: string; by: string | null; reason: string | null } | null;
+  /** На проверке: найденная фраза о передаче аккаунта и текст лота (часть 122). */
+  reviewReason?: string | null;
+  description?: string;
 }
 type Page = Paged<Row, Counts> & { seller: { id: string; username: string | null } | null };
 
 const FILTERS: Array<{ key: Filter; count: keyof Counts; label: string }> = [
   { key: '', count: 'all', label: 'Все' },
+  // Лоты со словами о передаче аккаунта: в каталог не выходят, пока не одобрят.
+  { key: 'review', count: 'review', label: 'На проверке' },
   { key: 'active', count: 'active', label: 'В продаже' },
   { key: 'paused', count: 'paused', label: 'Сняты' },
   { key: 'sold_out', count: 'sold_out', label: 'Закончились' },
@@ -196,7 +201,12 @@ export function ListingsSection({ isAdmin }: { isAdmin: boolean }) {
             <div key={l.id} className="card" style={{ padding: 16 }}>
               <div className="row" style={{ gap: 12, justifyContent: 'space-between', flexWrap: 'wrap' }}>
                 <span style={{ flex: 1, minWidth: 220 }}>
-                  <Link href={`/lot/${l.id}`} style={{ fontWeight: 600 }}>{l.title}</Link>
+                  {/* Лот на проверке публично не открывается — текст ниже, в карточке. */}
+                  {l.status === 'review' ? (
+                    <span style={{ fontWeight: 600 }}>{l.title}</span>
+                  ) : (
+                    <Link href={`/lot/${l.id}`} style={{ fontWeight: 600 }}>{l.title}</Link>
+                  )}
                   <span className="faint" style={{ display: 'block', marginTop: 4, fontSize: 13 }}>
                     {[
                       `${l.game.title} · ${l.category.title}`,
@@ -229,6 +239,15 @@ export function ListingsSection({ isAdmin }: { isAdmin: boolean }) {
                     <button type="button" className="chip" disabled={working === l.id} onClick={() => void setListing(l, 'active')}>
                       Разблокировать
                     </button>
+                  ) : l.status === 'review' ? (
+                    <>
+                      <button type="button" className="chip" disabled={working === l.id} onClick={() => void setListing(l, 'active')}>
+                        Одобрить
+                      </button>
+                      <button type="button" className="chip" disabled={working === l.id} onClick={() => void setListing(l, 'blocked')}>
+                        Заблокировать
+                      </button>
+                    </>
                   ) : (
                     l.status !== 'archived' && (
                       <button type="button" className="chip" disabled={working === l.id} onClick={() => void setListing(l, 'blocked')}>
@@ -238,6 +257,20 @@ export function ListingsSection({ isAdmin }: { isAdmin: boolean }) {
                   )}
                 </span>
               </div>
+              {l.status === 'review' && (
+                <div className="hint" style={{ margin: '10px 0 0', display: 'grid', gap: 6 }}>
+                  {l.reviewReason && (
+                    <span>
+                      Найдено: <b>«{l.reviewReason}»</b> — похоже на передачу аккаунта. Одобрите, если это не так.
+                    </span>
+                  )}
+                  {l.description && (
+                    <span style={{ whiteSpace: 'pre-wrap', color: 'var(--fg)' }}>
+                      {l.description.length > 600 ? `${l.description.slice(0, 600)}…` : l.description}
+                    </span>
+                  )}
+                </div>
+              )}
               {l.block && l.status === 'blocked' && (
                 <p className="hint" style={{ margin: '10px 0 0' }}>
                   Заблокирован {when(l.block.at)}

@@ -81,7 +81,7 @@ async function scenarioEscrow(rnd) {
   console.log('\n— Эскроу-покупка (ручная выдача) —');
   const seller = await register('ess', rnd);
   const buyer = await register('esb', rnd);
-  const listingId = await createListing(seller.token, 'accounts', '150000');
+  const listingId = await createListing(seller.token, 'skins', '150000');
   const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
   check('Заказ создан, комиссия 150000/135000', order.body.amount === '150000' && order.body.sellerPayoutAmount === '135000');
   await pay(buyer.token, order.body.id);
@@ -119,7 +119,7 @@ async function scenarioAutoGoods(rnd) {
   console.log('\n— Автовыдача аккаунтов со склада —');
   const seller = await register('ags', rnd);
   const buyer = await register('agb', rnd);
-  const lot = await createListing(seller.token, 'accounts', '99000', {
+  const lot = await createListing(seller.token, 'skins', '99000', {
     autoDelivery: true,
     deliveryTemplate: 'Войдите и смените пароль. Вопросы — в тг @seller',
   });
@@ -252,7 +252,7 @@ async function scenarioPaymentMethods(rnd) {
   console.log('\n— Способы оплаты —');
   const seller = await register('pms', rnd);
   const buyer = await register('pmb', rnd);
-  const listingId = await createListing(seller.token, 'accounts', '100000');
+  const listingId = await createListing(seller.token, 'skins', '100000');
   const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
   const deposit = (method) =>
     j('/payments/deposit', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: order.body.id, method }) });
@@ -314,8 +314,8 @@ async function scenarioModeration(rnd) {
   const agent = await register('mda', rnd);
   await grant(mod, 'moderator');
   await grant(agent, 'agent');
-  const bad = await createListing(seller.token, 'accounts', '200000');
-  const other = await createListing(seller.token, 'accounts', '90000');
+  const bad = await createListing(seller.token, 'skins', '200000');
+  const other = await createListing(seller.token, 'skins', '90000');
 
   const report = (body) => j('/reports', { method: 'POST', token: buyer.token, body: JSON.stringify(body) });
   const report2 = (token, body) => j('/reports', { method: 'POST', token, body: JSON.stringify(body) });
@@ -339,7 +339,7 @@ async function scenarioModeration(rnd) {
     cursor = page.body.next;
   } while (cursor);
   const item = cards.find((r) => r.targetType === 'listing' && r.targetId === bad);
-  check('В очереди видно, на что жалоба', item?.target?.title === 'E2E accounts' && item?.target?.user?.id === seller.id);
+  check('В очереди видно, на что жалоба', item?.target?.title === 'E2E skins' && item?.target?.user?.id === seller.id);
   check(
     'Жалобы на одну цель — одна карточка: две жалобы, две причины',
     item?.reports === 2 && item.reasons?.length === 2 && item.latest?.length === 2,
@@ -445,7 +445,7 @@ async function scenarioConsoleLists(rnd) {
   const buyer = await register('clb', rnd);
   await grant(mod, 'moderator');
   const lots = [];
-  for (const price of ['100000', '110000', '120000']) lots.push(await createListing(seller.token, 'accounts', price));
+  for (const price of ['100000', '110000', '120000']) lots.push(await createListing(seller.token, 'skins', price));
   const desc = (rows) => rows.every((r, i) => i === 0 || r.createdAt <= rows[i - 1].createdAt);
 
   // Пользователи: раньше — 50 последних без продолжения и счётчиков.
@@ -610,11 +610,180 @@ async function scenarioCatalogAdmin(rnd) {
   );
 }
 
+/**
+ * Разделы «закрыт для продажи» (часть 122): аккаунты и буст CS2 закрыты с
+ * запуска; лот, запрос и таблица в них — 409 с причиной. Администратор
+ * открывает раздел — можно продавать; закрывает — лоты снимаются с
+ * отметкой, продавцу уведомление; вернуть в продажу нельзя никаким путём
+ * (триггер базы); открывает — лоты возвращаются сами. В конце раздел снова
+ * закрыт, как на запуске.
+ */
+async function scenarioClosedSections(rnd) {
+  console.log('\n— Закрытые разделы —');
+  const admin = await register('csa', rnd);
+  const seller = await register('css', rnd);
+  const buyer = await register('csb', rnd);
+  const mod = await register('csm', rnd);
+  await grant(admin, 'admin');
+  await grant(mod, 'moderator');
+  const A = { token: admin.token };
+  const S = { token: seller.token };
+  const game = (await j('/catalog/games/cs2')).body;
+  const acc = game.categories.find((c) => c.slug === 'accounts');
+  const boost = game.categories.find((c) => c.slug === 'service');
+  const skins = game.categories.find((c) => c.slug === 'skins');
+  check(
+    'На запуске: аккаунты и буст CS2 закрыты с причиной и статьёй, скины открыты',
+    acc.salesClosed === true && acc.closedReason === shared.CLOSED_REASON_ACCOUNTS && boost.salesClosed === true &&
+      boost.closedReason === shared.CLOSED_REASON_BOOST && skins.salesClosed === false && acc.closedReason.includes('13.29.2'),
+    JSON.stringify({ acc: [acc.salesClosed, acc.closedReason], boost: boost.salesClosed, skins: skins.salesClosed }),
+  );
+
+  const body = (title, extra = {}) => JSON.stringify({
+    gameId: game.id, categoryId: acc.id, title, description: 'test', price: '50000', currency: 'RUB',
+    attributes: { rank: 'Global Elite', region: 'EU' }, ...extra,
+  });
+  const make = (title, extra, opts = {}) => j('/listings', { method: 'POST', ...S, ...opts, body: body(title, extra) });
+  const refused = await make(`Закрыт ${rnd}`);
+  const refusedEn = await make(`Закрыт ${rnd}`, {}, { headers: { 'Accept-Language': 'en' } });
+  const req = await j('/buy-requests', { method: 'POST', token: buyer.token, body: JSON.stringify({ categoryId: acc.id, text: 'Куплю аккаунт с праймом', maxPrice: 100000 }) });
+  const imp = await j('/listings/import', { method: 'POST', ...S, body: JSON.stringify({ gameId: game.id, categoryId: acc.id, lots: [{ line: 2, title: 'x', description: '', price: '1000', stock: null, attributes: { rank: 'Global Elite', region: 'EU' } }] }) });
+  check(
+    'Закрытый раздел: лот, запрос покупателя и таблица — 409 «section_closed» с причиной; по-английски — перевод',
+    refused.status === 409 && refused.body.error === 'section_closed' && refused.body.message === shared.CLOSED_REASON_ACCOUNTS &&
+      refusedEn.status === 409 && refusedEn.body.message?.startsWith('Account sales are closed') &&
+      req.status === 409 && req.body.error === 'section_closed' && imp.status === 409,
+    JSON.stringify({ refused: [refused.status, refused.body], en: refusedEn.body?.message, req: [req.status, req.body?.error], imp: imp.status }),
+  );
+
+  const sales = (closed, reason) => j(`/admin/catalog/categories/${acc.id}/sales`, { method: 'POST', ...A, body: JSON.stringify({ closed, reason }) });
+  const notAdmin = await j(`/admin/catalog/categories/${acc.id}/sales`, { method: 'POST', ...S, body: JSON.stringify({ closed: false }) });
+  const opened = await sales(false);
+  const lot = await make(`Открыт ${rnd}`);
+  const paused = await make(`Снят сам ${rnd}`);
+  await j(`/listings/${paused.body.id}`, { method: 'PATCH', ...S, body: JSON.stringify({ status: 'paused' }) });
+  check(
+    'Не администратор — 403; открыли — раздел принимает лоты',
+    notAdmin.status === 403 && opened.status === 201 && opened.body.salesClosed === false && lot.status === 201 && lot.body.status === 'active',
+    JSON.stringify({ notAdmin: notAdmin.status, opened: [opened.status, opened.body?.salesClosed], lot: [lot.status, lot.body?.status] }),
+  );
+
+  const reason = `Проверка закрытия ${rnd}`;
+  const closed = await sales(true, reason);
+  const row = async (id) => prisma.listing.findUnique({ where: { id }, select: { status: true, pausedForSection: true } });
+  const l1 = await row(lot.body.id);
+  const l2 = await row(paused.body.id);
+  const page = await j(`/listings/${lot.body.id}`);
+  const list = await j(`/listings?gameSlug=cs2&categorySlug=accounts&sellerId=${seller.id}&limit=60`);
+  const notes = (await j('/notifications', S)).body.filter((n) => n.type === 'section_closed');
+  check(
+    'Закрыли: продающийся лот снят с отметкой, снятый продавцом — без неё; в выдаче нет, страница лота — с причиной; продавцу одно уведомление',
+    closed.status === 201 && closed.body.changed >= 1 && l1.status === 'paused' && l1.pausedForSection === true &&
+      l2.status === 'paused' && l2.pausedForSection === false && page.status === 200 &&
+      page.body.category?.salesClosed === true && page.body.category?.closedReason === reason &&
+      !list.body.items.some((l) => l.id === lot.body.id) && notes.length === 1 && notes[0].payload.count === 1 &&
+      notes[0].payload.preview === 'Counter-Strike 2 · Аккаунты',
+    JSON.stringify({ closed: [closed.status, closed.body?.changed], l1, l2, page: [page.status, page.body?.category], notes: notes.map((n) => n.payload) }),
+  );
+
+  const back = await j(`/listings/${lot.body.id}`, { method: 'PATCH', ...S, body: JSON.stringify({ status: 'active' }) });
+  const bulk = await j('/listings/bulk', { method: 'POST', ...S, body: JSON.stringify({ ids: [lot.body.id, paused.body.id], action: 'activate' }) });
+  const edit = await j(`/listings/${lot.body.id}`, { method: 'PATCH', ...S, body: JSON.stringify({ title: `Открыт ${rnd}, правка` }) });
+  // Блокировка и снятие блокировки модератором — путь «в продажу» мимо продавца: держит триггер базы.
+  await j(`/moderation/listings/${lot.body.id}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'blocked', reason: 'проверка' }) });
+  const unblock = await j(`/moderation/listings/${lot.body.id}/status`, { method: 'POST', token: mod.token, body: JSON.stringify({ status: 'active' }) });
+  const afterUnblock = await row(lot.body.id);
+  check(
+    'В закрытом разделе в продажу не вернуть: сам — 409, разом — пропуск, правка текста — можно; снятая блокировка оставляет лот снятым с отметкой',
+    back.status === 409 && back.body.error === 'section_closed' && back.body.message === reason &&
+      bulk.body.done === 0 && edit.status === 200 && unblock.status === 201 &&
+      afterUnblock.status === 'paused' && afterUnblock.pausedForSection === true,
+    JSON.stringify({ back: [back.status, back.body], bulk: bulk.body, edit: edit.status, unblock: unblock.status, afterUnblock }),
+  );
+
+  const reopened = await sales(false);
+  const r1 = await row(lot.body.id);
+  const r2 = await row(paused.body.id);
+  const opens = (await j('/notifications', S)).body.filter((n) => n.type === 'section_opened');
+  const logs = await prisma.auditLog.findMany({ where: { entityType: 'category', entityId: acc.id, action: { in: ['catalog.category.close', 'catalog.category.open'] }, actorId: admin.id } });
+  check(
+    'Открыли снова: лот с отметкой — в продаже сам, снятый продавцом — снят; уведомление; закрытие и открытие — в журнале',
+    reopened.body.changed >= 1 && r1.status === 'active' && r1.pausedForSection === false && r2.status === 'paused' &&
+      opens.length >= 1 && logs.length === 3,
+    JSON.stringify({ reopened: reopened.body?.changed, r1, r2, opens: opens.length, logs: logs.map((l) => l.action) }),
+  );
+
+  // Как на запуске: аккаунты закрыты с прежней причиной.
+  const restore = await sales(true, shared.CLOSED_REASON_ACCOUNTS);
+  check('Раздел снова закрыт, как на запуске', restore.body.salesClosed === true && restore.body.closedReason === shared.CLOSED_REASON_ACCOUNTS);
+}
+
+/**
+ * Проверка лотов (часть 122): слова о передаче аккаунта в открытых
+ * разделах — лот на проверку, в каталог не выходит; продавец не вернёт его
+ * сам; модератор видит фразу и текст, одобряет или блокирует. Ключ
+ * «активируется на ваш аккаунт» — не повод.
+ */
+async function scenarioLotReview(rnd) {
+  console.log('\n— Проверка лотов —');
+  const seller = await register('lrs', rnd);
+  const mod = await register('lrm', rnd);
+  await grant(mod, 'moderator');
+  const S = { token: seller.token };
+  const M = { token: mod.token };
+  const held = await createListing(seller.token, 'skins', '30000', { title: `Скин ${rnd}`, description: 'Логин и пароль сразу после оплаты' });
+  const clean = await createListing(seller.token, 'skins', '31000', { title: `Скин ${rnd} чистый`, description: 'Передам обменом Steam' });
+  const key = await createListing(seller.token, 'keys', '32000', { title: `Ключ ${rnd}`, description: 'Ключ активируется на ваш аккаунт Steam' });
+  const mine = (await j('/listings/mine', S)).body;
+  const st = (id) => mine.find((l) => l.id === id);
+  const pub = await j(`/listings/${held}`);
+  const counts = (await j('/listings/mine/counts', S)).body;
+  check(
+    'Слова о передаче аккаунта — лот на проверке с найденной фразой; публично — 404; чистый в продаже; ключ «на ваш аккаунт» — не на проверке',
+    st(held)?.status === 'review' && st(held)?.reviewReason === 'логин и пароль' && pub.status === 404 &&
+      st(clean)?.status === 'active' && st(key)?.status === 'sold_out' && counts.review === 1,
+    JSON.stringify({ held: st(held), clean: st(clean)?.status, key: st(key)?.status, pub: pub.status, counts }),
+  );
+
+  const self = await j(`/listings/${held}`, { method: 'PATCH', ...S, body: JSON.stringify({ status: 'active' }) });
+  const price = await j(`/listings/${held}`, { method: 'PATCH', ...S, body: JSON.stringify({ price: '29000' }) });
+  const toReview = await j(`/listings/${clean}`, { method: 'PATCH', ...S, body: JSON.stringify({ description: 'Продам аккаунт со скинами' }) });
+  check(
+    'Сам в продажу — 409 «listing_in_review»; цена правится, лот остаётся на проверке; правка текста со словами — на проверку',
+    self.status === 409 && self.body.error === 'listing_in_review' && price.status === 200 && price.body.status === 'review' &&
+      toReview.status === 200 && toReview.body.status === 'review',
+    JSON.stringify({ self: [self.status, self.body?.error], price: [price.status, price.body?.status], toReview: [toReview.status, toReview.body?.status] }),
+  );
+
+  const queue = await j(`/moderation/listings?status=review&seller=${seller.id}`, M);
+  const item = queue.body.items?.find((l) => l.id === held);
+  check(
+    'Очередь «На проверке»: оба лота, фраза и текст; счётчик',
+    queue.status === 200 && queue.body.items?.length === 2 && item?.reviewReason === 'логин и пароль' &&
+      item?.description === 'Логин и пароль сразу после оплаты' && queue.body.counts?.review === 2,
+    JSON.stringify({ status: queue.status, items: queue.body.items?.map((l) => [l.status, l.reviewReason]), counts: queue.body.counts }),
+  );
+
+  const ok = await j(`/moderation/listings/${held}/status`, { method: 'POST', ...M, body: JSON.stringify({ status: 'active' }) });
+  const no = await j(`/moderation/listings/${clean}/status`, { method: 'POST', ...M, body: JSON.stringify({ status: 'blocked', reason: 'Продажа аккаунта' }) });
+  const approved = await j(`/listings/${held}`);
+  const notes = (await j('/notifications', S)).body;
+  const act = await prisma.moderationAction.findFirst({ where: { targetId: held, action: 'approve' } });
+  check(
+    'Одобрил — лот в продаже, продавцу «прошёл проверку», в журнале «approve»; заблокировал — с причиной',
+    ok.status === 201 && approved.status === 200 && approved.body.status === 'active' && no.status === 201 &&
+      notes.some((n) => n.type === 'listing_approved' && n.payload.listingId === held) &&
+      notes.some((n) => n.type === 'listing_blocked' && n.payload.listingId === clean) && !!act,
+    JSON.stringify({ ok: ok.status, approved: approved.body?.status, no: no.status, types: notes.map((n) => n.type), act: !!act }),
+  );
+  await j(`/listings/${held}`, { method: 'PATCH', ...S, body: JSON.stringify({ status: 'paused' }) });
+}
+
 /** «Продавать на GameMarket»: сколько на руки — без входа, по правилу раздела. */
 async function scenarioSellEstimate() {
   console.log('\n— Калькулятор продавца —');
   const game = await j('/catalog/games/cs2');
-  const acc = game.body.categories.find((c) => c.slug === 'accounts');
+  const acc = game.body.categories.find((c) => c.slug === 'skins');
   const keys = game.body.categories.find((c) => c.slug === 'keys');
   const est = await j(`/fees/estimate?categoryId=${acc.id}&price=100000`);
   const k = await j(`/fees/estimate?categoryId=${keys.id}&price=100000`);
@@ -641,8 +810,8 @@ async function scenarioAccount(rnd) {
   console.log('\n— Аккаунт: чёрный список, профиль, пароль, сеансы —');
   const seller = await register('acs', rnd);
   const buyer = await register('acb', rnd);
-  const lot = await createListing(seller.token, 'accounts', '50000');
-  const paidLot = await createListing(seller.token, 'accounts', '60000');
+  const lot = await createListing(seller.token, 'skins', '50000');
+  const paidLot = await createListing(seller.token, 'skins', '60000');
   // Заказ до блокировки: по нему переписка должна остаться
   const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: paidLot }) });
   await pay(buyer.token, order.body.id);
@@ -765,7 +934,7 @@ async function scenarioStaffTwoFactor(rnd) {
     body: JSON.stringify({ category: 'other', subject: 'Вопрос по сайту', body: 'Как поменять ник в профиле?' }),
   });
   const agentNoCode = await j(`/support/tickets/${ticket.body.id}`, { token: agent.token });
-  const lot = await createListing(seller.token, 'accounts', '30000', { title: `Без кода ${rnd}` });
+  const lot = await createListing(seller.token, 'skins', '30000', { title: `Без кода ${rnd}` });
   const mine = await j('/listings/mine', { token: seller.token });
   check(
     'Без входа с кодом: финансам — 403 «Включите вход с кодом», роль видна; арбитр чужое обращение не открыл; продавец без кода — как раньше',
@@ -897,7 +1066,7 @@ async function scenarioSupport(rnd) {
   const agent = await register('spa', rnd);
   await grant(agent, 'agent');
   const seller = await register('sps', rnd);
-  const lot = await createListing(seller.token, 'accounts', '30000');
+  const lot = await createListing(seller.token, 'skins', '30000');
   const order = await j('/orders', { method: 'POST', token: user.token, body: JSON.stringify({ listingId: lot }) });
 
   const t = await j('/support/tickets', {
@@ -948,25 +1117,25 @@ async function scenarioCatalog(rnd) {
   console.log('\n— Каталог: А–Я и продавцы онлайн —');
   const idx = await j('/catalog/index');
   const cs2 = idx.body.find?.((g) => g.slug === 'cs2');
-  check('Указатель: игры с разделами и числом лотов', cs2?.categories?.some((c) => c.slug === 'accounts' && c.listingCount > 0));
+  check('Указатель: игры с разделами и числом лотов', cs2?.categories?.some((c) => c.slug === 'skins' && c.listingCount > 0));
   const titles = idx.body.map((g) => g.title);
   check('Указатель по алфавиту', JSON.stringify(titles) === JSON.stringify([...titles].sort((a, b) => a.localeCompare(b))));
 
   const on = await register('onl', rnd);
   const off = await register('ofl', rnd);
-  const lotOn = await createListing(on.token, 'accounts', '11100');
-  const lotOff = await createListing(off.token, 'accounts', '11200');
+  const lotOn = await createListing(on.token, 'skins', '11100');
+  const lotOff = await createListing(off.token, 'skins', '11200');
   await prisma.profile.update({ where: { userId: off.id }, data: { onlineAt: new Date(Date.now() - 3600_000) } });
   await j('/wallet', { token: on.token }); // любой запрос отмечает «онлайн»
-  const list = await j('/listings?gameSlug=cs2&categorySlug=accounts&online=1&limit=60');
+  const list = await j('/listings?gameSlug=cs2&categorySlug=skins&online=1&limit=60');
   const ids = list.body.items.map((l) => l.id);
   check('«Продавец онлайн»: свежий — в выдаче, час назад — нет', ids.includes(lotOn) && !ids.includes(lotOff));
   // Только лоты этого продавца: в общей выдаче его лот может уйти за первые 60
   // за поднятыми, а проверяем лишь, что online=false не включает фильтр.
-  const all = await j(`/listings?gameSlug=cs2&categorySlug=accounts&online=false&sellerId=${off.id}&limit=60`);
+  const all = await j(`/listings?gameSlug=cs2&categorySlug=skins&online=false&sellerId=${off.id}&limit=60`);
   check('online=false фильтр не включает', all.body.items.some((l) => l.id === lotOff));
   const game = await j('/catalog/games/cs2');
-  const acc = game.body.categories?.find((c) => c.slug === 'accounts');
+  const acc = game.body.categories?.find((c) => c.slug === 'skins');
   const idxNow = await j('/catalog/index');
   check(
     'Продавцы в сети: у раздела и у игры',
@@ -981,7 +1150,7 @@ async function scenarioBuyerData(rnd) {
   const seller = await register('bds', rnd);
   const buyer = await register('bdb', rnd);
   const fields = [{ label: 'Ник в игре', required: true }, { label: 'Сервер', required: false }];
-  const lot = await createListing(seller.token, 'accounts', '25000', { buyerFields: fields });
+  const lot = await createListing(seller.token, 'skins', '25000', { buyerFields: fields });
   const keyGame = await j('/catalog/games/cs2');
   const keysCat = keyGame.body.categories.find((c) => c.slug === 'keys');
   const autoLot = await j('/listings', {
@@ -1036,9 +1205,9 @@ async function scenarioPromotion(rnd) {
 async function scenarioMyLots(rnd) {
   console.log('\n— Мои лоты: цена в строке, галочки, отпуск —');
   const seller = await register('mls', rnd);
-  const a = await createListing(seller.token, 'accounts', '50000');
-  const b = await createListing(seller.token, 'accounts', '60000');
-  const c = await createListing(seller.token, 'accounts', '70000');
+  const a = await createListing(seller.token, 'skins', '50000');
+  const b = await createListing(seller.token, 'skins', '60000');
+  const c = await createListing(seller.token, 'skins', '70000');
   await j(`/listings/${c}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
   const price = await j(`/listings/${a}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ price: '55000' }) });
   check('Цена из списка лотов сохраняется', price.status === 200 && price.body.price === '55000', String(price.body.price));
@@ -1143,7 +1312,7 @@ async function scenarioFiles(rnd) {
   const abs = (u) => new URL(u, API).toString();
   const seller = await register('fls', rnd);
   const buyer = await register('flb', rnd);
-  const lot = await createListing(seller.token, 'accounts', '30000');
+  const lot = await createListing(seller.token, 'skins', '30000');
   const conv = await j(`/conversations/for-listing/${lot}`, { method: 'POST', token: buyer.token, body: JSON.stringify({ body: 'Пришлю скриншот' }) });
   const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001', 'hex');
   const up = await j(`/conversations/${conv.body.id}/uploads`, { method: 'POST', token: buyer.token, body: JSON.stringify({ mime: 'image/png' }) });
@@ -1402,7 +1571,7 @@ async function scenarioPayout(rnd) {
   );
   const seller = await register('pys', rnd);
   const buyer = await register('pyb', rnd);
-  const listingId = await createListing(seller.token, 'accounts', '150000');
+  const listingId = await createListing(seller.token, 'skins', '150000');
   const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
   await pay(buyer.token, order.body.id);
   await j(`/orders/${order.body.id}/deliver`, { method: 'POST', token: seller.token });
@@ -1494,7 +1663,7 @@ async function scenarioSellerTools(rnd) {
   const seller = await register('sts', rnd);
   const buyer = await register('stb', rnd);
   const other = await register('sto', rnd);
-  const lot = await createListing(seller.token, 'accounts', '90000');
+  const lot = await createListing(seller.token, 'skins', '90000');
 
   const fresh = await j('/seller-tools', { token: seller.token });
   check(
@@ -1610,7 +1779,7 @@ async function scenarioReports(rnd) {
   const buyer = await register('rpb', rnd);
   const fin = await register('rpf', rnd);
   await grant(fin, 'finance');
-  const listingId = await createListing(seller.token, 'accounts', '120000');
+  const listingId = await createListing(seller.token, 'skins', '120000');
   const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
   await pay(buyer.token, order.body.id);
   await j(`/orders/${order.body.id}/deliver`, { method: 'POST', token: seller.token });
@@ -1649,7 +1818,7 @@ async function scenarioReports(rnd) {
   const amount = (minor) => `${BigInt(minor) / 100n},${String(BigInt(minor) % 100n).padStart(2, '0')}`;
   check(
     'Продажи файлом: заказ, лот, покупатель, суммы; итог',
-    sales.text.includes(`${order.body.publicNumber};E2E accounts;rpb${rnd};1;${amount(order.body.amount)};`) &&
+    sales.text.includes(`${order.body.publicNumber};E2E skins;rpb${rnd};1;${amount(order.body.amount)};`) &&
       sales.text.includes(`Итого;1;;;;${amount(order.body.amount)};`),
     sales.text.slice(0, 400),
   );
@@ -1658,7 +1827,7 @@ async function scenarioReports(rnd) {
   check('Прошлый период — пусто; неверная дата — 400', old.rows?.length === 0 && old.closing === '0' && bad.status === 400, JSON.stringify({ rows: old.rows?.length, bad: bad.status }));
 
   // «Кошелёк»: деньги в пути — выданная, но не подтверждённая продажа и заявка на вывод.
-  const open = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: await createListing(seller.token, 'accounts', '80000') }) });
+  const open = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: await createListing(seller.token, 'skins', '80000') }) });
   await pay(buyer.token, open.body.id);
   await j(`/orders/${open.body.id}/deliver`, { method: 'POST', token: seller.token });
   const w = (await j('/wallet', { token: seller.token })).body;
@@ -1703,13 +1872,13 @@ async function scenarioReports(rnd) {
   check(
     'Заказы: продажи новыми сверху с ником покупателя; по страницам от последнего показанного',
     sales2.items?.length === 2 && sales2.next === null && sales2.items[0].id === open.body.id &&
-      sales2.items[0].counterparty === `rpb${rnd}` && sales2.items[0].title === 'E2E accounts' &&
+      sales2.items[0].counterparty === `rpb${rnd}` && sales2.items[0].title === 'E2E skins' &&
       p1.items?.length === 1 && p1.next === open.body.id && p2.items?.[0]?.id === order.body.id && p2.next === null,
     JSON.stringify({ all: sales2.items?.map((o) => [o.publicNumber, o.status]), p1: p1.next, p2: p2.items?.map((o) => o.publicNumber) }),
   );
   const byNick = (await hist(`role=seller&q=${encodeURIComponent(`@RPB${rnd}`)}`)).body;
   const byNumber = (await hist(`role=seller&q=${encodeURIComponent(`#${order.body.publicNumber.toLowerCase()}`)}`)).body;
-  const byTitle = (await hist('role=seller&q=e2e%20acc&status=completed&days=1')).body;
+  const byTitle = (await hist('role=seller&q=e2e%20ski&status=completed&days=1')).body;
   const none = (await hist('role=seller&q=nothing-like-this')).body;
   check(
     'Заказы: поиск по нику с «@», номеру с «#» без учёта регистра и по лоту со статусом и периодом',
@@ -1731,14 +1900,14 @@ async function scenarioReports(rnd) {
   );
   // Лот переименовали после продажи: ищется название из заказа — то, что видно в списке.
   const renamed = await j(`/listings/${listingId}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ title: 'Переименованный лот после продажи' }) });
-  const byOldTitle = (await hist('role=seller&q=e2e%20acc&status=completed')).body;
+  const byOldTitle = (await hist('role=seller&q=e2e%20ski&status=completed')).body;
   const byNewTitle = (await hist(`role=seller&q=${encodeURIComponent('Переименованный')}`)).body;
   const byPercent = (await hist('role=seller&q=%25')).body;
   const byUnderscore = (await hist('role=seller&q=_')).body;
   const catalogPercent = (await j('/listings?q=%25&limit=50')).body;
   check(
     'Заказы: лот переименован — находится по названию из заказа, по новому — нет; «%» и «_» — обычные знаки, а не «что угодно» (и в каталоге)',
-    renamed.status === 200 && byOldTitle.items?.length === 1 && byOldTitle.items[0].title === 'E2E accounts' &&
+    renamed.status === 200 && byOldTitle.items?.length === 1 && byOldTitle.items[0].title === 'E2E skins' &&
       byNewTitle.items?.length === 0 && byPercent.items?.length === 0 && byUnderscore.items?.length === 0 &&
       catalogPercent.items?.every((l) => l.title.includes('%')),
     JSON.stringify({ renamed: renamed.status, old: byOldTitle.items?.map((o) => o.title), now: byNewTitle.items?.length, pct: byPercent.items?.length, us: byUnderscore.items?.length, catalog: catalogPercent.items?.map((l) => l.title).slice(0, 3) }),
@@ -1784,7 +1953,7 @@ async function scenarioMyReviews(rnd) {
   const seller = await register('mrs', rnd);
   const buyer = await register('mrb', rnd);
   const deal = async (price, rating, comment) => {
-    const listingId = await createListing(seller.token, 'accounts', price);
+    const listingId = await createListing(seller.token, 'skins', price);
     const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
     await pay(buyer.token, order.body.id);
     await j(`/orders/${order.body.id}/deliver`, { method: 'POST', token: seller.token });
@@ -1914,7 +2083,7 @@ async function scenarioDisputes(rnd) {
   const agent = await register('dsa', rnd);
   await grant(agent, 'agent');
   const deal = async (price) => {
-    const listingId = await createListing(seller.token, 'accounts', price);
+    const listingId = await createListing(seller.token, 'skins', price);
     const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
     await pay(buyer.token, order.body.id);
     await j(`/orders/${order.body.id}/deliver`, { method: 'POST', token: seller.token });
@@ -2085,7 +2254,7 @@ async function scenarioReviewPhotos(rnd) {
   const seller = await register('rvs', rnd);
   const buyer = await register('rvb', rnd);
   const other = await register('rvo', rnd);
-  const listingId = await createListing(seller.token, 'accounts', '70000');
+  const listingId = await createListing(seller.token, 'skins', '70000');
   const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
   await pay(buyer.token, order.body.id);
   await j(`/orders/${order.body.id}/deliver`, { method: 'POST', token: seller.token });
@@ -2147,24 +2316,24 @@ async function scenarioSavedSearches(rnd) {
   const other = await register('sso', rnd);
   const word = `ss${rnd}`;
   const lot = (token, price, attrs = {}) =>
-    createListing(token, 'accounts', price, {
+    createListing(token, 'skins', price, {
       title: `Аккаунт ${word}`,
-      attributes: { ...REQUIRED_ATTRS.accounts, ...attrs },
+      attributes: { ...REQUIRED_ATTRS.skins, ...attrs },
     });
   const game = await j('/catalog/games/cs2');
-  const cat = game.body.categories.find((c) => c.slug === 'accounts');
+  const cat = game.body.categories.find((c) => c.slug === 'skins');
   const before = await lot(seller.token, '110000'); // выставлен до сохранения — не новый
 
   const save = (body, token = buyer.token) =>
     j('/saved-searches', { method: 'POST', token, body: JSON.stringify(body) });
-  const terms = { categoryId: cat.id, attrs: { rank: 'Global Elite' }, q: word, maxPrice: 150000 };
+  const terms = { categoryId: cat.id, attrs: { rarity: 'Covert' }, q: word, maxPrice: 150000 };
   const s = await save(terms);
   const dup = await save({ ...terms, q: word.toUpperCase() });
-  const bad = await save({ categoryId: cat.id, attrs: { rank: 'Нет такого' } });
+  const bad = await save({ categoryId: cat.id, attrs: { rarity: 'Нет такого' } });
   check(
     'Поиск сохранён: ссылка на раздел с условиями; повтор и чужой фильтр — 400',
-    s.status === 201 && s.body.path === `/igra/cs2/accounts?f_rank=Global%20Elite&q=${word}&max=1500` &&
-      s.body.labels?.rank && dup.status === 400 && bad.status === 400,
+    s.status === 201 && s.body.path === `/igra/cs2/skins?f_rarity=Covert&q=${word}&max=1500` &&
+      s.body.labels?.rarity && dup.status === 400 && bad.status === 400,
     JSON.stringify({ s: s.body, dup: dup.status, bad: bad.status }),
   );
 
@@ -2180,7 +2349,7 @@ async function scenarioSavedSearches(rnd) {
   };
   await lot(buyer.token, '100000'); // свой лот — не уведомляет
   await lot(seller.token, '200000'); // дороже — нет
-  await lot(seller.token, '100000', { rank: 'Silver' }); // другое звание — нет
+  await lot(seller.token, '100000', { rarity: 'Consumer' }); // другая редкость — нет
   const fit = await lot(seller.token, '120000');
   const first = await waitHits(1);
   await wait(2500); // ещё один-два прохода — повтора нет
@@ -2465,7 +2634,7 @@ async function scenarioPartners(rnd) {
 
   // Сделка привлечённого продавца: доля — от остатка площадки.
   const deal = async (sellerU, buyerU, price) => {
-    const listingId = await createListing(sellerU.token, 'accounts', price, { title: `Партнёр ${rnd}` });
+    const listingId = await createListing(sellerU.token, 'skins', price, { title: `Партнёр ${rnd}` });
     const order = (await j('/orders', { method: 'POST', token: buyerU.token, body: JSON.stringify({ listingId }) })).body;
     await pay(buyerU.token, order.id);
     await j(`/orders/${order.id}/deliver`, { method: 'POST', token: sellerU.token });
@@ -2527,15 +2696,15 @@ async function scenarioMoveLots(rnd) {
   console.log('\n— Переезд продавца таблицей —');
   const seller = await register('mvs', rnd);
   const game = (await j('/catalog/games/cs2')).body;
-  const cat = game.categories.find((c) => c.slug === 'accounts');
+  const cat = game.categories.find((c) => c.slug === 'skins');
   const attrs = (await j(`/catalog/categories/${cat.id}/attributes`)).body;
-  const template = shared.importTemplate(attrs, 'ru', { what: 'Аккаунты Counter-Strike 2' });
+  const template = shared.importTemplate(attrs, 'ru', { what: 'Скины Counter-Strike 2' });
   const [head, ...examples] = template.trim().split('\r\n');
   const cols = head.split(';');
   const N = 600;
   const rows = [];
   for (let i = 0; i < N; i++) {
-    const v = { 'Название': `Переезд ${rnd} №${i + 1}`, 'Описание': 'Полный доступ, почта в комплекте', 'Цена, ₽': String(5000 + i), 'Наличие': '1' };
+    const v = { 'Название': `Переезд ${rnd} №${i + 1}`, 'Описание': 'Передам обменом Steam сразу после оплаты', 'Цена, ₽': String(5000 + i), 'Наличие': '1' };
     for (const a of attrs) v[a.label] = a.type === 'enum' ? a.options[0] : a.type === 'bool' ? 'да' : '';
     if (i % 100 === 7) v['Цена, ₽'] = 'договорная'; // 6 строк с ошибкой цены
     if (i % 100 === 42) v[attrs.find((a) => a.isRequired).label] = ''; // 6 — без обязательной характеристики
@@ -2563,7 +2732,7 @@ async function scenarioMoveLots(rnd) {
   );
 
   // Примеры в обход сайта — API их тоже не выставит; больше 200 строк одним запросом — 400.
-  const exampleLot = { line: 2, title: 'Пример: Аккаунты Counter-Strike 2', description: 'x', price: '100000', stock: 1, attributes: read.lots[0].attributes };
+  const exampleLot = { line: 2, title: 'Пример: Скины Counter-Strike 2', description: 'x', price: '100000', stock: 1, attributes: read.lots[0].attributes };
   const direct = await j('/listings/import', { method: 'POST', token: seller.token, body: JSON.stringify({ gameId: game.id, categoryId: cat.id, lots: [exampleLot] }) });
   const tooBig = await j('/listings/import', { method: 'POST', token: seller.token, body: JSON.stringify({ gameId: game.id, categoryId: cat.id, lots: read.lots.slice(0, 201) }) });
   const counts = (await j('/listings/mine/counts', { token: seller.token })).body;
@@ -2584,7 +2753,7 @@ async function scenarioPriceDrop(rnd) {
   console.log('\n— Снижение цены в избранном —');
   const buyer = await register('pdb', rnd);
   const seller = await register('pds', rnd);
-  const lot = await createListing(seller.token, 'accounts', '100000', { title: `Лот pd${rnd}` });
+  const lot = await createListing(seller.token, 'skins', '100000', { title: `Лот pd${rnd}` });
   await j('/favorites', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) });
   const price = (p) =>
     j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ price: p }) });
@@ -2627,7 +2796,7 @@ async function scenarioPriceDrop(rnd) {
   );
 
   // «Избранное» в кабинете: когда добавили и игра — для фильтров и порядка; убрать — с карточки.
-  const other = await createListing(seller.token, 'accounts', '50000', { title: `Второй pd${rnd}` });
+  const other = await createListing(seller.token, 'skins', '50000', { title: `Второй pd${rnd}` });
   await j('/favorites', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: other }) });
   const both = (await j('/favorites', { token: buyer.token })).body;
   const gone = await j(`/favorites/${other}`, { method: 'DELETE', token: buyer.token });
@@ -2650,9 +2819,9 @@ async function scenarioLotStats(rnd) {
   console.log('\n— Статистика лотов —');
   const seller = await register('lss', rnd);
   const buyer = await register('lsb', rnd);
-  const a = await createListing(seller.token, 'accounts', '100000', { title: `Статистика A ${rnd}` });
-  const b = await createListing(seller.token, 'accounts', '50000', { title: `Статистика B ${rnd}` });
-  const c = await createListing(seller.token, 'accounts', '70000', { title: `Статистика C ${rnd}` });
+  const a = await createListing(seller.token, 'skins', '100000', { title: `Статистика A ${rnd}` });
+  const b = await createListing(seller.token, 'skins', '50000', { title: `Статистика B ${rnd}` });
+  const c = await createListing(seller.token, 'skins', '70000', { title: `Статистика C ${rnd}` });
   await j(`/listings/${c}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ status: 'paused' }) });
   const before = await prisma.listing.findUnique({ where: { id: a }, select: { updatedAt: true } });
 
@@ -2707,7 +2876,7 @@ async function scenarioSale(rnd) {
   console.log('\n— Скидка на лот —');
   const seller = await register('sls', rnd);
   const buyer = await register('slb', rnd);
-  const lot = await createListing(seller.token, 'accounts', '150000', { title: `Скидка ${rnd}` });
+  const lot = await createListing(seller.token, 'skins', '150000', { title: `Скидка ${rnd}` });
   await j('/favorites', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) });
   const sale = (body, token = seller.token) =>
     j(`/listings/${lot}/sale`, { method: 'POST', token, body: JSON.stringify(body) });
@@ -2788,11 +2957,11 @@ async function scenarioFollowFeed(rnd) {
   console.log('\n— Лента подписок —');
   const [a, b, c, d] = [await register('ffa', rnd), await register('ffb', rnd), await register('ffc', rnd), await register('ffd', rnd)];
   const fan = await register('ffu', rnd);
-  const a1 = await createListing(a.token, 'accounts', '100000', { title: `Лента ${rnd} · A1` });
-  const a2 = await createListing(a.token, 'accounts', '200000', { title: `Лента ${rnd} · A2` });
-  const b1 = await createListing(b.token, 'accounts', '300000', { title: `Лента ${rnd} · B1` });
-  const c1 = await createListing(c.token, 'accounts', '400000', { title: `Лента ${rnd} · C1` }); // в чёрном списке
-  const d1 = await createListing(d.token, 'accounts', '500000', { title: `Лента ${rnd} · D1` }); // без подписки
+  const a1 = await createListing(a.token, 'skins', '100000', { title: `Лента ${rnd} · A1` });
+  const a2 = await createListing(a.token, 'skins', '200000', { title: `Лента ${rnd} · A2` });
+  const b1 = await createListing(b.token, 'skins', '300000', { title: `Лента ${rnd} · B1` });
+  const c1 = await createListing(c.token, 'skins', '400000', { title: `Лента ${rnd} · C1` }); // в чёрном списке
+  const d1 = await createListing(d.token, 'skins', '500000', { title: `Лента ${rnd} · D1` }); // без подписки
   for (const s of [a, b, c]) await j(`/follows/${s.id}`, { method: 'POST', token: fan.token });
   await j('/account/blocks', { method: 'POST', token: fan.token, body: JSON.stringify({ userId: c.id }) });
   await j(`/listings/${a1}/sale`, { method: 'POST', token: a.token, body: JSON.stringify({ percent: 20, days: 3 }) });
@@ -2809,7 +2978,7 @@ async function scenarioFollowFeed(rnd) {
   );
 
   await wait(20); // отметка визита — раньше нового лота
-  const b2 = await createListing(b.token, 'accounts', '310000', { title: `Лента ${rnd} · B2` });
+  const b2 = await createListing(b.token, 'skins', '310000', { title: `Лента ${rnd} · B2` });
   const second = (await feed()).body;
   const third = (await feed()).body;
   const guest = await j('/follows/feed');
@@ -2825,9 +2994,9 @@ async function scenarioBulkPrice(rnd) {
   const seller = await register('bps', rnd);
   const other = await register('bpo', rnd);
   const buyer = await register('bpb', rnd);
-  const a = await createListing(seller.token, 'accounts', '99900', { title: `Цены ${rnd} · A` });
-  const b = await createListing(seller.token, 'accounts', '200000', { title: `Цены ${rnd} · B` });
-  const foreign = await createListing(other.token, 'accounts', '50000', { title: `Цены ${rnd} · чужой` });
+  const a = await createListing(seller.token, 'skins', '99900', { title: `Цены ${rnd} · A` });
+  const b = await createListing(seller.token, 'skins', '200000', { title: `Цены ${rnd} · B` });
+  const foreign = await createListing(other.token, 'skins', '50000', { title: `Цены ${rnd} · чужой` });
   await j(`/listings/${b}/sale`, { method: 'POST', token: seller.token, body: JSON.stringify({ percent: 20, days: 3 }) });
   await j('/favorites', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: a }) });
   const bulk = (body) => j('/listings/bulk-price', { method: 'POST', token: seller.token, body: JSON.stringify(body) });
@@ -2862,7 +3031,7 @@ async function scenarioBulkPrice(rnd) {
 async function scenarioPriceHistory(rnd) {
   console.log('\n— История цены —');
   const seller = await register('phs', rnd);
-  const lot = await createListing(seller.token, 'accounts', '100000', { title: `История ${rnd}` });
+  const lot = await createListing(seller.token, 'skins', '100000', { title: `История ${rnd}` });
   const as = { token: seller.token };
   // Каждый путь смены цены: правка, цены разом, скидка, её завершение; правка без смены цены — не точка.
   await j(`/listings/${lot}`, { method: 'PATCH', ...as, body: JSON.stringify({ price: '120000' }) });
@@ -2896,7 +3065,7 @@ async function scenarioHonestSale(rnd) {
   const sale = (id, percent) =>
     j(`/listings/${id}/sale`, { method: 'POST', ...as, body: JSON.stringify({ percent, days: 3 }) });
   // Держалась 1 000 ₽, подняли до 1 200 ₽ — и сразу «скидка».
-  const raised = await createListing(seller.token, 'accounts', '100000', { title: `Честная ${rnd} · поднятая` });
+  const raised = await createListing(seller.token, 'skins', '100000', { title: `Честная ${rnd} · поднятая` });
   await j(`/listings/${raised}`, { method: 'PATCH', ...as, body: JSON.stringify({ price: '120000' }) });
   const fake = await sale(raised, 10); // 1 080 ₽ — дороже прежних 1 000
   const thin = await sale(raised, 20); // 960 ₽ — от 1 000 это 4%
@@ -2911,7 +3080,7 @@ async function scenarioHonestSale(rnd) {
   );
 
   // Цена не поднималась — скидка от неё же; по окончании отметка снимается.
-  const plain = await createListing(seller.token, 'accounts', '100000', { title: `Честная ${rnd} · обычная` });
+  const plain = await createListing(seller.token, 'skins', '100000', { title: `Честная ${rnd} · обычная` });
   const ok = await sale(plain, 20);
   const during = (await j(`/listings/${plain}`)).body;
   await j(`/listings/${plain}/sale`, { method: 'DELETE', ...as });
@@ -2928,7 +3097,7 @@ async function scenarioPriceLow(rnd) {
   console.log('\n— Минимум за 30 дней —');
   const seller = await register('pls', rnd);
   const as = { token: seller.token };
-  const lot = await createListing(seller.token, 'accounts', '100000', { title: `Минимум ${rnd}` });
+  const lot = await createListing(seller.token, 'skins', '100000', { title: `Минимум ${rnd}` });
   const setPrice = (price) => j(`/listings/${lot}`, { method: 'PATCH', ...as, body: JSON.stringify({ price }) });
   const low = async () => (await j(`/listings/${lot}`)).body.priceLowUntil ?? null;
   const dropped = async () =>
@@ -2953,8 +3122,8 @@ async function scenarioPriceLow(rnd) {
   );
 
   // Сортировка «Сначала большие снижения»: −30% выше −10%, лот без снижения — ниже обоих.
-  const big = await createListing(seller.token, 'accounts', '100000', { title: `Минимум ${rnd} · большой` });
-  const flat = await createListing(seller.token, 'accounts', '100000', { title: `Минимум ${rnd} · ровный` });
+  const big = await createListing(seller.token, 'skins', '100000', { title: `Минимум ${rnd} · большой` });
+  const flat = await createListing(seller.token, 'skins', '100000', { title: `Минимум ${rnd} · ровный` });
   await j(`/listings/${big}`, { method: 'PATCH', ...as, body: JSON.stringify({ price: '70000' }) });
   const sorted = (await j(`/listings?sellerId=${seller.id}&sort=drop`)).body.items?.map((x) => x.id) ?? [];
   const badSort = await j('/listings?sort=biggest');
@@ -2997,7 +3166,7 @@ async function scenarioStockWatch(rnd) {
   const seller = await register('sws', rnd);
   const buyer = await register('swb', rnd);
   const quitter = await register('swq', rnd);
-  const lot = await createListing(seller.token, 'accounts', '50000', { title: `Поступление ${rnd}`, stock: 3 });
+  const lot = await createListing(seller.token, 'skins', '50000', { title: `Поступление ${rnd}`, stock: 3 });
   const stock = (n) =>
     j(`/listings/${lot}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ stock: n }) });
   const watch = (u, method = 'POST') => j(`/stock-watches/${lot}`, { method, token: u.token });
@@ -3045,9 +3214,9 @@ async function scenarioRecentCards(rnd) {
   console.log('\n— Вы недавно смотрели —');
   const seller = await register('rcs', rnd);
   const as = { token: seller.token };
-  const a = await createListing(seller.token, 'accounts', '10000', { title: `Смотрели ${rnd} · А`, stock: 2 });
-  const b = await createListing(seller.token, 'accounts', '20000', { title: `Смотрели ${rnd} · Б` });
-  const gone = await createListing(seller.token, 'accounts', '30000', { title: `Смотрели ${rnd} · снят` });
+  const a = await createListing(seller.token, 'skins', '10000', { title: `Смотрели ${rnd} · А`, stock: 2 });
+  const b = await createListing(seller.token, 'skins', '20000', { title: `Смотрели ${rnd} · Б` });
+  const gone = await createListing(seller.token, 'skins', '30000', { title: `Смотрели ${rnd} · снят` });
   await j(`/listings/${a}`, { method: 'PATCH', ...as, body: JSON.stringify({ stock: 0 }) });
   await j(`/listings/${gone}`, { method: 'PATCH', ...as, body: JSON.stringify({ status: 'paused' }) });
   const unknown = '00000000-0000-4000-8000-000000000000';
@@ -3069,9 +3238,9 @@ async function scenarioPriceStats(rnd) {
   const as = { token: seller.token };
   const game = await j('/catalog/games/cs2');
   const other = game.body.categories.find((c) => c.slug === 'other');
-  const service = game.body.categories.find((c) => c.slug === 'service');
+  const skinsCat = game.body.categories.find((c) => c.slug === 'skins');
   const stats = async (cat, q = '') => (await j(`/listings/price-stats?categoryId=${cat.id}${q}`)).body;
-  const coaching = encodeURIComponent(JSON.stringify({ kind: 'Обучение' }));
+  const coaching = encodeURIComponent(JSON.stringify({ rarity: 'Classified' }));
   // «Прочее» в CS2 пустое: тест снимает свои лоты в конце.
   const before = await stats(other);
   const ids = [];
@@ -3094,16 +3263,16 @@ async function scenarioPriceStats(rnd) {
   const svc = [];
   for (const rub of [1000, 2000, 3000]) {
     svc.push(
-      await createListing(seller.token, 'service', String(rub * 100), {
-        title: `Обучение ${rnd} · ${rub}`,
-        attributes: { kind: 'Обучение' },
+      await createListing(seller.token, 'skins', String(rub * 100), {
+        title: `Classified ${rnd} · ${rub}`,
+        attributes: { rarity: 'Classified' },
       }),
     );
   }
-  const same = await stats(service, `&attrs=${coaching}`);
+  const same = await stats(skinsCat, `&attrs=${coaching}`);
   const bad = await j('/listings/price-stats?categoryId=nope');
   check(
-    'С теми же параметрами («Обучение» в услугах) — подсказка по ним; неверный раздел — 400',
+    'С теми же параметрами (Classified в скинах) — подсказка по ним; неверный раздел — 400',
     same.scope === 'attrs' && same.count >= 3 && bad.status === 400,
     JSON.stringify({ same, bad: bad.status }),
   );
@@ -3116,11 +3285,12 @@ async function scenarioImport(rnd) {
   console.log('\n— Загрузка из таблицы —');
   const seller = await register('ims', rnd);
   const game = await j('/catalog/games/cs2');
-  const accounts = game.body.categories.find((c) => c.slug === 'accounts');
+  const accounts = game.body.categories.find((c) => c.slug === 'skins');
   const keys = game.body.categories.find((c) => c.slug === 'keys');
+  // Скины CS2: аккаунты на запуске закрыты (часть 122).
   const lot = (line, over = {}) => ({
     line, title: `Импорт ${rnd} · ${line}`, description: 'Из таблицы', price: '50000', stock: null,
-    attributes: { ...REQUIRED_ATTRS.accounts }, ...over,
+    attributes: { ...REQUIRED_ATTRS.skins }, ...over,
   });
   const send = (categoryId, lots, opts = {}) =>
     j('/listings/import', {
@@ -3130,8 +3300,8 @@ async function scenarioImport(rnd) {
   const res = await send(accounts.id, [
     lot(2),
     lot(3, { stock: 2 }),
-    lot(4, { attributes: { region: 'EU' } }),
-    lot(5, { attributes: { ...REQUIRED_ATTRS.accounts, rank: 'Нет такого' } }),
+    lot(4, { attributes: { stattrak: true } }),
+    lot(5, { attributes: { ...REQUIRED_ATTRS.skins, rarity: 'Нет такого' } }),
     lot(6, { price: '0' }),
   ]);
   const mine = (await j('/listings/mine', { token: seller.token })).body.filter((l) => l.title.startsWith(`Импорт ${rnd}`));
@@ -3140,8 +3310,8 @@ async function scenarioImport(rnd) {
     'Из таблицы: годные строки выставлены (с наличием), у негодных — номер строки и причина',
     res.status === 201 && JSON.stringify(res.body.created.map((c) => c.line)) === '[2,3]' &&
       JSON.stringify(res.body.failed) === JSON.stringify([
-        { line: 4, message: 'Укажите характеристику «Звание»' },
-        { line: 5, message: 'Недопустимое значение «Звание»' },
+        { line: 4, message: 'Укажите характеристику «Редкость»' },
+        { line: 5, message: 'Недопустимое значение «Редкость»' },
         { line: 6, message: 'Цена — число больше нуля, например 490' },
       ]) && mine.length === 2 && third?.stock === 2 && mine.every((l) => l.status === 'active'),
     JSON.stringify({ status: res.status, body: res.body, mine: mine.map((l) => [l.title, l.stock, l.status]) }),
@@ -3165,13 +3335,14 @@ async function scenarioExportEdit(rnd) {
   const other = await register('exo', rnd);
   const as = { token: seller.token };
   const game = await j('/catalog/games/cs2');
-  const accounts = game.body.categories.find((c) => c.slug === 'accounts');
-  const a = await createListing(seller.token, 'accounts', '50000', { title: `Выгрузка ${rnd} · А`, description: 'Описание А' });
-  const b = await createListing(seller.token, 'accounts', '60000', { title: `Выгрузка ${rnd} · Б`, stock: 2 });
-  const onSale = await createListing(seller.token, 'accounts', '70000', { title: `Выгрузка ${rnd} · скидка` });
-  const auto = await createListing(seller.token, 'accounts', '80000', { title: `Выгрузка ${rnd} · авто`, autoDelivery: true });
-  const skin = await createListing(seller.token, 'skins', '9000', { title: `Выгрузка ${rnd} · скин` });
-  const foreign = await createListing(other.token, 'accounts', '50000', { title: `Выгрузка ${rnd} · чужой` });
+  const accounts = game.body.categories.find((c) => c.slug === 'skins');
+  const a = await createListing(seller.token, 'skins', '50000', { title: `Выгрузка ${rnd} · А`, description: 'Описание А' });
+  const b = await createListing(seller.token, 'skins', '60000', { title: `Выгрузка ${rnd} · Б`, stock: 2 });
+  const onSale = await createListing(seller.token, 'skins', '70000', { title: `Выгрузка ${rnd} · скидка` });
+  const auto = await createListing(seller.token, 'skins', '80000', { title: `Выгрузка ${rnd} · авто`, autoDelivery: true });
+  // Лот другого раздела — в «Прочем»; в конце снимается: «Подсказка цены» ждёт его пустым.
+  const skin = await createListing(seller.token, 'other', '9000', { title: `Выгрузка ${rnd} · скин` });
+  const foreign = await createListing(other.token, 'skins', '50000', { title: `Выгрузка ${rnd} · чужой` });
   await j(`/listings/${onSale}/sale`, { method: 'POST', ...as, body: JSON.stringify({ percent: 20, days: 3 }) });
   const exp = await j(`/listings/export?categoryId=${accounts.id}`, as);
   const ids = Array.isArray(exp.body) ? exp.body.map((l) => l.id) : [];
@@ -3185,7 +3356,7 @@ async function scenarioExportEdit(rnd) {
     JSON.stringify({ status: exp.status, ids: ids.length, rowA }),
   );
 
-  const attrs = { ...REQUIRED_ATTRS.accounts };
+  const attrs = { ...REQUIRED_ATTRS.skins };
   const row = (line, over) => ({ line, title: '', description: '', price: '', stock: null, attributes: {}, ...over });
   const res = await j('/listings/import', {
     method: 'POST', ...as,
@@ -3216,6 +3387,7 @@ async function scenarioExportEdit(rnd) {
       after.title === `Выгрузка ${rnd} · А, новое название` && after.price === '45000' && after.description === 'Описание А',
     JSON.stringify({ status: res.status, body: res.body, after: [after.title, after.price, after.description] }),
   );
+  await j(`/listings/${skin}`, { method: 'PATCH', ...as, body: JSON.stringify({ status: 'paused' }) });
 }
 
 async function scenarioBuyerReview(rnd) {
@@ -3224,7 +3396,7 @@ async function scenarioBuyerReview(rnd) {
   const seller2 = await register('brt', rnd);
   const buyer = await register('brb', rnd);
   const deal = async (s) => {
-    const listingId = await createListing(s.token, 'accounts', '20000', { title: `Оценка ${rnd}` });
+    const listingId = await createListing(s.token, 'skins', '20000', { title: `Оценка ${rnd}` });
     const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId }) });
     await pay(buyer.token, order.body.id);
     return order.body.id;
@@ -3288,8 +3460,8 @@ async function scenarioSellerToday(rnd) {
   const seller = await register('tds', rnd);
   const buyer = await register('tdb', rnd);
   const fresh = (await j('/sellers/me/today', { token: seller.token })).body;
-  const lot = await createListing(seller.token, 'accounts', '20000', { title: `Сегодня ${rnd}` });
-  const empty = await createListing(seller.token, 'accounts', '30000', { title: `Сегодня ${rnd} · кончился`, stock: 1 });
+  const lot = await createListing(seller.token, 'skins', '20000', { title: `Сегодня ${rnd}` });
+  const empty = await createListing(seller.token, 'skins', '30000', { title: `Сегодня ${rnd} · кончился`, stock: 1 });
   await j(`/listings/${empty}`, { method: 'PATCH', token: seller.token, body: JSON.stringify({ stock: 0 }) });
   const order = await j('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot }) });
   await pay(buyer.token, order.body.id);
@@ -3476,7 +3648,7 @@ async function scenarioRecovery(rnd) {
   const owner = await register('qro', rnd);
   const agent = await register('qra', rnd);
   await grant(agent, 'agent');
-  const lot = await createListing(seller.token, 'accounts', '15000', { title: `Восстановление ${rnd}` });
+  const lot = await createListing(seller.token, 'skins', '15000', { title: `Восстановление ${rnd}` });
   const order = await j('/orders', { method: 'POST', token: owner.token, body: JSON.stringify({ listingId: lot }) });
   // «Чужой» включил вход с кодом на аккаунте владельца.
   const setup = await j('/auth/2fa/setup', { method: 'POST', token: owner.token });
@@ -3616,7 +3788,7 @@ async function scenarioRecoveryDeals(rnd) {
   await grant(agent, 'agent');
   // Завершённые до заявки покупки владельца у каждого из продавцов.
   for (const [i, s] of sellers.entries()) {
-    const lot = await createListing(s.token, 'accounts', '20000', { title: `По сделкам ${rnd} · ${i + 1}` });
+    const lot = await createListing(s.token, 'skins', '20000', { title: `По сделкам ${rnd} · ${i + 1}` });
     const order = await j('/orders', { method: 'POST', token: owner.token, body: JSON.stringify({ listingId: lot }) });
     await prisma.order.update({ where: { id: order.body.id }, data: { status: 'completed', completedAt: new Date(Date.now() - 86_400_000) } });
   }
@@ -3813,7 +3985,7 @@ async function scenarioFollow(rnd) {
   const fan = await register('fwa', rnd);
   const quiet = await register('fwb', rnd); // уведомления по подписке выключены
   const blocked = await register('fwc', rnd); // в чёрном списке продавца
-  const old = await createListing(seller.token, 'accounts', '100000', { title: `Подписка ${rnd} · старый` });
+  const old = await createListing(seller.token, 'skins', '100000', { title: `Подписка ${rnd} · старый` });
   const follow = (u, method = 'POST', body) =>
     j(`/follows/${seller.id}`, { method, token: u.token, ...(body ? { body: JSON.stringify(body) } : {}) });
   const self = await follow(seller);
@@ -3842,7 +4014,7 @@ async function scenarioFollow(rnd) {
     }
     return notes(u, type);
   };
-  const fresh = await createListing(seller.token, 'accounts', '120000', { title: `Подписка ${rnd} · новый` });
+  const fresh = await createListing(seller.token, 'skins', '120000', { title: `Подписка ${rnd} · новый` });
   const got = await waitNotes(fan, 'seller_new_lots', 1);
   await wait(2500); // ещё один-два прохода — повтора нет
   const still = await notes(fan, 'seller_new_lots');
@@ -3865,7 +4037,7 @@ async function scenarioFollow(rnd) {
 
   const list = (await j('/follows', { token: fan.token })).body;
   const off = await follow(fan, 'DELETE');
-  await createListing(seller.token, 'accounts', '130000', { title: `Подписка ${rnd} · после отписки` });
+  await createListing(seller.token, 'skins', '130000', { title: `Подписка ${rnd} · после отписки` });
   await wait(3000);
   const after = await notes(fan, 'seller_new_lots');
   check(
@@ -3882,7 +4054,7 @@ async function scenarioSellerPromo(rnd) {
   const b1 = await register('kda', rnd);
   const b2 = await register('kdb', rnd);
   const b3 = await register('kdc', rnd);
-  const lot = await createListing(seller.token, 'accounts', '100000', { title: `Промокод ${rnd}` });
+  const lot = await createListing(seller.token, 'skins', '100000', { title: `Промокод ${rnd}` });
   const code = `SAVE${String(rnd).slice(-6)}`;
   const mk = (body) => j('/seller-promos', { method: 'POST', token: seller.token, body: JSON.stringify(body) });
   const p1 = await mk({ code: code.toLowerCase(), percent: 10, maxUses: 2, days: 30 });
@@ -4057,14 +4229,14 @@ async function scenarioYooKassa(rnd) {
     const seller = await reg('yks');
     const buyer = await reg('ykb');
     const game = await k('/catalog/games/cs2');
-    const cat = game.body.categories.find((c) => c.slug === 'accounts');
+    const cat = game.body.categories.find((c) => c.slug === 'skins');
     const order = async () => {
       const lot = await k('/listings', {
         method: 'POST',
         token: seller.token,
         body: JSON.stringify({
           gameId: game.body.id, categoryId: cat.id, title: 'E2E yookassa', description: 'test', price: '150000', currency: 'RUB',
-          attributes: REQUIRED_ATTRS.accounts ?? {},
+          attributes: REQUIRED_ATTRS.skins ?? {},
         }),
       });
       return (await k('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot.body.id }) })).body;
@@ -4346,10 +4518,10 @@ async function scenarioTelegramBot(rnd) {
     await link(seller, SELLER_CHAT);
     // Сделка: лот, заказ, оплата заглушкой; выдачу продавец отмечает из бота.
     const game = await k('/catalog/games/cs2');
-    const cat = game.body.categories.find((c) => c.slug === 'accounts');
+    const cat = game.body.categories.find((c) => c.slug === 'skins');
     const lot = await k('/listings', {
       method: 'POST', token: seller.token,
-      body: JSON.stringify({ gameId: game.body.id, categoryId: cat.id, title: `Кнопки в Telegram ${rnd}`, description: 'test', price: '50000', currency: 'RUB', attributes: REQUIRED_ATTRS.accounts ?? {} }),
+      body: JSON.stringify({ gameId: game.body.id, categoryId: cat.id, title: `Кнопки в Telegram ${rnd}`, description: 'test', price: '50000', currency: 'RUB', attributes: REQUIRED_ATTRS.skins ?? {} }),
     });
     const order = (await k('/orders', { method: 'POST', token: buyer.token, body: JSON.stringify({ listingId: lot.body.id }) })).body;
     const dep = await k('/payments/deposit', { method: 'POST', token: buyer.token, body: JSON.stringify({ orderId: order.id }) });
@@ -4497,6 +4669,8 @@ async function scenarioTelegramBot(rnd) {
   await scenarioCatalog(rnd);
   await scenarioSellEstimate();
   await scenarioCatalogAdmin(rnd);
+  await scenarioClosedSections(rnd);
+  await scenarioLotReview(rnd);
   await scenarioBuyerData(rnd);
   await scenarioPromotion(rnd);
   await scenarioMyLots(rnd);

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { ShieldCheck, AlertTriangle, Percent, Scale } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, Percent, Scale, Ban } from 'lucide-react';
+import { PROHIBITED_GOODS } from '@gamemarket/shared/sections';
 import { getT } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -10,9 +11,9 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function Section({ id, icon, title, children }: { id?: string; icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <section className="card" style={{ padding: 24 }}>
+    <section id={id} className="card" style={{ padding: 24, scrollMarginTop: 80 }}>
       <h2 className="h2" style={{ fontSize: 20, display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         {icon} {title}
       </h2>
@@ -64,10 +65,23 @@ export default async function RulesPage() {
           </p>
         </Section>
 
+        {/* Список запрещённого — общий с API (часть 122): `shared/sections.ts`. */}
+        <Section id="zapreshcheno" icon={<Ban size={20} strokeWidth={1.75} />} title={t('Что нельзя продавать')}>
+          <ul className="muted" style={{ margin: 0, paddingLeft: 18, fontSize: 15, lineHeight: 1.7 }}>
+            {PROHIBITED_GOODS.map((g) => (
+              <li key={g}>{t.d(g)}</li>
+            ))}
+          </ul>
+          <p className="hint" style={{ margin: '12px 0 0' }}>
+            {t(
+              'Разделы с аккаунтами и бустом закрыты для продажи: продать аккаунт — значит передать другому человеку логин и пароль, а это закон ограничивает (ст. 13.29.2 КоАП). Лот со словами о передаче аккаунта в других разделах уходит на проверку к модератору и не появляется в каталоге, пока его не одобрят.',
+            )}
+          </p>
+        </Section>
+
         <Section icon={<AlertTriangle size={20} strokeWidth={1.75} />} title={t('Запрещено')}>
           <ul className="muted" style={{ margin: 0, paddingLeft: 18, fontSize: 15, lineHeight: 1.7 }}>
             <li>{t('Обмен контактами и увод сделки в обход площадки (контакты в чате маскируются).')}</li>
-            <li>{t('Повторная продажа уже проданного аккаунта.')}</li>
             <li>{t('Фиктивные сделки и накрутка отзывов.')}</li>
             <li>{t('Фишинг и вредоносные вложения.')}</li>
           </ul>

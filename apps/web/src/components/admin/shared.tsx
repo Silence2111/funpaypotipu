@@ -8,6 +8,7 @@ export const LISTING_STATUS: Record<string, string> = {
   blocked: 'заблокирован',
   draft: 'черновик',
   archived: 'в архиве',
+  review: 'на проверке',
 };
 
 export const USER_STATUS: Record<string, string> = {

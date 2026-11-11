@@ -68,7 +68,9 @@ export const HELP: Record<string, string> = {
   Запрещено: 'Prohibited',
   'Обмен контактами и увод сделки в обход площадки (контакты в чате маскируются).':
     'Exchanging contacts and taking a deal off the marketplace (contacts in the chat are masked).',
-  'Повторная продажа уже проданного аккаунта.': 'Reselling an account that has already been sold.',
   'Фиктивные сделки и накрутка отзывов.': 'Fake deals and inflating reviews.',
+  'Что нельзя продавать': 'What you can’t sell',
+  'Разделы с аккаунтами и бустом закрыты для продажи: продать аккаунт — значит передать другому человеку логин и пароль, а это закон ограничивает (ст. 13.29.2 КоАП). Лот со словами о передаче аккаунта в других разделах уходит на проверку к модератору и не появляется в каталоге, пока его не одобрят.':
+    'Account and boosting sections are closed for sales: selling an account means handing your login and password to someone else, which Russian law restricts (Art. 13.29.2 of the Administrative Code). A listing in other sections that mentions handing over an account goes to a moderator for review and stays out of the catalogue until approved.',
   'Фишинг и вредоносные вложения.': 'Phishing and malicious attachments.',
 };

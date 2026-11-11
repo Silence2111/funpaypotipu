@@ -36,7 +36,7 @@ export const SELLER: Record<string, string> = {
   Название: 'Title',
   'Название — от 3 знаков: его видят в каталоге':
     'Title must be at least 3 characters: buyers see it in the catalog',
-  'Например, Аккаунт CS2, Prime, 800 часов': 'For example, CS2 account, Prime, 800 hours',
+  'Например, AK-47 | Красная линия, после полевых': 'For example, AK-47 | Redline, Field-Tested',
   Описание: 'Description',
   'Опишите, что получит покупатель и как передаёте':
     'Describe what the buyer gets and how you deliver it',
@@ -302,8 +302,8 @@ export const SELLER: Record<string, string> = {
   'Загрузить {n}': 'Upload {n}',
   // «Продавать на GameMarket» — калькулятор (часть 109)
   'Продавать на GameMarket': 'Sell on GameMarket',
-  'Сколько вы получите с продажи аккаунта, ключа или валюты — комиссия, вывод и сумма на руки до регистрации, рядом со ставками FunPay и Playerok.':
-    'How much you get from selling an account, key or currency — fee, withdrawal and take-home before you sign up, next to FunPay and Playerok rates.',
+  'Сколько вы получите с продажи скина, ключа или валюты — комиссия, вывод и сумма на руки до регистрации, рядом со ставками FunPay и Playerok.':
+    'How much you get from selling a skin, key or currency — fee, withdrawal and take-home before you sign up, next to FunPay and Playerok rates.',
   'Посчитайте, сколько получите с продажи, — до регистрации. Комиссия берётся только с проданного, выставлять лоты бесплатно.':
     'See how much you’ll get from a sale — before you sign up. The fee is charged only on what sells; listing is free.',
   'Калькулятор сейчас недоступен — попробуйте обновить страницу.': 'The calculator is unavailable right now — try refreshing the page.',
@@ -312,8 +312,8 @@ export const SELLER: Record<string, string> = {
     'The buyer pays the marketplace and the money waits in the deal. You deliver, the buyer confirms — the money is on your balance.',
   'Не подтвердил и не открыл спор — через {h} ч подтверждение само.':
     'If they neither confirm nor open a dispute, it’s confirmed automatically after {h} h.',
-  'Ключи и аккаунты можно выдавать автоматически: загрузите их на склад лота — покупатель получит сразу после оплаты.':
-    'Keys and accounts can be delivered automatically: upload them to the listing’s stock and the buyer gets them right after paying.',
+  'Ключи и коды можно выдавать автоматически: загрузите их на склад лота — покупатель получит сразу после оплаты.':
+    'Keys and codes can be delivered automatically: upload them to the listing’s stock and the buyer gets them right after paying.',
   'Ручная выдача — в течение {h} ч после оплаты, иначе заказ отменится и деньги вернутся покупателю.':
     'Manual delivery — within {h} h of payment, otherwise the order is cancelled and the buyer is refunded.',
   'Вывод на карту, СБП и ЮMoney — {pct}, в USDT — {usdt}. Комиссия продавца снижается за продажи, рейтинг и проверенные документы.':

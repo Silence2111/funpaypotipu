@@ -27,7 +27,7 @@ interface BulkResult {
   nextInMinutes?: number | null;
 }
 
-type Filter = 'all' | 'active' | 'paused' | 'sold_out' | 'blocked';
+type Filter = 'all' | 'active' | 'paused' | 'sold_out' | 'blocked' | 'review';
 
 const FILTERS: Array<[Filter, string]> = [
   ['all', msg('Все')],
@@ -35,6 +35,8 @@ const FILTERS: Array<[Filter, string]> = [
   ['paused', msg('Сняты')],
   ['sold_out', msg('Закончились')],
   ['blocked', msg('Заблокированы')],
+  // На проверке у модератора: слова о передаче аккаунта (часть 122).
+  ['review', msg('На проверке')],
 ];
 
 const filterOf = (f: string | null): Filter =>
@@ -94,6 +96,8 @@ function MyLots() {
   // После правки лота: какой лот изменили (`?updated=<id>`, у старых ссылок —
   // «1»). Адрес дальше меняют фильтры, поэтому запоминаем при открытии.
   const [updated] = useState(() => params.get('updated'));
+  // Лот ушёл на проверку (часть 122): `?review=<id>` из формы лота.
+  const [heldId] = useState(() => params.get('review'));
   // Подсветка правленого лота: «on» — видна, «off» — гаснет.
   const [glow, setGlow] = useState<'on' | 'off' | null>(null);
   const glowed = useRef(false);
@@ -150,7 +154,7 @@ function MyLots() {
   }, [params]);
 
   const counts = useMemo(() => {
-    const c: Record<Filter, number> = { all: 0, active: 0, paused: 0, sold_out: 0, blocked: 0 };
+    const c: Record<Filter, number> = { all: 0, active: 0, paused: 0, sold_out: 0, blocked: 0, review: 0 };
     for (const l of rows ?? []) for (const [f] of FILTERS) if (inFilter(l, f)) c[f] += 1;
     return c;
   }, [rows]);
@@ -349,6 +353,16 @@ function MyLots() {
         </div>
       </div>
 
+      {heldId && (
+        <div className="alert" role="status">
+          <span>
+            {t(
+              'Лот на проверке у модератора: в тексте есть слова о передаче аккаунта, а продавать аккаунты и доступ к ним на площадке нельзя. Если это ошибка — модератор вернёт лот в продажу, обычно в течение дня.',
+            )}{' '}
+            <Link href="/rules#zapreshcheno">{t('Что нельзя продавать')}</Link>
+          </span>
+        </div>
+      )}
       {updated && rows !== null && (
         <div className="alert success" role="status">
           <CheckCircle2 size={18} strokeWidth={1.75} />

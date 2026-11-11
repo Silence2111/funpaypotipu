@@ -14,6 +14,7 @@ import { containsText, likeText } from '../../common/like';
 import { nextCursor } from '../../common/cursor';
 import { AuditService } from '../access/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SearchService } from '../search/search.service';
 
 export type ReportTarget = 'listing' | 'user' | 'message' | 'buy_request';
 /** Что модератор делает с нарушителем, закрывая жалобу. */
@@ -46,7 +47,7 @@ type ReportGroup = {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Фильтры лотов в консоли. «Сняты» — как в кабинете продавца: снятые и черновики. */
-export const LISTING_FILTERS = ['active', 'paused', 'sold_out', 'blocked', 'archived'] as const;
+export const LISTING_FILTERS = ['active', 'paused', 'sold_out', 'blocked', 'archived', 'review'] as const;
 export type ListingFilter = (typeof LISTING_FILTERS)[number];
 const LISTING_FILTER: Record<ListingFilter, ListingStatus[]> = {
   active: ['active'],
@@ -54,9 +55,10 @@ const LISTING_FILTER: Record<ListingFilter, ListingStatus[]> = {
   sold_out: ['sold_out'],
   blocked: ['blocked'],
   archived: ['archived'],
+  review: ['review'],
 };
 /** «Все» — без архива: удалённые продавцом лоты модератору не нужны. */
-const NOT_ARCHIVED: ListingStatus[] = ['draft', 'active', 'paused', 'sold_out', 'blocked'];
+const NOT_ARCHIVED: ListingStatus[] = ['draft', 'active', 'paused', 'sold_out', 'blocked', 'review'];
 
 /** Фильтры пользователей: статусы и «Сотрудники» — у кого есть роль сотрудника. */
 export const USER_FILTERS = ['active', 'frozen', 'banned', 'staff'] as const;
@@ -103,6 +105,7 @@ export class ModerationService {
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly search: SearchService,
   ) {}
 
   // ── Жалобы (любой пользователь) ──
@@ -461,6 +464,9 @@ export class ModerationService {
           currency: true,
           stock: true,
           createdAt: true,
+          // На проверке — найденная фраза и текст лота: модератор решает по ним.
+          reviewReason: true,
+          ...(q.status === 'review' ? { description: true, attributes: true } : {}),
           game: { select: { title: true } },
           category: { select: { title: true } },
           seller: { select: { id: true, status: true, profile: { select: { username: true } } } },
@@ -492,6 +498,7 @@ export class ModerationService {
         sold_out: n('sold_out'),
         blocked: n('blocked'),
         archived: n('archived'),
+        review: n('review'),
       },
       seller: q.seller ? { id: q.seller, username: seller?.username ?? null } : null,
     };
@@ -671,19 +678,41 @@ export class ModerationService {
 
   // ── Действия над лотами ──
 
+  /**
+   * Заблокировать лот или вернуть в продажу: снять блокировку или одобрить
+   * лот с проверки (часть 122). В закрытом разделе одобренный лот остаётся
+   * снятым с отметкой «раздел закрыт» — это делает триггер базы.
+   */
   async setListingStatus(staffId: string, listingId: string, status: 'active' | 'blocked', reason?: string) {
     const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
     if (!listing) throw new NotFoundException('Лот не найден');
-    if (status === 'active' && listing.status !== 'blocked') throw new BadRequestException('Лот не заблокирован');
+    const approve = status === 'active' && listing.status === 'review';
+    if (status === 'active' && listing.status !== 'blocked' && !approve) {
+      throw new BadRequestException('Лот не заблокирован');
+    }
     // Снятая блокировка не выставляет лот без наличия: он вернётся «закончившимся».
     const next: ListingStatus = status === 'active' && listing.stock === 0 ? 'sold_out' : status;
-    const updated = await this.prisma.listing.update({ where: { id: listingId }, data: { status: next } });
-    await this.record(staffId, 'listing', listingId, status === 'blocked' ? 'block' : 'unblock', reason);
-    await this.notifications.notify(listing.sellerId, status === 'blocked' ? 'listing_blocked' : 'listing_unblocked', {
-      listingId,
-      title: listing.title,
-      ...(reason ? { reason } : {}),
+    const updated = await this.prisma.listing.update({
+      where: { id: listingId },
+      data: { status: next, ...(approve ? { reviewReason: null } : {}) },
     });
+    await this.search.indexListing(listingId).catch(() => undefined);
+    await this.record(
+      staffId,
+      'listing',
+      listingId,
+      status === 'blocked' ? 'block' : approve ? 'approve' : 'unblock',
+      reason ?? (approve ? listing.reviewReason ?? undefined : undefined),
+    );
+    await this.notifications.notify(
+      listing.sellerId,
+      status === 'blocked' ? 'listing_blocked' : approve ? 'listing_approved' : 'listing_unblocked',
+      {
+        listingId,
+        title: listing.title,
+        ...(reason ? { reason } : {}),
+      },
+    );
     return updated;
   }
 
@@ -756,7 +785,7 @@ export class ModerationService {
     actorId: string,
     targetType: string,
     targetId: string,
-    action: 'warn' | 'block' | 'unblock' | 'ban' | 'hide' | 'delete',
+    action: 'warn' | 'block' | 'unblock' | 'ban' | 'hide' | 'delete' | 'approve',
     reason?: string,
     after?: Prisma.InputJsonValue,
   ) {

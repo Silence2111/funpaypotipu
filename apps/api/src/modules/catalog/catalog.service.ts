@@ -96,7 +96,7 @@ export class CatalogService {
           categories: {
             where: { isActive: true },
             orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
-            select: { id: true, slug: true, title: true },
+            select: { id: true, slug: true, title: true, salesClosed: true },
           },
         },
       }),

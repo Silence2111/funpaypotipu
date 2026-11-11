@@ -44,6 +44,9 @@ export interface Category {
   /** Общая пачка раздела валюты: «за 1 000 золота». */
   unitName?: string | null;
   pricePerUnits?: number | null;
+  /** Закрыт для продажи (часть 122): страница раздела объясняет почему. */
+  salesClosed?: boolean;
+  closedReason?: string | null;
 }
 
 export interface SellersNow {
@@ -111,7 +114,15 @@ export type ListingDetail = ListingCard & {
   fulfillmentType: string;
   salesCount: number;
   /** Выдача раздела: автовыдача у аккаунтов — со склада строк, а не ключи. */
-  category: { id: string; slug: string; title: string; fulfillmentType?: string };
+  category: {
+    id: string;
+    slug: string;
+    title: string;
+    fulfillmentType?: string;
+    /** Раздел закрыт для продажи: лот виден по ссылке, купить нельзя. */
+    salesClosed?: boolean;
+    closedReason?: string | null;
+  };
   seller: { id: string; profile: { username: string; ratingAvg: number; ratingCount: number } | null };
 };
 
@@ -151,7 +162,7 @@ export interface GameIndexEntry {
   coverUrl?: string | null;
   /** Продавцов игры в сети прямо сейчас. */
   onlineSellers?: number;
-  categories: Array<{ id: string; slug: string; title: string; listingCount: number }>;
+  categories: Array<{ id: string; slug: string; title: string; listingCount: number; salesClosed?: boolean }>;
 }
 
 /** Типы товаров во всех играх — как строка категорий на главной Playerok. Подписи — через t(). */

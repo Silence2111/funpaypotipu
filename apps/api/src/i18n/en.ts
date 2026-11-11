@@ -15,6 +15,11 @@ export const EN_API: Phrasebook = {
     'Too many requests. Wait {n} s and try again.',
   'База данных недоступна': 'The database is unavailable',
 
+  // Закрытые разделы и проверка лотов (часть 122)
+  'Лот на проверке у модератора: в продажу его вернёт модератор':
+    'The listing is under moderator review: the moderator will put it back on sale',
+  'Причина — до {n} символов': 'Reason must be at most {n} characters',
+
   // Доступ и статус аккаунта
   'Аккаунт заморожен модератором: покупки, продажи и вывод недоступны. Напишите в поддержку.':
     'Your account has been frozen by a moderator: purchases, sales and withdrawals are unavailable. Contact support.',
