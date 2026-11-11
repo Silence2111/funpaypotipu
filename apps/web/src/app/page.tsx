@@ -203,7 +203,7 @@ export default async function HomePage({
               <Zap size={18} strokeWidth={1.75} aria-hidden /> {t('Ключи сразу')}
             </h3>
             <p>
-              {pricing
+              {pricing && pricing.cashbackPct > 0
                 ? t('Ключи и пополнения выдаются автоматически после оплаты, а с каждой покупки — {pct} кэшбэка на баланс.', {
                     pct: pct(pricing.cashbackPct),
                   })
@@ -260,7 +260,7 @@ function PricingTable({
     [t('Комиссия продавца'), range, t('в среднем 9%, от 3%'), t('10% и 20%')],
     [t('Вывод на карту и СБП'), sbp ? pct(sbp.feePct) : '—', t('3%, минимум 30 ₽'), t('6%, минимум 60 ₽')],
     [t('Вывод в USDT'), usdt ? pct(usdt.feePct) : '—', '—', t('4% плюс 1 $')],
-    [t('Кэшбэк покупателю'), t('{pct} деньгами', { pct: pct(pricing.cashbackPct) }), t('нет'), t('баллы')],
+    [t('Кэшбэк покупателю'), pricing.cashbackPct > 0 ? t('{pct} деньгами', { pct: pct(pricing.cashbackPct) }) : t('нет'), t('нет'), t('баллы')],
     [t('Комиссия с покупателя'), t('нет'), t('нет'), t('нет')],
   ];
 
