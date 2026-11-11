@@ -1129,8 +1129,8 @@ async function scenarioSafeDeal(rnd) {
  */
 async function scenarioServiceTerm(rnd) {
   console.log('\n— Услуги со сроком —');
-  const seller = await register('sts', rnd);
-  const buyer = await register('stb', rnd);
+  const seller = await register('svt', rnd);
+  const buyer = await register('svb', rnd);
   const lot = await createListing(seller.token, 'other', '30000', { title: `Обучение раскидке ${rnd}`, serviceHours: 72 });
   const shown = await j(`/listings/${lot}`);
   const notService = await j('/listings', {
