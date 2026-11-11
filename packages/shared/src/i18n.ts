@@ -272,6 +272,31 @@ export const EN_SHARED: Phrasebook = {
   'Ваша жалоба рассмотрена': 'Your report has been reviewed',
   'Лот заблокирован модератором': 'Listing blocked by a moderator',
   'Блокировка лота снята': 'Listing unblocked',
+  'Лот прошёл проверку и вернулся в продажу': 'Your listing passed review and is back on sale',
+  'Раздел закрыт для продажи — ваши лоты сняты с витрины': 'The section is closed for sales — your listings are hidden',
+  'Раздел снова открыт — ваши лоты вернулись в продажу': 'The section is open again — your listings are back on sale',
+  // Причины закрытия разделов (часть 122): сайт и API показывают их как есть.
+  'Продажа аккаунтов закрыта: покупатель получает логин и пароль продавца, а передачу данных для входа другому человеку закон ограничивает (ст. 13.29.2 КоАП). Предметы, валюту, ключи и донат продают как обычно.':
+    'Account sales are closed: the buyer gets the seller’s login and password, and Russian law restricts handing sign-in details to another person (Art. 13.29.2 of the Administrative Code). Items, currency, keys and top-ups are sold as usual.',
+  'Буст закрыт: исполнителю нужен вход в аккаунт покупателя, а передачу логина и пароля другому человеку закон ограничивает (ст. 13.29.2 КоАП). Предметы, валюту, ключи и донат продают как обычно.':
+    'Boosting is closed: the booster needs to sign in to the buyer’s account, and Russian law restricts handing a login and password to another person (Art. 13.29.2 of the Administrative Code). Items, currency, keys and top-ups are sold as usual.',
+  'Продажа в разделе закрыта правилами площадки.': 'Sales in this section are closed by the marketplace rules.',
+  // Что нельзя продавать — правила (`/rules#zapreshcheno`), `sections.ts`.
+  'Аккаунты игр и сервисов и доступ к ним: логин и пароль, «общий доступ», аренда аккаунта, «офлайн-аккаунты».':
+    'Game and service accounts and access to them: login and password, “shared access”, account rental, “offline accounts”.',
+  'Буст, прокачка и любые услуги, где исполнителю нужен вход в аккаунт покупателя.':
+    'Boosting, levelling and any service where the seller has to sign in to the buyer’s account.',
+  'Данные для входа, почты и номера телефонов, привязанные к аккаунтам; чужие персональные данные.':
+    'Sign-in details, emails and phone numbers linked to accounts; other people’s personal data.',
+  'Краденое, взломанное и полученное обманом: предметы, ключи, аккаунты, карты оплаты.':
+    'Anything stolen, hacked or obtained by fraud: items, keys, accounts, payment cards.',
+  'Читы, программы для взлома и обхода защиты игр, боты для нечестной игры.':
+    'Cheats, software for hacking or bypassing game protection, bots for unfair play.',
+  'Ключи и подписки, полученные с нарушением условий магазина, — «серые» ключи с чужих карт.':
+    'Keys and subscriptions obtained in breach of the store’s terms — “grey” keys bought with other people’s cards.',
+  'Деньги, электронные кошельки, криптовалюта, подарочные карты банков — как товар.':
+    'Money, e-wallets, cryptocurrency and bank gift cards — as goods.',
+  'Всё, что запрещено продавать по закону России.': 'Anything that may not be sold under Russian law.',
   'Статус аккаунта изменён': 'Account status changed',
   'Документы проверены — вывод без ограничения суммы': 'ID verified — withdrawals without a limit',
   'Документы не приняты — посмотрите причину': 'ID not accepted — see the reason',

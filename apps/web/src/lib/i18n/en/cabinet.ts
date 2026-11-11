@@ -594,4 +594,17 @@ export const CABINET: Record<string, string> = {
   'Если вас пригласили — необязательно': 'If someone invited you — optional',
   'Есть код партнёра?': 'Have a partner code?',
   'Код партнёра — 6–12 латинских букв и цифр': 'A partner code is 6–12 Latin letters and digits',
+
+  // Закрытые разделы и проверка лотов (часть 122)
+  'На проверке': 'Under review',
+  'Лот на проверке у модератора: в тексте есть слова о передаче аккаунта, а продавать аккаунты и доступ к ним на площадке нельзя. Если это ошибка — модератор вернёт лот в продажу, обычно в течение дня.':
+    'The listing is under moderator review: its text mentions handing over an account, and selling accounts or access to them is not allowed here. If this is a mistake, a moderator will put it back on sale, usually within a day.',
+  'закрыт для продажи': 'closed for sales',
+  'Раздел «{section}» закрыт для продажи.': 'The “{section}” section is closed for sales.',
+  'Продажа в разделе закрыта правилами площадки.': 'Sales in this section are closed by the marketplace rules.',
+  'Найдено: «{phrase}»': 'Found: “{phrase}”',
+  'на проверке у модератора': 'under moderator review',
+  'раздел закрыт для продажи': 'section closed for sales',
+  'ждёт модератора': 'awaiting moderator',
+  'Почему': 'Why',
 };

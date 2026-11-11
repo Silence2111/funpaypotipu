@@ -47,6 +47,7 @@ const STATUS: Record<string, string> = {
   sold_out: msg('закончился'),
   blocked: msg('заблокирован'),
   draft: msg('черновик'),
+  review: msg('на проверке'),
 };
 
 const dayLabel = (iso: string, t: T) =>

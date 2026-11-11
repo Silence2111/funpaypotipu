@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { z } from 'zod';
+import { CLOSED_REASON_MAX } from '@gamemarket/shared';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
@@ -71,6 +72,10 @@ const categoryUpdate = z.object({
   fulfillmentType: z.enum(FULFILLMENT).optional(),
   isActive: z.boolean().optional(),
   ...unit,
+});
+const salesUpdate = z.object({
+  closed: z.boolean(),
+  reason: z.string().trim().max(CLOSED_REASON_MAX, `Причина — до ${CLOSED_REASON_MAX} символов`).nullable().optional(),
 });
 const options = z.array(z.string().trim().min(1).max(60)).max(50);
 const attributeCreate = z.object({
@@ -147,6 +152,16 @@ export class CatalogAdminController {
     @Body(new ZodValidationPipe(order)) body: { ids: string[] },
   ) {
     return this.catalog.orderCategories(u.userId, gameId, body.ids);
+  }
+
+  /** Закрыть раздел для продажи с причиной или открыть (часть 122). */
+  @Post('categories/:id/sales')
+  setSales(
+    @CurrentUser() u: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(salesUpdate)) body: z.infer<typeof salesUpdate>,
+  ) {
+    return this.catalog.setSales(u.userId, id, body);
   }
 
   @Patch('categories/:id')

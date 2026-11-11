@@ -79,7 +79,7 @@ function setup(opts: {
     moderationAction: { findMany: vi.fn(async () => opts.actions ?? []) },
   };
   const none = {} as never;
-  return { svc: new ModerationService(prisma as never, none, none), prisma };
+  return { svc: new ModerationService(prisma as never, none, none, none), prisma };
 }
 
 describe('консоль: пользователи', () => {
@@ -165,7 +165,7 @@ describe('консоль: лоты', () => {
     const res = await svc.listListings({ limit: 2 });
     expect(res.items.map((l) => l.id)).toEqual(['l1', 'l2']);
     expect(res.next).toBe(`${at(2).toISOString()}_l2`);
-    expect(res.counts).toEqual({ all: 136, active: 120, paused: 7, sold_out: 0, blocked: 9, archived: 40 });
+    expect(res.counts).toEqual({ all: 136, active: 120, paused: 7, sold_out: 0, blocked: 9, archived: 40, review: 0 });
     expect(res.seller).toBeNull();
     expect(prisma.listing.findMany.mock.calls[0]![0]).toMatchObject({
       where: { AND: [{ status: { not: 'archived' } }, {}] },

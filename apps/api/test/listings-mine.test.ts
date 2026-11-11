@@ -61,13 +61,16 @@ describe('мои лоты', () => {
       { status: 'paused', n: 900 },
       { status: 'draft', n: 100 },
       { status: 'sold_out', n: 1000 },
+      { status: 'review', n: 2 },
     ]);
     expect(await svc.countMine('s1')).toEqual({
-      all: 5000,
+      all: 5002,
       active: 3000,
       paused: 1000,
       sold_out: 1000,
       blocked: 0,
+      // На проверке — отдельно (часть 122).
+      review: 2,
     });
     expect(prisma.listing.groupBy).toHaveBeenCalledWith(
       expect.objectContaining({ where: { sellerId: 's1', status: { not: 'archived' } } }),

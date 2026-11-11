@@ -24,6 +24,7 @@ export * from './saved-search';
 export * from './buy-request';
 export * from './partner';
 export * from './consent';
+export * from './sections';
 export * from './lot-stats';
 export * from './sale';
 export * from './reprice';

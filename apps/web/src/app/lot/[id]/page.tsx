@@ -73,6 +73,8 @@ export async function generateMetadata({
     },
     twitter: { card: 'summary_large_image', title: `${listing.title} — ${price}`, description: where },
     alternates: { canonical: `/lot/${id}` },
+    // Раздел закрыт для продажи — лот виден по ссылке, но в поиске не нужен.
+    ...(listing.category.salesClosed && listing.status === 'paused' && { robots: { index: false, follow: true } }),
   };
 }
 
@@ -121,6 +123,9 @@ export default async function ListingPage({
     auto || provider ? (pricing?.autoGoodsConfirmHours ?? 24) : (pricing?.autoConfirmHours ?? 72);
   const fulfillH = pricing?.fulfillHours ?? 24;
   const soldOut = listing.status === 'sold_out';
+  // Раздел закрыт для продажи (часть 122): лот открывается по ссылке, купить нельзя.
+  const closed = listing.status === 'paused' && !!listing.category.salesClosed;
+  const unavailable = soldOut || closed;
   // Поштучно: цена за пачку, покупатель выбирает количество. У ключей поле
   // количества появляется, только когда на складе есть из чего выбирать.
   const pack = perPackLabel(listing, t);
@@ -174,7 +179,7 @@ export default async function ListingPage({
           '@type': 'Offer',
           price: major(listing.price),
           priceCurrency: listing.currency,
-          availability: soldOut ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+          availability: unavailable ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
           seller: sellerLd,
         },
     ...(listing.seller.profile && listing.seller.profile.ratingAvg > 0
@@ -273,6 +278,7 @@ export default async function ListingPage({
             </span>
             {demo && <span className="demo-mark">{t('Пример')}</span>}
             {soldOut && <span className="badge">{t('Закончился')}</span>}
+            {closed && <span className="badge">{t('раздел закрыт для продажи')}</span>}
             {listing.salesCount > 0 && (
               <span className="lot-sold">{t('Продаж: {n}', { n: t.num(listing.salesCount) })}</span>
             )}
@@ -309,7 +315,7 @@ export default async function ListingPage({
                 {t('Сумму выбираете вы, наценка продавца — {pct}', { pct: markupLabel(topup.markupBps) })}
               </p>
             )}
-            {pack && !soldOut && (
+            {pack && !unavailable && (
               <p className="hint" style={{ marginBottom: 16 }}>
                 {listing.minQty && listing.minQty > 1
                   ? t('Количество выбираете вы, от {qty}', { qty: formatQty(listing.minQty, listing.unitName, t) })
@@ -317,7 +323,19 @@ export default async function ListingPage({
               </p>
             )}
 
-            {soldOut ? (
+            {closed ? (
+              <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
+                <p style={{ margin: 0, fontWeight: 600 }}>{t('Раздел закрыт для продажи')}</p>
+                <p className="hint" style={{ margin: '4px 0 12px' }}>
+                  {listing.category.closedReason
+                    ? t.d(listing.category.closedReason)
+                    : t('Продажа в разделе закрыта правилами площадки.')}
+                </p>
+                <Link href={`/igra/${listing.game.slug}`} className="btn secondary">
+                  {t('Другие разделы игры')}
+                </Link>
+              </div>
+            ) : soldOut ? (
               <div className="card flat" style={{ padding: 16, background: 'var(--page)' }}>
                 <p style={{ margin: 0, fontWeight: 600 }}>{t('Лот закончился')}</p>
                 <p className="hint" style={{ margin: '4px 0 12px' }}>
@@ -345,7 +363,7 @@ export default async function ListingPage({
                 buyerFields={listing.fulfillmentType === 'manual' ? listing.buyerFields ?? [] : []}
               />
             )}
-            {pricing?.paymentsDemo && !soldOut && (
+            {pricing?.paymentsDemo && !unavailable && (
               <p className="hint" style={{ marginTop: 10, textAlign: 'center' }}>
                 {t('Демо-оплата: платёжка не подключена, деньги не списываются.')}
               </p>
@@ -496,7 +514,7 @@ export default async function ListingPage({
       </div>
 
       <KeysManager listingId={listing.id} sellerId={listing.seller.id} auto={auto} keys={keys} />
-      {!soldOut && (
+      {!unavailable && (
         <MobileBuyBar
           target="#buy"
           price={pack ? formatPrice(listing.price, listing.currency, t) : formatListingPrice(listing, t)}

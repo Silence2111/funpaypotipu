@@ -18,6 +18,8 @@
  * выставленные лоты.
  */
 import { CategorySegment, FulfillmentType, GameKind, type PrismaClient } from '@prisma/client';
+// Тот же модуль, что у API и сайта: какие разделы закрыты на запуск и почему.
+import { launchClosedReason } from '../../shared/src/sections';
 
 export interface AttrSpec {
   key: string;
@@ -1044,11 +1046,28 @@ export async function seedCatalog(prisma: PrismaClient) {
       const had = await prisma.category.findUnique({ where });
       // Способ выдачи существующего раздела не трогаем: по нему уже
       // выставлены лоты, и ключи не станут ручной выдачей задним числом.
+      // Аккаунты и буст на запуске закрыты (часть 122). Решает сид один раз —
+      // при создании раздела или для раздела, о котором ещё не решали;
+      // открыли или закрыли в консоли — сид больше не вмешивается.
+      const closedReason = launchClosedReason(s);
+      const closure = closedReason ? { salesClosed: true, closedReason, closedAt: new Date() } : {};
       const category = !had
-        ? await prisma.category.create({ data: { gameId: game.id, slug: s.slug, fulfillmentType: s.fulfillment, ...common } })
+        ? await prisma.category.create({
+            data: { gameId: game.id, slug: s.slug, fulfillmentType: s.fulfillment, ...common, ...closure },
+          })
         : had.editedAt
           ? had
-          : await prisma.category.update({ where: { id: had.id }, data: common });
+          : await prisma.category.update({
+              where: { id: had.id },
+              data: { ...common, ...(had.closedAt ? {} : closure) },
+            });
+      if (had && !had.editedAt && !had.closedAt && closedReason) {
+        // Лоты закрытого раздела — с витрины, с отметкой: откроют — вернутся.
+        await prisma.listing.updateMany({
+          where: { categoryId: category.id, status: { in: ['active', 'sold_out'] } },
+          data: { status: 'paused', pausedForSection: true },
+        });
+      }
       const keys = new Set<string>();
       for (const [ai, a] of (s.attrs ?? []).entries()) {
         keys.add(a.key);

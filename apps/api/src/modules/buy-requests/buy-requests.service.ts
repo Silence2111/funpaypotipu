@@ -25,6 +25,7 @@ import { AccountStatusService } from '../access/account-status.service';
 import { BlocksService } from '../access/blocks.service';
 import { langOf, say } from '../../i18n/texts';
 import type { Lang } from '../../i18n/lang';
+import { sectionClosedError } from '../../common/section-closed';
 
 /** Рассылка продавцам — сразу после создания; проход подбирает упавшие. */
 const SWEEP_MS = Number(process.env.BUY_REQUEST_INTERVAL_MS ?? 60_000);
@@ -71,9 +72,11 @@ export class BuyRequestsService {
     await this.status.assertCanTrade(userId);
     const category = await this.prisma.category.findFirst({
       where: { id: input.categoryId, isActive: true, game: { isActive: true } },
-      select: { id: true },
+      select: { id: true, salesClosed: true, closedReason: true },
     });
     if (!category) throw new NotFoundException('Раздел не найден');
+    // Раздел закрыт для продажи — и запрос в нём ни к чему: ответить лотом нельзя.
+    if (category.salesClosed) throw sectionClosedError(category.closedReason);
 
     const now = new Date();
     const [open, today] = await Promise.all([

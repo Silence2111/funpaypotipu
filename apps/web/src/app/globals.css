@@ -1305,6 +1305,24 @@ summary:focus-visible {
   margin: 0 auto 16px;
   max-width: 44ch;
 }
+/* Раздел закрыт для продажи (часть 122): замок, причина, куда идти. */
+.closed-section {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+.closed-section p {
+  margin: 0;
+  max-width: 60ch;
+}
+.closed-section > svg {
+  color: var(--fg-faint);
+}
+.tab svg {
+  margin-left: 6px;
+  vertical-align: -1px;
+  opacity: 0.6;
+}
 
 @media (max-width: 720px) {
   .only-mobile {

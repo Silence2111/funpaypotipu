@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Lock } from 'lucide-react';
 import {
   browseListings,
   getBuyRequests,
@@ -21,9 +22,14 @@ export type SectionSearch = Record<string, string | undefined>;
 const PAGE_SIZE = 50;
 const SORTS = ['new', 'price_asc', 'price_desc', 'popular', 'drop'];
 
-/** Раздел для /igra/<игра>: первый с предложениями, а если пусто везде — первый. */
+/**
+ * Раздел для /igra/<игра>: первый открытый с предложениями, а если пусто
+ * везде — первый открытый. Закрытый для продажи (часть 122) — только если
+ * других нет: «Аккаунты» стоят первыми, а продавать в них нельзя.
+ */
 export function defaultSection(game: GameWithCategories): Category | undefined {
-  return game.categories.find((c) => (c.listingCount ?? 0) > 0) ?? game.categories[0];
+  const open = game.categories.filter((c) => !c.salesClosed);
+  return open.find((c) => (c.listingCount ?? 0) > 0) ?? open[0] ?? game.categories[0];
 }
 
 /**
@@ -40,6 +46,7 @@ export async function SectionView({
   sp: SectionSearch;
 }) {
   const t = await getT();
+  if (section.salesClosed) return <ClosedSection game={game} section={section} />;
   const attributes = (await getCategoryAttributes(section.id)) ?? [];
   const filterable = attributes.filter((a) => a.isFilter);
 
@@ -168,6 +175,7 @@ export async function SectionView({
             {t.d(c.title)}
             {/* Ноль у каждой вкладки на старте площадки читается как «здесь мёртво». */}
             {(c.listingCount ?? 0) > 0 && <span className="count">{c.listingCount}</span>}
+            {c.salesClosed && <Lock size={12} strokeWidth={2} aria-label={t('закрыт для продажи')} />}
           </Link>
         ))}
       </nav>
@@ -277,6 +285,72 @@ export async function SectionView({
         items={requests?.items ?? []}
         sellHref={sellHref}
       />
+    </div>
+  );
+}
+
+/**
+ * Раздел закрыт для продажи (часть 122): вместо витрины — почему и куда
+ * идти. Лотов, фильтров, «Продать в разделе» и запросов здесь нет.
+ */
+async function ClosedSection({ game, section }: { game: GameWithCategories; section: Category }) {
+  const t = await getT();
+  const base = `/igra/${game.slug}/${section.slug}`;
+  const open = game.categories.filter((c) => !c.salesClosed);
+  return (
+    <div className="container" style={{ paddingTop: 40, paddingBottom: 24 }}>
+      <JsonLd
+        data={breadcrumbLd([
+          [t('Все игры'), '/igry'],
+          [t.d(game.title), `/igra/${game.slug}`],
+          [t.d(section.title), base],
+        ])}
+      />
+      <Link href="/igry" className="faint back-link" style={{ fontSize: 14 }}>
+        ← {t('Все игры')}
+      </Link>
+      <h1 className="h1" style={{ marginTop: 12 }}>
+        {t.d(game.title)}
+      </h1>
+      <p className="muted section-meta">{t.d(section.title)}</p>
+
+      <nav className="tabs" aria-label={t('Разделы игры')} style={{ marginTop: 24 }}>
+        {game.categories.map((c) => (
+          <Link
+            key={c.id}
+            href={`/igra/${game.slug}/${c.slug}`}
+            className="tab"
+            aria-current={c.id === section.id ? 'page' : undefined}
+          >
+            {t.d(c.title)}
+            {(c.listingCount ?? 0) > 0 && <span className="count">{c.listingCount}</span>}
+            {c.salesClosed && <Lock size={12} strokeWidth={2} aria-label={t('закрыт для продажи')} />}
+          </Link>
+        ))}
+      </nav>
+
+      <section className="card flat empty-state closed-section" style={{ marginTop: 20 }} aria-labelledby="closed-title">
+        <Lock size={22} strokeWidth={1.75} aria-hidden />
+        <h2 id="closed-title" className="h2" style={{ fontSize: 20, margin: 0 }}>
+          {t('Раздел закрыт для продажи')}
+        </h2>
+        <p className="muted" style={{ maxWidth: 560 }}>
+          {section.closedReason ? t.d(section.closedReason) : t('Продажа в разделе закрыта правилами площадки.')}
+        </p>
+        {open.length > 0 && (
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {open.map((c) => (
+              <Link key={c.id} href={`/igra/${game.slug}/${c.slug}`} className="btn secondary">
+                {t.d(c.title)}
+                {(c.listingCount ?? 0) > 0 && <span className="faint"> · {c.listingCount}</span>}
+              </Link>
+            ))}
+          </div>
+        )}
+        <Link href="/rules#zapreshcheno" className="faint" style={{ fontSize: 14 }}>
+          {t('Что нельзя продавать на GameMarket')}
+        </Link>
+      </section>
     </div>
   );
 }

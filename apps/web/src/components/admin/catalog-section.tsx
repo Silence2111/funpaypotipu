@@ -29,6 +29,11 @@ interface Category {
   pricePerUnits: number | null;
   isActive: boolean;
   activeListings: number;
+  /** Закрыт для продажи (часть 122): причина видна на странице раздела. */
+  salesClosed: boolean;
+  closedReason: string | null;
+  /** Сколько лотов вернётся в продажу, если раздел открыть. */
+  heldListings: number;
   attributes: Attribute[];
 }
 interface Game {
@@ -363,6 +368,8 @@ function CategoryRow({ c, first, last, busy, run, send, move }: { c: Category; f
   const [fields, setFields] = useState(false);
   const [edit, setEdit] = useState(false);
   const [title, setTitle] = useState(c.title);
+  const [closing, setClosing] = useState(false);
+  const [reason, setReason] = useState(c.closedReason ?? '');
   return (
     <div className="card flat" style={{ padding: 12, background: 'var(--page)' }}>
       <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -371,11 +378,16 @@ function CategoryRow({ c, first, last, busy, run, send, move }: { c: Category; f
           <button type="button" className="chip" disabled={busy || last} onClick={() => move(1)} aria-label={`«${c.title}» ниже`}>↓</button>
         </span>
         <span style={{ flex: 1, minWidth: 160 }}>
-          <b>{c.title}</b> {!c.isActive && <span className="badge warning">скрыт</span>}
+          <b>{c.title}</b> {!c.isActive && <span className="badge warning">скрыт</span>}{' '}
+          {c.salesClosed && <span className="badge danger">закрыт для продажи</span>}
           <span className="faint" style={{ display: 'block', fontSize: 13 }}>
             /{c.slug} · {SEGMENT[c.segment] ?? c.segment} · выдача {FULFILLMENT[c.fulfillmentType] ?? c.fulfillmentType}
-            {c.unitName ? ` · ${c.unitName}, цена за ${c.pricePerUnits ?? 1}` : ''} · в продаже {c.activeListings} · полей {c.attributes.length}
+            {c.unitName ? ` · ${c.unitName}, цена за ${c.pricePerUnits ?? 1}` : ''} · в продаже {c.activeListings}
+            {c.salesClosed && c.heldListings > 0 ? ` · снято закрытием ${c.heldListings}` : ''} · полей {c.attributes.length}
           </span>
+          {c.salesClosed && c.closedReason && (
+            <span className="faint" style={{ display: 'block', fontSize: 13, marginTop: 4 }}>«{c.closedReason}»</span>
+          )}
         </span>
         <span className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
           <button type="button" className="chip" aria-expanded={fields} onClick={() => setFields((v) => !v)}>Поля</button>
@@ -384,8 +396,45 @@ function CategoryRow({ c, first, last, busy, run, send, move }: { c: Category; f
             onClick={() => void run(() => send(`/admin/catalog/categories/${c.id}`, 'PATCH', { isActive: !c.isActive }), c.isActive ? `Раздел «${c.title}» скрыт.` : `Раздел «${c.title}» снова на витрине.`, 'Не удалось изменить раздел.')}>
             {c.isActive ? 'Скрыть' : 'Показать'}
           </button>
+          {c.salesClosed ? (
+            <button type="button" className="chip" disabled={busy}
+              onClick={() => {
+                const back = c.heldListings ? ` Вернутся в продажу лоты: ${c.heldListings}.` : '';
+                if (!window.confirm(`Открыть раздел «${c.title}» для продажи?${back}`)) return;
+                void run(() => send(`/admin/catalog/categories/${c.id}/sales`, 'POST', { closed: false }), `Раздел «${c.title}» открыт для продажи.`, 'Не удалось открыть раздел.');
+              }}>
+              Открыть для продажи
+            </button>
+          ) : (
+            <button type="button" className="chip" aria-expanded={closing} onClick={() => setClosing((v) => !v)}>Закрыть для продажи</button>
+          )}
         </span>
       </div>
+      {closing && !c.salesClosed && (
+        <form className="stack-form" style={{ gap: 8, marginTop: 8 }}
+          onSubmit={async (e: FormEvent) => {
+            e.preventDefault();
+            const ok = await run(
+              () => send(`/admin/catalog/categories/${c.id}/sales`, 'POST', { closed: true, reason: reason.trim() || null }),
+              `Раздел «${c.title}» закрыт: лоты в продаже сняты с витрины (${c.activeListings}), продавцы получили уведомление.`,
+              'Не удалось закрыть раздел.',
+            );
+            if (ok) setClosing(false);
+          }}>
+          <div className="field">
+            <label className="label" htmlFor={`close-${c.id}`}>Причина — её увидят покупатели и продавцы на странице раздела</label>
+            <textarea id={`close-${c.id}`} className="input" rows={3} maxLength={400} value={reason} onChange={(e) => setReason(e.target.value)}
+              placeholder="Продажа в разделе закрыта правилами площадки." />
+          </div>
+          <p className="hint" style={{ margin: 0 }}>
+            Новых лотов в разделе не будет; {c.activeListings} в продаже снимутся с витрины и вернутся сами, когда раздел откроют. Открытые заказы — доводятся.
+          </p>
+          <span className="row" style={{ gap: 8 }}>
+            <button className="btn" type="submit" disabled={busy}>Закрыть раздел</button>
+            <button className="chip" type="button" onClick={() => setClosing(false)}>Отмена</button>
+          </span>
+        </form>
+      )}
       {edit && (
         <form className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}
           onSubmit={async (e: FormEvent) => {

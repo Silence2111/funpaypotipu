@@ -41,6 +41,8 @@ import {
   type TopupTerms,
   type TopupTermsInput,
   type UpdateListingInput,
+  accountTransferMatch,
+  attributeText,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { SearchService } from '../search/search.service';
@@ -50,6 +52,7 @@ import { assetUrl } from '../storage/asset-url';
 import { ONLINE_MS } from '../../common/presence';
 import { containsText } from '../../common/like';
 import { utc } from '../../common/sql-time';
+import { listingInReviewError, sectionClosedError } from '../../common/section-closed';
 
 const BOOST_MS = 24 * 3600 * 1000; // лот держится в топе сутки
 /** Как часто проверять автоподнятие: лот поднимется не позже чем через столько после конца паузы. */
@@ -146,6 +149,9 @@ const mineSelect = {
   currency: true,
   status: true,
   pausedForAway: true,
+  // Снят, потому что раздел закрыт; на проверке — какая фраза (часть 122).
+  pausedForSection: true,
+  reviewReason: true,
   categoryId: true,
   boostUntil: true,
   promotedUntil: true,
@@ -160,7 +166,7 @@ const mineSelect = {
   unitName: true,
   pricePerUnits: true,
   stock: true,
-  category: { select: { slug: true, title: true } },
+  category: { select: { slug: true, title: true, salesClosed: true, closedReason: true } },
   game: { select: { slug: true, title: true } },
 } satisfies Prisma.ListingSelect;
 
@@ -543,7 +549,10 @@ export class ListingsService {
         // id раздела — странице лота: по нему подписи параметров («Звание»,
         // а не «rank») и похожие предложения. Выдача раздела — чтобы
         // автовыдачу аккаунта не называть ключом.
-        category: { select: { id: true, slug: true, title: true, fulfillmentType: true } },
+        category: {
+          select: { id: true, slug: true, title: true, fulfillmentType: true, salesClosed: true, closedReason: true },
+        },
+        pausedForSection: true,
         seller: {
           select: {
             id: true,
@@ -553,8 +562,10 @@ export class ListingsService {
       },
     });
     // Распроданный лот открывается по ссылке из избранного и заказов с
-    // пометкой «закончился»: 404 выглядел бы как удалённый лот.
-    if (!listing || (listing.status !== 'active' && listing.status !== 'sold_out')) {
+    // пометкой «закончился»: 404 выглядел бы как удалённый лот. Лот
+    // закрытого раздела — тоже: страница объясняет, почему не купить.
+    const closed = listing?.status === 'paused' && listing.pausedForSection && listing.category.salesClosed;
+    if (!listing || (listing.status !== 'active' && listing.status !== 'sold_out' && !closed)) {
       throw new NotFoundException('Лот не найден');
     }
     return this.resolveImages(listing);
@@ -589,6 +600,7 @@ export class ListingsService {
       paused: n('paused') + n('draft'),
       sold_out: n('sold_out'),
       blocked: n('blocked'),
+      review: n('review'),
     };
   }
 
@@ -841,7 +853,14 @@ export class ListingsService {
     const where: Prisma.ListingWhereInput =
       action === 'pause'
         ? { id: { in: ids }, sellerId, status: 'active' }
-        : { id: { in: ids }, sellerId, status: { in: ['paused', 'draft'] }, OR: [{ stock: null }, { stock: { gt: 0 } }] };
+        : {
+            id: { in: ids },
+            sellerId,
+            status: { in: ['paused', 'draft'] },
+            OR: [{ stock: null }, { stock: { gt: 0 } }],
+            // Раздел закрыт — лот не вернуть: он вернётся сам, когда раздел откроют.
+            category: { salesClosed: false },
+          };
     const found = await this.prisma.listing.findMany({ where, select: { id: true } });
     const changed = found.length
       ? await this.prisma.listing.updateMany({
@@ -954,8 +973,11 @@ export class ListingsService {
       where: { id: input.categoryId, gameId: input.gameId },
     });
     if (!category) throw new NotFoundException('Категория не найдена для указанной игры');
+    if (category.salesClosed) throw sectionClosedError(category.closedReason);
 
     await this.validateAttributes(input.categoryId, input.attributes);
+    // Слова о передаче аккаунта — лот на проверку модератору (часть 122).
+    const review = accountTransferMatch(input.title, input.description, attributeText(input.attributes));
     const fulfillment = this.fulfillmentOf(category, input.autoDelivery);
     const terms = input.topup ? this.topupTerms(fulfillment, input.topup) : null;
     const buyerFields = this.buyerFields(fulfillment, input.buyerFields);
@@ -994,7 +1016,8 @@ export class ListingsService {
         // InventoryService. Пустой лот в каталог не выходит: купить его всё
         // равно нельзя. Первая загрузка склада переводит его в продажу (addKeys).
         stock: fulfillment === 'auto_key' ? 0 : qty.stock,
-        status: fulfillment === 'auto_key' || qty.stock === 0 ? 'sold_out' : 'active',
+        status: review ? 'review' : fulfillment === 'auto_key' || qty.stock === 0 ? 'sold_out' : 'active',
+        reviewReason: review,
         fulfillmentType: fulfillment,
         autoDelivery: fulfillment !== 'manual',
         deliveryTemplate: this.template(input.deliveryTemplate),
@@ -1009,9 +1032,10 @@ export class ListingsService {
   private async importSection(gameId: string | null, categoryId: string) {
     const category = await this.prisma.category.findFirst({
       where: { id: categoryId, ...(gameId ? { gameId } : {}) },
-      select: { fulfillmentType: true, unitName: true },
+      select: { fulfillmentType: true, unitName: true, salesClosed: true, closedReason: true },
     });
     if (!category) throw new NotFoundException('Категория не найдена для указанной игры');
+    if (category.salesClosed) throw sectionClosedError(category.closedReason);
     if (category.fulfillmentType !== 'manual' || category.unitName) {
       throw new BadRequestException('В этот раздел лоты выставляются по одному: из таблицы — аккаунты, предметы и услуги');
     }
@@ -1269,6 +1293,10 @@ export class ListingsService {
       throw new ForbiddenException('Лот заблокирован модератором. Напишите в поддержку.');
     }
     if (current.status === 'archived') throw new NotFoundException('Лот не найден');
+    // На проверке статус меняет модератор; текст продавец править может.
+    if (current.status === 'review' && input.status !== undefined) throw listingInReviewError();
+    // Раздел закрыт — в продажу не вернуть (снять — можно).
+    if (input.status === 'active' && current.category.salesClosed) throw sectionClosedError(current.category.closedReason);
     // Во время скидки price — сниженная, прежняя хранится отдельно: новая
     // цена или пачка смешали бы их. Форма шлёт цену и без правки — та же
     // цена не в счёт.
@@ -1374,6 +1402,20 @@ export class ListingsService {
     if (input.currency !== undefined) data.currency = input.currency;
     if (input.attributes !== undefined) data.attributes = input.attributes as Prisma.InputJsonValue;
     if (input.images !== undefined) data.images = input.images as Prisma.InputJsonValue;
+    // Поменялся текст — проверяем заново: слова о передаче аккаунта отправляют
+    // лот на проверку. Правка цены или наличия текст не трогает.
+    const textChanged =
+      (input.title !== undefined && input.title !== current.title) ||
+      (input.description !== undefined && input.description !== current.description) ||
+      (input.attributes !== undefined &&
+        attributeText(input.attributes) !== attributeText(current.attributes));
+    const review = textChanged
+      ? accountTransferMatch(
+          input.title ?? current.title,
+          input.description ?? current.description,
+          attributeText(input.attributes ?? current.attributes),
+        )
+      : null;
     // Наличие обычного лота — выше, вместе с условиями поштучной продажи;
     // наличие авто-лота меняет только склад. Снятый или возвращённый
     // вручную лот — уже не «на время отпуска».
@@ -1389,6 +1431,15 @@ export class ListingsService {
           auto ? 'Склад пуст — загрузите товар, и лот вернётся в продажу' : 'Лот закончился — укажите наличие',
         );
       }
+    }
+
+    if (review) {
+      data.status = 'review';
+      data.reviewReason = review;
+      data.pausedForAway = false;
+    } else if (current.status === 'review') {
+      // Пока лот на проверке, статус меняет только модератор.
+      delete data.status;
     }
 
     const updated = await this.prisma.listing.update({ where: { id }, data, select: cardSelect });
@@ -1434,7 +1485,12 @@ export class ListingsService {
         minQty: true,
         stock: true,
         qtyDiscounts: true,
-        category: { select: { fulfillmentType: true, unitName: true, pricePerUnits: true } },
+        title: true,
+        description: true,
+        attributes: true,
+        category: {
+          select: { fulfillmentType: true, unitName: true, pricePerUnits: true, salesClosed: true, closedReason: true },
+        },
       },
     });
     if (!listing) throw new NotFoundException('Лот не найден');

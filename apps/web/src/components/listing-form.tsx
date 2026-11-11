@@ -32,6 +32,9 @@ interface Category {
   /** Общая пачка раздела валюты: все продают «за 1 000 золота». */
   unitName?: string | null;
   pricePerUnits?: number | null;
+  /** Закрыт для продажи (часть 122): в форме не выбрать, причина — подсказкой. */
+  salesClosed?: boolean;
+  closedReason?: string | null;
 }
 interface Attr { key: string; label: string; type: string; options?: string[] | null; isRequired: boolean }
 
@@ -115,6 +118,8 @@ export function ListingForm({
   const [categories, setCategories] = useState<Category[]>(
     base ? [{ id: base.categoryId, ...base.category }] : [],
   );
+  // Закрытый раздел из ссылки: в списке не выбрать, причину показываем.
+  const [closedPick, setClosedPick] = useState<Category | null>(null);
   const [gameId, setGameId] = useState(base?.gameId ?? '');
   const [categoryId, setCategoryId] = useState(base?.categoryId ?? '');
   const [title, setTitle] = useState(base?.title ?? '');
@@ -191,7 +196,9 @@ export function ListingForm({
         const full = await apiFetch<Game & { categories: Category[] }>(`/catalog/games/${g.slug}`);
         setCategories(full.categories);
         const c = full.categories.find((x) => x.slug === presetCategory);
-        if (c) setCategoryId(c.id);
+        // Ссылка «Продать в разделе» на закрытый раздел — выбор пустой, причина ниже.
+        if (c && !c.salesClosed) setCategoryId(c.id);
+        else if (c?.salesClosed) setClosedPick(c);
       })
       .catch(() => {});
   }, [router, editing, presetGame, presetCategory]);
@@ -284,6 +291,7 @@ export function ListingForm({
   async function onGame(slug: string) {
     const g = games.find((x) => x.slug === slug);
     setGameId(g?.id ?? '');
+    setClosedPick(null);
     onCategory('');
     if (!slug) return setCategories([]);
     const full = await apiFetch<Game & { categories: Category[] }>(`/catalog/games/${slug}`);
@@ -420,7 +428,9 @@ export function ListingForm({
         // Только что включили автовыдачу, а склад пуст — сразу к складу на странице лота.
         const switchedOn = autoLines && initial.fulfillmentType !== 'auto_key';
         router.push(
-          switchedOn && saved.status === 'sold_out'
+          saved.status === 'review'
+            ? `/cabinet/lots?f=review&review=${initial.id}`
+            : switchedOn && saved.status === 'sold_out'
             ? `/lot/${initial.id}?stock=1`
             : back == null && initial.status === 'active'
               ? `/lot/${initial.id}?updated=1`
@@ -433,7 +443,7 @@ export function ListingForm({
       return;
     }
     try {
-      const created = await apiFetch<{ id: string }>('/listings', {
+      const created = await apiFetch<{ id: string; status: string }>('/listings', {
         method: 'POST',
         body: JSON.stringify({
           gameId,
@@ -466,7 +476,10 @@ export function ListingForm({
           () => '&offered=0',
         );
       }
-      router.push(`/lot/${created.id}?created=1${offered}`);
+      // Слова о передаче аккаунта — лот на проверке, публично его не открыть.
+      router.push(
+        created.status === 'review' ? `/cabinet/lots?f=review&review=${created.id}` : `/lot/${created.id}?created=1${offered}`,
+      );
     } catch (e) {
       setErr(apiErrorMessage(e, t('Не удалось опубликовать лот. Попробуйте ещё раз через минуту.')));
       setBusy(false);
@@ -515,10 +528,17 @@ export function ListingForm({
             onBlur={() => touch('category')} disabled={editing || !categories.length} aria-invalid={!!showErr('category')}>
             <option value="">{categories.length ? t('Выберите категорию') : t('Сначала выберите игру')}</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>{t.d(c.title)}</option>
+              <option key={c.id} value={c.id} disabled={!!c.salesClosed && !editing}>
+                {c.salesClosed && !editing ? `${t.d(c.title)} — ${t('закрыт для продажи')}` : t.d(c.title)}
+              </option>
             ))}
           </select>
-          {showErr('category') ? (
+          {closedPick && !categoryId && !editing ? (
+            <p className="hint" role="status">
+              {t('Раздел «{section}» закрыт для продажи.', { section: t.d(closedPick.title) })}{' '}
+              {closedPick.closedReason ? t.d(closedPick.closedReason) : t('Продажа в разделе закрыта правилами площадки.')}
+            </p>
+          ) : showErr('category') ? (
             <p className="field-error">{showErr('category')}</p>
           ) : editing ? (
             <p className="hint">{t('Игру и раздел у выставленного лота не меняют: к ним привязаны характеристики и заказы.')}</p>
@@ -561,7 +581,7 @@ export function ListingForm({
 
         <div className="field">
           <label className="label" htmlFor="title">{t('Название')}</label>
-          <input id="title" className="input" placeholder={t('Например, Аккаунт CS2, Prime, 800 часов')} value={title} maxLength={120}
+          <input id="title" className="input" placeholder={t('Например, AK-47 | Красная линия, после полевых')} value={title} maxLength={120}
             onChange={(e) => setTitle(e.target.value)} onBlur={() => touch('title')} aria-invalid={!!showErr('title')} />
           {showErr('title') && <p className="field-error">{showErr('title')}</p>}
         </div>

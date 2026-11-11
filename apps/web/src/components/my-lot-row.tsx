@@ -33,6 +33,10 @@ export interface MyLot {
   status: string;
   /** Снят на время отпуска — вернётся в продажу вместе с остальными. */
   pausedForAway?: boolean;
+  /** Снят, потому что раздел закрыли: откроют — вернётся сам (часть 122). */
+  pausedForSection?: boolean;
+  /** На проверке у модератора — найденная фраза о передаче аккаунта. */
+  reviewReason?: string | null;
   boostUntil?: string | null;
   promotedUntil?: string | null;
   /** Скидка: прежняя цена и срок; price — уже со скидкой. */
@@ -50,7 +54,7 @@ export interface MyLot {
   pricePerUnits?: number;
   stock?: number | null;
   categoryId: string;
-  category: { slug: string; title: string };
+  category: { slug: string; title: string; salesClosed?: boolean; closedReason?: string | null };
   game: { slug: string; title: string };
 }
 
@@ -123,6 +127,9 @@ export function MyLotRow({
   const active = lot.status === 'active';
   const blocked = lot.status === 'blocked';
   const soldOut = lot.status === 'sold_out';
+  const review = lot.status === 'review';
+  // Раздел закрыт: вернуть в продажу нельзя, лот вернётся сам, когда откроют.
+  const closed = lot.status === 'paused' && !!lot.category.salesClosed;
   const counted = lot.stock != null && (!!lot.unitName || lot.fulfillmentType === 'auto_key');
   const onSale = !!lot.saleListPrice && !!lot.saleUntil;
   // Скидка — лоту в продаже или закончившемуся; у пополнения она — наценка.
@@ -162,6 +169,12 @@ export function MyLotRow({
           {soldOut && <span className="badge">{t('закончился')}</span>}
           {blocked && <span className="badge danger">{t('заблокирован модератором')}</span>}
           {lot.status === 'paused' && lot.pausedForAway && <span className="badge">{t('снят на время отпуска')}</span>}
+          {review && (
+            <span className="badge warning" title={lot.reviewReason ? t('Найдено: «{phrase}»', { phrase: lot.reviewReason }) : undefined}>
+              {t('на проверке у модератора')}
+            </span>
+          )}
+          {closed && <span className="badge">{t('раздел закрыт для продажи')}</span>}
           {counted && !soldOut && <span>{t('в наличии {qty}', { qty: formatQty(lot.stock!, lot.unitName, t) })}</span>}
           {active && later(lot.boostUntil) && <span>{t('в топе до {time}', { time: hhmm(lot.boostUntil!, t) })}</span>}
           {active && later(lot.promotedUntil) && (
@@ -177,6 +190,13 @@ export function MyLotRow({
         {blocked ? (
           <Link href="/cabinet/support" className="my-lot-link">
             {t('В поддержку')}
+          </Link>
+        ) : review ? (
+          // В продажу лот с проверки возвращает модератор; переключатель тут обманул бы.
+          <span className="faint" style={{ fontSize: 14 }}>{t('ждёт модератора')}</span>
+        ) : closed ? (
+          <Link href={`/igra/${lot.game.slug}/${lot.category.slug}`} className="my-lot-link">
+            {t('Почему')}
           </Link>
         ) : soldOut ? (
           // Распроданный лот возвращается в продажу пополнением, а не

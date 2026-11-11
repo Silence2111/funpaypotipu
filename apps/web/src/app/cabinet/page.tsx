@@ -24,6 +24,7 @@ const STATUS: Record<string, string> = {
 };
 const LISTING_STATUS: Record<string, string> = {
   active: msg('в продаже'), draft: msg('черновик'), paused: msg('снят'), sold_out: msg('распродан'), blocked: msg('заблокирован'),
+  review: msg('на проверке'),
 };
 
 export default function CabinetPage() {
