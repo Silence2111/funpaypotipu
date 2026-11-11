@@ -112,5 +112,18 @@ export const COMMON: Record<string, string> = {
 
   'Аккаунт удалён. До {date} его можно вернуть: войдите и нажмите «Восстановить». Потом почта, имя и вход будут уничтожены.':
     'Account deleted. Until {date} you can restore it: sign in and press “Restore”. After that your email, name and sign-in are erased.',
+  // Приложение (часть 139)
+  'Приложение': 'App',
+  'Приложение GameMarket': 'GameMarket app',
+  'GameMarket на телефоне: Android — Google Play и RuStore, iPhone — с экрана «Домой». Уведомления о заказах и сообщениях.':
+    'GameMarket on your phone: Android via Google Play and RuStore, iPhone from the Home Screen. Notifications about orders and messages.',
+  'Заказы, сообщения и уведомления — с иконки на телефоне, без адресной строки.': 'Orders, messages and notifications from an icon on your phone, without the address bar.',
+  'Скоро в Google Play и RuStore. Пока — установите с сайта: откройте GameMarket в Chrome и нажмите «Установить приложение» внизу страницы или в меню браузера.':
+    'Coming soon to Google Play and RuStore. For now, install it from the site: open GameMarket in Chrome and tap “Install app” at the bottom of the page or in the browser menu.',
+  'iPhone присылает уведомления только сайтам с экрана «Домой» — без установки пушей не будет.': 'iPhone only sends notifications to sites added to the Home Screen — without installing, there are no push notifications.',
+  'Настройки уведомлений': 'Notification settings',
+  'Установить на iPhone': 'Install on iPhone',
+  'Откройте сайт в Safari и нажмите «Поделиться» внизу экрана.': 'Open the site in Safari and tap “Share” at the bottom of the screen.',
+  'Выберите «На экран „Домой“» и нажмите «Добавить».': 'Choose “Add to Home Screen” and tap “Add”.',
+  'Откройте GameMarket с иконки и включите уведомления: «Профиль» → «Настройки» → «Уведомления».': 'Open GameMarket from the icon and turn on notifications: Profile → Settings → Notifications.',
 };
-

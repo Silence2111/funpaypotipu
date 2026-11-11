@@ -653,4 +653,6 @@ export const EN_API: Phrasebook = {
   'Текст — от 5 знаков': 'The text needs at least 5 characters',
   'Оценить можно после ответа поддержки': 'You can rate after support replies',
   'Заготовок не больше 100 — удалите ненужные': 'No more than 100 templates — delete the ones you don’t need',
+  // Частичный возврат по спору (часть 140)
+  'Доля возврата — 25, 50, 75 или 100%': 'The refund share is 25, 50, 75 or 100%',
 };

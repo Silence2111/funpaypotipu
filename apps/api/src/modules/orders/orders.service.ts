@@ -47,6 +47,8 @@ import {
   buyerFilterOf,
   canRefundToOriginal,
   refundToOriginal,
+  disputeSplit,
+  splitEscrow,
 } from '@gamemarket/shared';
 import { PRISMA } from '../../prisma/prisma.module';
 import { likeText } from '../../common/like';
@@ -995,10 +997,34 @@ export class OrdersService {
   }
 
   /** Разрешение спора арбитром: релиз продавцу или возврат покупателю. Идемпотентно. */
-  async applyDisputeResolution(orderId: string, outcome: 'seller' | 'buyer') {
+  async applyDisputeResolution(orderId: string, outcome: 'seller' | 'buyer', refundPct = 100) {
     const order = await this.get(orderId);
     if (order.status !== 'disputed') {
       throw new ConflictException('Заказ не в статусе спора');
+    }
+
+    // Частичный возврат (часть 140): покупателю его доля, остаток — продавцу
+    // и площадке в той же пропорции. В «Безопасной сделке» — только целиком.
+    if (outcome === 'buyer' && refundPct < 100 && !order.dealId) {
+      const split = disputeSplit(order.amount, order.sellerPayoutAmount, refundPct);
+      await this.ledger.post({
+        legs: splitEscrow(order.buyerId, order.sellerId, split),
+        currency: order.currency,
+        idempotencyKey: `split:${order.id}`,
+        orderId: order.id,
+        refType: 'dispute_split',
+        refId: order.id,
+      });
+      const done = await this.prisma.order.update({
+        where: { id: order.id },
+        data: {
+          status: 'completed',
+          completedAt: order.completedAt ?? new Date(),
+          ...(order.warrantyUntil ? { warrantyReleasedAt: new Date() } : {}),
+        },
+      });
+      await this.sys(order.id, `Спор решён: покупателю возвращено ${refundPct}% суммы, остаток — продавцу.`);
+      return done;
     }
 
     if (outcome === 'seller') {

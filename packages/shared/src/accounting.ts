@@ -144,6 +144,27 @@ export const chargeFromBalance = (userId: string, amount: Minor): PostingLeg[] =
 ];
 
 /** Заявка на вывод: резервируем сумму с баланса в обязательства к выплате. */
+/**
+ * Частичный возврат по спору (часть 140): покупателю — его доля, продавцу и
+ * площадке — остаток в той же пропорции, что была бы при полной выплате.
+ */
+export function disputeSplit(amount: Minor, sellerPayout: Minor, refundPct: number) {
+  const refund = (amount * BigInt(refundPct)) / 100n;
+  const seller = (sellerPayout * BigInt(100 - refundPct)) / 100n;
+  return { refund, sellerPayout: seller, revenue: amount - refund - seller };
+}
+
+export const splitEscrow = (
+  buyerId: string,
+  sellerId: string,
+  split: { refund: Minor; sellerPayout: Minor; revenue: Minor },
+): PostingLeg[] => [
+  debit(escrowHolding(), split.refund + split.sellerPayout + split.revenue),
+  ...(split.refund > 0n ? [credit(userAccount(buyerId, 'available'), split.refund)] : []),
+  ...(split.sellerPayout > 0n ? [credit(userAccount(sellerId, 'available'), split.sellerPayout)] : []),
+  ...(split.revenue > 0n ? [credit(platformRevenue(), split.revenue)] : []),
+];
+
 /** Удержать спорную сумму (часть 134): с доступного — на «удержано» того же человека. */
 export const holdFunds = (userId: string, amount: Minor): PostingLeg[] => [
   debit(userAccount(userId, 'available'), amount),

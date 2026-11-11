@@ -348,7 +348,7 @@ export class DisputesService {
    * другой арбитр) или принять его сразу. Решение по обжалованию и окно 0 ч
    * исполняются сразу. Деньги двигаются через OrdersService.
    */
-  async resolve(disputeId: string, arbiterId: string, outcome: 'seller' | 'buyer', note?: string) {
+  async resolve(disputeId: string, arbiterId: string, outcome: 'seller' | 'buyer', note?: string, opts: { refundPct?: number; rule?: string } = {}) {
     const dispute = await this.get(disputeId);
     if (dispute.status !== 'in_review' && dispute.status !== 'open') {
       throw new ConflictException('Спор уже разрешён');
@@ -369,6 +369,9 @@ export class DisputesService {
         awaitingFrom: null,
         respondBy: null,
         finalizeAt: new Date(now.getTime() + hours * 3_600_000),
+        // Пункт правил и доля возврата покупателю (часть 140).
+        rule: opts.rule ?? null,
+        refundPct: outcome === 'buyer' ? opts.refundPct ?? 100 : null,
       },
     });
     if (hours === 0) {
@@ -433,7 +436,7 @@ export class DisputesService {
     const order = await this.prisma.order.findUnique({ where: { id: d.orderId }, select: { status: true } });
     if (order?.status !== 'disputed') return;
     try {
-      await this.orders.applyDisputeResolution(d.orderId, d.status === 'resolved_seller' ? 'seller' : 'buyer');
+      await this.orders.applyDisputeResolution(d.orderId, d.status === 'resolved_seller' ? 'seller' : 'buyer', d.refundPct ?? 100);
     } catch (e) {
       await this.prisma.dispute.update({ where: { id: disputeId }, data: { executedAt: null } });
       throw e;
