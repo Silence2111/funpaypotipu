@@ -98,6 +98,10 @@ jobs:
       SUPPORT_SWEEP_MS: 2000
       # Сроки хранения и акт об уничтожении (часть 147).
       RETENTION_SWEEP_MS: 2000
+      # Сбор ошибок (часть 130): маршрут настоящей ошибки 500 для проверки сбора
+      # (вне боя), запись собранного раз в полсекунды.
+      OPS_TEST_ERRORS: 1
+      OPS_FLUSH_MS: 500
       # Вход через Яндекс ID и VK ID — против тестового сервера из e2e (apps/api/test/oauth-mock.mjs).
       OAUTH_TEST_ISSUER: http://localhost:4999
       YANDEX_CLIENT_ID: ci-yandex

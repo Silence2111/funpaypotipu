@@ -7,6 +7,7 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { AccountStatusService } from '../access/account-status.service';
 import { PaymentsService } from './payments.service';
 import { RateLimit } from '../../common/rate-limit';
+import { opsEvent } from '../ops/ops-signal';
 
 // Способ оплаты через шлюз; без него — СБП, как платили до выбора способа.
 const methodSchema = z.enum(GATEWAY_METHOD_KEYS).default('sbp');
@@ -61,8 +62,15 @@ export class PaymentsController {
 
   @Post('webhook/:provider')
   @HttpCode(200)
-  webhook(@Param('provider') provider: string, @Body() body: unknown) {
-    return this.payments.handleWebhook(provider, body);
+  async webhook(@Param('provider') provider: string, @Body() body: unknown) {
+    try {
+      return await this.payments.handleWebhook(provider, body);
+    } catch (e) {
+      // Отказ вебхука — сигнал для тревоги (часть 130): несколько подряд —
+      // шлюз не может до нас достучаться или нас пытаются обмануть.
+      opsEvent('webhook_failed');
+      throw e;
+    }
   }
 
   /** Dev-шорткат оплаты для демо (без реального шлюза). */

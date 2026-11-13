@@ -129,6 +129,29 @@ describe('создание платежа', () => {
     expect(calls).toHaveLength(1);
   });
 
+  it('«Безопасная сделка» — чек только на вознаграждение площадки, доля продавца — не её выручка', async () => {
+    process.env.YOOKASSA_RECEIPTS = 'on';
+    const calls = stubFetch(() => ({ status: 200, json: payment() }));
+    await new YooKassaProvider().createDeposit({
+      ...INPUT,
+      deal: { id: 'dl-1', sellerAmount: 90000n },
+    });
+    const body = JSON.parse(calls[0]!.init.body!);
+    expect(body.deal.settlements[0].amount.value).toBe('900.00');
+    expect(body.receipt.items).toEqual([
+      expect.objectContaining({
+        amount: { value: '144.00', currency: 'RUB' },
+        description: expect.stringMatching(/^Вознаграждение площадки/),
+      }),
+    ]);
+    process.env.YOOKASSA_DEAL_RECEIPT = 'full';
+    await new YooKassaProvider().createDeposit({
+      ...INPUT,
+      deal: { id: 'dl-1', sellerAmount: 90000n },
+    });
+    expect(JSON.parse(calls[1]!.init.body!).receipt.items[0].amount.value).toBe('1044.00');
+  });
+
   it('ЮKassa отказала — понятная ошибка, а не сырой ответ', async () => {
     stubFetch(() => ({ status: 400, json: { type: 'error', code: 'invalid_request' } }));
     await expect(new YooKassaProvider().createDeposit(INPUT)).rejects.toThrow(/не принял платёж/);

@@ -131,4 +131,10 @@ export const COMMON: Record<string, string> = {
   'Прежние редакции': 'Previous versions',
   'Редакции правил': 'Rules versions',
   'Прежние редакции хранятся здесь не меньше трёх лет.': 'Previous versions stay here for at least three years.',
+  'Файлы cookie': 'Cookies',
+  'Мы используем Яндекс Метрику, чтобы понимать, что на сайте неудобно. Она ставит файлы cookie — только если вы разрешите.':
+    'We use Yandex Metrica to understand what is inconvenient on the site. It sets cookies — only if you allow it.',
+  'Разрешить': 'Allow',
+  'Отказаться': 'Decline',
+  'Изменить выбор о файлах cookie': 'Change my cookie choice',
 };
