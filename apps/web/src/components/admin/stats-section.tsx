@@ -131,6 +131,94 @@ function RegistryCard() {
   );
 }
 
+interface Funnel {
+  days: number;
+  byDay: Array<{ day: string; registered: number; firstLot: number; firstRequest: number; firstPaid: number; firstDeal: number }>;
+  cohort: { registered: number; firstLot: number; firstRequest: number; firstPaid: number; firstDeal: number };
+}
+
+const FUNNEL: Array<{ key: keyof Funnel['cohort']; label: string }> = [
+  { key: 'registered', label: 'Зарегистрировались' },
+  { key: 'firstLot', label: 'Выставили первый лот' },
+  { key: 'firstRequest', label: 'Оставили запрос «Хочу купить»' },
+  { key: 'firstPaid', label: 'Оплатили первый заказ' },
+  { key: 'firstDeal', label: 'Завершили первую сделку' },
+];
+const pctOf = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : 0);
+
+/**
+ * Воронка запуска (часть 131) — по нашей базе: из зарегистрировавшихся за
+ * период сколько дошли до каждого шага. Полоса — доля от регистраций; по
+ * дням — кто сделал свой первый шаг в этот день. Внешних счётчиков не нужно.
+ */
+function FunnelCard({ days }: { days: number }) {
+  const [f, setF] = useState<Funnel | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    setF(null);
+    setErr(null);
+    apiFetch<Funnel>(`/admin/funnel?days=${days}`)
+      .then(setF)
+      .catch((e) => setErr(apiErrorMessage(e, 'Воронка не загрузилась.')));
+  }, [days]);
+  if (err) return <div className="alert error" role="alert">{err}</div>;
+  if (!f) return <div className="skeleton" style={{ height: 220 }} aria-busy="true" />;
+  const base = f.cohort.registered;
+  return (
+    <div className="card funnel">
+      <h3 className="h2" style={{ fontSize: 16, margin: 0 }}>Воронка запуска</h3>
+      <p className="hint" style={{ margin: '4px 0 16px' }}>
+        Кто зарегистрировался за {days} дней и до какого шага дошёл к сегодняшнему дню.
+      </p>
+      <ol className="funnel-steps">
+        {FUNNEL.map((st) => {
+          const n = f.cohort[st.key];
+          const pct = pctOf(n, base);
+          return (
+            <li key={st.key}>
+              <span className="funnel-label">{st.label}</span>
+              <span className="funnel-track" aria-hidden>
+                <span className="funnel-bar" style={{ width: `${base > 0 ? Math.max(pct, n > 0 ? 2 : 0) : 0}%` }} />
+              </span>
+              <span className="funnel-value">
+                <b>{n}</b>
+                {st.key !== 'registered' && <span className="faint"> · {pct}%</span>}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      <details className="stats-table" style={{ marginTop: 16 }}>
+        <summary>Первые шаги по дням</summary>
+        <table>
+          <thead>
+            <tr>
+              <th>День</th>
+              <th>Регистрации</th>
+              <th>Первый лот</th>
+              <th>Первый запрос</th>
+              <th>Первая оплата</th>
+              <th>Первая сделка</th>
+            </tr>
+          </thead>
+          <tbody>
+            {f.byDay.map((d) => (
+              <tr key={d.day}>
+                <td>{dayLabel(d.day)}</td>
+                <td>{d.registered}</td>
+                <td>{d.firstLot}</td>
+                <td>{d.firstRequest}</td>
+                <td>{d.firstPaid}</td>
+                <td>{d.firstDeal}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
+    </div>
+  );
+}
+
 export function StatsSection() {
   const [days, setDays] = useState<(typeof PERIODS)[number]>(30);
   const [s, setS] = useState<Summary | null>(null);
@@ -240,6 +328,8 @@ export function StatsSection() {
               </div>
             </dl>
           </div>
+
+          <FunnelCard days={days} />
 
           <details className="stats-table">
             <summary>По дням таблицей</summary>

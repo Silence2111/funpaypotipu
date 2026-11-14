@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Put, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Put, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
@@ -9,6 +9,7 @@ import { BlocksService } from '../access/blocks.service';
 import { AccountService } from './account.service';
 import { ConsentService } from './consent.service';
 import { DeletionService } from './deletion.service';
+import { ExportService } from './export.service';
 import { ctxOf } from '../auth/auth-http';
 import { PushService, type PushSubscriptionInput } from '../notifications/push.service';
 import { NOTIFY_GROUPS, isSteamTradeUrl } from '@gamemarket/shared';
@@ -65,7 +66,18 @@ export class AccountController {
     private readonly push: PushService,
     private readonly consent: ConsentService,
     private readonly deletion: DeletionService,
+    private readonly exporter: ExportService,
   ) {}
+
+  /** «Скачать мои данные» (к части 124): всё о человеке одним файлом JSON. */
+  @Get('export')
+  @RateLimit('account-export', 5, 3600)
+  async exportData(@CurrentUser() user: AuthUser, @Res({ passthrough: true }) res: Response) {
+    const data = await this.exporter.export(user.userId);
+    res.setHeader('Content-Disposition', `attachment; filename="gamemarket-data-${data.generatedAt.slice(0, 10)}.json"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return data;
+  }
 
   /** Удаление аккаунта (часть 124): что мешает и что спросит форма. */
   @Get('deletion')

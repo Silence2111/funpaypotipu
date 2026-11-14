@@ -49,6 +49,7 @@ x-app-env: &app-env
   YOOKASSA_RECEIPTS: ${YOOKASSA_RECEIPTS:-}
   YOOKASSA_VAT_CODE: ${YOOKASSA_VAT_CODE:-}
   YOOKASSA_PAYMENT_SUBJECT: ${YOOKASSA_PAYMENT_SUBJECT:-}
+  YOOKASSA_DEAL_RECEIPT: ${YOOKASSA_DEAL_RECEIPT:-}
   PAYOUT_PROVIDER: ${PAYOUT_PROVIDER:-}
   YOOKASSA_PAYOUT_AGENT_ID: ${YOOKASSA_PAYOUT_AGENT_ID:-}
   YOOKASSA_PAYOUT_SECRET_KEY: ${YOOKASSA_PAYOUT_SECRET_KEY:-}
@@ -118,6 +119,11 @@ services:
     environment:
       <<: *app-env
       API_PORT: 4000
+      # Тревоги API — сверка с ЮKassa, всплеск ошибок, оплаты и вебхуки,
+      # зависшие выплаты (части 129–130) — тем же ботом и в тот же чат, что у сторожа.
+      ALERT_BOT_TOKEN: ${ALERT_BOT_TOKEN:-}
+      ALERT_CHAT_ID: ${ALERT_CHAT_ID:-}
+      PUBLIC_URL: ${PUBLIC_URL}
     volumes: [uploads:/data/uploads]
     depends_on:
       migrate: { condition: service_completed_successfully }

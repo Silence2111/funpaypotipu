@@ -18,6 +18,7 @@ import { CatalogSection } from './catalog-section';
 import { GameChatSection } from './game-chat-section';
 import { AppealsSection } from './appeals-section';
 import { ErasureSection } from './erasure-section';
+import { OpsSection } from './ops-section';
 
 /** Разделы консоли и роли, которым они открыты. Администратору открыто всё. */
 const TABS = [
@@ -31,6 +32,8 @@ const TABS = [
   { key: 'game-chat', label: 'Чаты игр', roles: ['moderator'] },
   { key: 'appeals', label: 'Обжалования', roles: ['moderator', 'finance'] },
   { key: 'payouts', label: 'Выплаты', roles: ['finance'] },
+  // Сверка с ЮKassa, тревоги и ошибки (части 129–130); ошибки — администратору.
+  { key: 'ops', label: 'Сверка и сбои', roles: ['finance'] },
   { key: 'kyc', label: 'Проверка личности', roles: ['moderator'] },
   { key: 'fees', label: 'Комиссии и промокоды', roles: [] as string[] },
   { key: 'catalog', label: 'Каталог', roles: [] as string[] },
@@ -137,6 +140,8 @@ export function AdminConsole() {
         <FeesSection />
       ) : tab.key === 'catalog' ? (
         <CatalogSection />
+      ) : tab.key === 'ops' ? (
+        <OpsSection isAdmin={isAdmin} />
       ) : tab.key === 'erasure' ? (
         <ErasureSection />
       ) : (

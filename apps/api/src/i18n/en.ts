@@ -440,6 +440,11 @@ export const EN_API: Phrasebook = {
   'Список обращений устарел — обновите страницу': 'The ticket list is out of date — refresh the page',
   'Список жалоб устарел — обновите страницу': 'The report list is out of date — refresh the page',
   'Список заявок устарел — обновите страницу': 'The request list is out of date — refresh the page',
+  // Сверка с ЮKassa (часть 129) и «Скачать мои данные».
+  'Сверка уже идёт — подождите минуту': 'A reconciliation is already running — wait a minute',
+  'Расхождение не найдено': 'Discrepancy not found',
+  'Расхождение уже закрыто': 'This discrepancy is already closed',
+  'Аккаунт не найден': 'Account not found',
   'Журнал устарел — обновите страницу': 'The log is out of date — refresh the page',
   'Список лотов устарел — обновите страницу': 'The listing list is out of date — refresh the page',
   // Каталог в консоли (часть 110)
