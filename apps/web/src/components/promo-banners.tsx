@@ -14,8 +14,10 @@ export type PromoSlide = {
   cta: string;
   /** Цвет плиты — фирменный цвет марки. */
   color: string;
-  /** Знак марки (маска) — крупно справа; без него — значок щита гарантии. */
+  /** Знак марки (маска) — бледно на фоне справа. */
   mark?: string;
+  /** Объёмный предмет (свой рендер) — крупно справа, как арт на баннерах Playerok. */
+  art?: string;
   /** Настоящие лоты раздела: число крупно и цена, как обложки в ленте. */
   lots?: Array<{ id: string; big: string; unit: string; price: string; color: string }>;
 };
@@ -72,10 +74,10 @@ export function PromoBanners({ slides }: { slides: PromoSlide[] }) {
               </Link>
             </div>
             <div className="pb__art" aria-hidden>
-              {s.mark ? (
-                <span className="pb__mark" style={{ WebkitMaskImage: `url(${s.mark})`, maskImage: `url(${s.mark})` }} />
-              ) : (
-                <span className="pb__shield" />
+              {s.mark && <span className="pb__mark" style={{ WebkitMaskImage: `url(${s.mark})`, maskImage: `url(${s.mark})` }} />}
+              {s.art && (
+                // eslint-disable-next-line @next/next/no-img-element -- свой рендер из public
+                <img className={s.lots?.length ? 'pb__obj pb__obj--side' : 'pb__obj'} src={s.art} alt="" />
               )}
               {s.lots && s.lots.length > 0 && (
                 <span className="pb__lots">

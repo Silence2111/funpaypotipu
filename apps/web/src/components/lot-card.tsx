@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { Coins, Gem, KeyRound, LayoutGrid, Star, Sword, UserRound, Wrench, Zap } from 'lucide-react';
-import type { ComponentType } from 'react';
+import { Star, Zap } from 'lucide-react';
 import { isDemoSeller } from '@gamemarket/shared';
 import { lotTitle } from '@/lib/lot-text';
 import type { ListingCard } from '@/lib/api';
@@ -19,10 +18,16 @@ export function coverAmount(title: string): string | null {
   return m ? `${m[1].replace(/\s+/g, ' ').trim()} ${m[2].replace(/[,.]$/, '')}` : null;
 }
 
-/** Значок типа товара — крупно на обложке игры без своего знака (вместо огромных букв «ES», «G5»). */
-const SEG_ART: Record<string, ComponentType<{ size?: number; strokeWidth?: number; className?: string }>> = {
-  accounts: UserRound, currency: Coins, items: Sword, key: KeyRound, topup: Gem, service: Wrench,
-};
+/** Объёмный предмет на обложке по типу товара (свои рендеры Blender, `дизайн/3d`): как предметы на обложках Playerok. */
+export function lotArt(segment?: string, categorySlug?: string): string {
+  const bySlug: Record<string, string> = {
+    stars: 'star', cards: 'card', topup: 'card', gifts: 'chest', keys: 'key', skins: 'chest', boost: 'bolt',
+    'ps-plus': 'crown', premium: 'crown', nitro: 'crown', subscription: 'crown', subscriptions: 'crown', pass: 'crown',
+  };
+  const bySeg: Record<string, string> = { accounts: 'account', currency: 'coins', items: 'chest', key: 'key', topup: 'gem', service: 'wrench' };
+  const k = (categorySlug && bySlug[categorySlug]) || (segment && bySeg[segment]) || 'gamepad';
+  return `/3d/${k}.webp`;
+}
 
 /**
  * Карточка лота по образцу выдачи Playerok (18.11.2026): сверху игра и раздел, яркая обложка
@@ -61,9 +66,9 @@ export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
           <>
             {icon ? (
               <span className="lc__mark" style={{ WebkitMaskImage: `url(${icon.src})`, maskImage: `url(${icon.src})` }} aria-hidden />
-            ) : (
-              <SegArt segment={l.category.segment} />
-            )}
+            ) : null}
+            {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер из public */}
+            <img className="lc__obj" src={lotArt(l.category.segment, l.category.slug)} alt="" loading="lazy" />
             <span className="lc__big">
               {amount ? (
                 <>
@@ -113,11 +118,3 @@ export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
   );
 }
 
-function SegArt({ segment }: { segment?: string }) {
-  const Ico = (segment && SEG_ART[segment]) || LayoutGrid;
-  return (
-    <span className="lc__seg" aria-hidden>
-      <Ico size={120} strokeWidth={1.6} />
-    </span>
-  );
-}

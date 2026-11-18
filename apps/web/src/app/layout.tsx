@@ -64,17 +64,15 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [lang, t, pricing] = await Promise.all([getLang(), getT(), getPublicPricing()]);
   return (
-    <html lang={lang}>
+    // suppressHydrationWarning: тема ставится скриптом до React, иначе Next ругается «1 Issue»
+    <html lang={lang} suppressHydrationWarning>
       <head>
       </head>
       <body>
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);" +
-              // палитра на выбор владельцу: ?pal=a|b|c, запоминается на этом браузере
-              "var m=/[?&]pal=([abc])/.exec(location.search);if(m)localStorage.setItem('pal',m[1]);" +
-              "var p=localStorage.getItem('pal');if(p&&p!=='a')document.documentElement.setAttribute('data-pal',p);}catch(e){}",
+              "try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}",
           }}
         />
         <LangProvider lang={lang} dict={dictOf(lang)}>

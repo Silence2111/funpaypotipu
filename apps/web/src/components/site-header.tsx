@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { CirclePlus, Gamepad2, Search } from 'lucide-react';
+import { Gamepad2, Search } from 'lucide-react';
 import { AuthNav } from './auth-nav';
 import { ThemeToggle } from './theme-toggle';
 import { GameSearch } from './game-search';
@@ -32,7 +32,8 @@ export async function SiteHeader() {
           </Link>
           <nav className="ph__acts" aria-label={t('Действия')}>
             <Link href="/prodavat" className="ph__act hide-mobile">
-              <CirclePlus size={22} strokeWidth={1.9} />
+              {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер */}
+              <img src="/3d/plus.webp" alt="" width={30} height={30} />
               <span>{t('Продать')}</span>
             </Link>
             <AuthNav />

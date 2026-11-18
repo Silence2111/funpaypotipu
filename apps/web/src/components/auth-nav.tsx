@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, LogOut, MessagesSquare, UserRound } from 'lucide-react';
+import { ChevronDown, LogOut, MessagesSquare } from 'lucide-react';
 import { getUser, isStaff, type SessionUser } from '@/lib/session';
 import { logout } from '@/lib/logout';
 import { formatPrice } from '@/lib/format';
@@ -35,11 +35,13 @@ export function AuthNav() {
     return (
       <>
         <Link href="/login?next=%2Fchat" className="ph__act hide-mobile">
-          <MessagesSquare size={22} strokeWidth={1.9} />
+          {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер */}
+          <img src="/3d/chat.webp" alt="" width={30} height={30} />
           <span>{t('Чаты')}</span>
         </Link>
         <Link href="/login" className="ph__act">
-          <UserRound size={22} strokeWidth={1.9} />
+          {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер */}
+          <img src="/3d/user.webp" alt="" width={30} height={30} />
           <span>{t('Войти')}</span>
         </Link>
       </>

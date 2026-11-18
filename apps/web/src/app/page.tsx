@@ -1,12 +1,11 @@
 import Link from 'next/link';
-import { ChevronRight, Coins, Gem, Info, KeyRound, LayoutGrid, Sword, UserRound, Wrench } from 'lucide-react';
-import type { ComponentType } from 'react';
+import { ChevronRight, Info } from 'lucide-react';
 import { browseListings, getGame, getGameIndex, getPublicPricing, getTopupOffers, SEGMENTS, type ListingCard } from '@/lib/api';
 import { pickTopupOffer, topupQuote } from '@gamemarket/shared/topup';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { formatPrice, offersCount } from '@/lib/format';
 import { GameIcon } from '@/components/game-icon';
-import { LotCard, coverAmount } from '@/components/lot-card';
+import { LotCard, coverAmount, lotArt } from '@/components/lot-card';
 import { PromoBanners, type PromoSlide } from '@/components/promo-banners';
 import { coverColor, gameIcon } from '@/lib/game-icons';
 import { lotTitle } from '@/lib/lot-text';
@@ -14,9 +13,9 @@ import { RecentLots } from '@/components/recent-lots';
 import { getT } from '@/lib/i18n/server';
 import type { T } from '@/lib/i18n/lang';
 
-/** Значки вкладок разделов, как у Playerok: у каждого типа товара свой. */
-const SEG_ICON: Record<string, ComponentType<{ size?: number; strokeWidth?: number }>> = {
-  accounts: UserRound, currency: Coins, items: Sword, key: KeyRound, topup: Gem, service: Wrench,
+/** Объёмные значки вкладок, как у Playerok: у каждого типа товара свой предмет (рендеры `дизайн/3d`). */
+const SEG_3D: Record<string, string> = {
+  accounts: 'account', currency: 'coins', items: 'chest', key: 'key', topup: 'gem', service: 'wrench',
 };
 
 /** Число крупно и единица для мини-обложки баннера: «1800 UC» → ['1800', 'UC']. */
@@ -80,6 +79,7 @@ export default async function HomePage({
       cta: t('Пополнить'),
       color: coverColor('steam', 'Steam'),
       mark: gameIcon('steam')?.src,
+      art: '/3d/card.webp',
       // Суммы пополнения и цена к оплате — той же функцией, что считает заказ на сервере
       lots: [500, 1000, 2000].flatMap((rub) => {
         const terms = topup.offers.map((o) => ({ ...o, min: BigInt(o.min), max: BigInt(o.max) }));
@@ -108,6 +108,7 @@ export default async function HomePage({
       cta: t('Смотреть предложения'),
       color: coverColor(game.slug, game.title),
       mark: gameIcon(game.slug)?.src,
+      art: lotArt(lots[0]?.category.segment, c),
       lots: lots.slice(0, 3).map((l) => {
         const [big, unit] = bigOf(l, t);
         return { id: l.id, big, unit, price: formatPrice(l.price, l.currency, t), color: coverColor(l.game.slug, l.game.title) };
@@ -126,6 +127,7 @@ export default async function HomePage({
     href: '/rules',
     cta: t('Как защищена сделка'),
     color: 'var(--accent)',
+    art: '/3d/shield.webp',
   });
 
   // Сервисы рядом с пополнением, как сетка значков у виджета Playerok: ведут в свои разделы
@@ -196,22 +198,21 @@ export default async function HomePage({
         </h2>
         <nav className="pk-tabs" aria-label={t('Типы товаров')}>
           <Link href="/" scroll={false} className={!segment ? 'on' : ''} aria-current={!segment ? 'page' : undefined}>
-            <LayoutGrid size={18} strokeWidth={1.9} /> {t('Все')}
+            {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер */}
+            <img src="/3d/grid.webp" alt="" width={28} height={28} /> {t('Все')}
           </Link>
-          {SEGMENTS.map(([key, label]) => {
-            const Ico = SEG_ICON[key] ?? LayoutGrid;
-            return (
-              <Link
-                key={key}
-                href={`/?segment=${key}`}
-                scroll={false}
-                className={segment === key ? 'on' : ''}
-                aria-current={segment === key ? 'page' : undefined}
-              >
-                <Ico size={18} strokeWidth={1.9} /> {t(label)}
-              </Link>
-            );
-          })}
+          {SEGMENTS.map(([key, label]) => (
+            <Link
+              key={key}
+              href={`/?segment=${key}`}
+              scroll={false}
+              className={segment === key ? 'on' : ''}
+              aria-current={segment === key ? 'page' : undefined}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер */}
+              <img src={`/3d/${SEG_3D[key] ?? 'grid'}.webp`} alt="" width={28} height={28} /> {t(label)}
+            </Link>
+          ))}
         </nav>
         {pricing?.paymentsDemo && (
           <p className="pk-demo" role="note">
