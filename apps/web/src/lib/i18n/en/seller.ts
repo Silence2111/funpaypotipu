@@ -305,6 +305,8 @@ export const SELLER: Record<string, string> = {
   'Загрузить {n}': 'Upload {n}',
   // «Продавать на Lutli» — калькулятор (часть 109)
   'Продавать на Lutli': 'Sell on Lutli',
+  'Лот и ваша страница продавца видны всем посетителям:': 'The listing and your seller page are visible to all visitors:',
+  'согласие на распространение данных': 'consent to make data public',
   'Сколько вы получите с продажи скина, ключа или валюты: комиссия, вывод и сумма на руки до регистрации, рядом со ставками FunPay и Playerok.':
     'How much you get from selling a skin, key or currency — fee, withdrawal and take-home before you sign up, next to FunPay and Playerok rates.',
   'Посчитайте, сколько получите с продажи, ещё до регистрации. Комиссия берётся только с проданного, выставлять лоты бесплатно.':

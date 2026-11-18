@@ -5,6 +5,26 @@
 {$SITE_ADDRESS} {
 	encode zstd gzip
 
+	# Юрдокументы — оферта, политика, согласия и форма обращения — из ~/Projects/_система/юр
+	# (проекты/lutli.txt): их кладёт infra/ops/yur.sh в ./yur на сервере. Есть файл — отдаём его,
+	# нет (стенд, CI) — дальше сайт со своей страницей. Отправку формы принимает API.
+	@yur_send path /obrashchenie/otpravit
+	handle @yur_send {
+		rewrite * /api/obrashchenie/otpravit
+		reverse_proxy api:4000
+	}
+	@yur file {
+		root /srv/yur
+		try_files {path}/index.html {path}index.html
+	}
+	handle @yur {
+		root * /srv/yur
+		rewrite * {file_match.relative}
+		header X-Robots-Tag "noindex, follow"
+		header Cache-Control "no-cache"
+		file_server
+	}
+
 	# API, файлы (/api/assets), вебхуки ЮKassa и Telegram, вход через сервисы, чат.
 	@api path /api/* /socket.io/*
 	handle @api {

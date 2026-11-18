@@ -8,6 +8,7 @@ export const CABINET: Record<string, string> = {
   Заказы: 'Orders',
   Консоль: 'Console',
   'Мои заказы': 'My orders',
+  'Ник, имя на витрине, аватар и рассказ видны всем:': 'Your username, display name, avatar and bio are visible to everyone:',
   'Покупка': 'Purchase',
   'Продажа': 'Sale',
   'Все покупки и продажи →': 'All purchases and sales →',

@@ -1118,6 +1118,13 @@ export function ListingForm({
               ? t('Сохранить изменения')
               : t('Опубликовать лот')}
         </button>
+        {/* 152-ФЗ ст. 10.1: лот и страница продавца видны всем — согласие на распространение даётся публикацией */}
+        <p className="hint" style={{ margin: 0, textAlign: 'center' }}>
+          {t('Лот и ваша страница продавца видны всем посетителям:')}{' '}
+          <a href="/soglasie-rasprostranenie" target="_blank" rel="noopener">
+            {t('согласие на распространение данных')}
+          </a>
+        </p>
       </form>
     </div>
   );

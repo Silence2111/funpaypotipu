@@ -7,7 +7,7 @@ import { getT } from '@/lib/i18n/server';
  * значит оферта, политика и контакты нужны. Реквизитов ещё нет — места
  * помечены «[заполнить]», а не выдуманы.
  */
-export async function LegalPage({ title, children }: { title: string; children: ReactNode }) {
+export async function LegalPage({ title, children, draft = true }: { title: string; children: ReactNode; draft?: boolean }) {
   const t = await getT();
   return (
     <div className="container" style={{ paddingTop: 48, maxWidth: 760 }}>
@@ -19,6 +19,7 @@ export async function LegalPage({ title, children }: { title: string; children: 
         </div>
       )}
       <h1 className="h1" style={{ fontSize: 32 }} lang="ru">{title}</h1>
+      {draft && (
       <div className="alert" style={{ marginTop: 20 }}>
         <Info size={18} strokeWidth={1.75} />
         {t.lang === 'en' ? (
@@ -31,6 +32,7 @@ export async function LegalPage({ title, children }: { title: string; children: 
           </span>
         )}
       </div>
+      )}
       <div className="card legal" style={{ marginTop: 20, padding: 28 }} lang="ru">{children}</div>
     </div>
   );

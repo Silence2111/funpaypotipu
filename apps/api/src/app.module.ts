@@ -23,6 +23,7 @@ import { SearchModule } from './modules/search/search.module';
 import { LedgerModule } from './modules/ledger/ledger.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { TrustModule } from './modules/trust/trust.module';
+import { ContactRequestsModule } from './modules/contact-requests/contact-requests.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
@@ -78,6 +79,7 @@ import { OpsModule } from './modules/ops/ops.module';
     NotificationsModule,
     TrustModule,
     HealthModule,
+    ContactRequestsModule,
     AuthModule,
     CatalogModule,
     ListingsModule,
