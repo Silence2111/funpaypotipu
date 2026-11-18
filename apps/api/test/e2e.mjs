@@ -6036,7 +6036,7 @@ async function scenarioYooKassa(rnd) {
     for (let i = 0; i < 20 && !alertsSent.length; i++) await wait(100);
     check(
       'Новое расхождение — тревога в Telegram с числом и видом',
-      alertsSent.length === 1 && alertsSent[0].chat_id === '42' && /Сверка с ЮKassa: новых расхождений — 1/.test(alertsSent[0].text) &&
+      alertsSent.length === 1 && alertsSent[0].chat_id === '42' && /Сверка с ЮKassa: новых расхождений 1 /.test(alertsSent[0].text) &&
         ov1.alerts[0]?.key === 'reconcile' && ov1.alerts[0].sent === true,
       JSON.stringify(alertsSent),
     );
