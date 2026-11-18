@@ -19,7 +19,6 @@ import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { replaceUrl, withQuery } from '@/lib/url';
 import { formatListingPrice, formatPrice } from '@/lib/format';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { SaleMark } from '@/components/sale-mark';
 import { PriceLowMark } from '@/components/price-low-mark';
 import { useT } from '@/lib/i18n/client';
@@ -137,7 +136,6 @@ function FavoritesInner() {
           })}
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

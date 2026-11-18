@@ -197,7 +197,7 @@ export async function SectionView({
       </nav>
       </div>
 
-      <div style={{ marginTop: 20 }}>
+      <div className="section-filters-row" style={{ marginTop: 20 }}>
         {/* В пустом разделе фильтровать и сортировать нечего: только «Сохранить
             поиск» — он и сообщит о первом предложении. */}
         {!empty && (

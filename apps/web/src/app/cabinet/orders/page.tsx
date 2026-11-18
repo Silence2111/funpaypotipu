@@ -9,7 +9,6 @@ import { apiErrorMessage } from '@/lib/errors';
 import { useSummary } from '@/lib/summary';
 import { isCurrentQuery, isPlainClick, replaceUrl, withQuery } from '@/lib/url';
 import { formatPrice, formatQty } from '@/lib/format';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
 
@@ -224,7 +223,6 @@ function Orders() {
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>{t('Заказы')}</h1>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

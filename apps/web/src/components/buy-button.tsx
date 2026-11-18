@@ -236,7 +236,7 @@ export function BuyButton({
             <div key={f.label} className="field">
               <label className="label" htmlFor={`buyer-field-${i}`}>
                 {f.kind === 'steam_trade' ? t.d(f.label) : f.label}
-                {f.required ? '' : ` — ${t('необязательно')}`}
+                {f.required ? '' : `, ${t('необязательно')}`}
               </label>
               <input id={`buyer-field-${i}`} className="input" maxLength={100} value={answers[f.label] ?? ''}
                 type={f.kind === 'steam_trade' ? 'url' : 'text'} inputMode={f.kind === 'steam_trade' ? 'url' : undefined}

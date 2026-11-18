@@ -7,7 +7,6 @@ import { STATS_PERIODS, type StatsPeriod } from '@gamemarket/shared/lot-stats';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
 import { msg, type T } from '@/lib/i18n/lang';
 
@@ -165,7 +164,6 @@ export default function LotStatsPage() {
           )}
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

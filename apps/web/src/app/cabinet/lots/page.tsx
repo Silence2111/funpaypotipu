@@ -8,7 +8,6 @@ import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { isCurrentQuery, replaceUrl } from '@/lib/url';
 import { myLotsUrl } from '@/lib/my-lots';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { MyLotRow, type MyLot } from '@/components/my-lot-row';
 import { BulkPricePanel } from '@/components/bulk-price-panel';
 import { useT } from '@/lib/i18n/client';
@@ -349,7 +348,6 @@ function MyLots() {
           </div>
         </div>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

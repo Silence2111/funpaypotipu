@@ -6,7 +6,6 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { replaceUrl, withQuery } from '@/lib/url';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { Stars } from '@/components/stars';
 import { ReviewPhotos } from '@/components/review-photos';
 import { useT } from '@/lib/i18n/client';
@@ -171,7 +170,6 @@ function ReviewsInner() {
           )}
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

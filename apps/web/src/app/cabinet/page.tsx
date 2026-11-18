@@ -10,7 +10,6 @@ import { formatListingPrice, formatPrice } from '@/lib/format';
 import { BumpButton } from '@/components/bump-button';
 import { SellerDashboard } from '@/components/seller-dashboard';
 import { SellerToday } from '@/components/seller-today';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
 
@@ -81,7 +80,6 @@ export default function CabinetPage() {
         </div>
         <Link href="/cabinet/new" className="btn">{t('Продать лот')}</Link>
       </div>
-      <CabinetNav />
       <SellerToday />
 
       <section>

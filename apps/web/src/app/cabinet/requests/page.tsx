@@ -7,7 +7,6 @@ import type { BuyRequestState, MyBuyRequest, SellerBuyRequest } from '@/lib/api'
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice, mskDate } from '@/lib/format';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { OfferLot } from '@/components/buy-requests';
 import { useT } from '@/lib/i18n/client';
 import { msg, type T } from '@/lib/i18n/lang';
@@ -107,7 +106,6 @@ function RequestsPage() {
           )}
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

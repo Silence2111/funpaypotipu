@@ -7,7 +7,6 @@ import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { uploadViaPresignedUrl } from '@/lib/upload';
 import { formatPrice } from '@/lib/format';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { FilePick, type Picked } from '@/components/file-pick';
 import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
@@ -105,7 +104,6 @@ export default function VerificationPage() {
           {t('Проверка личности')}
         </h1>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

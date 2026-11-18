@@ -8,7 +8,6 @@ import { apiErrorMessage } from '@/lib/errors';
 import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
 import { formatPrice, timeLeft } from '@/lib/format';
 import { DISPUTE_STATUS } from '@/lib/disputes';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
 
@@ -142,7 +141,6 @@ function DisputesInner() {
           )}
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

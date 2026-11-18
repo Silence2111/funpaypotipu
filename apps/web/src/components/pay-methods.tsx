@@ -121,7 +121,7 @@ export function PayMethods({
           {rows.map((r) => (
             <option key={r.key} value={r.key} disabled={r.disabled}>
               {/* Сумма ещё не введена — без пустого «— —». */}
-              {base != null ? `${r.label} — ${r.price}` : r.label}
+              {base != null ? `${r.label}: ${r.price}` : r.label}
             </option>
           ))}
         </select>

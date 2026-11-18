@@ -344,7 +344,10 @@ export default function OrderPage() {
   const pack = unit ? perPackLabel({ unitName: unit, pricePerUnits: order.listingSnapshot?.pricePerUnits }, t) : null;
 
   return (
-    <div className="container" style={{ paddingTop: 40, maxWidth: 720 }}>
+    // Две колонки, как заказ у FunPay: слева статус, шаги и действия, справа чат по сделке —
+    // он всегда на виду. Раньше всё стояло одной колонкой в 720 px посреди пустого экрана.
+    <div className="container order-page">
+      <div className="order-main">
       <p className="faint" style={{ fontSize: 13, margin: 0 }}>
         {role === 'buyer'
           ? t('Заказ {n} · вы покупатель', { n: order.publicNumber })
@@ -376,7 +379,7 @@ export default function OrderPage() {
         <p className="faint" style={{ fontSize: 13, margin: '4px 0 0', textAlign: 'right' }}>
           {t('Оплачено {method}', { method: PAID_BY[order.paymentMethod] ? t(PAID_BY[order.paymentMethod]!) : order.paymentMethod })}
           {order.paymentSurcharge && order.paymentSurcharge !== '0'
-            ? ` — ${t('{sum} с комиссией способа', { sum: formatPrice((BigInt(order.amount) + BigInt(order.paymentSurcharge)).toString(), order.currency, t) })}`
+            ? `, ${t('{sum} с комиссией способа', { sum: formatPrice((BigInt(order.amount) + BigInt(order.paymentSurcharge)).toString(), order.currency, t) })}`
             : ''}
         </p>
       )}
@@ -610,7 +613,9 @@ export default function OrderPage() {
         <Link href={`/cabinet/support?order=${order.id}`}>{t('Написать в поддержку')}</Link>
       </p>
 
-      <section style={{ marginTop: 40 }}>
+      </div>
+
+      <section className="order-chat">
         <h2 className="h2" style={{ fontSize: 18, marginBottom: 12 }}>{t('Чат по сделке')}</h2>
         {order.conversationId && me ? (
           <OrderChat conversationId={order.conversationId} meId={me.id} />

@@ -1,5 +1,8 @@
 /** Общее: шапка, подвал, нижняя панель, меню профиля, цены, «в сети». */
 export const COMMON: Record<string, string> = {
+  Деньги: 'Money',
+  Общение: 'Messages and help',
+  Аккаунт: 'Account',
   Покупателям: 'For buyers',
   Продавцам: 'For sellers',
   // Шапка и подвал

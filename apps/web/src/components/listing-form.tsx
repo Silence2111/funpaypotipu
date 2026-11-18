@@ -594,7 +594,7 @@ export function ListingForm({
             <option value="">{categories.length ? t('Выберите категорию') : t('Сначала выберите игру')}</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id} disabled={!!c.salesClosed && !editing}>
-                {c.salesClosed && !editing ? `${t.d(c.title)} — ${t('закрыт для продажи')}` : t.d(c.title)}
+                {c.salesClosed && !editing ? `${t.d(c.title)} (${t('закрыт для продажи')})` : t.d(c.title)}
               </option>
             ))}
           </select>

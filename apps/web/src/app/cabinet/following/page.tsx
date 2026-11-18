@@ -9,7 +9,6 @@ import { presenceText } from '@/lib/presence';
 import { offersCount } from '@/lib/format';
 import type { ListingCard } from '@/lib/api';
 import { Avatar, OfferTable } from '@/components/offers';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
 
 interface Followed {
@@ -134,7 +133,6 @@ export default function FollowingPage() {
           )}
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

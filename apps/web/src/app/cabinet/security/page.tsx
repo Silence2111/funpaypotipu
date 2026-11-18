@@ -6,7 +6,6 @@ import { KeyRound, LifeBuoy, MonitorSmartphone, ShieldAlert } from 'lucide-react
 import { deviceOf } from '@gamemarket/shared';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { TwoFactorCard } from '@/components/two-factor-card';
 import { KycCard } from '@/components/kyc-card';
 import { SocialAccounts, type LoginWays } from '@/components/social-accounts';
@@ -158,7 +157,6 @@ function Security() {
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>{t('Безопасность')}</h1>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

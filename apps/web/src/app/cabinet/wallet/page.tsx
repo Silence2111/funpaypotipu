@@ -6,7 +6,6 @@ import { apiFetch, getToken } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
 import { loadPublicPricing } from '@/lib/pricing';
 import { refreshSummary } from '@/lib/summary';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { TopUpForm } from '@/components/topup-form';
 import { PayoutForm } from '@/components/payout-form';
 import { PayoutRequests, type MyPayout } from '@/components/payout-requests';
@@ -92,7 +91,6 @@ function WalletInner() {
           )}
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

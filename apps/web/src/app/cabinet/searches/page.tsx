@@ -7,7 +7,6 @@ import type { SavedSearch } from '@/lib/api';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
 
@@ -89,7 +88,6 @@ export default function SearchesPage() {
           )}
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 
