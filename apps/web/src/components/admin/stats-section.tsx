@@ -121,11 +121,11 @@ function RegistryCard() {
   return (
     <div className="card" style={{ padding: 16, marginTop: 16, display: 'grid', gap: 6, fontSize: 14 }}>
       <b>Пороги реестра платформ (289-ФЗ)</b>
-      <span>{line(r.current)} — на сегодня</span>
-      {r.last && <span>{line(r.last)} — итоги года</span>}
+      <span>{line(r.current)}: на сегодня</span>
+      {r.last && <span>{line(r.last)}: итоги года</span>}
       <span className="hint">
-        В реестр — от {r.thresholds.dailyUsers.toLocaleString('ru-RU')} пользователей в день (смотреть в Метрике) и одного из порогов
-        выше. {r.current.near || r.last?.near ? 'Половина порога пройдена — пора готовить требования закона: ПРОДУКТ/289-ФЗ.md.' : 'До порогов далеко.'}
+        В реестр вносят от {r.thresholds.dailyUsers.toLocaleString('ru-RU')} пользователей в день (смотреть в Метрике) и одного из порогов
+        выше. {r.current.near || r.last?.near ? 'Половина порога пройдена, пора готовить требования закона: ПРОДУКТ/289-ФЗ.md.' : 'До порогов далеко.'}
       </span>
     </div>
   );

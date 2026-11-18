@@ -202,7 +202,7 @@ export function DisputesSection() {
                     <span className={d.status === 'open' ? 'badge accent' : 'badge'}>
                       {d.status === 'open' ? 'ждёт арбитра' : `в работе${d.arbiter ? ` · ${d.arbiter}` : ''}`}
                     </span>
-                    {d.appealedAt && <span className="badge warning">обжалование — решает другой арбитр</span>}
+                    {d.appealedAt && <span className="badge warning">обжалование, решает другой арбитр</span>}
                     {d.missedBy && <span className="badge warning">{WHO[d.missedBy]} не ответил в срок</span>}
                     {d.awaitingFrom && d.respondBy && (
                       <span className="badge">ждём {WHOM[d.awaitingFrom]} до {when(d.respondBy)}</span>

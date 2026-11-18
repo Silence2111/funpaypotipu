@@ -133,7 +133,7 @@ export function UsersSection({ isAdmin, meId }: { isAdmin: boolean; meId: string
       to === 'banned'
         ? { title: `Забанить ${name}?`, hint: 'Сессии закроются, лоты уйдут из каталога.', confirm: 'Забанить' }
         : to === 'frozen'
-          ? { title: `Заморозить ${name}?`, hint: 'Покупки, продажи и вывод станут недоступны. Если спорна только сумма — лучше «Удержать сумму».', confirm: 'Заморозить' }
+          ? { title: `Заморозить ${name}?`, hint: 'Покупки, продажи и вывод станут недоступны. Если спорна только сумма, лучше «Удержать сумму».', confirm: 'Заморозить' }
           : { title: `Снять ограничения с ${name}?`, hint: 'Лоты, снятые блокировкой, вернутся в продажу.', withRule: false, reason: 'Ограничение снято', confirm: 'Снять' },
     );
     if (!d) return;
@@ -151,7 +151,7 @@ export function UsersSection({ isAdmin, meId }: { isAdmin: boolean; meId: string
   /** Удержать только спорную сумму (часть 134): аккаунт работает, остальное выводится. */
   async function holdMoney(u: Row) {
     const name = u.profile?.username ?? u.email ?? u.id.slice(0, 8);
-    const d = await ask({ title: `Удержать сумму у ${name}`, hint: 'Сумма уйдёт с доступного баланса, остальное можно выводить. Снять — во вкладке «Обжалования».', withAmount: true, confirm: 'Удержать' });
+    const d = await ask({ title: `Удержать сумму у ${name}`, hint: 'Сумма уйдёт с доступного баланса, остальное можно выводить. Снять можно во вкладке «Обжалования».', withAmount: true, confirm: 'Удержать' });
     if (!d?.amount) return;
     const kopecks = Math.round(Number(d.amount) * 100);
     void run(

@@ -32,8 +32,8 @@ const WHAT: Record<string, string> = {
   payments_per_hour: 'частые попытки оплаты',
   newbie_pay_day: 'новичок упёрся в лимит оплат за сутки',
   newbie_lots_day: 'новичок упёрся в лимит лотов за сутки',
-  linked_deal: 'покупка у связанного аккаунта — отказ',
-  banned_requisites: 'вывод на реквизиты забаненного — отказ',
+  linked_deal: 'покупка у связанного аккаунта, отказ',
+  banned_requisites: 'вывод на реквизиты забаненного, отказ',
   banned_device: 'вход с браузера забаненного',
 };
 const TYPE: Record<string, string> = {

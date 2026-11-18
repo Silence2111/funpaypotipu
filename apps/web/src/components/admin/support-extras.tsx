@@ -61,7 +61,7 @@ export function SupportExtras() {
     <div style={{ display: 'grid', gap: 12 }}>
       {stats && (
         <div className="row faint" style={{ gap: 8, flexWrap: 'wrap', fontSize: 13 }}>
-          <span className="badge">первый ответ — {duration(stats.firstReplySec)} (медиана, 30 дней)</span>
+          <span className="badge">первый ответ за {duration(stats.firstReplySec)} (медиана, 30 дней)</span>
           <span className="badge">оценка {stats.avgRating ? stats.avgRating.toFixed(1) : '—'} из 5 · {stats.rated}</span>
           <span className="badge">ждут ответа: {stats.waiting}</span>
           {stats.escalated > 0 && <span className="badge danger">дольше 8 ч: {stats.escalated}</span>}

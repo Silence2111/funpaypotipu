@@ -72,7 +72,7 @@ export function FeesSection() {
     const USD = parseFloat(usd.replace(',', '.'));
     const EUR = parseFloat(eur.replace(',', '.'));
     if (!(USD >= 10 && USD <= 1000 && EUR >= 10 && EUR <= 1000)) {
-      return setMsg({ ok: false, text: 'Курс — рублей за доллар и за евро, от 10 до 1 000' });
+      return setMsg({ ok: false, text: 'Курс в рублях за доллар и за евро, от 10 до 1 000' });
     }
     void run(
       () => apiFetch('/admin/rates', { method: 'PUT', body: JSON.stringify({ USD, EUR }) }),
@@ -102,7 +102,7 @@ export function FeesSection() {
 
   function saveRule(r: Rule) {
     const share = toShare(edit[r.id] ?? '');
-    if (share == null) return setMsg({ ok: false, text: 'Комиссия — число от 0 до 50, в процентах' });
+    if (share == null) return setMsg({ ok: false, text: 'Комиссия: число от 0 до 50, в процентах' });
     void run(
       () => apiFetch(`/admin/fee-rules/${r.id}`, { method: 'PATCH', body: JSON.stringify({ feeSellerPct: share }) }),
       'Комиссия сохранена. Новые заказы считаются по ней.',
@@ -154,7 +154,7 @@ export function FeesSection() {
         {rules === null ? (
           <div className="skeleton" style={{ height: 80 }} aria-busy="true" />
         ) : rules.length === 0 ? (
-          <Empty>Правил нет — действует ставка по умолчанию.</Empty>
+          <Empty>Правил нет, действует ставка по умолчанию.</Empty>
         ) : (
           <div className="grid" style={{ gap: 8 }}>
             {rules.map((r) => (
@@ -167,7 +167,7 @@ export function FeesSection() {
                   </span>
                 </span>
                 <span className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                  <input className="input" inputMode="decimal" style={{ width: 90 }} aria-label={`Комиссия, % — ${scopeLabel(r)}`}
+                  <input className="input" inputMode="decimal" style={{ width: 90 }} aria-label={`Комиссия, %: ${scopeLabel(r)}`}
                     placeholder={String(Math.round(r.feeSellerPct * 1000) / 10)} value={edit[r.id] ?? ''}
                     onChange={(e) => setEdit((s) => ({ ...s, [r.id]: e.target.value }))} />
                   <button type="button" className="chip" onClick={() => saveRule(r)}>Сохранить</button>
@@ -205,7 +205,7 @@ export function FeesSection() {
       <div>
         <h2 className="h2" style={{ fontSize: 18, marginBottom: 6 }}>Курсы для показа цен</h2>
         <p className="muted" style={{ margin: '0 0 12px', fontSize: 14 }}>
-          Покупатель может смотреть цены в долларах и евро — примерно, по этому курсу. Оплата всегда в рублях.
+          Покупатель может смотреть цены в долларах и евро, примерно, по этому курсу. Оплата всегда в рублях.
         </p>
         <form onSubmit={saveRates} className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
           <input className="input" inputMode="decimal" style={{ maxWidth: 160 }} placeholder="₽ за $1" value={usd}

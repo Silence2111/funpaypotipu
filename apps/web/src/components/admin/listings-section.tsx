@@ -268,7 +268,7 @@ export function ListingsSection({ isAdmin }: { isAdmin: boolean }) {
                 <div className="hint" style={{ margin: '10px 0 0', display: 'grid', gap: 6 }}>
                   {l.reviewReason && (
                     <span>
-                      Найдено: <b>«{l.reviewReason}»</b> — похоже на передачу аккаунта. Одобрите, если это не так.
+                      Найдено: <b>«{l.reviewReason}»</b>, похоже на передачу аккаунта. Одобрите, если это не так.
                     </span>
                   )}
                   {l.description && (

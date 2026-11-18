@@ -80,7 +80,7 @@ const ACTION: Record<string, string> = {
   'role.assign': 'выдана роль',
   'role.revoke': 'снята роль',
   'email.change': 'почта изменена',
-  'email.revert': 'почта возвращена — «Это не я»',
+  'email.revert': 'почта возвращена по «Это не я»',
   'rates.set': 'курсы для показа цен',
   'fee.create': 'новое правило комиссии',
   'fee.update': 'правило комиссии изменено',
@@ -447,7 +447,7 @@ export function AuditSection() {
                     </>
                   )}
                 </span>
-                {reason && <span className="muted">— {reason}</span>}
+                {reason && <span className="muted">: {reason}</span>}
               </div>
             );
           })}
@@ -462,7 +462,7 @@ export function AuditSection() {
           )}
           <span className="faint" style={{ fontSize: 13 }}>
             Показано {rows.length}
-            {next ? '' : ' — это все записи'}
+            {next ? '' : '. Это все записи'}
           </span>
         </div>
       )}

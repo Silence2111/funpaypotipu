@@ -138,7 +138,7 @@ export function AppealsSection({ meId }: { meId: string | null }) {
                   <Link href={`/prodavec/${a.user.id}`} style={{ fontWeight: 600 }}>{a.user.username ?? a.user.id.slice(0, 8)}</Link>
                   <StatusBadge status={a.user.status} labels={USER_STATUS} />
                   <span className="faint">{when(a.createdAt)}</span>
-                  {late && <span className="badge danger">просрочено — ответить до {when(a.dueAt)}</span>}
+                  {late && <span className="badge danger">просрочено, ответить до {when(a.dueAt)}</span>}
                   {a.status !== 'open' && <span className="badge">{OUTCOME[a.status]}</span>}
                 </div>
                 <div className="card flat" style={{ padding: 12, background: 'var(--page)', fontSize: 14 }}>
@@ -155,7 +155,7 @@ export function AppealsSection({ meId }: { meId: string | null }) {
                 <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{a.text}</p>
                 {a.status === 'open' ? (
                   own ? (
-                    <p className="hint" style={{ margin: 0 }}>Это ваше решение — обжалование решает другой сотрудник.</p>
+                    <p className="hint" style={{ margin: 0 }}>Это ваше решение, обжалование решает другой сотрудник.</p>
                   ) : (
                     <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                       <button type="button" className="btn" disabled={busy === a.id} onClick={() => void decide(a, 'overturned')}>Отменить решение</button>

@@ -153,14 +153,14 @@ function IssueCard({ issue, onResolved }: { issue: Issue; onResolved: () => void
       {issue.resolvedAt ? (
         <span className="muted">
           Закрыто {when(issue.resolvedAt)}
-          {issue.resolvedBy ? ` · ${issue.resolvedBy}` : ''} — {issue.note}
+          {issue.resolvedBy ? ` · ${issue.resolvedBy}` : ''}: {issue.note}
         </span>
       ) : (
         <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
           <input
             className="input"
             style={{ flex: 1, minWidth: 200 }}
-            placeholder="Что было и что сделали — в журнал"
+            placeholder="Что было и что сделали, для журнала"
             aria-label="Пометка к расхождению"
             maxLength={500}
             value={note}
@@ -229,7 +229,7 @@ function ErrorsBlock() {
         </button>
       </div>
       <p className="hint" style={{ margin: 0 }}>
-        Ошибки API и страниц сайта, одинаковые — одной строкой со счётчиком. Решённая открывается
+        Ошибки API и страниц сайта. Одинаковые собраны в одну строку со счётчиком. Решённая открывается
         снова, если ошибка повторилась.
       </p>
       {err && (
@@ -379,7 +379,7 @@ export function OpsSection({ isAdmin }: { isAdmin: boolean }) {
           </button>
         </div>
         <p className="hint" style={{ margin: 0 }}>
-          Оплаты, возвраты и выплаты в нашем учёте — против ЮKassa. Сама — раз в {r.autoEveryHours}{' '}
+          Оплаты, возвраты и выплаты в нашем учёте сверяются с ЮKassa. Сама сверка идёт раз в {r.autoEveryHours}{' '}
           ч за прошедшие сутки, кроме последнего часа: свежий платёж мог ещё не дойти до конца.
         </p>
         {err && (
@@ -391,7 +391,7 @@ export function OpsSection({ isAdmin }: { isAdmin: boolean }) {
           <div className="card" style={{ padding: 14, display: 'grid', gap: 4, fontSize: 14 }}>
             <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <span>
-                Последняя — {when(last.startedAt)}
+                Последняя: {when(last.startedAt)}
                 {last.trigger === 'manual'
                   ? ` · вручную${last.startedBy ? `, ${last.startedBy}` : ''}`
                   : ' · сама'}
@@ -449,8 +449,8 @@ export function OpsSection({ isAdmin }: { isAdmin: boolean }) {
         </h3>
         <p className="hint" style={{ margin: 0 }}>
           {w.telegram
-            ? 'Правила проверяются раз в минуту; сработало — сообщение в Telegram, одно и то же — не чаще раза в полчаса.'
-            : 'Telegram не настроен (ALERT_BOT_TOKEN, ALERT_CHAT_ID) — тревоги видны только здесь.'}
+            ? 'Правила проверяются раз в минуту. Если сработало, приходит сообщение в Telegram, одно и то же не чаще раза в полчаса.'
+            : 'Telegram не настроен (ALERT_BOT_TOKEN, ALERT_CHAT_ID), тревоги видны только здесь.'}
         </p>
         <div className="card" style={{ padding: 14, display: 'grid', gap: 6, fontSize: 14 }}>
           {rules.map(([label, value, hot]) => (

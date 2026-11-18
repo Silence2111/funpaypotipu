@@ -46,11 +46,11 @@ export function PartnerProgramCard() {
     const days = term.trim() ? Number(term) : 0;
     const bps = Math.round(pct * 100);
     if (!Number.isFinite(pct) || bps < 0 || bps > PARTNER_MAX_SHARE_BPS) {
-      setMsg({ ok: false, text: `Доля — от 0 до ${PARTNER_MAX_SHARE_BPS / 100}%.` });
+      setMsg({ ok: false, text: `Доля от 0 до ${PARTNER_MAX_SHARE_BPS / 100}%.` });
       return;
     }
     if (!Number.isInteger(days) || days < 0 || days > PARTNER_MAX_TERM_DAYS) {
-      setMsg({ ok: false, text: `Срок — целым числом дней, до ${PARTNER_MAX_TERM_DAYS}.` });
+      setMsg({ ok: false, text: `Срок целым числом дней, до ${PARTNER_MAX_TERM_DAYS}.` });
       return;
     }
     setBusy(true);
@@ -79,8 +79,8 @@ export function PartnerProgramCard() {
       </h2>
       <p className="muted" style={{ margin: '0 0 12px', fontSize: 14, maxWidth: '70ch' }}>
         Партнёр приводит людей ссылкой или кодом. С каждой завершённой сделки привлечённого в срок
-        ему уходит доля того, что осталось площадке после эквайринга и кэшбэка, — на баланс, вывод
-        обычный. Сделки с самим партнёром и спорные — без начисления.
+        ему уходит доля того, что осталось площадке после эквайринга и кэшбэка, на баланс, вывод
+        обычный. Сделки с самим партнёром и спорные не начисляются.
       </p>
       {msg && (
         <div
@@ -138,7 +138,7 @@ export function PartnerProgramCard() {
               ? `Работает: ${view.settings.shareBps / 100}% остатка площадки, ${view.settings.termDays} дн. после привязки.`
               : 'Выключена: коды не выдаются, переходы и сделки не считаются.'}{' '}
             Партнёров {view.totals.partners}, привлечено {view.totals.referred}, сделок{' '}
-            {view.totals.deals}, начислено {formatPrice(view.totals.accrued)}. Изменения — в
+            {view.totals.deals}, начислено {formatPrice(view.totals.accrued)}. Изменения в
             журнале.
           </p>
         </>
