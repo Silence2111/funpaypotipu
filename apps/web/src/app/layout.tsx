@@ -9,6 +9,7 @@ import { PartnerRef } from '@/components/partner-ref';
 import { ConsentBanner } from '@/components/consent';
 import { LoginMethodBanner } from '@/components/login-method-banner';
 import { SiteHeader } from '@/components/site-header';
+import { LiveFx } from '@/components/live-fx';
 import { TabBar } from '@/components/tab-bar';
 import { DisputeBanner } from '@/components/dispute-banner';
 import { LangSwitch } from '@/components/lang-switch';
@@ -84,6 +85,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <ConsentBanner />
         <LoginMethodBanner />
         <main>{children}</main>
+        <LiveFx />
         {/* Подвал колонками: кому что нужно (покупателю, продавцу, документы); внизу копирайт, язык, валюта. */}
         <footer className="site-footer">
           <div className="container site-footer__grid">
@@ -119,6 +121,27 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <Link href="/privacy">{t('Персональные данные')}</Link>
               <Link href="/contacts">{t('Контакты')}</Link>
             </nav>
+            {/* Способы оплаты значками, как подвал Playerok и Eneba: только то, что площадка принимает */}
+            {pricing?.payMethods && pricing.payMethods.length > 0 && (
+              <div className="pay-row" aria-label={t('Способы оплаты')}>
+                {pricing.payMethods.includes('sbp') && <span className="pay-b pay-b--txt">{t('СБП')}</span>}
+                {pricing.payMethods.includes('card') && (
+                  <>
+                    <span className="pay-b pay-b--txt pay-b--mir">{t('МИР')}</span>
+                    <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/visa.svg)' }} aria-label="Visa" />
+                    <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/mastercard.svg)' }} aria-label="Mastercard" />
+                  </>
+                )}
+                {pricing.payMethods.includes('applepay') && <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/applepay.svg)' }} aria-label="Apple Pay" />}
+                {pricing.payMethods.includes('googlepay') && <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/googlepay.svg)' }} aria-label="Google Pay" />}
+                {pricing.payMethods.some((m) => m === 'crypto' || m === 'usdt') && (
+                  <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/tether.svg)' }} aria-label="USDT" />
+                )}
+                <Link href="/pomosch" className="pay-help">
+                  {t('Написать в поддержку')}
+                </Link>
+              </div>
+            )}
             <div className="site-footer__bottom">
               <p>
                 © {new Date().getFullYear()} GameMarket

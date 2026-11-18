@@ -46,7 +46,17 @@ export function PromoBanners({ slides }: { slides: PromoSlide[] }) {
       aria-roledescription="carousel"
       aria-label={t('Предложения')}
       onMouseEnter={() => setHold(true)}
-      onMouseLeave={() => setHold(false)}
+      onMouseLeave={(e) => {
+        setHold(false);
+        e.currentTarget.style.removeProperty('--mx');
+        e.currentTarget.style.removeProperty('--my');
+      }}
+      onMouseMove={(e) => {
+        // лёгкий параллакс предметов за курсором
+        const r = e.currentTarget.getBoundingClientRect();
+        e.currentTarget.style.setProperty('--mx', String(((e.clientX - r.left) / r.width - 0.5) * 2));
+        e.currentTarget.style.setProperty('--my', String(((e.clientY - r.top) / r.height - 0.5) * 2));
+      }}
       onPointerDown={(e) => (startX.current = e.clientX)}
       onPointerUp={(e) => {
         if (startX.current === null) return;

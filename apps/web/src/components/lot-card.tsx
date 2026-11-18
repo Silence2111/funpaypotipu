@@ -4,7 +4,7 @@ import { isDemoSeller } from '@gamemarket/shared';
 import { lotTitle } from '@/lib/lot-text';
 import type { ListingCard } from '@/lib/api';
 import { coverColor, coverIsLight, gameIcon } from '@/lib/game-icons';
-import { formatListingPrice } from '@/lib/format';
+import { formatListingPrice, formatPrice } from '@/lib/format';
 import { RU, type T } from '@/lib/i18n/lang';
 import { GameIcon } from './game-icon';
 import { SaleMark } from './sale-mark';
@@ -58,7 +58,8 @@ export function lotArt(segment?: string, categorySlug?: string): string {
  * цена со скидкой красной плашкой, название в две строки, звёзды продавца. Рейтинг — только
  * из настоящих отзывов; демо-лоты помечены «Пример».
  */
-export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
+/** cashback — доля кэшбэка площадки: «+66 ₽ кэшбэк» под ценой, как плашка Cashback у Eneba. */
+export function LotCard({ l, t = RU, cashback }: { l: ListingCard; t?: T; cashback?: number }) {
   const seller = l.seller.profile;
   const reviews = seller?.ratingCount ?? 0;
   const title = lotTitle(l, t.lang);
@@ -76,6 +77,9 @@ export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
         {formatListingPrice(l, t)}
         <SaleMark listPrice={l.saleRefPrice ?? l.saleListPrice} price={l.price} currency={l.currency} t={t} />
       </span>
+      {cashback && cashback > 0 && l.currency === 'RUB' && !l.unitName ? (
+        <span className="lc__cb">{t('+{sum} кэшбэк', { sum: formatPrice(String(Math.round((Number(l.price) * cashback) / 100) * 100), l.currency, t) })}</span>
+      ) : null}
       <span className="lc__title">{title}</span>
       <span className="lc__seller">
         {reviews > 0 ? (

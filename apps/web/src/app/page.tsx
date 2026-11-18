@@ -3,15 +3,17 @@ import { ChevronRight, Info } from 'lucide-react';
 import { browseListings, getGame, getGameIndex, getPublicPricing, getTopupOffers, SEGMENTS, type ListingCard } from '@/lib/api';
 import { pickTopupOffer, topupQuote } from '@gamemarket/shared/topup';
 import { GameTopupForm } from '@/components/game-topup-form';
-import { formatPrice, offersCount } from '@/lib/format';
+import { formatListingPrice, formatPrice, offersCount } from '@/lib/format';
 import { GameIcon } from '@/components/game-icon';
 import { LotCard, coverAmount, lotArt } from '@/components/lot-card';
 import { PromoBanners, type PromoSlide } from '@/components/promo-banners';
+import { QuickBuy, type QuickTab } from '@/components/quick-buy';
+import { CountUp } from '@/components/count-up';
 import { coverColor, gameIcon } from '@/lib/game-icons';
 import { lotTitle } from '@/lib/lot-text';
 import { RecentLots } from '@/components/recent-lots';
 import { getT } from '@/lib/i18n/server';
-import type { T } from '@/lib/i18n/lang';
+import { msg, type T } from '@/lib/i18n/lang';
 
 /** Объёмные значки вкладок, как у Playerok: у каждого типа товара свой предмет (рендеры `дизайн/3d`). */
 const SEG_3D: Record<string, string> = {
@@ -37,13 +39,16 @@ export default async function HomePage({
 }: {
   // Логин и сумма возвращаются сюда после входа: виджет открывается заполненным.
   // deleted — дата уничтожения данных после удаления аккаунта (часть 124). segment — вкладка ленты.
-  searchParams: Promise<{ account?: string; amount?: string; deleted?: string; segment?: string }>;
+  searchParams: Promise<{ account?: string; amount?: string; deleted?: string; segment?: string; sort?: string }>;
 }) {
   const query = await searchParams;
   const segment = SEGMENTS.some(([k]) => k === query.segment) ? query.segment : undefined;
+  // Вкладки сортировки ленты, как «Новинки / Лидеры продаж / Дешевле» у SteamBuy и Kupikod
+  const FEED_SORTS: Array<[string, string]> = [['new', msg('Новые')], ['popular', msg('Популярные')], ['price_asc', msg('Дешевле')]];
+  const sort = FEED_SORTS.some(([k]) => k === query.sort) ? query.sort! : 'new';
   const [index, browse, pricing, steam, t] = await Promise.all([
     getGameIndex(),
-    browseListings({ limit: 30, sort: 'new', segment }),
+    browseListings({ limit: 30, sort, segment }),
     getPublicPricing(),
     getTopupOffers('steam'),
     getT(),
@@ -130,9 +135,52 @@ export default async function HomePage({
     art: '/3d/shield.webp',
   });
 
-  // Сервисы рядом с пополнением, как сетка значков у виджета Playerok: ведут в свои разделы
-  const SVC: Array<[string, string]> = [['steam', 'topup'], ['roblox', 'currency'], ['telegram', 'stars'], ['playstation', 'cards'], ['pubg-mobile', 'donate'], ['apple', 'topup']];
-  const svc = SVC.filter(([g]) => games.some((x) => x.slug === g));
+
+  // Бегущая лента «только что выставили»: настоящие свежие лоты с временем
+  const fresh = (await browseListings({ limit: 14, sort: 'new' }))?.items ?? [];
+  const ago = (iso: string) => {
+    const m = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+    if (m < 60) return t('{n} мин назад', { n: m });
+    const h = Math.round(m / 60);
+    return h < 48 ? t('{n} ч назад', { n: h }) : t('{n} дн назад', { n: Math.round(h / 24) });
+  };
+
+  // Быстрая покупка: вкладки сервисов с самыми дешёвыми лотами раздела (Steam — форма пополнения)
+  const QB: Array<[string, string]> = [['telegram', 'stars'], ['roblox', 'currency'], ['playstation', 'cards'], ['pubg-mobile', 'donate'], ['apple', 'cards']];
+  const qbGames = await Promise.all(QB.map(([g]) => getGame(g)));
+  const qbLots = await Promise.all(QB.map(([g, c]) => browseListings({ gameSlug: g, categorySlug: c, sort: 'price_asc', limit: 4 })));
+  const quickTabs: QuickTab[] = QB.flatMap(([g, c], i) => {
+    const game = qbGames[i];
+    const sec = game?.categories.find((x) => x.slug === c);
+    const lots = qbLots[i]?.items ?? [];
+    if (!game || !sec || lots.length === 0) return [];
+    return [{
+      key: `${g}-${c}`, slug: g, title: game.title, section: sec.title, href: `/igra/${g}/${c}`,
+      from: sec.minPrice ? formatPrice(sec.minPrice, 'RUB', t) : null,
+      offers: lots.slice(0, 4).map((l) => {
+        const [big, unit] = bigOf(l, t);
+        return { id: l.id, title: lotTitle(l, t.lang), price: formatListingPrice(l, t), color: coverColor(l.game.slug, l.game.title), big, unit,
+          art: lotArt(l.category.segment, l.category.slug) };
+      }),
+    }];
+  });
+
+  // «Пополнение и подписки» плитками, как у Kupikod: сервисы с предложениями и ценой «от»
+  const services = games
+    .filter((g) => g.kind === 'app' && gameIcon(g.slug) && g.categories.some((c) => c.listingCount > 0))
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .slice(0, 12);
+  const svcFull = await Promise.all(services.map((g) => getGame(g.slug)));
+  const svcTiles = services.map((g, i) => {
+    const cats = (svcFull[i]?.categories ?? []).filter((c) => (c.listingCount ?? 0) > 0);
+    const mins = cats.map((c) => c.minPrice).filter((x): x is string => !!x).map(BigInt);
+    const min = mins.length ? mins.reduce((a, b) => (a < b ? a : b)) : null;
+    return { g, n: cats.reduce((a, c) => a + (c.listingCount ?? 0), 0), min, first: cats[0]?.slug };
+  });
+
+  // Полоса цифр (как у SteamBuy): только то, что считается из каталога и правил
+  const lotsTotal = games.reduce((a, g) => a + g.categories.reduce((b, c) => b + c.listingCount, 0), 0);
+  const sectionsLive = games.reduce((a, g) => a + g.categories.filter((c) => c.listingCount > 0).length, 0);
 
   const deletedUntil = /^\d{4}-\d{2}-\d{2}$/.test(query.deleted ?? '') ? new Date(`${query.deleted}T00:00:00Z`) : null;
 
@@ -166,29 +214,89 @@ export default async function HomePage({
         </nav>
       )}
 
-      {topup && (
-        <section className="tw" aria-label={t('Пополнить {game}', { game: t.d(topup.game.title) })}>
-          <div className="tw__svc">
-            {svc.map(([g, c]) => (
-              <Link
-                key={g}
-                href={g === 'steam' ? '#topup' : `/igra/${g}/${c}`}
-                className={g === 'steam' ? 'tw__s tw__s--on' : 'tw__s'}
-                aria-label={t.d(games.find((x) => x.slug === g)!.title)}
-              >
-                <GameIcon slug={g} title={games.find((x) => x.slug === g)!.title} size={34} />
+      {fresh.length > 0 && (
+        <div className="tk" aria-label={t('Только что выставили')}>
+          <span className="tk__lbl">
+            <i aria-hidden /> {t('Только что выставили')}
+          </span>
+          <div className="tk__win">
+            <div className="tk__run">
+              {[0, 1].map((k) => (
+                <span key={k} className="tk__set" aria-hidden={k === 1}>
+                  {fresh.map((l) => (
+                    <Link key={`${k}-${l.id}`} href={`/lot/${l.id}`} className="tk__i" tabIndex={k === 1 ? -1 : 0}>
+                      <GameIcon slug={l.game.slug} title={l.game.title} size={22} />
+                      <b>{lotTitle(l, t.lang)}</b>
+                      <span>{formatPrice(l.price, l.currency, t)}</span>
+                      <small>{ago(l.createdAt)}</small>
+                    </Link>
+                  ))}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <QuickBuy
+        tabs={quickTabs}
+        steam={
+          topup ? (
+            <GameTopupForm
+              variant="row"
+              game={topup.game}
+              offers={topup.offers}
+              returnPath="/"
+              initialAccount={(query.account ?? '').slice(0, 120)}
+              initialAmount={query.amount ?? ''}
+              paymentsDemo={pricing?.paymentsDemo ?? false}
+            />
+          ) : null
+        }
+      />
+
+      <section className="pk-stats reveal" aria-label={t('GameMarket в цифрах')}>
+        <div>
+          <b><CountUp to={games.length} locale={t.locale} /></b>
+          <span>{t('игр и сервисов')}</span>
+        </div>
+        <div>
+          <b><CountUp to={lotsTotal} locale={t.locale} /></b>
+          <span>{t('предложений в продаже')}</span>
+        </div>
+        <div>
+          <b><CountUp to={sectionsLive} locale={t.locale} /></b>
+          <span>{t('разделов с товаром')}</span>
+        </div>
+        {pricing && pricing.cashbackPct > 0 && (
+          <div>
+            <b>{`${Math.round(pricing.cashbackPct * 100)}%`}</b>
+            <span>{t('кэшбэк с каждой покупки')}</span>
+          </div>
+        )}
+        {pricing?.autoConfirmHours && (
+          <div>
+            <b><CountUp to={pricing.autoConfirmHours} locale={t.locale} /> {t('ч')}</b>
+            <span>{t('на проверку товара')}</span>
+          </div>
+        )}
+      </section>
+
+      {svcTiles.length > 0 && (
+        <section className="pk-svc reveal" aria-labelledby="svc-title">
+          <div className="pk-h">
+            <h2 id="svc-title">{t('Пополнение и подписки')}</h2>
+            <Link href="/igry?vid=app">{t('Все сервисы')} →</Link>
+          </div>
+          <div className="pk-svc__grid">
+            {svcTiles.map(({ g, n, min, first }) => (
+              <Link key={g.id} href={first ? `/igra/${g.slug}/${first}` : `/igra/${g.slug}`} className="pk-svc__i">
+                <GameIcon slug={g.slug} title={g.title} size={56} />
+                <b>{t.d(g.title)}</b>
+                <span>{min ? t('от {price}', { price: formatPrice(min.toString(), 'RUB', t) }) : offersCount(n, t)}</span>
               </Link>
             ))}
           </div>
-          <GameTopupForm
-            variant="row"
-            game={topup.game}
-            offers={topup.offers}
-            returnPath="/"
-            initialAccount={(query.account ?? '').slice(0, 120)}
-            initialAmount={query.amount ?? ''}
-            paymentsDemo={pricing?.paymentsDemo ?? false}
-          />
         </section>
       )}
 
@@ -197,7 +305,7 @@ export default async function HomePage({
           {t('Предложения')}
         </h2>
         <nav className="pk-tabs" aria-label={t('Типы товаров')}>
-          <Link href="/" scroll={false} className={!segment ? 'on' : ''} aria-current={!segment ? 'page' : undefined}>
+          <Link href={sort !== 'new' ? `/?sort=${sort}` : '/'} scroll={false} className={!segment ? 'on' : ''} aria-current={!segment ? 'page' : undefined}>
             {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер */}
             <img src="/3d/grid.webp" alt="" width={28} height={28} /> {t('Все')}
           </Link>
@@ -214,6 +322,16 @@ export default async function HomePage({
             </Link>
           ))}
         </nav>
+        <div className="pk-sort" role="group" aria-label={t('Сортировка')}>
+          {FEED_SORTS.map(([k, label]) => {
+            const qs = new URLSearchParams({ ...(segment ? { segment } : {}), ...(k !== 'new' ? { sort: k } : {}) }).toString();
+            return (
+              <Link key={k} href={qs ? `/?${qs}` : '/'} scroll={false} className="chip" aria-current={sort === k ? 'page' : undefined}>
+                {t(label)}
+              </Link>
+            );
+          })}
+        </div>
         {pricing?.paymentsDemo && (
           <p className="pk-demo" role="note">
             <Info size={16} strokeWidth={1.9} />
@@ -223,7 +341,7 @@ export default async function HomePage({
         {listings.length > 0 ? (
           <div className="gm-lots pk-lots">
             {listings.map((l) => (
-              <LotCard key={l.id} l={l} t={t} />
+              <LotCard key={l.id} l={l} t={t} cashback={pricing?.cashbackPct} />
             ))}
           </div>
         ) : (
