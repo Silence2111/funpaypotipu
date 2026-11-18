@@ -80,6 +80,25 @@ export default function CabinetPage() {
         </div>
         <Link href="/cabinet/new" className="btn">{t('Продать лот')}</Link>
       </div>
+
+      {/* Быстрые действия с объёмными значками, как в профиле Playerok (18.11.2026) */}
+      <nav className="cab-quick" aria-label={t('Быстрые действия')}>
+        {(
+          [
+            ['/cabinet/new', 'plus', t('Создать лот')],
+            ['/cabinet/wallet', 'coins', t('Пополнить баланс')],
+            ['/cabinet/orders?role=buyer', 'chest', t('Мои покупки')],
+            ['/chat', 'chat', t('Сообщения')],
+            ['/cabinet/favorites', 'star', t('Избранное')],
+          ] as const
+        ).map(([href, art, label]) => (
+          <Link key={href} href={href} className="cab-quick__i">
+            {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер */}
+            <img src={`/3d/${art}.webp`} alt="" width={48} height={48} />
+            <span>{label}</span>
+          </Link>
+        ))}
+      </nav>
       <SellerToday />
 
       <section>

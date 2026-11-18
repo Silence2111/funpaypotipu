@@ -432,8 +432,9 @@ body { background:
 :root[data-theme='dark'] .lc__cb { background: rgba(47,208,110,.14); color: #5fe39a; }
 
 /* Появление блоков при прокрутке */
-.reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.8,.2,1); }
-.reveal.is-in { opacity: 1; transform: none; }
+/* прячем только когда скрипты живы (класс fx ставит ранний скрипт): без JS блоки видны сразу */
+.fx .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.8,.2,1); }
+.fx .reveal.is-in { opacity: 1; transform: none; }
 .gm-lots > .lc { animation: lc-in .5s cubic-bezier(.2,.8,.2,1) both; }
 .gm-lots > .lc:nth-child(5n+2) { animation-delay: .04s; } .gm-lots > .lc:nth-child(5n+3) { animation-delay: .08s; }
 .gm-lots > .lc:nth-child(5n+4) { animation-delay: .12s; } .gm-lots > .lc:nth-child(5n) { animation-delay: .16s; }
@@ -445,7 +446,7 @@ body { background:
 
 @media (prefers-reduced-motion: reduce) {
   .tk__run, .tk__lbl i, .gm-lots > .lc { animation: none; }
-  .reveal { opacity: 1; transform: none; }
+  .fx .reveal { opacity: 1; transform: none; }
 }
 @media (max-width: 1100px) {
   .qb__offers { grid-template-columns: minmax(0, 1fr); padding: 14px; }
@@ -472,3 +473,52 @@ body { background:
 .pay-help { margin-left: auto; display: inline-flex; align-items: center; height: 40px; padding: 0 18px; border-radius: 12px; background: var(--btn-bg); color: var(--btn-fg);
   font-weight: 700; font-size: 14px; text-decoration: none; }
 .pay-help:hover { background: var(--btn-hover); }
+
+/* ── Внутренние страницы в языке витрины: плиты вместо карточек с рамкой, поля в плитах белые ── */
+.card { background: var(--plate); border-color: transparent; box-shadow: none; border-radius: 24px; }
+.card .input, .card select.input, .card textarea.input, .card .chip { background: var(--bg); }
+.card .card { background: var(--bg); }
+.card.flat { background: var(--plate); }
+
+/* Пустое состояние: объёмный предмет вместо голого текста */
+.empty-state { position: relative; padding-top: 128px !important; }
+.empty-state::before { content: ''; position: absolute; left: 50%; top: 20px; width: 96px; height: 96px; transform: translateX(-50%) rotate(-8deg);
+  background: url(/3d/chest.webp) center / contain no-repeat; filter: drop-shadow(0 12px 14px rgba(14,17,22,.2)); animation: pb-float 6s ease-in-out infinite; }
+.closed-section.empty-state::before { background-image: url(/3d/key.webp); }
+
+/* Кабинет: меню разделов на плите, выбранный пункт графитовой плашкой */
+.cab-side { background: var(--plate); border-radius: 24px; padding: 16px 10px; align-self: start; position: sticky; top: 110px; }
+.cab-nav a { font-size: 14.5px; }
+.cab-nav a:hover { background: var(--bg); }
+.cab-nav a[aria-current='page'] { background: var(--btn-bg); color: var(--btn-fg); }
+@media (max-width: 900px) { .cab-side { position: static; padding: 8px; } }
+
+/* Вход и регистрация */
+.auth-pk { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 460px); gap: 28px; max-width: 1060px; margin: 24px auto 40px; padding: 0 16px; align-items: stretch; }
+.auth-pk__art { position: relative; overflow: hidden; isolation: isolate; border-radius: 32px; padding: 40px; color: #fff; display: flex; flex-direction: column; justify-content: flex-end;
+  min-height: 520px; background: radial-gradient(90% 80% at 80% 20%, color-mix(in srgb, var(--accent) 70%, #fff) 0%, transparent 55%),
+    linear-gradient(140deg, #131923 0%, #1b2a55 50%, var(--accent) 100%); }
+.auth-pk__art b { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; position: relative; z-index: 2; }
+.auth-pk__art span { margin-top: 8px; font-size: 16px; color: rgba(255,255,255,.85); max-width: 30ch; position: relative; z-index: 2; }
+.auth-pk__o { position: absolute; filter: drop-shadow(0 22px 26px rgba(0,0,0,.35)); animation: pb-float 6s ease-in-out infinite; }
+.auth-pk__o--1 { width: 210px; right: 12%; top: 50px; }
+.auth-pk__o--2 { width: 170px; left: 10%; top: 120px; animation-delay: -2s; }
+.auth-pk__o--3 { width: 150px; right: 6%; top: 250px; transform: rotate(-10deg); animation-delay: -3s; }
+.auth-pk__o--4 { width: 90px; left: 42%; top: 40px; transform: rotate(12deg); animation-delay: -1s; }
+.auth-pk__form { display: flex; flex-direction: column; justify-content: center; }
+@media (max-width: 900px) {
+  .auth-pk { grid-template-columns: minmax(0, 1fr); margin-top: 12px; }
+  .auth-pk__art { min-height: 220px; padding: 24px; border-radius: 24px; }
+  .auth-pk__art b { font-size: 24px; }
+  .auth-pk__o--1 { width: 110px; top: 20px; } .auth-pk__o--2 { width: 90px; top: 30px; } .auth-pk__o--3, .auth-pk__o--4 { display: none; }
+}
+.cab-quick { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.cab-quick__i { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; background: var(--plate); border-radius: 22px; padding: 16px; color: var(--fg);
+  font-weight: 600; text-decoration: none; transition: transform .2s, background .2s; }
+.cab-quick__i:hover { transform: translateY(-3px); background: var(--plate-2); }
+.cab-quick__i img { width: 48px; height: 48px; object-fit: contain; transition: transform .2s; }
+.cab-quick__i:hover img { transform: rotate(-8deg) scale(1.06); }
+@media (max-width: 900px) { .cab-quick { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .cab-quick { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.help-cards > a, .help-card { background: var(--plate) !important; border: 0 !important; box-shadow: none !important; border-radius: 22px !important; transition: transform .2s; }
+.help-cards > a:hover, .help-card:hover { transform: translateY(-2px); }

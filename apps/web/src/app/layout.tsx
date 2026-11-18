@@ -73,7 +73,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}",
+              "document.documentElement.classList.add('fx');try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}",
           }}
         />
         <LangProvider lang={lang} dict={dictOf(lang)}>

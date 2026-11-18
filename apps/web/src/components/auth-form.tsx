@@ -158,7 +158,21 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
   const q = params.toString() ? `?${params.toString()}` : '';
 
   return (
-    <div style={{ maxWidth: 420, margin: '56px auto', padding: '0 16px' }}>
+    // Вход и регистрация по образцу окна Playerok: слева плита с предметами и выгодами, справа форма (18.11.2026)
+    <div className="auth-pk">
+      <aside className="auth-pk__art" aria-hidden>
+        <b>{t('Гарантия сделки')}</b>
+        <span>{t('Деньги у площадки, пока вы не получили товар')}</span>
+        {/* eslint-disable-next-line @next/next/no-img-element -- свои рендеры */}
+        <img className="auth-pk__o auth-pk__o--1" src="/3d/shield.webp" alt="" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="auth-pk__o auth-pk__o--2" src="/3d/coins.webp" alt="" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="auth-pk__o auth-pk__o--3" src="/3d/gamepad.webp" alt="" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="auth-pk__o auth-pk__o--4" src="/3d/star.webp" alt="" />
+      </aside>
+      <div className="auth-pk__form">
       <h1 className="h1" style={{ fontSize: 30 }}>
         {isRegister ? (seller ? t('Аккаунт продавца') : t('Создать аккаунт')) : t('Вход')}
       </h1>
@@ -315,6 +329,7 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
           <Link href="/recover" className="faint">{t('Не могу войти')}</Link>
         </p>
       )}
+      </div>
     </div>
   );
 }
