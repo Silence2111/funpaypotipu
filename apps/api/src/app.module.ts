@@ -54,6 +54,7 @@ import { LotStatsModule } from './modules/lot-stats/lot-stats.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { RecoveryModule } from './modules/recovery/recovery.module';
 import { TelegramActionsModule } from './modules/telegram-actions/telegram-actions.module';
+import { OpsModule } from './modules/ops/ops.module';
 
 @Module({
   imports: [
@@ -108,6 +109,7 @@ import { TelegramActionsModule } from './modules/telegram-actions/telegram-actio
     ReportsModule,
     RecoveryModule,
     TelegramActionsModule,
+    OpsModule,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: PresenceInterceptor },

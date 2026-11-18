@@ -11,6 +11,8 @@ import { SiteHeader } from '@/components/site-header';
 import { TabBar } from '@/components/tab-bar';
 import { DisputeBanner } from '@/components/dispute-banner';
 import { LangSwitch } from '@/components/lang-switch';
+import { ErrorReporter } from '@/components/error-reporter';
+import { Metrika } from '@/components/metrika';
 import { getPublicPricing } from '@/lib/api';
 import { LangProvider } from '@/lib/i18n/client';
 import { dictOf, getLang, getT } from '@/lib/i18n/server';
@@ -72,6 +74,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         />
         <LangProvider lang={lang} dict={dictOf(lang)}>
         <PwaRegister />
+        <ErrorReporter />
         <PartnerRef />
         <SiteHeader />
         <DisputeBanner />
@@ -105,6 +108,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           </div>
         </footer>
         <TabBar />
+        <Metrika />
         </LangProvider>
       </body>
     </html>

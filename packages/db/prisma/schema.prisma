@@ -1957,3 +1957,100 @@ model ErasureAct {
   @@unique([day, reason])
   @@map("erasure_acts")
 }
+
+// ─────────────────────────── СВЕРКА И СБОИ (части 129–130) ───────────────────────────
+
+/// Прогон сверки с ЮKassa (часть 129): окно, что сверено, итог. Раз в сутки
+/// сам и по кнопке в консоли. status: ok, issues, skipped (шлюз-заглушка —
+/// сверять не с чем), error (ЮKassa не ответила).
+model ReconciliationRun {
+  id         String    @id @default(uuid()) @db.Uuid
+  trigger    String    @db.VarChar(8)
+  windowFrom DateTime  @map("window_from")
+  windowTo   DateTime  @map("window_to")
+  status     String    @default("running") @db.VarChar(8)
+  /// Сколько сверено: { payments, refunds, payouts, dealPayouts }.
+  checked    Json?
+  newIssues  Int       @default(0) @map("new_issues")
+  error      String?
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  startedBy  String?   @map("started_by") @db.Uuid
+
+  @@index([startedAt])
+  @@map("reconciliation_runs")
+}
+
+/// Расхождение нашего учёта с ЮKassa (часть 129). Одно на запись и вид:
+/// повторный прогон его не дублирует, а отмечает, что оно всё ещё есть.
+/// Закрывает сотрудник финансов с пометкой — в журнале.
+model ReconciliationIssue {
+  id          String    @id @default(uuid()) @db.Uuid
+  /// gateway_only, ours_only, not_credited, status_mismatch, amount_mismatch,
+  /// refund_missing, refund_unknown, refund_amount, payout_mismatch, payout_stuck.
+  kind        String    @db.VarChar(24)
+  /// payment, refund, payout, deal_payout.
+  entity      String    @db.VarChar(12)
+  /// Ключ записи: наш id или номер у ЮKassa — по нему повтор не дублируется.
+  ref         String    @db.VarChar(80)
+  ourId       String?   @map("our_id") @db.Uuid
+  externalId  String?   @map("external_id")
+  ours        Json?
+  theirs      Json?
+  firstRunId  String    @map("first_run_id") @db.Uuid
+  lastSeenAt  DateTime  @default(now()) @map("last_seen_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  resolvedBy  String?   @map("resolved_by") @db.Uuid
+  note        String?
+
+  @@unique([kind, ref])
+  @@index([resolvedAt, createdAt])
+  @@map("reconciliation_issues")
+}
+
+/// Ошибка API или сайта (часть 130), собранная в группу по отпечатку:
+/// одна строка на вид ошибки, счётчик и время последнего раза. Закрытая
+/// группа открывается снова, если ошибка повторилась.
+model ErrorGroup {
+  id          String    @id @default(uuid()) @db.Uuid
+  fingerprint String    @unique @db.VarChar(64)
+  source      String    @db.VarChar(8)
+  message     String
+  context     String?
+  stack       String?
+  path        String?
+  count       Int       @default(1)
+  firstSeenAt DateTime  @default(now()) @map("first_seen_at")
+  lastSeenAt  DateTime  @default(now()) @map("last_seen_at")
+  resolvedAt  DateTime? @map("resolved_at")
+
+  @@index([lastSeenAt])
+  @@map("error_groups")
+}
+
+/// Сигнал о сбое для правил оповещения (часть 130): каждая ошибка, отказ
+/// вебхука, неудачная оплата — строкой со временем. Хранится неделю.
+model OpsEvent {
+  id   String   @id @default(uuid()) @db.Uuid
+  /// error, webhook_failed, payment_failed.
+  kind String   @db.VarChar(16)
+  at   DateTime @default(now())
+
+  @@index([kind, at])
+  @@map("ops_events")
+}
+
+/// Тревога (части 129–130): что случилось и ушла ли в Telegram. Одна и та
+/// же тревога (key) не повторяется чаще, чем раз в полчаса.
+model OpsAlert {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @db.VarChar(40)
+  text      String
+  sent      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([key, createdAt])
+  @@index([createdAt])
+  @@map("ops_alerts")
+}

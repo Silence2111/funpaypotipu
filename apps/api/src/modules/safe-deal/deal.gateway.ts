@@ -8,6 +8,8 @@ export interface DealPayoutResult {
   externalId: string;
   status: 'paid' | 'pending' | 'failed';
   reason?: string;
+  /** Сумма у шлюза — для сверки (часть 129); у заглушки её нет. */
+  amount?: bigint;
 }
 
 /**
@@ -134,7 +136,10 @@ export class YooKassaDealGateway implements DealGateway {
   private result(json: Record<string, unknown>): DealPayoutResult {
     const status = json.status === 'succeeded' ? 'paid' : json.status === 'canceled' ? 'failed' : 'pending';
     const reason = (json.cancellation_details as { reason?: string } | undefined)?.reason;
-    return { externalId: String(json.id), status, ...(reason ? { reason } : {}) };
+    const value = (json.amount as { value?: string } | undefined)?.value;
+    const m = typeof value === 'string' ? /^(\d+)(?:\.(\d{1,2}))?$/.exec(value) : null;
+    const amount = m ? BigInt(m[1]!) * 100n + BigInt((m[2] ?? '').padEnd(2, '0')) : null;
+    return { externalId: String(json.id), status, ...(reason ? { reason } : {}), ...(amount !== null ? { amount } : {}) };
   }
 
   async payout(input: { dealId: string; amount: bigint; currency: string; destination: DealDestination; description: string; idempotenceKey: string }) {

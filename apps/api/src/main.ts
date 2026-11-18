@@ -13,12 +13,15 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { corsOrigin, securityHeaders, trustProxySetting } from './common/http-security';
 import { apiCompression } from './common/compression';
+import { MonitoringLogger } from './modules/ops/monitoring.logger';
 
 async function bootstrap() {
   const env = loadEnv();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Content-Disposition — имя файла выгрузки (отчёты): без него сайт его не видит.
     cors: { origin: corsOrigin, credentials: true, exposedHeaders: ['Content-Disposition'] },
+    // Ошибки из журнала — ещё и в сбор ошибок (часть 130).
+    logger: new MonitoringLogger(),
   });
   // Настоящий адрес покупателя за ingress — для лимитов запросов и сеансов.
   app.set('trust proxy', trustProxySetting());

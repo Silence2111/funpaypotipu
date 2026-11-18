@@ -52,6 +52,7 @@ const paymentSchema = z.object({
   paid: z.boolean().optional(),
   amount: z.object({ value: z.string(), currency: z.string() }),
   metadata: z.record(z.string()).optional(),
+  created_at: z.string().optional(),
   confirmation: z.object({ confirmation_url: z.string().url().optional() }).optional(),
   payment_method: z
     .object({
@@ -70,6 +71,20 @@ const paymentSchema = z.object({
 });
 type YooPayment = z.infer<typeof paymentSchema>;
 
+// Списки ЮKassa (GET /payments, GET /refunds): страница и курсор следующей.
+const listSchema = z.object({
+  items: z.array(z.unknown()),
+  next_cursor: z.string().nullish(),
+});
+const refundSchema = z.object({
+  id: z.string(),
+  payment_id: z.string(),
+  status: z.enum(['pending', 'succeeded', 'canceled']),
+  amount: z.object({ value: z.string(), currency: z.string() }),
+  created_at: z.string().optional(),
+});
+const dateOf = (v: string | undefined) => (v && !Number.isNaN(Date.parse(v)) ? new Date(v) : null);
+
 /** Проверочный платёж «Не могу войти»: его вебхуки — не оплата заказа. */
 export const CARD_CHECK_PURPOSE = 'recovery_card';
 
@@ -84,6 +99,33 @@ const printOf = (p: YooPayment): CardPrint | undefined => {
     ...(c.expiry_month && c.expiry_year ? { expiry: `${c.expiry_month}/${c.expiry_year}` } : {}),
   };
 };
+
+/**
+ * Чек 54-ФЗ к платежу. Обычный платёж — вся сумма, как раньше.
+ *
+ * «Безопасная сделка» (часть 123): деньги продавца проходят мимо выручки
+ * площадки — ЮKassa держит их на сделке и выплачивает продавцу, — поэтому
+ * чек площадки — только на её вознаграждение: платёж минус доля продавца
+ * (`settlements`). Чек на всю сумму записал бы в выручку площадки деньги
+ * продавца. Как именно ЮKassa принимает чек в сделке, сверить при
+ * подключении магазина: `YOOKASSA_DEAL_RECEIPT=full` вернёт чек на всю сумму.
+ */
+export function receiptFor(input: DepositInput, email: string) {
+  const fee = input.deal && process.env.YOOKASSA_DEAL_RECEIPT !== 'full' ? input.amount - input.deal.sellerAmount : null;
+  return {
+    customer: { email },
+    items: [
+      {
+        description: (fee !== null ? `Вознаграждение площадки: ${input.description}` : input.description).slice(0, 128),
+        quantity: '1.00',
+        amount: { value: toValue(fee ?? input.amount), currency: input.currency },
+        vat_code: Number(process.env.YOOKASSA_VAT_CODE ?? 1),
+        payment_subject: process.env.YOOKASSA_PAYMENT_SUBJECT ?? 'service',
+        payment_mode: 'full_payment',
+      },
+    ],
+  };
+}
 
 /**
  * ЮKassa — приём оплаты картой и через СБП. Платёж создаётся с переходом на
@@ -150,23 +192,7 @@ export class YooKassaProvider implements PaymentProvider {
             },
           }
         : {}),
-      ...(this.receipts && input.customerEmail
-        ? {
-            receipt: {
-              customer: { email: input.customerEmail },
-              items: [
-                {
-                  description: input.description.slice(0, 128),
-                  quantity: '1.00',
-                  amount: { value: toValue(input.amount), currency: input.currency },
-                  vat_code: Number(process.env.YOOKASSA_VAT_CODE ?? 1),
-                  payment_subject: process.env.YOOKASSA_PAYMENT_SUBJECT ?? 'service',
-                  payment_mode: 'full_payment',
-                },
-              ],
-            },
-          }
-        : {}),
+      ...(this.receipts && input.customerEmail ? { receipt: receiptFor(input, input.customerEmail) } : {}),
     };
     let res: Response;
     try {
@@ -335,6 +361,82 @@ export class YooKassaProvider implements PaymentProvider {
       throw new Error(`ЮKassa не приняла возврат (${res.status}): ${JSON.stringify(json).slice(0, 300)}`);
     }
     return { id: json.id };
+  }
+
+  /**
+   * Платежи за период — для сверки (часть 129): GET /payments по created_at,
+   * по 100 со страницы, пока есть next_cursor. Не больше maxPages страниц:
+   * больше — сверка скажет, что окно не прошла целиком.
+   */
+  async listPayments(from: Date, to: Date, maxPages = 50) {
+    return this.list('/payments', from, to, maxPages, (o) => {
+      const p = paymentSchema.safeParse(o);
+      if (!p.success) return null;
+      const amount = fromValue(p.data.amount.value);
+      return amount === null
+        ? null
+        : {
+            id: p.data.id,
+            status: p.data.status,
+            amount,
+            currency: p.data.amount.currency,
+            metadata: p.data.metadata ?? {},
+            createdAt: dateOf(p.data.created_at),
+          };
+    });
+  }
+
+  /** Возвраты за период — для сверки (часть 129): GET /refunds, как платежи. */
+  async listRefunds(from: Date, to: Date, maxPages = 50) {
+    return this.list('/refunds', from, to, maxPages, (o) => {
+      const r = refundSchema.safeParse(o);
+      if (!r.success) return null;
+      const amount = fromValue(r.data.amount.value);
+      return amount === null
+        ? null
+        : {
+            id: r.data.id,
+            paymentId: r.data.payment_id,
+            status: r.data.status,
+            amount,
+            currency: r.data.amount.currency,
+            createdAt: dateOf(r.data.created_at),
+          };
+    });
+  }
+
+  private async list<T>(
+    path: string,
+    from: Date,
+    to: Date,
+    maxPages: number,
+    parse: (o: unknown) => T | null,
+  ): Promise<{ items: T[]; complete: boolean }> {
+    const items: T[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < maxPages; page++) {
+      const q = new URLSearchParams({
+        'created_at.gte': from.toISOString(),
+        'created_at.lt': to.toISOString(),
+        limit: '100',
+        ...(cursor ? { cursor } : {}),
+      });
+      let res: Response;
+      try {
+        res = await fetch(`${this.api}${path}?${q}`, { headers: this.headers(), signal: AbortSignal.timeout(20_000) });
+      } catch (e) {
+        throw new Error(`ЮKassa недоступна: ${(e as Error).message}`);
+      }
+      const json = listSchema.safeParse(await res.json().catch(() => null));
+      if (!res.ok || !json.success) throw new Error(`ЮKassa не отдала список ${path} (${res.status})`);
+      for (const o of json.data.items) {
+        const item = parse(o);
+        if (item) items.push(item);
+      }
+      cursor = json.data.next_cursor ?? undefined;
+      if (!cursor) return { items, complete: true };
+    }
+    return { items, complete: false };
   }
 
   /** Отменить платёж в ожидании подтверждения — блокировка на карте снимается. */

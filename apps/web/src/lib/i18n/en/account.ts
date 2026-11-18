@@ -316,4 +316,9 @@ export const ACCOUNT: Record<string, string> = {
     'The link looks like https://steamcommunity.com/tradeoffer/new/?partner=…&token=…',
   'Для скинов и предметов Steam: подставим в заказ сами. Где взять: Steam → Инвентарь → Предложения обмена → «Кто может отправлять мне предложения».':
     'For Steam skins and items: we’ll fill it into orders for you. Where to find it: Steam → Inventory → Trade Offers → “Who can send me trade offers?”.',
+  'Мои данные': 'My data',
+  'Всё, что площадка знает о вас, одним файлом: профиль, согласия, входы, заказы, лоты, сообщения, отзывы, обращения и выплаты. Номера карт и кошельков в файл не попадают.':
+    'Everything the marketplace knows about you in one file: profile, consents, sign-ins, orders, lots, messages, reviews, support tickets and payouts. Card and wallet numbers are not included.',
+  'Готовим файл…': 'Preparing the file…',
+  'Скачать мои данные': 'Download my data',
 };

@@ -10,6 +10,7 @@ import { AccountStatusService } from '../access/account-status.service';
 import { PAYOUT_QUEUE_STATUSES, PayoutsService, REJECT_REASON_NEEDED, type CardToken } from './payouts.service';
 import { RateLimit } from '../../common/rate-limit';
 import { timeCursor } from '../../common/cursor';
+import { opsEvent } from '../ops/ops-signal';
 
 /** Очередь финансов: ?status (по умолчанию — ждут решения), ?q — ник, почта, номер у шлюза; дальше — ?cursor. */
 const queueSchema = z.object({
@@ -178,7 +179,12 @@ export class PayoutsController {
   @Post('webhook/yookassa')
   @HttpCode(200)
   @RateLimit('webhook', 1200, 60)
-  webhook(@Body() body: unknown) {
-    return this.payouts.webhook(body);
+  async webhook(@Body() body: unknown) {
+    try {
+      return await this.payouts.webhook(body);
+    } catch (e) {
+      opsEvent('webhook_failed');
+      throw e;
+    }
   }
 }

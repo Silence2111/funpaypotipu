@@ -5654,6 +5654,123 @@ async function scenarioSecurity(rnd) {
 }
 
 /**
+ * Сбои и аналитика (части 130–131) и «Скачать мои данные» (уточнение к
+ * 124): ошибки сайта и API собираются группами, правила тревог срабатывают,
+ * воронка считает первые шаги по дням, человек скачивает свои данные.
+ */
+async function scenarioOps(rnd) {
+  console.log('\n— Сбои, воронка запуска, выгрузка данных —');
+  const admin = await register('opa', rnd);
+  const fin = await register('opf', rnd);
+  const user = await register('opu', rnd);
+  await grant(admin, 'admin');
+  await grant(fin, 'finance');
+  const t0 = new Date();
+
+  // ── Ошибки: сайт и API ──
+  const ce = (n) =>
+    j('/ops/client-error', {
+      method: 'POST',
+      body: JSON.stringify({ message: `TypeError: e2e${rnd} order ${n} has no price`, path: '/lot/x', stack: 'TypeError\n    at Price (app.js:1:1)' }),
+    });
+  // Счётчики групп до: на общей базе такая группа могла остаться с прошлого прогона.
+  // Группа — по нормализованному тексту: цифры и id в нём заменены (и «e2e» — тоже).
+  const isWeb = (g) => g.source === 'web' && g.path === '/lot/x' && / order <n> has no price$/.test(g.title);
+  const isApi = (g) => g.source === 'api' && g.path === 'POST /api/ops/test-error' && /^e<n>e boom <id>$/.test(g.title);
+  const before = (await j('/admin/ops/errors', { token: admin.token })).body;
+  const was = (pick) => before.find(pick)?.count ?? 0;
+  const c1 = await ce(123);
+  const c2 = await ce(456);
+  const tooLong = await j('/ops/client-error', { method: 'POST', body: JSON.stringify({ message: 'x'.repeat(5000) }) });
+  // Тревоги прошлых прогонов не должны заглушить сегодняшние (не чаще раза в полчаса).
+  await prisma.opsAlert.deleteMany({ where: { key: { in: ['errors', 'webhooks', 'payments', 'payouts'] } } });
+  const booms = [];
+  for (let i = 0; i < 20; i++) booms.push((await j('/ops/test-error', { method: 'POST' })).status);
+  await wait(1200);
+  const groups = (await j('/admin/ops/errors', { token: admin.token })).body;
+  const web = groups.find(isWeb);
+  const api = groups.find(isApi);
+  const finErrors = await j('/admin/ops/errors', { token: fin.token });
+  check(
+    'Ошибки сайта и API — в сборе: одинаковые — одной группой со счётчиком, у ошибки API — адрес запроса; группы — только администратору',
+    c1.status === 204 && c2.status === 204 && tooLong.status === 400 && booms.every((st) => st === 500) &&
+      web?.count - was(isWeb) === 2 && api?.count - was(isApi) === 20 && api.path === 'POST /api/ops/test-error' &&
+      web.path === '/lot/x' && finErrors.status === 403,
+    JSON.stringify({ web: web && [web.count, web.path], api: api && [api.count, api.path], fin: finErrors.status }),
+  );
+
+  // ── Сигналы для тревог: вебхуки, оплаты подряд, зависшая выплата ──
+  for (let i = 0; i < 3; i++) {
+    await j('/payments/webhook/mock', { method: 'POST', body: JSON.stringify({ providerRef: `nope-${rnd}-${i}`, status: 'succeeded', signature: 'forged' }) });
+  }
+  for (let i = 0; i < 5; i++) {
+    const top = await j('/payments/topup', { method: 'POST', token: user.token, body: JSON.stringify({ amount: '50000', method: 'sbp' }) });
+    const ref = top.body.providerRef;
+    const signature = createHmac('sha256', process.env.MOCK_WEBHOOK_SECRET ?? 'dev-webhook-secret').update(`${ref}:failed`).digest('hex');
+    await j('/payments/webhook/mock', { method: 'POST', body: JSON.stringify({ providerRef: ref, status: 'failed', signature }) });
+  }
+  const stuck = await prisma.payout.create({
+    data: {
+      userId: user.id, amount: 30000n, currency: 'RUB', method: 'sbp', destinationEnc: 'e2e', status: 'processing',
+      externalId: `e2e-stuck-${rnd}`, createdAt: new Date(Date.now() - 4 * 3_600_000), updatedAt: new Date(Date.now() - 3 * 3_600_000),
+    },
+  });
+  await wait(1200);
+  const fired = await j('/admin/ops/check', { method: 'POST', token: admin.token });
+  const ov = (await j('/admin/ops', { token: fin.token })).body;
+  const fresh = new Set(ov.alerts.filter((a) => new Date(a.createdAt) >= t0).map((a) => a.key));
+  await prisma.payout.delete({ where: { id: stuck.id } });
+  check(
+    'Тревоги: всплеск ошибок, отказы вебхуков, пять неудачных оплат подряд, выплата «отправляется» дольше 2 ч; без Telegram — только в консоли',
+    fired.status === 200 && ['errors', 'webhooks', 'payments', 'payouts'].every((k) => fresh.has(k)) &&
+      fired.body.state.errors5m >= 20 && fired.body.state.webhookFailures15m >= 3 && fired.body.state.failedInRow >= 5 &&
+      fired.body.state.stuckPayouts >= 1 && ov.watch.telegram === false &&
+      ov.alerts.filter((a) => fresh.has(a.key) && new Date(a.createdAt) >= t0).every((a) => a.sent === false),
+    JSON.stringify({ fresh: [...fresh], state: fired.body.state }),
+  );
+  const again = await j('/admin/ops/check', { method: 'POST', token: admin.token });
+  check('Та же тревога сразу снова не шлётся', again.body.fired.length === 0, JSON.stringify(again.body.fired));
+
+  // ── Воронка запуска (часть 131) ──
+  const funnel = async () => (await j('/admin/funnel?days=1', { token: fin.token })).body;
+  const f0 = await funnel();
+  const s2 = await register('ops', rnd);
+  const b2 = await register('opb', rnd);
+  const game = (await j('/catalog/games/cs2')).body;
+  const skins = game.categories.find((c) => c.slug === 'skins');
+  const lot = await createListing(s2.token, 'skins', '120000');
+  const req = await j('/buy-requests', { method: 'POST', token: b2.token, body: JSON.stringify({ categoryId: skins.id, text: 'Куплю нож Karambit', maxPrice: 200000 }) });
+  const ord = await j('/orders', { method: 'POST', token: b2.token, body: JSON.stringify({ listingId: lot }) });
+  await pay(b2.token, ord.body.id);
+  await j(`/orders/${ord.body.id}/deliver`, { method: 'POST', token: s2.token });
+  await j(`/orders/${ord.body.id}/confirm`, { method: 'POST', token: b2.token });
+  const f1 = await funnel();
+  const d = (k) => f1.byDay[0][k] - f0.byDay[0][k];
+  const c = (k) => f1.cohort[k] - f0.cohort[k];
+  check(
+    'Воронка: за сегодня по Москве +2 регистрации, первый лот, первый запрос, первая оплата, первая сделка; когорта — так же',
+    req.status === 201 && ['firstLot', 'firstRequest', 'firstPaid', 'firstDeal'].every((k) => d(k) === 1 && c(k) === 1) &&
+      d('registered') === 2 && c('registered') === 2 && f1.days === 1 && f1.byDay.length === 1,
+    JSON.stringify({ day: f1.byDay[0], f0: f0.byDay[0], cohort: f1.cohort }),
+  );
+  check('Воронка — сотрудникам: покупателю 403', (await j('/admin/funnel', { token: b2.token })).status === 403);
+
+  // ── «Скачать мои данные» ──
+  const res = await fetch(`${API}/api/account/export`, { headers: { Authorization: `Bearer ${b2.token}` } });
+  const dump = await res.json();
+  const text = JSON.stringify(dump);
+  check(
+    'Мои данные одним файлом: профиль, согласие, заказ, запрос, платёж; без хеша пароля и реквизитов',
+    res.status === 200 && /attachment; filename="gamemarket-data-\d{4}-\d{2}-\d{2}\.json"/.test(res.headers.get('content-disposition') ?? '') &&
+      dump.account.email === `opb${rnd}@e2e.local` && dump.profile.username === `opb${rnd}` && dump.consents.length === 1 &&
+      dump.orders.asBuyer.length === 1 && dump.orders.asBuyer[0].status === 'completed' && dump.buyRequests[0]?.text === 'Куплю нож Karambit' &&
+      dump.payments.length === 1 && !text.includes('passwordHash') && !text.includes('$argon') && !text.includes('destinationEnc'),
+    JSON.stringify({ status: res.status, keys: Object.keys(dump) }),
+  );
+  check('Чужие данные без входа — 401', (await fetch(`${API}/api/account/export`)).status === 401);
+}
+
+/**
  * Оплата через ЮKassa. Платёжный провайдер выбирается при запуске API, а
  * остальные сценарии платят заглушкой, — поэтому здесь поднимается второй
  * API (порт 4100) с PAYMENT_PROVIDER=yookassa против тестового сервера
@@ -5662,8 +5779,21 @@ async function scenarioSecurity(rnd) {
  */
 async function scenarioYooKassa(rnd) {
   console.log('\n— Оплата через ЮKassa —');
+  const started = new Date();
   const base = 'http://localhost:4100';
   const yk = await startYooKassaMock('http://localhost:4998/v3', { shopId: 'e2e-shop', secretKey: 'e2e-secret' });
+  // Тревоги API (части 129–130) — в Telegram; здесь его подменяет приёмник сообщений.
+  const alertsSent = [];
+  const alertBot = createServer((req, res) => {
+    let raw = '';
+    req.on('data', (c) => (raw += c));
+    req.on('end', () => {
+      if (req.url === '/bote2e-alert/sendMessage') alertsSent.push(JSON.parse(raw || '{}'));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"ok":true}');
+    });
+  });
+  await new Promise((r) => alertBot.listen(4994, r));
   yk.notifyTo(`${base}/api/payments/webhook/yookassa`);
   yk.notifyPayoutsTo(`${base}/api/payouts/webhook/yookassa`);
   const child = spawn(process.execPath, [fileURLToPath(new URL('../dist/main.js', import.meta.url))], {
@@ -5682,6 +5812,13 @@ async function scenarioYooKassa(rnd) {
       PAYOUT_SWEEP_INTERVAL_MS: '3600000',
       WEB_URL: 'http://localhost:3000',
       ORDER_SWEEP_INTERVAL_MS: '3600000',
+      // Сверка (часть 129): только по кнопке, без часа запаса — платежи сценария свежие.
+      RECONCILE_AUTO: 'off',
+      RECONCILE_LAG_MIN: '0',
+      OPS_WATCH_MS: '3600000',
+      ALERT_BOT_TOKEN: 'e2e-alert',
+      ALERT_CHAT_ID: '42',
+      TELEGRAM_API_URL: 'http://localhost:4994',
       SKIP_DOTENV: '1',
     },
     stdio: ['ignore', 'ignore', 'pipe'],
@@ -5866,6 +6003,80 @@ async function scenarioYooKassa(rnd) {
     const manual = await approve(usdt.body.id);
     check('USDT — вручную: одобрение сразу «выплачено», в ЮKassa не уходит', manual.body.status === 'paid' && yk.payouts.size === 3);
 
+    // ── Сверка с ЮKassa (часть 129) ──
+    const opsGet = () => k('/admin/ops', { token: fin.token });
+    const reconcile = () => k('/admin/ops/reconcile', { method: 'POST', token: fin.token, body: JSON.stringify({ hours: 2 }) });
+    check('Сверка — только финансам и администратору', (await k('/admin/ops', { token: seller.token })).status === 403);
+    // Платежи и выплаты прошлых прогонов на этой базе — за окном сверки: их тестовый ЮKassa уже не помнит.
+    const aged = new Date(Date.now() - 3 * 86_400_000);
+    await prisma.payment.updateMany({ where: { provider: 'yookassa', createdAt: { lt: started } }, data: { createdAt: aged, updatedAt: aged } });
+    await prisma.payout.updateMany({ where: { externalId: { not: null }, createdAt: { lt: started } }, data: { updatedAt: aged } });
+    // Тревога о сверке с прошлого прогона не должна заглушить сегодняшнюю (не чаще раза в полчаса).
+    await prisma.opsAlert.deleteMany({ where: { key: 'reconcile' } });
+    // Возврат на карту по оплаченному заказу (часть 137) — у ЮKassa появляется возврат, сверка с ним сходится.
+    const o5 = await order();
+    const dep5 = await deposit(o5.id, 'card');
+    await yk.settle(atYk(dep5.body.providerRef).id, 'succeeded');
+    const back5 = await k(`/payments/orders/${o5.id}/cancel-to-original`, { method: 'POST', token: buyer.token });
+    const p5 = atYk(dep5.body.providerRef);
+    const rf5 = [...yk.refunds.values()].find((r) => r.payment_id === p5.id);
+    const run1 = await reconcile();
+    const ov1 = (await opsGet()).body;
+    // Расхождения этих прогонов: на общей базе могут лежать и с прошлых.
+    const ours = (list, runs) => list.filter((i) => runs.includes(i.firstRunId));
+    const open1 = ours(ov1.reconciliation.issues, [run1.body.id]);
+    const p2row = await prisma.payment.findUnique({ where: { providerRef: dep2.body.providerRef } });
+    check(
+      'Сверка находит оплату, которую ЮKassa приняла, а мы не провели (подменённая сумма), — и только её; возврат на карту сходится',
+      back5.status === 201 && rf5?.amount.value === p5.amount.value && run1.status === 200 && run1.body.status === 'issues' &&
+        run1.body.newIssues === 1 && open1.length === 1 && open1[0].kind === 'not_credited' && open1[0].ourId === p2row.id &&
+        open1[0].theirs.amount === '100' && run1.body.checked.payouts >= 3,
+      JSON.stringify({ back: back5.status, run: run1.body, issues: open1.map((i) => [i.kind, i.ours, i.theirs]) }),
+    );
+    for (let i = 0; i < 20 && !alertsSent.length; i++) await wait(100);
+    check(
+      'Новое расхождение — тревога в Telegram с числом и видом',
+      alertsSent.length === 1 && alertsSent[0].chat_id === '42' && /Сверка с ЮKassa: новых расхождений — 1/.test(alertsSent[0].text) &&
+        ov1.alerts[0]?.key === 'reconcile' && ov1.alerts[0].sent === true,
+      JSON.stringify(alertsSent),
+    );
+    // Портим данные шлюза: сумма пополнения, «потерянный» платёж, чужой возврат, выплата отменена.
+    const o4 = await order();
+    const dep4 = await deposit(o4.id, 'card');
+    const p4 = atYk(dep4.body.providerRef);
+    await yk.settle(p4.id, 'succeeded');
+    yk.payments.delete(p4.id);
+    yk.payments.get(pt.id).amount.value = '499.00';
+    const strange = { id: `rf-e2e${rnd}`, payment_id: p1.id, status: 'succeeded', amount: { value: '10.00', currency: 'RUB' }, created_at: new Date().toISOString() };
+    yk.refunds.set(strange.id, strange);
+    yk.payouts.get(po.id).status = 'canceled';
+    const run2 = await reconcile();
+    const issues2 = ours((await opsGet()).body.reconciliation.issues, [run1.body.id, run2.body.id]);
+    const kinds2 = issues2.map((i) => i.kind).sort().join(',');
+    check(
+      'Подменённая сумма, потерянный платёж, чужой возврат и отменённая у ЮKassa выплата — новые расхождения; старое не задвоилось',
+      run2.body.newIssues === 4 && kinds2 === 'amount_mismatch,not_credited,ours_only,payout_mismatch,refund_unknown' &&
+        issues2.find((i) => i.kind === 'refund_unknown')?.externalId === strange.id &&
+        issues2.find((i) => i.kind === 'payout_mismatch')?.ourId === sbp.body.id,
+      JSON.stringify({ run: run2.body.newIssues, kinds2 }),
+    );
+    check('Повторная тревога о сверке — не чаще раза в полчаса', alertsSent.length === 1, String(alertsSent.length));
+    const target = issues2.find((i) => i.kind === 'amount_mismatch');
+    const noNote = await k(`/admin/ops/issues/${target.id}/resolve`, { method: 'POST', token: fin.token, body: JSON.stringify({ note: '' }) });
+    const resolved = await k(`/admin/ops/issues/${target.id}/resolve`, {
+      method: 'POST', token: fin.token, body: JSON.stringify({ note: 'Сумму поправили у ЮKassa' }),
+    });
+    const run3 = await reconcile();
+    const ov3 = (await opsGet()).body.reconciliation;
+    const open3 = ours(ov3.issues, [run1.body.id, run2.body.id]);
+    const logged = await prisma.auditLog.findFirst({ where: { action: 'reconcile.resolve', entityId: target.id } });
+    check(
+      'Закрыть расхождение — только с пометкой, в журнале; повторный прогон его не открывает и не дублирует',
+      noNote.status === 400 && resolved.status === 200 && run3.body.newIssues === 0 && open3.length === 4 &&
+        !ov3.issues.some((i) => i.id === target.id) && logged?.after?.note === 'Сумму поправили у ЮKassa' && ov3.runs.length >= 3,
+      JSON.stringify({ noNote: noNote.status, resolved: resolved.status, run3: run3.body.newIssues, open: open3.length }),
+    );
+
     // ── «Не могу войти» по карте: 1 ₽ блокируется и снимается ──
     const cardRow = await prisma.payment.findUnique({ where: { providerRef: dep.body.providerRef } });
     check(
@@ -5929,9 +6140,11 @@ async function scenarioYooKassa(rnd) {
         moved?.email === `ykbnew${rnd}@e2e.local` && cardLog?.after?.proof === 'card',
       JSON.stringify({ card: cardDetail.card, blocker: cardDetail.contact?.blocker, early: earlyCard.status, byCard: byCard.status, email: moved?.email, proof: cardLog?.after?.proof }),
     );
+
   } finally {
     child.kill();
     yk.close();
+    alertBot.close();
   }
 }
 
@@ -6231,6 +6444,7 @@ async function scenarioTelegramBot(rnd) {
   await scenarioSecurity(rnd);
   await scenarioYooKassa(rnd);
   await scenarioTelegramBot(rnd);
+  await scenarioOps(rnd);
   // В конце: поиск по нику находит всех, кого зарегистрировал этот прогон.
   await scenarioConsoleLists(rnd);
   // Последним: 588 лотов в «Аккаунтах» не должны мешать подсчётам других сценариев.

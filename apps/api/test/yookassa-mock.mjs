@@ -10,6 +10,10 @@
  * POST /v3/payments/<id>/cancel.
  * Выплаты — свои ключи агента, телефон и банк СБП, кошелёк ЮMoney, карта
  * токеном из виджета; итог — mock.settlePayout(id, 'succeeded' | 'canceled').
+ * Возвраты — POST /v3/refunds по оплаченному платежу (сразу succeeded).
+ * Списки для сверки (часть 129) — GET /v3/payments и GET /v3/refunds по
+ * created_at.gte/lt, limit и next_cursor, свежие первыми, как у ЮKassa;
+ * сценарий «портит» данные шлюза прямо в payments, refunds и payouts.
  * Виджет карты — /payouts-data/widget.js: тот же класс PayoutsData, что у
  * ЮKassa, но с простым полем номера; в e2e карту превращает в токен
  * mock.tokenizeCard(номер).
@@ -74,6 +78,7 @@ export function startYooKassaMock(
 ) {
   const payments = new Map();
   const payouts = new Map();
+  const refunds = new Map();
   const cards = new Map();
   const byKey = new Map();
   const origin = new URL(base).origin;
@@ -169,6 +174,64 @@ export function startYooKassaMock(
       body: JSON.stringify({ type: 'notification', event: `payout.${status}`, object: p }),
     });
     return { status: res.status, body: await res.json().catch(() => null) };
+  }
+
+  /** Список как у ЮKassa: фильтр по created_at, свежие первыми, страница и курсор. */
+  function listOf(map, url) {
+    const gte = url.searchParams.get('created_at.gte');
+    const lt = url.searchParams.get('created_at.lt');
+    const limit = Math.min(Number(url.searchParams.get('limit') ?? 10), 100);
+    const from = Number(url.searchParams.get('cursor') ?? 0);
+    const all = [...map.values()]
+      .filter((o) => (!gte || o.created_at >= gte) && (!lt || o.created_at < lt))
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    const items = all.slice(from, from + limit);
+    return {
+      type: 'list',
+      items,
+      ...(from + limit < all.length ? { next_cursor: String(from + limit) } : {}),
+    };
+  }
+
+  /** Возврат: по оплаченному платежу, на сумму не больше платежа; ключ идемпотентности. */
+  async function refundsApi(req, res, parts, url) {
+    if (req.method === 'GET' && parts.length === 2) return send(res, 200, listOf(refunds, url));
+    if (req.method === 'GET' && parts.length === 3) {
+      const r = refunds.get(parts[2]);
+      return r ? send(res, 200, r) : send(res, 404, { type: 'error', code: 'not_found' });
+    }
+    if (req.method !== 'POST' || parts.length !== 2)
+      return send(res, 405, { type: 'error', code: 'method_not_allowed' });
+    const key = req.headers['idempotence-key'];
+    if (!key)
+      return send(res, 400, {
+        type: 'error',
+        code: 'invalid_request',
+        parameter: 'Idempotence-Key',
+      });
+    if (byKey.has(`rf:${key}`)) return send(res, 200, refunds.get(byKey.get(`rf:${key}`)));
+    const body = await json(req);
+    const p = payments.get(body?.payment_id);
+    if (
+      !p ||
+      p.status !== 'succeeded' ||
+      !/^\d+\.\d{2}$/.test(body.amount?.value ?? '') ||
+      Number(body.amount.value) > Number(p.amount.value)
+    ) {
+      return send(res, 400, { type: 'error', code: 'invalid_request' });
+    }
+    const id = `rf-${randomBytes(8).toString('hex')}`;
+    const refund = {
+      id,
+      payment_id: p.id,
+      status: 'succeeded',
+      amount: body.amount,
+      description: body.description,
+      created_at: new Date().toISOString(),
+    };
+    refunds.set(id, refund);
+    byKey.set(`rf:${key}`, id);
+    return send(res, 200, refund);
   }
 
   /** Выплаты: свои ключи агента, получатель — СБП (телефон и банк) или ЮMoney. */
@@ -269,10 +332,12 @@ export function startYooKassaMock(
 
     if (parts[0] === 'v3' && (parts[1] === 'payouts' || parts[1] === 'sbp_banks'))
       return payoutsApi(req, res, parts);
-    if (parts[0] !== 'v3' || parts[1] !== 'payments')
+    if (parts[0] !== 'v3' || (parts[1] !== 'payments' && parts[1] !== 'refunds'))
       return send(res, 404, { type: 'error', code: 'not_found' });
     if (req.headers.authorization !== auth)
       return send(res, 401, { type: 'error', code: 'invalid_credentials' });
+    if (parts[1] === 'refunds') return refundsApi(req, res, parts, url);
+    if (req.method === 'GET' && parts.length === 2) return send(res, 200, listOf(payments, url));
 
     if (req.method === 'POST' && parts.length === 2) {
       const key = req.headers['idempotence-key'];
@@ -346,6 +411,7 @@ export function startYooKassaMock(
       resolve({
         payments,
         payouts,
+        refunds,
         settle,
         settlePayout,
         tokenizeCard,

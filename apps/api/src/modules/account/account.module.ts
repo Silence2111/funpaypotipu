@@ -5,10 +5,11 @@ import { AccountController } from './account.controller';
 import { AccountService } from './account.service';
 import { ConsentService } from './consent.service';
 import { DeletionService } from './deletion.service';
+import { ExportService } from './export.service';
 
 @Module({
   imports: [AuthModule, RetentionModule],
   controllers: [AccountController],
-  providers: [AccountService, ConsentService, DeletionService],
+  providers: [ExportService, AccountService, ConsentService, DeletionService],
 })
 export class AccountModule {}

@@ -1,5 +1,21 @@
 # GameMarket
 
+## В начале каждой сессии — свежий `main`
+
+Часть работы идёт в облачных сессиях Claude и вливается в `main` через PR,
+поэтому копия на маке может отставать от GitHub. До чтения TODO и любых
+правок:
+
+1. `git fetch origin` и сравнить свою ветку с `origin/main`.
+2. На `main` без своих правок — `git pull`. На ветке с незавершённой
+   работой — не переключаться и ничего не терять: `git merge origin/main`
+   в неё. Незакоммиченное — сначала закоммитить или `git stash`.
+3. Если пришли новые миграции (`packages/db/prisma/migrations`) или
+   поменялся `pnpm-lock.yaml`: `pnpm install`, `pnpm db:generate`,
+   `pnpm --filter @gamemarket/db migrate:deploy`. Не `pnpm db:migrate` —
+   это `prisma migrate dev`, он может предложить сбросить базу.
+4. Новые ветки — только от свежего `main`.
+
 <!-- todo-blok: начало — ставит _система/todo.py --postavit, правь там -->
 ## TODO проекта
 
