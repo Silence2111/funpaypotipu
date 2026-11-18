@@ -20,13 +20,17 @@ export function coverAmount(title: string): string | null {
 
 /** Крупная надпись обложки без количества — начало названия: «AWP Asiimov», «Перчатки Hydra» (у Playerok обложки разные). */
 export function coverWords(title: string): string {
+  // служебные слова не считаем и на них не обрываем: «Ключ от кейса», а не «Ключ от»
+  const STOP = new Set(['от', 'для', 'на', 'и', 'в', 'по', 'с', 'за', 'из', 'через', 'без', 'к', 'of', 'for', 'the', 'to', 'on', 'via']); // i18n-ignore
   const words = title.replace(/[^\p{L}\p{N}\s\-.]/gu, ' ').trim().split(/\s+/).filter(Boolean);
   const out: string[] = [];
+  let content = 0;
   for (const w of words) {
-    if (out.length && (out.join(' ') + ' ' + w).length > 18) break;
+    if (content >= 2 || (out.length && (out.join(' ') + ' ' + w).length > 22)) break;
     out.push(w);
-    if (out.length >= 2) break;
+    if (!STOP.has(w.toLowerCase())) content++;
   }
+  while (out.length > 1 && STOP.has(out[out.length - 1].toLowerCase())) out.pop();
   return out.join(' ');
 }
 

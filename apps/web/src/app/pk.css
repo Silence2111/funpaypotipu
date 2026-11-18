@@ -352,3 +352,8 @@ body { background:
 }
 
 .sell-pk .move-lots, .sell-pk > .card { background: var(--plate); border: 0; box-shadow: none; border-radius: 28px; }
+
+/* ── Профиль продавца: шапка и отзывы на серых плитах, товары сеткой (Playerok) ── */
+.profile-head, .profile-card { background: var(--plate); border: 0 !important; box-shadow: none !important; border-radius: 28px; }
+.profile-breakdown { background: var(--plate); border-radius: 22px; padding: 16px 18px; }
+.review-card, .reviews-list .card { background: var(--plate) !important; border: 0 !important; box-shadow: none !important; border-radius: 20px !important; }

@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ShieldCheck, Star } from 'lucide-react';
 import { isDemoSeller } from '@gamemarket/shared';
-import { getSeller, browseListings, getCategoryAttributes, type ListingCard } from '@/lib/api';
+import { getSeller, browseListings, type ListingCard } from '@/lib/api';
 import { presenceText, replyWhen, sinceText } from '@/lib/presence';
 import { offersCount } from '@/lib/format';
-import { Avatar, OfferTable } from '@/components/offers';
+import { Avatar } from '@/components/offers';
+import { LotCard } from '@/components/lot-card';
 import { SellerReviews } from '@/components/seller-reviews';
 import { reviewsCount } from '@/components/seller-card';
 import { ReportButton } from '@/components/report-button';
@@ -57,9 +57,6 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
   const items = browse?.items ?? [];
   const total = browse?.total ?? items.length;
   const groups = groupBySection(items);
-  const attrs = await Promise.all(
-    groups.map((g) => (g.section.id ? getCategoryAttributes(g.section.id) : Promise.resolve(null))),
-  );
   const seen = presenceText(seller.onlineAt, Date.now(), t);
 
   return (
@@ -175,19 +172,14 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
               : t('Сейчас у продавца нет активных предложений.')}
           {total > items.length ? ` · ${t('показаны первые {n}', { n: items.length })}` : ''}
         </p>
-        {groups.map((g, i) => (
-          <div key={g.key} className="profile-group">
-            <div className="row" style={{ gap: 8, marginBottom: 10 }}>
-              <Link href={`/igra/${g.game.slug}/${g.section.slug}`} className="profile-group-title">
-                {t.d(g.game.title)} · {t.d(g.section.title)}
-              </Link>
-              <span className="faint" style={{ fontSize: 14 }}>
-                {g.items.length}
-              </span>
-            </div>
-            <OfferTable items={g.items} attributes={attrs[i] ?? []} hideSeller t={t} />
+        {/* Одна сетка карточек, как товары в профиле Playerok (были таблицы по разделам) */}
+        {items.length > 0 && (
+          <div className="gm-lots">
+            {groups.flatMap((g) => g.items).map((l) => (
+              <LotCard key={l.id} l={l} t={t} />
+            ))}
           </div>
-        ))}
+        )}
       </section>
 
       <section id="reviews" style={{ marginTop: 40, scrollMarginTop: 80 }} aria-labelledby="reviews-title">
