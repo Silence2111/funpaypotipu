@@ -5656,12 +5656,13 @@ a.my-lot-title:hover {
 }
 
 /* Раздел игры: фильтры, поиск и сортировка одним рядом на широком экране */
+/* Только раздел игры: в каталоге сортировка кнопками, ей нужен перенос строки */
 @media (min-width: 1100px) {
-  .filters { flex-wrap: nowrap; }
-  .filters-inline { flex: 0 0 auto; flex-wrap: nowrap; }
-  .filters-side { flex: 1 1 0; min-width: 0; flex-wrap: nowrap; }
-  .filter-search { flex: 1 1 auto; min-width: 150px; max-width: none; }
-  .filters .chip, .filters .filter-select { white-space: nowrap; }
+  .section-filters-row .filters { flex-wrap: nowrap; }
+  .section-filters-row .filters-inline { flex: 0 0 auto; flex-wrap: nowrap; }
+  .section-filters-row .filters-side { flex: 1 1 0; min-width: 0; flex-wrap: nowrap; }
+  .section-filters-row .filter-search { flex: 1 1 auto; min-width: 150px; max-width: none; }
+  .section-filters-row .filters .chip, .section-filters-row .filters .filter-select { white-space: nowrap; }
 }
 /* «Не нашли нужное?» — тихая строка под списком */
 .save-search-row--after { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 16px; }

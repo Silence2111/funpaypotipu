@@ -188,17 +188,15 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
                 {t('Цена снижена')}
               </Link>
             </div>
+            {/* Сортировка списком, как в разделе игры: пять кнопок переносились во второй ряд
+                и спорили с фильтрами. Пустое значение — «Сначала поднятые». */}
             <div className="filters-group filters-side">
-              {SORTS.map(([v, label]) => (
-                <Link
-                  key={v}
-                  href={qs({ sort: v === 'new' ? undefined : v })}
-                  className="chip"
-                  aria-current={sort === v ? 'page' : undefined}
-                >
-                  {t(label)}
-                </Link>
-              ))}
+              <ParamSelect
+                name="sort"
+                label={t(SORTS[0]![1])}
+                value={sort === 'new' ? undefined : sort}
+                options={SORTS.slice(1).map(([v, label]): [string, string] => [v, t(label)])}
+              />
             </div>
           </div>
 
