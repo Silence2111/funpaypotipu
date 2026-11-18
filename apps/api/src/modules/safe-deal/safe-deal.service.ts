@@ -97,7 +97,7 @@ export class SafeDealService {
   /** Способ оплаты подходит сделке? Иначе — 400 с объяснением. */
   assertMethod(method: string) {
     if (!(SAFE_DEAL_PAY_METHODS as readonly string[]).includes(method)) {
-      throw new BadRequestException('В «Безопасной сделке» оплата — только картой: СБП ЮKassa в сделке не принимает');
+      throw new BadRequestException('В «Безопасной сделке» оплата только картой: СБП ЮKassa в сделке не принимает');
     }
   }
 

@@ -88,7 +88,7 @@ describe('пароль изменён', () => {
     });
     // Ссылки сброса нет в данных уведомления: их видит тот, кто сейчас в аккаунте.
     expect(JSON.stringify(payload)).not.toMatch(/token|reset/);
-    expect(opts.mail.action).toBe('Это не я — восстановить доступ');
+    expect(opts.mail.action).toBe('Это не я, восстановить доступ');
     expect(notMeToken()).toBeTruthy();
   });
 
@@ -171,7 +171,7 @@ describe('письмо уведомления', () => {
       { device: 'Chrome · Windows', preview: 'Password changed: Chrome · Windows, IP 1.2.3.4.' },
       {
         mail: {
-          action: 'Это не я — восстановить доступ',
+          action: 'Это не я, восстановить доступ',
           link: 'https://gm.test/reset?token=t&not_me=1',
         },
       },

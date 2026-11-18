@@ -161,7 +161,7 @@ export class SavedSearchesService {
     if (!category?.gameId) throw new NotFoundException('Раздел не найден');
     const count = await this.prisma.savedSearch.count({ where: { userId } });
     if (count >= MAX_SAVED_SEARCHES) {
-      throw new BadRequestException(`Не больше ${MAX_SAVED_SEARCHES} поисков — удалите ненужные`);
+      throw new BadRequestException(`Не больше ${MAX_SAVED_SEARCHES} поисков. Удалите ненужные`);
     }
     const attrs = await this.checkAttrs(input.categoryId, input.attrs);
     const q = input.q?.trim() || null;
@@ -313,7 +313,7 @@ export class SavedSearchesService {
     const price = `${(Number(first.price) / 100).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU')} ₽`;
     const preview =
       found.length > 1
-        ? say(lang, '«{title}» — {price} и ещё {n}', {
+        ? say(lang, '«{title}»: {price} и ещё {n}', {
             title: first.title,
             price,
             n: found.length - 1,

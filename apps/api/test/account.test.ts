@@ -32,7 +32,7 @@ describe('чёрный список', () => {
 
   it('свой чёрный список тоже действует — с подсказкой, как его снять', async () => {
     const { svc } = blocksWith([{ blockerId: 'buyer' }]);
-    await expect(svc.assertCanContact('buyer', 'seller', 'message')).rejects.toThrow(/уберите его оттуда/);
+    await expect(svc.assertCanContact('buyer', 'seller', 'message')).rejects.toThrow(/Уберите его оттуда/);
   });
 
   it('себя и сотрудника площадки не добавить', async () => {

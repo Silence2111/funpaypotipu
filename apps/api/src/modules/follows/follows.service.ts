@@ -170,7 +170,7 @@ export class FollowsService {
     if (!existing) {
       const count = await this.prisma.sellerFollow.count({ where: { userId } });
       if (count >= MAX_FOLLOWS) {
-        throw new BadRequestException(`Не больше ${MAX_FOLLOWS} подписок — отпишитесь от ненужных`);
+        throw new BadRequestException(`Не больше ${MAX_FOLLOWS} подписок. Отпишитесь от ненужных`);
       }
       await this.prisma.sellerFollow.createMany({
         data: [{ userId, sellerId }],
@@ -365,10 +365,10 @@ export class FollowsService {
     const more = lots.length > 1;
     const text = sale
       ? more
-        ? say(lang, '«{title}» — {price} вместо {old} и ещё {n}', vars)
-        : say(lang, '«{title}» — {price} вместо {old}', vars)
+        ? say(lang, '«{title}»: {price} вместо {old} и ещё {n}', vars)
+        : say(lang, '«{title}»: {price} вместо {old}', vars)
       : more
-        ? say(lang, '«{title}» — {price} и ещё {n}', vars)
+        ? say(lang, '«{title}»: {price} и ещё {n}', vars)
         : say(lang, '«{title}» — {price}', vars);
     return {
       sellerId,

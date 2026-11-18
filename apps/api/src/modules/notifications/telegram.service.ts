@@ -215,7 +215,7 @@ export class TelegramService {
     if (cmd === '/start' && arg) return this.link(chatId, arg, owner?.id ?? null, lang);
     if (cmd === '/stop') {
       await this.prisma.user.updateMany({ where: { telegramId: chatId }, data: { telegramId: null } });
-      await this.send(chatId, say(lang, 'Уведомления отключены. Подключить снова — в настройках профиля на сайте.'));
+      await this.send(chatId, say(lang, 'Уведомления отключены. Подключить снова можно в настройках профиля на сайте.'));
       return;
     }
     await this.send(
@@ -252,7 +252,7 @@ export class TelegramService {
     if (!holder) {
       await this.send(
         chatId,
-        say(lang, 'Этот Telegram не подключён к аккаунту GameMarket. Подключить — в настройках на сайте.'),
+        say(lang, 'Этот Telegram не подключён к аккаунту GameMarket. Подключить его можно в настройках на сайте.'),
       );
       return;
     }
@@ -273,7 +273,7 @@ export class TelegramService {
     const conversationId = await this.threadOf(chatId, messageId, holder.id);
     if (!conversationId) return false;
     if (!text?.trim()) {
-      await this.send(chatId, say(lang, 'Отправить можно только текст: фото и файлы — в чате на сайте.'));
+      await this.send(chatId, say(lang, 'Отправить можно только текст. Фото и файлы отправляйте в чате на сайте.'));
       return true;
     }
     if (!this.actions) return false;
@@ -324,7 +324,7 @@ export class TelegramService {
         chatId,
         say(
           lang,
-          'Этот Telegram уже подключён к другому аккаунту GameMarket. Отключите его там — командой /stop или в настройках.',
+          'Этот Telegram уже подключён к другому аккаунту GameMarket. Отключите его там командой /stop или в настройках.',
         ),
       );
       return;
@@ -339,7 +339,7 @@ export class TelegramService {
       chatId,
       say(
         langOf(user.locale),
-        'Готово: уведомления GameMarket будут приходить сюда. Отключить — командой /stop или в настройках на сайте.',
+        'Готово: уведомления GameMarket будут приходить сюда. Отключить можно командой /stop или в настройках на сайте.',
       ),
     );
   }

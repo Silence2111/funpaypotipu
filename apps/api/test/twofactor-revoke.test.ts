@@ -94,7 +94,7 @@ describe('вход с кодом включён — «Это не я»', () => {
       preview: expect.stringMatching(/^Вход с кодом из приложения включён: Chrome · Windows/),
     });
     expect(JSON.stringify(payload)).not.toMatch(/token|recover/);
-    expect(opts.mail.action).toBe('Это не я — выключить вход с кодом');
+    expect(opts.mail.action).toBe('Это не я, выключить вход с кодом');
     expect(state.tf!.passwordHashAtEnable).toBe(state.user.passwordHash);
   });
 

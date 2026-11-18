@@ -47,7 +47,7 @@ const listingsQuery = z.object({
 const listingPatch = z
   .object({
     // Копейки строкой, как в остальном API: 49000 — это 490 ₽.
-    price: z.string().regex(/^\d{1,12}$/, 'Цена — целое число копеек, например 49000').optional(),
+    price: z.string().regex(/^\d{1,12}$/, 'Цена должна быть целым числом копеек, например 49000').optional(),
     stock: z.number().int().min(0).max(1_000_000).nullable().optional(),
     status: z.enum(['active', 'paused']).optional(),
   })
@@ -227,7 +227,7 @@ export class SellerApiController {
   }
 }
 
-const keyBody = z.object({ name: z.string().trim().min(1, 'Назовите ключ — например, «бот склада»').max(60) });
+const keyBody = z.object({ name: z.string().trim().min(1, 'Назовите ключ, например «бот склада»').max(60) });
 const webhookBody = z.object({ url: z.string().trim().min(8).max(500) });
 
 /** Ключи, вебхук и журнал API — в кабинете продавца (вход на сайт, не ключ). */

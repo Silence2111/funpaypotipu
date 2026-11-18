@@ -97,13 +97,13 @@ export class GameChatService {
     if (!user) throw new NotFoundException('Пользователь не найден');
     const muted = user.profile?.chatMutedUntil;
     if (muted && muted > new Date()) {
-      throw chatError(403, 'chat_muted', 'Модератор запретил вам писать в чат игр. Причина и срок — ниже.', {
+      throw chatError(403, 'chat_muted', 'Модератор запретил вам писать в чат игр. Причина и срок ниже.', {
         until: muted,
         reason: user.profile?.chatMuteReason ?? null,
       });
     }
     const text = raw.trim().replace(/\s{3,}/g, '  ');
-    if (isShouting(text)) throw new BadRequestException('Не пишите заглавными — так сообщение похоже на спам');
+    if (isShouting(text)) throw new BadRequestException('Не пишите заглавными, так сообщение похоже на спам');
 
     const deals = await this.prisma.order.count({
       where: { status: 'completed', OR: [{ buyerId: userId }, { sellerId: userId }] },
@@ -118,7 +118,7 @@ export class GameChatService {
     const pause = newbie ? GAME_CHAT_NEWBIE_COOLDOWN_SEC : GAME_CHAT_COOLDOWN_SEC;
     const wait = last ? Math.ceil(pause - (Date.now() - last.createdAt.getTime()) / 1000) : 0;
     if (wait > 0) {
-      throw chatError(429, 'chat_cooldown', `Следующее сообщение — через ${wait} с.`, { retryAfter: wait });
+      throw chatError(429, 'chat_cooldown', `Следующее сообщение через ${wait} с.`, { retryAfter: wait });
     }
     if (newbie) {
       const today = await this.prisma.gameChatMessage.count({
@@ -128,7 +128,7 @@ export class GameChatService {
         throw chatError(
           429,
           'chat_newbie_limit',
-          `Новым аккаунтам — до ${GAME_CHAT_NEWBIE_PER_DAY} сообщений в чатах игр за сутки. Ограничение снимется после первой сделки или через 3 дня.`,
+          `Новые аккаунты пишут до ${GAME_CHAT_NEWBIE_PER_DAY} сообщений в чатах игр за сутки. Ограничение снимется после первой сделки или через 3 дня.`,
         );
       }
     }
@@ -139,7 +139,7 @@ export class GameChatService {
       take: 1,
     });
     if (repeat) {
-      throw chatError(429, 'chat_repeat', `Это сообщение уже было — повторить можно через ${GAME_CHAT_REPEAT_MIN} минут.`);
+      throw chatError(429, 'chat_repeat', `Это сообщение уже было. Повторить можно через ${GAME_CHAT_REPEAT_MIN} минут.`);
     }
 
     const { masked, flagged } = maskContacts(text);

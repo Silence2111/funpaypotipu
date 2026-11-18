@@ -86,7 +86,7 @@ export class BuyRequestsService {
       }),
     ]);
     if (open >= MAX_OPEN_BUY_REQUESTS) {
-      throw new BadRequestException(`Не больше ${MAX_OPEN_BUY_REQUESTS} открытых запросов — закройте найденные`);
+      throw new BadRequestException(`Не больше ${MAX_OPEN_BUY_REQUESTS} открытых запросов. Закройте найденные`);
     }
     if (today >= MAX_BUY_REQUESTS_PER_DAY) {
       throw new BadRequestException(`Не больше ${MAX_BUY_REQUESTS_PER_DAY} запросов в сутки`);
@@ -338,10 +338,10 @@ export class BuyRequestsService {
     });
     if (!listing) throw new NotFoundException('Лот не найден');
     if (listing.status !== 'active') throw new BadRequestException('Предложить можно только лот в продаже');
-    if (listing.categoryId !== r.categoryId) throw new BadRequestException('Лот — из другого раздела');
+    if (listing.categoryId !== r.categoryId) throw new BadRequestException('Лот из другого раздела');
     const mine = await this.prisma.buyRequestOffer.count({ where: { requestId, sellerId: userId } });
     if (mine >= MAX_OFFERS_PER_SELLER) {
-      throw new BadRequestException(`На один запрос — не больше ${MAX_OFFERS_PER_SELLER} лотов`);
+      throw new BadRequestException(`На один запрос не больше ${MAX_OFFERS_PER_SELLER} лотов`);
     }
     try {
       await this.prisma.buyRequestOffer.create({ data: { requestId, sellerId: userId, listingId } });
@@ -357,7 +357,7 @@ export class BuyRequestsService {
     await this.notifications.notify(r.buyerId, 'buy_request_offer', {
       requestId,
       listingId,
-      preview: say(lang, '«{title}» — {price}, продавец {seller}', {
+      preview: say(lang, '«{title}»: {price}, продавец {seller}', {
         title: listing.title,
         price: rub(lang, listing.price),
         seller: seller?.username ?? '',
@@ -444,7 +444,7 @@ export class BuyRequestsService {
           requestId: id,
           preview:
             r.maxPrice != null
-              ? say(lang, '{where}: «{text}» — до {price}', { where, text: r.text, price: rub(lang, r.maxPrice) })
+              ? say(lang, '{where}: «{text}», до {price}', { where, text: r.text, price: rub(lang, r.maxPrice) })
               : say(lang, '{where}: «{text}»', { where, text: r.text }),
         });
         sent++;

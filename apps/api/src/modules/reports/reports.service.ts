@@ -257,7 +257,7 @@ export class ReportsService {
   /** Последние `days` дней по Москве, включая сегодня. */
   platformPeriod(days: number): Period {
     if (!Number.isInteger(days) || days < 1 || days > 366) {
-      throw new BadRequestException('Период — от 1 до 366 дней');
+      throw new BadRequestException('Период от 1 до 366 дней');
     }
     const now = new Date();
     return this.period(mskDay(new Date(now.getTime() - (days - 1) * DAY_MS)), mskDay(now));

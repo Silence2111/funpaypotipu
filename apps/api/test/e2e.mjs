@@ -1355,7 +1355,7 @@ async function scenarioAntifraud(rnd) {
   const bad = await j('/admin/antifraud', { method: 'PUT', ...A, body: JSON.stringify({ ...set.body, paymentsPerHour: 1 }) });
   check(
     'Лимиты в консоли: администратор сохраняет, вне пределов — 400 с подсказкой',
-    set.status === 200 && set.body.enabled === true && set.body.newbieLotsPerDay === 2 && bad.status === 400 && bad.body.paymentsPerHour?.[0] === 'Оплат в час — от 3 до 200',
+    set.status === 200 && set.body.enabled === true && set.body.newbieLotsPerDay === 2 && bad.status === 400 && bad.body.paymentsPerHour?.[0] === 'Оплат в час: от 3 до 200',
     JSON.stringify({ set: [set.status, set.body], bad: [bad.status, bad.body] }),
   );
 
@@ -2974,7 +2974,7 @@ async function scenarioLanguage(rnd) {
   const fields = await ticket({ 'Accept-Language': 'en-US,en;q=0.9' });
   check('Поля проверки переведены, lang: en', fields.status === 400 && fields.body.subject?.[0] === 'Subject must be at least 3 characters' && fields.body.lang === 'en', JSON.stringify(fields.body));
   const ruFields = await ticket({ 'Accept-Language': 'ru' });
-  check('Русский сайт — поля проверки по-русски', ruFields.body.subject?.[0] === 'Тема — от 3 символов' && !('lang' in ruFields.body));
+  check('Русский сайт — поля проверки по-русски', ruFields.body.subject?.[0] === 'Тема от 3 символов' && !('lang' in ruFields.body));
 
   // Язык писем, Telegram и пушей: запоминается при входе и в переключателе.
   const settings = async () => (await j('/account/notifications', { token: user.token })).body.locale;
@@ -3090,7 +3090,7 @@ async function scenarioPayout(rnd) {
   const wBack = await j('/wallet', { token: seller.token });
   check(
     'Отказ в выводе: без причины — 400; с причиной — деньги на баланс, причина продавцу в заявке и уведомлении',
-    bare.status === 400 && bare.body.reason?.[0] === 'Напишите причину отказа — продавец увидит её' &&
+    bare.status === 400 && bare.body.reason?.[0] === 'Напишите причину отказа, продавец увидит её' &&
       rej.body.status === 'rejected' && mine?.rejectReason === why && note?.payload?.preview === why &&
       wBack.body.balance === '35000' && wBack.body.withdrawing.count === 0,
     JSON.stringify({ bare: bare.body, mine: mine?.rejectReason, note: note?.payload, balance: wBack.body.balance }),
@@ -4558,7 +4558,7 @@ async function scenarioHonestSale(rnd) {
   const card = (await j(`/listings/${raised}`)).body;
   check(
     'Подняли цену и «скидка»: −10% и −20% — отказ с причиной; −30% — скидка от прежних 1 000 ₽, не от 1 200',
-    fake.status === 400 && /была 1\s000 ₽ — от неё скидка 0%/.test(fake.body.message) && thin.status === 400 &&
+    fake.status === 400 && /была 1\s000 ₽\. От неё скидка 0%/.test(fake.body.message) && thin.status === 400 &&
       /скидка 4%/.test(thin.body.message) && real.status === 201 && card.price === '84000' &&
       card.saleRefPrice === '100000' && card.saleListPrice === '120000',
     JSON.stringify({ fake: fake.body?.message, thin: thin.body?.message, real: real.body, card: [card.price, card.saleRefPrice, card.saleListPrice] }),
@@ -4866,8 +4866,8 @@ async function scenarioExportEdit(rnd) {
       JSON.stringify(res.body.created?.map((x) => x.line)) === '[7]' &&
       JSON.stringify(res.body.failed) === JSON.stringify([
         { line: 4, message: 'Лот не найден' },
-        { line: 5, message: 'Этот лот — из другого раздела' },
-        { line: 6, message: 'Идёт скидка — завершите её, потом меняйте цену' },
+        { line: 5, message: 'Этот лот из другого раздела' },
+        { line: 6, message: 'Идёт скидка. Завершите её, потом меняйте цену' },
       ]) &&
       after.title === `Выгрузка ${rnd} · А, новое название` && after.price === '45000' && after.description === 'Описание А',
     JSON.stringify({ status: res.status, body: res.body, after: [after.title, after.price, after.description] }),

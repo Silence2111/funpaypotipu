@@ -45,7 +45,7 @@ export class PaymentsService {
     if (amount <= 0n) throw new BadRequestException('Сумма должна быть положительной');
     // «Безопасная сделка» (часть 123): деньги покупателей держит ЮKassa, а не площадка.
     if ((await this.safeDeal.scheme()) === 'safe_deal') {
-      throw new BadRequestException('Пополнение баланса недоступно: оплата идёт через «Безопасную сделку» ЮKassa — заказ оплачивается картой');
+      throw new BadRequestException('Пополнение баланса недоступно: оплата идёт через «Безопасную сделку» ЮKassa, заказ оплачивается картой');
     }
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     const session = await this.openDeposit({
@@ -139,7 +139,7 @@ export class PaymentsService {
   }) {
     const provider = this.registry.current;
     if (!provider.methods.includes(p.method)) {
-      throw new BadRequestException('Этот способ оплаты сейчас недоступен — выберите другой.');
+      throw new BadRequestException('Этот способ оплаты сейчас недоступен, выберите другой.');
     }
     const { charge, surcharge } = chargeFor(p.amount, p.method);
     await this.antifraud?.assertCanPay(p.userId, charge);

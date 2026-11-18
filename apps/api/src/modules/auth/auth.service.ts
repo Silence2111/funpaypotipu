@@ -41,7 +41,7 @@ export interface IssuedAuth {
 
 const sha256 = (v: string): string => createHash('sha256').update(v).digest('hex');
 
-const BANNED = 'Аккаунт заблокирован. Если это ошибка — напишите в поддержку.';
+const BANNED = 'Аккаунт заблокирован. Если это ошибка, напишите в поддержку.';
 
 /** Устройство «знакомое», если с него входили за столько дней. */
 export const KNOWN_DEVICE_DAYS = 180;
@@ -118,7 +118,7 @@ export class AuthService {
     const link = `${this.webUrl()}/verify-email?token=${encodeURIComponent(token)}`;
     await this.mail.send(
       email,
-      say(lang, 'Подтвердите e-mail — GameMarket'),
+      say(lang, 'Подтвердите e-mail · GameMarket'),
       say(lang, 'Здравствуйте, {name}. Подтвердите e-mail: {link}\nПокупки защищены эскроу.', { name: username, link }),
     );
   }
@@ -144,8 +144,8 @@ export class AuthService {
       const link = `${this.webUrl()}/reset?token=${encodeURIComponent(token)}`;
       await this.mail.send(
         user.email,
-        say(lang, 'Восстановление пароля — GameMarket'),
-        say(lang, 'Сброс пароля (ссылка действует 1 час): {link}\nЕсли вы не запрашивали — проигнорируйте письмо.', {
+        say(lang, 'Восстановление пароля · GameMarket'),
+        say(lang, 'Сброс пароля (ссылка действует 1 час): {link}\nЕсли вы не запрашивали сброс, проигнорируйте письмо.', {
           link,
         }),
       );
@@ -226,7 +226,7 @@ export class AuthService {
     if (!restore) {
       throw new ForbiddenException({
         statusCode: 403,
-        message: 'Аккаунт удалён — его можно восстановить в течение 30 дней после удаления',
+        message: 'Аккаунт удалён. Его можно восстановить в течение 30 дней после удаления',
         error: ACCOUNT_DELETED,
         deletedAt: user.deletedAt,
         eraseAt: eraseAt(user.deletedAt),
@@ -390,7 +390,7 @@ export class AuthService {
       ip,
       preview: say(
         lang,
-        'Вход с нового устройства: {device}, IP {ip}. Если это были не вы — завершите сеанс в «Безопасности» и смените пароль.',
+        'Вход с нового устройства: {device}, IP {ip}. Если это были не вы, завершите сеанс в «Безопасности» и смените пароль.',
         { device, ip },
       ),
     });
@@ -449,13 +449,13 @@ export class AuthService {
           ip,
           preview: say(
             lang,
-            'Пароль изменён: {device}, IP {ip}. Другие устройства вышли из аккаунта. Если это были не вы — восстановите доступ по ссылке «Это не я» из письма.',
+            'Пароль изменён: {device}, IP {ip}. Другие устройства вышли из аккаунта. Если это были не вы, восстановите доступ по ссылке «Это не я» из письма.',
             { device, ip },
           ),
         },
         {
           mail: {
-            action: 'Это не я — восстановить доступ',
+            action: 'Это не я, восстановить доступ',
             link: `${this.webUrl()}/reset?token=${encodeURIComponent(token)}&not_me=1`,
           },
         },
@@ -492,7 +492,7 @@ export class AuthService {
 
   async revokeSession(userId: string, familyId: string, currentFamily?: string) {
     if (familyId === currentFamily) {
-      throw new BadRequestException('Это текущий сеанс — чтобы выйти на этом устройстве, нажмите «Выйти»');
+      throw new BadRequestException('Это текущий сеанс. Чтобы выйти на этом устройстве, нажмите «Выйти»');
     }
     const res = await this.prisma.authSession.updateMany({
       where: { userId, familyId, revokedAt: null },
@@ -510,7 +510,7 @@ export class AuthService {
    */
   async denySession(userId: string, familyId: string, currentFamily?: string) {
     if (familyId === currentFamily) {
-      throw new BadRequestException('Это текущий сеанс — чтобы выйти на этом устройстве, нажмите «Выйти»');
+      throw new BadRequestException('Это текущий сеанс. Чтобы выйти на этом устройстве, нажмите «Выйти»');
     }
     if (!UUID_RE.test(familyId)) throw new NotFoundException('Сеанс не найден');
     const seen = await this.prisma.authSession.findFirst({

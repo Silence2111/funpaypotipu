@@ -15,7 +15,7 @@ export const STAFF_TWO_FACTOR = 'staff_two_factor_required';
 export const staffTwoFactorError = () =>
   new ForbiddenException({
     statusCode: 403,
-    message: 'Включите вход с кодом: консоль и действия сотрудника — только с ним',
+    message: 'Включите вход с кодом: консоль и действия сотрудника доступны только с ним',
     error: STAFF_TWO_FACTOR,
   });
 

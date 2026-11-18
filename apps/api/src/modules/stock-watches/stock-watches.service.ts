@@ -53,7 +53,7 @@ export class StockWatchesService {
     }
     if (listing.sellerId === userId) throw new BadRequestException('Это ваш лот');
     if (listing.status === 'active')
-      throw new BadRequestException('Лот в продаже — его можно купить сейчас');
+      throw new BadRequestException('Лот в продаже, его можно купить сейчас');
     const already = await this.status(userId, listingId);
     if (already.watching) return already;
     const count = await this.prisma.stockWatch.count({ where: { userId } });

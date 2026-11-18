@@ -16,7 +16,7 @@ import { opsEvent } from '../ops/ops-signal';
 const queueSchema = z.object({
   status: z.enum(PAYOUT_QUEUE_STATUSES).default('requested'),
   q: z.string().trim().max(100).optional(),
-  cursor: timeCursor('Список заявок устарел — обновите страницу'),
+  cursor: timeCursor('Список заявок устарел, обновите страницу'),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 type QueueParams = z.infer<typeof queueSchema>;

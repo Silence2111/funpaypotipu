@@ -13,8 +13,8 @@ import { PartnersService } from './partners.service';
 const codeSchema = z.object({ code: z.string().trim().min(1).max(32) });
 const settingsSchema = z.object({
   enabled: z.boolean(),
-  shareBps: z.number().int().min(0).max(PARTNER_MAX_SHARE_BPS, 'Доля партнёра — не больше 50%'),
-  termDays: z.number().int().min(0).max(PARTNER_MAX_TERM_DAYS, 'Срок — не больше 3650 дней'),
+  shareBps: z.number().int().min(0).max(PARTNER_MAX_SHARE_BPS, 'Доля партнёра не больше 50%'),
+  termDays: z.number().int().min(0).max(PARTNER_MAX_TERM_DAYS, 'Срок не больше 3650 дней'),
 });
 
 /** Партнёрская программа (часть 116): условия, кабинет, переход и привязка. */

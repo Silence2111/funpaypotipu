@@ -33,9 +33,9 @@ const slug = z
   .string()
   .trim()
   .toLowerCase()
-  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Адрес — латиница, цифры и дефис')
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Адрес: латиница, цифры и дефис')
   .max(40);
-const title = z.string().trim().min(2, 'Название — от 2 символов').max(80);
+const title = z.string().trim().min(2, 'Название от 2 символов').max(80);
 const aliases = z.array(z.string().trim().min(1).max(40)).max(30);
 const GAME_KINDS = ['game', 'mobile', 'app'] as const;
 const SEGMENTS = ['accounts', 'currency', 'items', 'service', 'key', 'topup'] as const;
@@ -75,22 +75,22 @@ const categoryUpdate = z.object({
 });
 const salesUpdate = z.object({
   closed: z.boolean(),
-  reason: z.string().trim().max(CLOSED_REASON_MAX, `Причина — до ${CLOSED_REASON_MAX} символов`).nullable().optional(),
+  reason: z.string().trim().max(CLOSED_REASON_MAX, `Причина до ${CLOSED_REASON_MAX} символов`).nullable().optional(),
 });
 const options = z.array(z.string().trim().min(1).max(60)).max(50);
 const attributeCreate = z.object({
   key: z
     .string()
     .trim()
-    .regex(/^[a-z][a-z0-9_]{0,29}$/, 'Ключ поля — латиница, цифры и «_», с буквы'),
-  label: z.string().trim().min(2, 'Подпись — от 2 символов').max(60),
+    .regex(/^[a-z][a-z0-9_]{0,29}$/, 'Ключ поля: латиница, цифры и «_», с буквы'),
+  label: z.string().trim().min(2, 'Подпись от 2 символов').max(60),
   type: z.enum(ATTRIBUTE_TYPES),
   options: options.optional(),
   isRequired: z.boolean().optional(),
   isFilter: z.boolean().optional(),
 });
 const attributeUpdate = z.object({
-  label: z.string().trim().min(2, 'Подпись — от 2 символов').max(60).optional(),
+  label: z.string().trim().min(2, 'Подпись от 2 символов').max(60).optional(),
   options: options.optional(),
   isRequired: z.boolean().optional(),
   isFilter: z.boolean().optional(),

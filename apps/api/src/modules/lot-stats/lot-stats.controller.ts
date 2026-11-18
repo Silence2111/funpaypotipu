@@ -23,7 +23,7 @@ const querySchema = z.object({
   days: z.coerce
     .number()
     .refine((d): d is StatsPeriod => (STATS_PERIODS as readonly number[]).includes(d), {
-      message: 'Период — 7, 30 или 90 дней',
+      message: 'Период: 7, 30 или 90 дней',
     })
     .default(30),
   listingId: z.string().uuid().optional(),

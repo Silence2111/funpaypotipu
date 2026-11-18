@@ -10,13 +10,13 @@ import { RateLimit } from '../../common/rate-limit';
 import { timeCursor } from '../../common/cursor';
 
 const createSchema = z.object({
-  subject: z.string().trim().min(3, 'Тема — от 3 символов').max(120),
+  subject: z.string().trim().min(3, 'Тема от 3 символов').max(120),
   category: z.enum(SUPPORT_CATEGORIES),
   orderId: z.string().uuid().optional(),
-  body: z.string().trim().min(10, 'Опишите вопрос подробнее — от 10 символов').max(4000),
+  body: z.string().trim().min(10, 'Опишите вопрос подробнее, от 10 символов').max(4000),
 });
 const replySchema = z.object({ body: z.string().trim().min(1, 'Пустое сообщение').max(4000) });
-const STALE = 'Список обращений устарел — обновите страницу';
+const STALE = 'Список обращений устарел, обновите страницу';
 const queueSchema = z.object({
   status: z.enum(TICKET_STATUSES).default('open'),
   q: z.string().trim().max(100).optional(),
@@ -26,12 +26,12 @@ const queueSchema = z.object({
 type QueueParams = z.infer<typeof queueSchema>;
 
 const rateSchema = z.object({
-  rating: z.number().int().min(1, 'Оценка — от 1 до 5').max(5, 'Оценка — от 1 до 5'),
+  rating: z.number().int().min(1, 'Оценка от 1 до 5').max(5, 'Оценка от 1 до 5'),
   comment: z.string().trim().max(1000).optional(),
 });
 const templateSchema = z.object({
-  title: z.string().trim().min(2, 'Название — от 2 знаков').max(80),
-  body: z.string().trim().min(5, 'Текст — от 5 знаков').max(4000),
+  title: z.string().trim().min(2, 'Название от 2 знаков').max(80),
+  body: z.string().trim().min(5, 'Текст от 5 знаков').max(4000),
 });
 
 @Controller('support')

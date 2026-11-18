@@ -242,7 +242,7 @@ export class RetentionService {
   async actHtml(id: string) {
     const act = await this.act(id);
     const signer = act.signedBy ? (await this.signerNames([act.signedBy])).get(act.signedBy) ?? act.signedBy : null;
-    const operator = process.env.OPERATOR_NAME?.trim() || '[наименование оператора — после регистрации ИП]';
+    const operator = process.env.OPERATOR_NAME?.trim() || '[наименование оператора, после регистрации ИП]';
     const address = process.env.OPERATOR_ADDRESS?.trim() || '[адрес оператора]';
     const responsible = process.env.PD_RESPONSIBLE?.trim() || '[ФИО ответственного за обработку персональных данных]';
     const subjects = [...new Set(act.events.map((e) => e.subject))];

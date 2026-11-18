@@ -97,7 +97,7 @@ export class SellerToolsService {
   async addTemplate(userId: string, input: TemplateInput) {
     const count = await this.prisma.replyTemplate.count({ where: { userId } });
     if (count >= MAX_TEMPLATES) {
-      throw new BadRequestException(`Не больше ${MAX_TEMPLATES} заготовок — удалите ненужные`);
+      throw new BadRequestException(`Не больше ${MAX_TEMPLATES} заготовок. Удалите ненужные`);
     }
     const command = await this.command(userId, input.command);
     return this.prisma.replyTemplate.create({

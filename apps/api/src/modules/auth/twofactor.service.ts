@@ -210,14 +210,14 @@ export class TwoFactorService {
         type === 'two_factor_enabled'
           ? say(
               lang,
-              'Вход с кодом из приложения включён: {device}, IP {ip}. Если это были не вы — выключите его по ссылке «Это не я» из письма.',
+              'Вход с кодом из приложения включён: {device}, IP {ip}. Если это были не вы, выключите его по ссылке «Это не я» из письма.',
               { device, ip },
             )
           : say(lang, 'Вход с кодом из приложения выключен: {device}, IP {ip}.', { device, ip });
       const web = process.env.WEB_URL ?? 'http://localhost:3000';
       const mail = secretEnc
         ? {
-            action: 'Это не я — выключить вход с кодом',
+            action: 'Это не я, выключить вход с кодом',
             link: `${web}/recover-2fa?token=${encodeURIComponent(
               this.tokens.signPurpose(userId, 'tf_revoke', TF_REVOKE_TTL, tfStamp(secretEnc)),
             )}`,

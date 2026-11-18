@@ -17,30 +17,30 @@ import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { SellerToolsService, type TemplateInput } from './seller-tools.service';
 
 const greetingSchema = z.object({
-  text: z.string().max(1000, 'Приветствие — до 1000 символов').nullable(),
+  text: z.string().max(1000, 'Приветствие до 1000 символов').nullable(),
 });
 const autoRaiseSchema = z.object({ on: z.boolean() });
 const templateSchema = z.object({
-  title: z.string().trim().min(1, 'Назовите заготовку').max(60, 'Название — до 60 символов'),
+  title: z.string().trim().min(1, 'Назовите заготовку').max(60, 'Название до 60 символов'),
   body: z
     .string()
     .trim()
     .min(1, 'Текст заготовки пустой')
-    .max(2000, 'Заготовка — до 2000 символов'),
+    .max(2000, 'Заготовка до 2000 символов'),
   command: z
     .string()
     .trim()
-    .max(COMMAND_MAX, `Команда — до ${COMMAND_MAX} символов`)
-    .regex(/^[^\n\r]*$/, 'Команда — в одну строку')
+    .max(COMMAND_MAX, `Команда до ${COMMAND_MAX} символов`)
+    .regex(/^[^\n\r]*$/, 'Команда в одну строку')
     .nullish(),
 });
 
 const buyerFilterSchema = z.object({
-  minAgeDays: z.number().int().refine((d) => (BUYER_AGE_DAYS as readonly number[]).includes(d), 'Возраст аккаунта — 0, 1, 7 или 30 дней'),
+  minAgeDays: z.number().int().refine((d) => (BUYER_AGE_DAYS as readonly number[]).includes(d), 'Возраст аккаунта: 0, 1, 7 или 30 дней'),
   maxLostDisputes: z
     .number()
     .int()
-    .refine((d) => (BUYER_LOST_DISPUTES as readonly number[]).includes(d), 'Проигранных споров — 0, 1 или 3')
+    .refine((d) => (BUYER_LOST_DISPUTES as readonly number[]).includes(d), 'Проигранных споров: 0, 1 или 3')
     .nullable(),
   noBadReviews: z.boolean(),
 });

@@ -13,9 +13,9 @@ const createSchema = z.object({
     .string()
     .trim()
     .min(BUY_REQUEST_TEXT_MIN, 'Опишите, что ищете, от 10 символов')
-    .max(BUY_REQUEST_TEXT_MAX, 'Запрос — до 300 символов'),
+    .max(BUY_REQUEST_TEXT_MAX, 'Запрос до 300 символов'),
   /** Копейки, до 10 млн ₽ — как цена лота. */
-  maxPrice: z.number().int().positive('Цена — больше нуля').max(1_000_000_000, 'Цена — до 10 млн ₽').nullish(),
+  maxPrice: z.number().int().positive('Цена должна быть больше нуля').max(1_000_000_000, 'Цена до 10 млн ₽').nullish(),
 });
 const categoryQuery = z.object({
   categoryId: z.string().uuid(),

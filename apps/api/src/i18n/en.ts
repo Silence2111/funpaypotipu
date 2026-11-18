@@ -18,29 +18,29 @@ export const EN_API: Phrasebook = {
   // Закрытые разделы и проверка лотов (часть 122)
   'Лот на проверке у модератора: в продажу его вернёт модератор':
     'The listing is under moderator review: the moderator will put it back on sale',
-  'Причина — до {n} символов': 'Reason must be at most {n} characters',
+  'Причина до {n} символов': 'Reason must be at most {n} characters',
 
   // API для продавцов (часть 127)
   'Нужен действующий ключ API: «Инструменты» → «API»': 'A valid API key is required: “Tools” → “API”',
   'Не больше 60 запросов в минуту на ключ. Подождите {n} сек.': 'No more than 60 requests per minute per key. Wait {n} s.',
-  'Не больше {n} ключей — отзовите ненужный': 'No more than {n} keys — revoke one you don’t need',
+  'Не больше {n} ключей. Отзовите ненужный': 'No more than {n} keys — revoke one you don’t need',
   'Нечего менять: price, stock или status': 'Nothing to change: price, stock or status',
-  'Цена — целое число копеек, например 49000': 'The price is a whole number of kopecks, for example 49000',
+  'Цена должна быть целым числом копеек, например 49000': 'The price is a whole number of kopecks, for example 49000',
   'Не больше {n} строк за раз': 'No more than {n} lines at a time',
-  'Назовите ключ — например, «бот склада»': 'Name the key — for example, “stock bot”',
-  'Адрес вебхука — полный URL, например https://example.com/gamemarket': 'The webhook address must be a full URL, for example https://example.com/gamemarket',
-  'Адрес вебхука — только https': 'The webhook address must use https',
-  'Адрес вебхука — публичный: на локальные и внутренние адреса не отправляем': 'The webhook address must be public: we don’t send to local or internal addresses',
-  'Адрес вебхука — без логина и пароля в ссылке': 'The webhook address must not contain a login or password',
+  'Назовите ключ, например «бот склада»': 'Name the key — for example, “stock bot”',
+  'Адрес вебхука: полный URL, например https://example.com/gamemarket': 'The webhook address must be a full URL, for example https://example.com/gamemarket',
+  'Адрес вебхука только https': 'The webhook address must use https',
+  'Адрес вебхука должен быть публичным: на локальные и внутренние адреса не отправляем': 'The webhook address must be public: we don’t send to local or internal addresses',
+  'Адрес вебхука без логина и пароля в ссылке': 'The webhook address must not contain a login or password',
   'Сначала задайте адрес вебхука': 'Set the webhook address first',
 
   // «Безопасная сделка» ЮKassa (часть 123)
-  'Оплата с баланса недоступна: платежи идут через «Безопасную сделку» ЮKassa — оплатите картой':
+  'Оплата с баланса недоступна: платежи идут через «Безопасную сделку» ЮKassa, оплатите картой':
     'Paying from balance is unavailable: payments go through a YooKassa Safe Deal — pay by card',
-  'Пополнение баланса недоступно: оплата идёт через «Безопасную сделку» ЮKassa — заказ оплачивается картой':
+  'Пополнение баланса недоступно: оплата идёт через «Безопасную сделку» ЮKassa, заказ оплачивается картой':
     'Balance top-up is unavailable: payments go through a YooKassa Safe Deal — orders are paid by card',
   'Платёжный шлюз отказал. Попробуйте позже.': 'The payment gateway refused. Please try again later.',
-  'В «Безопасной сделке» оплата — только картой: СБП ЮKassa в сделке не принимает':
+  'В «Безопасной сделке» оплата только картой: СБП ЮKassa в сделке не принимает':
     'A Safe Deal can only be paid by card: YooKassa doesn’t accept SBP in a deal',
   'Этот заказ нельзя оплатить в «Безопасной сделке»: у площадки не остаётся вознаграждения':
     'This order can’t be paid in a Safe Deal: no reward is left for the marketplace',
@@ -50,25 +50,25 @@ export const EN_API: Phrasebook = {
   'Введите код из SMS': 'Enter the code from the SMS',
   'Вход по телефону пока не работает': 'Phone sign-in isn’t available yet',
   'Этот номер уже привязан к другому аккаунту': 'This number is already linked to another account',
-  'Это единственный способ входа — сначала задайте почту и пароль':
+  'Это единственный способ входа. Сначала задайте почту и пароль':
     'This is your only way to sign in — set an email and password first',
   'Новый код через {n} сек.': 'New code in {n} s',
-  'Слишком много кодов на этот номер — попробуйте позже': 'Too many codes for this number — try again later',
-  'Код устарел — запросите новый': 'The code has expired — request a new one',
-  'Слишком много неверных кодов — запросите новый': 'Too many wrong codes — request a new one',
+  'Слишком много кодов на этот номер, попробуйте позже': 'Too many codes for this number — try again later',
+  'Код устарел, запросите новый': 'The code has expired — request a new one',
+  'Слишком много неверных кодов, запросите новый': 'Too many wrong codes — request a new one',
   'Код не подошёл': 'Wrong code',
   'Вход по номеру устарел, запросите код заново': 'Phone sign-in has expired — request a code again',
 
   // Удаление аккаунта (часть 124)
   'Впишите свой ник': 'Type your username',
-  'Ник не совпадает — впишите свой ник, чтобы подтвердить удаление':
+  'Ник не совпадает. Впишите свой ник, чтобы подтвердить удаление':
     'The username doesn’t match — type your username to confirm deletion',
   'Пароль не подошёл': 'Wrong password',
-  'Сначала доведите сделки и споры и выведите деньги — тогда аккаунт можно удалить':
+  'Сначала доведите сделки и споры и выведите деньги, тогда аккаунт можно удалить':
     'Finish your deals and disputes and withdraw your money first — then the account can be deleted',
-  'На балансе остаток меньше минимального вывода — подтвердите, что он сгорит':
+  'На балансе остаток меньше минимального вывода. Подтвердите, что он сгорит':
     'Your balance is below the minimum withdrawal — confirm that it will be forfeited',
-  'Аккаунт удалён — его можно восстановить в течение 30 дней после удаления':
+  'Аккаунт удалён. Его можно восстановить в течение 30 дней после удаления':
     'Account deleted — you can restore it within 30 days of deletion',
   'Аккаунт удалён': 'Account deleted',
 
@@ -76,7 +76,7 @@ export const EN_API: Phrasebook = {
   'Аккаунт заморожен модератором: покупки, продажи и вывод недоступны. Напишите в поддержку.':
     'Your account has been frozen by a moderator: purchases, sales and withdrawals are unavailable. Contact support.',
   'Аккаунт заблокирован': 'Account blocked',
-  'Аккаунт заблокирован. Если это ошибка — напишите в поддержку.':
+  'Аккаунт заблокирован. Если это ошибка, напишите в поддержку.':
     'Account blocked. If this is a mistake, contact support.',
   'Не аутентифицирован': 'Not signed in',
   'Недостаточно прав': 'Insufficient permissions',
@@ -84,7 +84,7 @@ export const EN_API: Phrasebook = {
   // Чёрный список
   'Продавец ограничил вам покупки': 'The seller has restricted your purchases',
   'Пользователь ограничил переписку с вами': 'This user has restricted messages from you',
-  'Пользователь в вашем чёрном списке — уберите его оттуда, чтобы продолжить':
+  'Пользователь в вашем чёрном списке. Уберите его оттуда, чтобы продолжить':
     'This user is on your block list — remove them to continue',
   'Себя в чёрный список не добавить': 'You can’t block yourself',
   'Пользователь не найден': 'User not found',
@@ -92,21 +92,21 @@ export const EN_API: Phrasebook = {
 
   // Профиль и настройки
   'Неверный ключ подписки': 'Invalid subscription key',
-  'Имя — от 2 символов': 'Name must be at least 2 characters',
-  'Имя — до 40 символов': 'Name must be at most 40 characters',
-  'О себе — до 500 символов': '“About” must be at most 500 characters',
+  'Имя от 2 символов': 'Name must be at least 2 characters',
+  'Имя до 40 символов': 'Name must be at most 40 characters',
+  'О себе до 500 символов': '“About” must be at most 500 characters',
   'Telegram-бот на стенде не подключён': 'The Telegram bot isn’t connected on this site',
   'Профиль не найден': 'Profile not found',
   'Хранилище картинок на стенде не подключено': 'Image storage isn’t connected on this site',
   'Пустой файл': 'The file is empty',
-  'Аватар — PNG, JPG, WebP или GIF': 'Avatar must be PNG, JPG, WebP or GIF',
+  'Аватар: PNG, JPG, WebP или GIF': 'Avatar must be PNG, JPG, WebP or GIF',
   'Аватар больше 2 МБ': 'Avatar is larger than 2 MB',
   'Пуш-уведомления на стенде выключены': 'Push notifications are turned off on this site',
   'Подписка не от службы пушей браузера': 'The subscription isn’t from a browser push service',
 
   // Консоль сотрудника
   'Роль не найдена': 'Role not found',
-  'Свою роль администратора снять нельзя — попросите другого администратора':
+  'Свою роль администратора снять нельзя, попросите другого администратора':
     'You can’t remove your own admin role — ask another administrator',
 
   // Вход, регистрация, сеансы
@@ -124,31 +124,31 @@ export const EN_API: Phrasebook = {
   // «Не могу войти»: заявка на восстановление доступа
   'Не больше трёх номеров заказов': 'No more than three order numbers',
   'Опишите, что случилось, от 10 символов': 'Describe what happened — at least 10 characters',
-  'Причина — от 5 символов': 'The reason must be at least 5 characters',
+  'Причина от 5 символов': 'The reason must be at least 5 characters',
   'По заявке уже решено': 'This request has already been decided',
   'Решить можно через 3 дня после заявки: владелец должен успеть её увидеть':
     'You can decide 3 days after the request: the owner must have time to see it',
   'В заявке нет новой почты': 'The request has no new email',
-  'У аккаунта нет пройденной проверки личности — сверять документы не с чем':
+  'У аккаунта нет пройденной проверки личности, сверять документы не с чем':
     'The account has no approved ID check, so there is nothing to compare the documents with',
   'Документы уже отправлены': 'Documents have already been sent',
   'Документы по ссылке ещё не присланы': 'The documents from the link haven’t been sent yet',
   'Эта почта уже у другого аккаунта': 'This email already belongs to another account',
   'Это и есть почта аккаунта': 'This is already the account email',
   'Проверьте адрес почты': 'Check the email address',
-  'Прежняя почта уже у другого аккаунта — напишите в поддержку':
+  'Прежняя почта уже у другого аккаунта, напишите в поддержку':
     'The previous email already belongs to another account — contact support',
-  'У аккаунта пройдена проверка личности — попросите документы, они надёжнее':
+  'У аккаунта пройдена проверка личности, попросите документы, они надёжнее':
     'The account has an approved ID check — ask for documents, they are more reliable',
   'Описания уже отправлены': 'The descriptions have already been sent',
   'Описания сделок по ссылке ещё не присланы': 'The deal descriptions from the link haven’t been sent yet',
-  'Каждая сделка — с другим продавцом или покупателем': 'Each deal must be with a different seller or buyer',
+  'Каждая сделка должна быть с другим продавцом или покупателем': 'Each deal must be with a different seller or buyer',
   'Укажите ник продавца или покупателя': 'Enter the seller’s or buyer’s username',
   'Опишите сделку подробнее, от 20 символов': 'Describe the deal in more detail — at least 20 characters',
-  'Описание сделки — до 600 символов': 'The deal description must be at most 600 characters',
+  'Описание сделки до 600 символов': 'The deal description must be at most 600 characters',
   'Опишите хотя бы две сделки': 'Describe at least two deals',
   'Не больше трёх сделок': 'No more than three deals',
-  'Из аккаунта отметили «Заявку подал не я» — по сделкам на новую почту не восстановить':
+  'Из аккаунта отметили «Заявку подал не я», по сделкам на новую почту не восстановить':
     'Someone in the account marked “I didn’t file this request” — the account can’t be moved to a new email based on deals',
   'Участник сделки ответил, что описание не совпадает':
     'A deal participant answered that the description doesn’t match',
@@ -162,10 +162,10 @@ export const EN_API: Phrasebook = {
     'The card was first used in the account less than 2 weeks before the request',
   'Проверка картой работает только с приёмом оплаты через ЮKassa':
     'The card check only works with payments through YooKassa',
-  'В аккаунте не платили картой и не выводили на карту — сверять не с чем':
+  'В аккаунте не платили картой и не выводили на карту, сверять не с чем':
     'The account has no card payments or card payouts, so there is nothing to compare with',
   'Карта уже проверена': 'The card has already been checked',
-  'Оплата уже начата — обновите страницу': 'The payment has already started — refresh the page',
+  'Оплата уже начата, обновите страницу': 'The payment has already started — refresh the page',
   'Платёжный шлюз не принял платёж. Попробуйте ещё раз.':
     'The payment gateway didn’t accept the payment. Try again.',
   'Просьба не найдена или заявку уже решили': 'The request wasn’t found or has already been decided',
@@ -175,7 +175,7 @@ export const EN_API: Phrasebook = {
   'Обнаружено повторное использование refresh-токена': 'Refresh token reuse detected',
   'Текущий пароль неверный': 'Current password is incorrect',
   'Новый пароль совпадает с текущим': 'The new password is the same as the current one',
-  'Это текущий сеанс — чтобы выйти на этом устройстве, нажмите «Выйти»':
+  'Это текущий сеанс. Чтобы выйти на этом устройстве, нажмите «Выйти»':
     'This is your current session — to sign out on this device, click “Sign out”',
   'Сеанс уже завершён': 'Session already ended',
   'Сеанс не найден': 'Session not found',
@@ -199,24 +199,24 @@ export const EN_API: Phrasebook = {
   'Вход через {provider} не подключён': 'Sign-in with {provider} isn’t enabled',
   'Telegram не подтвердил вход — попробуйте ещё раз':
     'Telegram didn’t confirm the sign-in — try again',
-  'Вход через сервис устарел — начните заново': 'The sign-in has expired — start again',
+  'Вход через сервис устарел, начните заново': 'The sign-in has expired — start again',
   'Аккаунт с почтой {email} уже есть. Войдите по почте и паролю и подключите {provider} в «Безопасности».':
     'An account with the email {email} already exists. Sign in with your email and password and connect {provider} in “Security”.',
-  'Выберите ник — по нему вас найдут покупатели и продавцы':
+  'Выберите ник, по нему вас найдут покупатели и продавцы':
     'Choose a username — buyers and sellers will find you by it',
   'Ник: {reason}': 'Username: {reason}',
   'не подходит': 'not valid',
   'Этот ник занят': 'This username is taken',
-  'Ник или аккаунт уже заняты — обновите страницу и попробуйте ещё раз':
+  'Ник или аккаунт уже заняты. Обновите страницу и попробуйте ещё раз':
     'The username or account is already taken — refresh the page and try again',
-  'К аккаунту уже подключён другой {provider} — сначала отключите его в «Безопасности»':
+  'К аккаунту уже подключён другой {provider}. Сначала отключите его в «Безопасности»':
     'Another {provider} account is already connected — disconnect it in “Security” first',
   'Этот {provider} уже привязан к другому аккаунту':
     'This {provider} account is already linked to another account',
   'Сервис не подключён': 'Service not connected',
-  'Это единственный способ входа — сначала задайте пароль':
+  'Это единственный способ входа. Сначала задайте пароль':
     'This is your only way to sign in — set a password first',
-  'Это единственный способ входа — сначала подключите другой сервис':
+  'Это единственный способ входа. Сначала подключите другой сервис':
     'This is your only way to sign in — connect another service first',
 
   // Каталог и лоты
@@ -227,13 +227,13 @@ export const EN_API: Phrasebook = {
   'Лот недоступен': 'The listing is unavailable',
   'Продавец не найден': 'Seller not found',
   'Продвигать можно только лот в продаже': 'Only a listing that’s on sale can be promoted',
-  'На балансе не хватает {sum} ₽ — пополните баланс': 'Your balance is {sum} ₽ short — top it up',
+  'На балансе не хватает {sum} ₽, пополните баланс': 'Your balance is {sum} ₽ short — top it up',
   'Допустимы только изображения': 'Only images are allowed',
   'Изображение больше 8 МБ': 'Image is larger than 8 MB',
   'Поднять можно только активный лот': 'Only an active listing can be raised',
   'Поднять можно через {min} мин': 'You can raise it again in {min} min',
   'Категория не найдена для указанной игры': 'Category not found for this game',
-  'Валюту продают количеством — автовыдача со склада здесь не подходит':
+  'Валюту продают количеством, автовыдача со склада здесь не подходит':
     'Currency is sold by quantity — auto-delivery from stock doesn’t apply here',
   'Сумму на выбор покупателя можно задать только у пополнений':
     'A buyer-chosen amount can only be set for top-ups',
@@ -241,15 +241,15 @@ export const EN_API: Phrasebook = {
     'Buyer details can only be requested for manually delivered listings',
   'В этом разделе продают количеством: укажите цену за {units}':
     'This category sells by quantity: set the price per “{units}”',
-  'У пополнений количество не задаётся — выберите сумму на выбор покупателя':
+  'У пополнений количество не задаётся, выберите сумму на выбор покупателя':
     'Top-ups have no quantity — choose a buyer-chosen amount instead',
   'Укажите характеристику «{label}»': 'Fill in “{label}”',
   'Недопустимое значение «{label}»': 'Invalid value for “{label}”',
   'Лот заблокирован модератором. Напишите в поддержку.':
     'The listing has been blocked by a moderator. Contact support.',
-  'Склад пуст — загрузите товар, и лот вернётся в продажу':
+  'Склад пуст. Загрузите товар, и лот вернётся в продажу':
     'Stock is empty — upload goods and the listing will go back on sale',
-  'Лот закончился — укажите наличие': 'The listing is out of stock — set the stock',
+  'Лот закончился, укажите наличие': 'The listing is out of stock — set the stock',
 
   // Склад автовыдачи
   'На складе такого нет': 'This item isn’t in stock',
@@ -259,7 +259,7 @@ export const EN_API: Phrasebook = {
 
   // Заказы
   'Нельзя купить собственный лот': 'You can’t buy your own listing',
-  'У этого лота фиксированная цена — сумму выбирает продавец':
+  'У этого лота фиксированная цена, сумму выбирает продавец':
     'This listing has a fixed price — the seller sets the amount',
   'Этот лот продаётся целиком': 'This listing is sold as a whole',
   'Заказ не найден': 'Order not found',
@@ -276,7 +276,7 @@ export const EN_API: Phrasebook = {
   'Недопустимый переход {from} → {to}': 'Invalid status change {from} → {to}',
 
   // Оплата
-  'Этот способ оплаты сейчас недоступен — выберите другой.':
+  'Этот способ оплаты сейчас недоступен, выберите другой.':
     'This payment method isn’t available right now — choose another one.',
   'Платёжный шлюз не ответил. Попробуйте ещё раз.':
     'The payment gateway didn’t respond. Try again.',
@@ -295,12 +295,12 @@ export const EN_API: Phrasebook = {
   'Платёжный провайдер "{key}" не найден': 'Payment provider "{key}" not found',
 
   // Баланс и вывод
-  'Телефон для СБП — российский номер, например +7 900 000-00-00':
+  'Телефон для СБП: российский номер, например +7 900 000-00-00':
     'The SBP phone must be a Russian number, for example +7 900 000-00-00',
   'Выберите банк, в который придёт перевод по СБП':
     'Choose the bank that will receive the SBP transfer',
-  'Номер кошелька ЮMoney — от 11 до 20 цифр': 'A YooMoney wallet number has 11 to 20 digits',
-  'Реквизиты заявки не подходят для автоматической выплаты — отклоните её':
+  'Номер кошелька ЮMoney: от 11 до 20 цифр': 'A YooMoney wallet number has 11 to 20 digits',
+  'Реквизиты заявки не подходят для автоматической выплаты, отклоните её':
     'The request’s details don’t fit an automatic payout — reject it',
   'Платёжный шлюз не принял выплату. Попробуйте ещё раз.':
     'The payment gateway didn’t accept the payout. Try again.',
@@ -308,9 +308,9 @@ export const EN_API: Phrasebook = {
   'Введите карту в форме ЮKassa: номер карты площадка не принимает':
     'Enter the card in the YooKassa form: the marketplace doesn’t accept card numbers',
   'Укажите реквизиты для вывода': 'Enter the withdrawal details',
-  'Карта сохранена в ЮKassa — эту заявку выплачивает только она. Включите выплаты через ЮKassa или отклоните заявку':
+  'Карта сохранена в ЮKassa, эту заявку выплачивает только она. Включите выплаты через ЮKassa или отклоните заявку':
     'The card is stored with YooKassa, so only YooKassa can pay this request. Turn on YooKassa payouts or reject the request',
-  'Эту выплату отправляет ЮKassa — реквизиты у неё':
+  'Эту выплату отправляет ЮKassa, реквизиты у неё':
     'YooKassa sends this payout and holds its details',
 
   // Споры
@@ -319,88 +319,88 @@ export const EN_API: Phrasebook = {
 
   // Отзывы с фото
   'Не больше {n} фото к отзыву': 'No more than {n} photos per review',
-  'Фото не найдено — загрузите его заново': 'Photo not found — upload it again',
+  'Фото не найдено, загрузите его заново': 'Photo not found — upload it again',
 
   // Отчёты
-  'Период — от 1 до 366 дней': 'The period must be from 1 to 366 days',
+  'Период от 1 до 366 дней': 'The period must be from 1 to 366 days',
 
   // Инструменты продавца
-  'Приветствие — до 1000 символов': 'The greeting can be up to 1000 characters',
+  'Приветствие до 1000 символов': 'The greeting can be up to 1000 characters',
   'Назовите заготовку': 'Give the template a name',
-  'Название — до 60 символов': 'The name can be up to 60 characters',
+  'Название до 60 символов': 'The name can be up to 60 characters',
   'Текст заготовки пустой': 'The template text is empty',
-  'Заготовка — до 2000 символов': 'A template can be up to 2000 characters',
-  'Не больше {n} заготовок — удалите ненужные':
+  'Заготовка до 2000 символов': 'A template can be up to 2000 characters',
+  'Не больше {n} заготовок. Удалите ненужные':
     'No more than {n} templates — delete the ones you don’t need',
   'Заготовка не найдена': 'Template not found',
-  'Команда — до {n} символов': 'A command can be up to {n} characters',
-  'Команда — в одну строку': 'A command must fit on one line',
+  'Команда до {n} символов': 'A command can be up to {n} characters',
+  'Команда в одну строку': 'A command must fit on one line',
   'Команда {command} уже есть у заготовки «{title}»':
     'The command {command} is already used by the template “{title}”',
 
   // Сохранённые поиски
-  'Цена — до 10 млн ₽': 'The price can be up to 10 million ₽',
-  'Текст поиска — до 100 символов': 'Search text can be up to 100 characters',
+  'Цена до 10 млн ₽': 'The price can be up to 10 million ₽',
+  'Текст поиска до 100 символов': 'Search text can be up to 100 characters',
   'В разделе нет такого фильтра': 'This category has no such filter',
   'Такой поиск уже сохранён': 'This search is already saved',
-  'Не больше {n} поисков — удалите ненужные':
+  'Не больше {n} поисков. Удалите ненужные':
     'No more than {n} saved searches — delete the ones you don’t need',
   'Поиск не найден': 'Search not found',
 
   // Статистика лотов
-  'Период — 7, 30 или 90 дней': 'The period must be 7, 30 or 90 days',
+  'Период: 7, 30 или 90 дней': 'The period must be 7, 30 or 90 days',
 
   // Скидка на лот
-  'Скидка — от {n}%': 'The discount must be at least {n}%',
-  'Скидка — до {n}%': 'The discount can be up to {n}%',
-  'Срок — от суток': 'The period must be at least one day',
-  'Срок — до {n} суток': 'The period can be up to {n} days',
+  'Скидка от {n}%': 'The discount must be at least {n}%',
+  'Скидка до {n}%': 'The discount can be up to {n}%',
+  'Срок от суток': 'The period must be at least one day',
+  'Срок до {n} суток': 'The period can be up to {n} days',
   'Скидку можно дать лоту в продаже': 'Only a listing on sale can get a discount',
-  'У пополнения скидка — это наценка: измените её в лоте':
+  'У пополнения скидкой служит наценка, измените её в лоте':
     'For a top-up, the discount is the markup: change it in the listing',
-  'Скидка уже идёт — завершите её, чтобы начать новую':
+  'Скидка уже идёт. Завершите её, чтобы начать новую':
     'A discount is already running — end it to start a new one',
   'Со скидкой цена меньше 1 ₽': 'With the discount, the price would be below 1 ₽',
-  'Лот только что изменился — обновите страницу': 'The listing has just changed — refresh the page',
+  'Лот только что изменился, обновите страницу': 'The listing has just changed — refresh the page',
   'Скидки на этом лоте нет': 'This listing has no discount',
-  'Идёт скидка — завершите её, потом меняйте цену':
+  'Идёт скидка. Завершите её, потом меняйте цену':
     'A discount is running — end it before changing the price',
-  'За {n} дней до скидки цена была {price} — от неё скидка {off}%, а нужно от {min}%. Дайте скидку больше или подождите неделю после повышения цены':
+  'За {n} дней до скидки цена была {price}. От неё скидка {off}%, а нужно от {min}%. Дайте скидку больше или подождите неделю после повышения цены':
     'In the {n} days before the discount the price was {price} — the discount from it is {off}%, and at least {min}% is needed. Give a bigger discount or wait a week after raising the price',
 
   // Промокоды продавца
   'Укажите код': 'Enter a code',
-  'Код — до 20 знаков': 'A code can be up to 20 characters',
-  'Использований — от одного': 'At least one use',
-  'Срок — до года': 'The period can be up to a year',
+  'Код до 20 знаков': 'A code can be up to 20 characters',
+  'Использований не меньше одного': 'At least one use',
+  'Срок до года': 'The period can be up to a year',
   'Продавец выключил этот промокод': 'The seller has turned this promo code off',
   'Срок промокода продавца истёк': 'The seller’s promo code has expired',
   'Промокод продавца не действует на пополнение':
     'The seller’s promo code doesn’t apply to top-ups',
   'Промокод продавца закончился': 'The seller’s promo code has run out',
   'Вы уже покупали по этому промокоду': 'You have already used this promo code',
-  'Промокод — для тех, кто уже покупал у этого продавца':
+  'Промокод для тех, кто уже покупал у этого продавца':
     'This promo code is for those who have bought from this seller before',
-  'Не больше {n} промокодов — удалите ненужные':
+  'Не больше {n} промокодов. Удалите ненужные':
     'No more than {n} promo codes — delete the ones you don’t need',
   'Такой код у вас уже есть': 'You already have this code',
   'Промокод не найден': 'Promo code not found',
 
   // Скидка за количество
-  'Скидка за количество — у лотов, которые продают количеством':
+  'Скидка за количество бывает у лотов, которые продают количеством':
     'A quantity discount is only for listings sold by quantity',
 
   // Подписки на продавцов
   'На себя подписаться нельзя': 'You can’t follow yourself',
-  'Не больше {n} подписок — отпишитесь от ненужных':
+  'Не больше {n} подписок. Отпишитесь от ненужных':
     'No more than {n} follows — unfollow the ones you don’t need',
   'Подписка не найдена': 'Follow not found',
 
   // Загрузка лотов из таблицы
-  'В этот раздел лоты выставляются по одному: из таблицы — аккаунты, предметы и услуги':
+  'В этот раздел лоты выставляются по одному. Из таблицы выставляются аккаунты, предметы и услуги':
     'Listings in this category are added one by one: tables are for accounts, items and services',
   'Не удалось выставить лот': 'Couldn’t list this one',
-  'Этот лот — из другого раздела': 'This listing is from another category',
+  'Этот лот из другого раздела': 'This listing is from another category',
   'Поштучный лот и лот с автовыдачей меняются в форме лота':
     'Listings sold by quantity or with auto-delivery are edited in the listing form',
 
@@ -408,18 +408,18 @@ export const EN_API: Phrasebook = {
   'Оценить покупателя может только продавец': 'Only the seller can rate the buyer',
   'Оценить покупателя можно после завершения сделки': 'You can rate the buyer once the deal is closed',
   'Оценку ставят в течение {n} дней после сделки': 'A rating can be given within {n} days of the deal',
-  'Комментарий — до 300 знаков': 'The comment must be up to 300 characters',
+  'Комментарий до 300 знаков': 'The comment must be up to 300 characters',
 
   // Сообщить о поступлении
-  'Лот в продаже — его можно купить сейчас': 'The listing is in stock — you can buy it now',
+  'Лот в продаже, его можно купить сейчас': 'The listing is in stock — you can buy it now',
   'Ждать можно не больше {n} лотов сразу': 'You can wait for no more than {n} listings at once',
   'Раздел не найден': 'Category not found',
   'Недостаточно средств на балансе': 'Insufficient balance',
   'Неизвестный способ вывода': 'Unknown withdrawal method',
-  'Минимальная сумма вывода для «{method}» — {sum} ₽':
+  'Минимальная сумма вывода для «{method}»: {sum} ₽':
     'The minimum withdrawal for “{method}” is {sum} ₽',
-  'Максимум для «{method}» — {sum} ₽': 'The maximum for “{method}” is {sum} ₽',
-  'Вывод больше {sum} ₽ — после проверки личности: «Безопасность» → «Проверка личности»':
+  'Максимум для «{method}»: {sum} ₽': 'The maximum for “{method}” is {sum} ₽',
+  'Вывод больше {sum} ₽ доступен после проверки личности: «Безопасность» → «Проверка личности»':
     'Withdrawals over {sum} ₽ require ID verification: “Security” → “ID verification”',
   'На холде до {date}': 'On hold until {date}',
   'Заявка на вывод не найдена': 'Withdrawal request not found',
@@ -430,48 +430,48 @@ export const EN_API: Phrasebook = {
   'Сообщение не отправлено': 'Message not sent',
   'Хранилище недоступно': 'Storage is unavailable',
   'Диалог не найден': 'Conversation not found',
-  'Список уведомлений устарел — обновите страницу': 'The notification list is out of date — refresh the page',
+  'Список уведомлений устарел, обновите страницу': 'The notification list is out of date — refresh the page',
   'Нет такой группы уведомлений': 'There’s no such notification group',
-  'Нечего вернуть — обновите страницу': 'Nothing to restore — refresh the page',
+  'Нечего вернуть, обновите страницу': 'Nothing to restore — refresh the page',
   'Нет такого типа операций': 'There’s no such transaction type',
-  'Список заказов устарел — обновите страницу': 'The order list is out of date — refresh the page',
-  'Список споров устарел — обновите страницу': 'The dispute list is out of date — refresh the page',
-  'Список диалогов устарел — обновите страницу': 'The conversation list is out of date — refresh the page',
-  'Список обращений устарел — обновите страницу': 'The ticket list is out of date — refresh the page',
-  'Список жалоб устарел — обновите страницу': 'The report list is out of date — refresh the page',
-  'Список заявок устарел — обновите страницу': 'The request list is out of date — refresh the page',
+  'Список заказов устарел, обновите страницу': 'The order list is out of date — refresh the page',
+  'Список споров устарел, обновите страницу': 'The dispute list is out of date — refresh the page',
+  'Список диалогов устарел, обновите страницу': 'The conversation list is out of date — refresh the page',
+  'Список обращений устарел, обновите страницу': 'The ticket list is out of date — refresh the page',
+  'Список жалоб устарел, обновите страницу': 'The report list is out of date — refresh the page',
+  'Список заявок устарел, обновите страницу': 'The request list is out of date — refresh the page',
   // Сверка с ЮKassa (часть 129) и «Скачать мои данные».
-  'Сверка уже идёт — подождите минуту': 'A reconciliation is already running — wait a minute',
+  'Сверка уже идёт, подождите минуту': 'A reconciliation is already running — wait a minute',
   'Расхождение не найдено': 'Discrepancy not found',
   'Расхождение уже закрыто': 'This discrepancy is already closed',
   'Аккаунт не найден': 'Account not found',
-  'Журнал устарел — обновите страницу': 'The log is out of date — refresh the page',
-  'Список лотов устарел — обновите страницу': 'The listing list is out of date — refresh the page',
+  'Журнал устарел, обновите страницу': 'The log is out of date — refresh the page',
+  'Список лотов устарел, обновите страницу': 'The listing list is out of date — refresh the page',
   // Каталог в консоли (часть 110)
-  'Адрес — латиница, цифры и дефис': 'The address — Latin letters, digits and hyphens',
-  'Название — от 2 символов': 'The name — at least 2 characters',
-  'Ключ поля — латиница, цифры и «_», с буквы': 'The field key — Latin letters, digits and “_”, starting with a letter',
-  'Подпись — от 2 символов': 'The label — at least 2 characters',
+  'Адрес: латиница, цифры и дефис': 'The address — Latin letters, digits and hyphens',
+  'Название от 2 символов': 'The name — at least 2 characters',
+  'Ключ поля: латиница, цифры и «_», с буквы': 'The field key — Latin letters, digits and “_”, starting with a letter',
+  'Подпись от 2 символов': 'The label — at least 2 characters',
   'Игра с таким адресом уже есть': 'A game with this address already exists',
-  'Обложка — PNG, JPEG или WebP': 'The cover must be PNG, JPEG or WebP',
+  'Обложка: PNG, JPEG или WebP': 'The cover must be PNG, JPEG or WebP',
   'Обложка больше 2 МБ': 'The cover is larger than 2 MB',
   'Раздел с таким адресом в этой игре уже есть': 'This game already has a category with this address',
-  'В разделе уже есть лоты — тип товара и способ выдачи не меняются':
+  'В разделе уже есть лоты, тип товара и способ выдачи не меняются':
     'The category already has listings — its item type and delivery method can’t change',
   'Поле с таким ключом в разделе уже есть': 'The category already has a field with this key',
   'Поле не найдено': 'Field not found',
-  'У выбора из списка — от двух разных вариантов': 'A choice list needs at least two different options',
-  'Список разделов устарел — обновите страницу': 'The category list is out of date — refresh the page',
-  'Список полей устарел — обновите страницу': 'The field list is out of date — refresh the page',
+  'У выбора из списка должно быть от двух разных вариантов': 'A choice list needs at least two different options',
+  'Список разделов устарел, обновите страницу': 'The category list is out of date — refresh the page',
+  'Список полей устарел, обновите страницу': 'The field list is out of date — refresh the page',
   // Проверка окружения при старте прода — пишется в журнал запуска.
   'в проде — свой секрет от {0} знаков (openssl rand -hex 32)':
     'in production — your own secret of at least {0} characters (openssl rand -hex 32)',
   'должен отличаться от JWT_ACCESS_SECRET': 'must differ from JWT_ACCESS_SECRET',
-  'Список пользователей устарел — обновите страницу': 'The user list is out of date — refresh the page',
+  'Список пользователей устарел, обновите страницу': 'The user list is out of date — refresh the page',
   'Правило не найдено': 'Rule not found',
-  'Напишите причину отказа — продавец увидит её': 'Write the reason for rejecting — the seller will see it',
-  'Сохранённые реквизиты не найдены — укажите их заново': 'Saved payout details not found — enter them again',
-  'Эти реквизиты сейчас не подходят для выплаты — укажите их заново':
+  'Напишите причину отказа, продавец увидит её': 'Write the reason for rejecting — the seller will see it',
+  'Сохранённые реквизиты не найдены, укажите их заново': 'Saved payout details not found — enter them again',
+  'Эти реквизиты сейчас не подходят для выплаты, укажите их заново':
     'These payout details can’t be used right now — enter them again',
   'Реквизиты не найдены': 'Payout details not found',
   'Нет доступа к диалогу': 'No access to this conversation',
@@ -489,7 +489,7 @@ export const EN_API: Phrasebook = {
 
   // Споры
   'Спор по этому заказу уже открыт': 'A dispute for this order is already open',
-  'Внутренние заметки — только арбитр': 'Only the arbiter can add internal notes',
+  'Внутренние заметки пишет только арбитр': 'Only the arbiter can add internal notes',
   'Спор уже в работе или закрыт': 'The dispute is already being handled or is closed',
   'Спор уже разрешён': 'The dispute has already been resolved',
   'Спор не найден': 'Dispute not found',
@@ -501,7 +501,7 @@ export const EN_API: Phrasebook = {
   'Сообщение не найдено': 'Message not found',
   'На своё сообщение жаловаться не нужно': 'You don’t need to report your own message',
   'Жалоба не найдена': 'Report not found',
-  'Действие над нарушителем — только вместе с решением жалобы':
+  'Действие над нарушителем возможно только вместе с решением жалобы':
     'Action against the violator is only possible together with resolving the report',
   'Заблокировать можно только лот': 'Only a listing can be blocked',
   'Лот не заблокирован': 'The listing isn’t blocked',
@@ -523,38 +523,38 @@ export const EN_API: Phrasebook = {
 
   // Проверка личности
   'Добавьте фото документа': 'Add a photo of the document',
-  'Документ — до двух фото': 'Up to two photos of the document',
+  'Документ: до двух фото': 'Up to two photos of the document',
   'Подойдёт фото (JPG, PNG, WebP, HEIC) или PDF': 'Use a photo (JPG, PNG, WebP, HEIC) or a PDF',
-  'Файлы не из этой заявки — загрузите их заново':
+  'Файлы не из этой заявки, загрузите их заново':
     'These files aren’t from this request — upload them again',
   'Одно и то же фото дважды': 'The same photo was added twice',
   'Документы уже на проверке': 'Your documents are already being reviewed',
   'Документы уже проверены': 'Your documents are already verified',
-  'Файл не загрузился — добавьте его ещё раз': 'The file didn’t upload — add it again',
+  'Файл не загрузился, добавьте его ещё раз': 'The file didn’t upload — add it again',
   'Напишите, что не так: продавец увидит причину и переснимет':
     'Write what’s wrong: the seller will see the reason and retake the photo',
   'Заявка не найдена': 'Request not found',
   'Заявка уже обработана': 'The request has already been processed',
 
   // Поддержка
-  'Тема — от 3 символов': 'Subject must be at least 3 characters',
-  'Опишите вопрос подробнее — от 10 символов':
+  'Тема от 3 символов': 'Subject must be at least 3 characters',
+  'Опишите вопрос подробнее, от 10 символов':
     'Describe your question in more detail — at least 10 characters',
-  'У вас уже пять открытых обращений — дождитесь ответа по ним':
+  'У вас уже пять открытых обращений. Дождитесь ответа по ним':
     'You already have five open requests — wait for replies to them',
   'Обращение не найдено': 'Request not found',
   'Это не ваше обращение': 'This isn’t your request',
   // Запросы покупателей «Хочу купить»
   'Опишите, что ищете, от 10 символов': 'Describe what you are looking for — at least 10 characters',
-  'Запрос — до 300 символов': 'A request can be up to 300 characters',
-  'Не больше {n} открытых запросов — закройте найденные':
+  'Запрос до 300 символов': 'A request can be up to 300 characters',
+  'Не больше {n} открытых запросов. Закройте найденные':
     'No more than {n} open requests — close the ones you have found',
   'Не больше {n} запросов в сутки': 'No more than {n} requests a day',
   'Такой запрос в разделе уже открыт': 'You already have the same open request in this category',
   'Запрос не найден': 'Request not found',
   'Предложить можно только лот в продаже': 'Only a listing that is on sale can be offered',
-  'Лот — из другого раздела': 'The listing is from another category',
-  'На один запрос — не больше {n} лотов': 'No more than {n} listings per request',
+  'Лот из другого раздела': 'The listing is from another category',
+  'На один запрос не больше {n} лотов': 'No more than {n} listings per request',
   'Этот лот уже предложен': 'This listing has already been offered',
   'Запрос закрыт или истёк': 'The request is closed or has expired',
   'Это ваш запрос': 'This is your request',
@@ -564,104 +564,104 @@ export const EN_API: Phrasebook = {
   'Вход через Telegram отключён по закону (149-ФЗ, ч. 10 ст. 8). Войдите по почте и паролю, через Яндекс ID или VK ID':
     'Sign-in with Telegram is turned off by law (Federal Law 149-FZ, Art. 8 Part 10). Sign in with email and password, Yandex ID or VK ID',
   // Сотрудники — только с входом с кодом (часть 119)
-  'Включите вход с кодом: консоль и действия сотрудника — только с ним':
+  'Включите вход с кодом: консоль и действия сотрудника доступны только с ним':
     'Turn on sign-in with a code: the console and staff actions require it',
   // Партнёрская программа
   'Чтобы включить программу, задайте долю и срок больше нуля':
     'To turn the program on, set a share and a term above zero',
-  'Доля партнёра — не больше 50%': 'The partner share can be at most 50%',
-  'Срок — не больше 3650 дней': 'The term can be at most 3650 days',
+  'Доля партнёра не больше 50%': 'The partner share can be at most 50%',
+  'Срок не больше 3650 дней': 'The term can be at most 3650 days',
   // Услуги со сроком (часть 125)
   'Срок выполнения — 1, 2, 3, 5, 7, 14 или 30 дней': 'The deadline is 1, 2, 3, 5, 7, 14 or 30 days',
   'Срок выполнения задают только у услуг': 'A deadline is set only for services',
-  'Срок выполнения — у услуг, которые выполняют вручную': 'A deadline is for services done by hand',
+  'Срок выполнения задают у услуг, которые выполняют вручную': 'A deadline is for services done by hand',
   'В работу берут оплаченный заказ, который ещё не выдан': 'Only a paid order that has not been delivered can be started',
   'Продавец уже взял заказ в работу: отменить можно через спор или попросить продавца вернуть деньги':
     'The seller has already started on the order: cancel it through a dispute or ask the seller for a refund',
   // Гарантия продавца (часть 126)
   'Гарантия — 1, 3, 7, 14 или 30 дней': 'The warranty is 1, 3, 7, 14 or 30 days',
-  'Гарантию дают на ключи, предметы и услуги — у валюты и пополнений её нет':
+  'Гарантию дают на ключи, предметы и услуги, у валюты и пополнений её нет':
     'A warranty is for keys, items and services — currency and top-ups have none',
-  'Заказ завершён, гарантии по нему нет или она закончилась — спор открыть нельзя':
+  'Заказ завершён, гарантии по нему нет или она закончилась, спор открыть нельзя':
     'The order is complete and has no warranty, or it has ended — a dispute cannot be opened',
   // Защита от мошенничества (часть 128)
-  'Слишком много попыток оплаты за час — не больше {0}. Попробуйте позже или напишите в поддержку.':
+  'Слишком много попыток оплаты за час, не больше {0}. Попробуйте позже или напишите в поддержку.':
     'Too many payment attempts this hour — the limit is {0}. Try again later or contact support.',
-  'Новым аккаунтам — до {0} ₽ оплат картой и по СБП за сутки. Ограничение снимется после первой завершённой сделки или через 3 дня после регистрации.':
+  'Новые аккаунты оплачивают картой и по СБП до {0} ₽ за сутки. Ограничение снимется после первой завершённой сделки или через 3 дня после регистрации.':
     'New accounts can pay up to {0} ₽ a day by card or SBP. The limit lifts after the first completed deal or 3 days after sign-up.',
-  'Новым продавцам — до {0} лотов за сутки. Ограничение снимется после первой завершённой сделки или через 3 дня после регистрации.':
+  'Новые продавцы выставляют до {0} лотов за сутки. Ограничение снимется после первой завершённой сделки или через 3 дня после регистрации.':
     'New sellers can list up to {0} items a day. The limit lifts after the first completed deal or 3 days after sign-up.',
-  'Покупка недоступна: аккаунты покупателя и продавца связаны — общий браузер или реквизиты вывода. Если это ошибка, напишите в поддержку.':
+  'Покупка недоступна: аккаунты покупателя и продавца связаны общим браузером или реквизитами вывода. Если это ошибка, напишите в поддержку.':
     'This purchase is unavailable: the buyer’s and seller’s accounts are linked by a shared browser or payout details. If this is a mistake, contact support.',
   'Вывод на эти реквизиты недоступен: они связаны с заблокированным аккаунтом. Напишите в поддержку.':
     'Withdrawals to these details are unavailable: they are linked to a blocked account. Contact support.',
-  'Оплаты новичка за сутки — от 1 000 до 1 000 000 ₽': 'New account payments per day: from 1,000 to 1,000,000 ₽',
-  'Оплат в час — от 3 до 200': 'Payments per hour: from 3 to 200',
-  'Оплат в час у новичка — от 1 до 100': 'New account payments per hour: from 1 to 100',
-  'Лотов в сутки у новичка — от 1 до 1000': 'New seller listings per day: from 1 to 1000',
+  'Оплаты новичка за сутки: от 1 000 до 1 000 000 ₽': 'New account payments per day: from 1,000 to 1,000,000 ₽',
+  'Оплат в час: от 3 до 200': 'Payments per hour: from 3 to 200',
+  'Оплат в час у новичка: от 1 до 100': 'New account payments per hour: from 1 to 100',
+  'Лотов в сутки у новичка: от 1 до 1000': 'New seller listings per day: from 1 to 1000',
   // Общий чат игры (часть 133)
-  'Сообщение — до {0} знаков': 'A message can be up to {0} characters',
-  'Сообщение — от 2 знаков': 'A message needs at least 2 characters',
-  'Причина — от 3 знаков': 'The reason needs at least 3 characters',
-  'Срок запрета — сутки, неделя или месяц': 'The ban lasts a day, a week or a month',
-  'Модератор запретил вам писать в чат игр. Причина и срок — ниже.': 'A moderator has barred you from posting in game chats. The reason and end date are below.',
-  'Не пишите заглавными — так сообщение похоже на спам': 'Please don’t write in capitals — it looks like spam',
-  'Следующее сообщение — через {0} с.': 'You can send the next message in {0} s.',
-  'Новым аккаунтам — до {0} сообщений в чатах игр за сутки. Ограничение снимется после первой сделки или через 3 дня.':
+  'Сообщение до {0} знаков': 'A message can be up to {0} characters',
+  'Сообщение от 2 знаков': 'A message needs at least 2 characters',
+  'Причина от 3 знаков': 'The reason needs at least 3 characters',
+  'Срок запрета: сутки, неделя или месяц': 'The ban lasts a day, a week or a month',
+  'Модератор запретил вам писать в чат игр. Причина и срок ниже.': 'A moderator has barred you from posting in game chats. The reason and end date are below.',
+  'Не пишите заглавными, так сообщение похоже на спам': 'Please don’t write in capitals — it looks like spam',
+  'Следующее сообщение через {0} с.': 'You can send the next message in {0} s.',
+  'Новые аккаунты пишут до {0} сообщений в чатах игр за сутки. Ограничение снимется после первой сделки или через 3 дня.':
     'New accounts can post up to {0} messages a day in game chats. The limit lifts after the first deal or in 3 days.',
   'Напишите сообщение словами': 'Please write the message in words',
-  'Это сообщение уже было — повторить можно через {0} минут.': 'You already sent this message — you can repeat it in {0} minutes.',
+  'Это сообщение уже было. Повторить можно через {0} минут.': 'You already sent this message — you can repeat it in {0} minutes.',
   'Это не ваше сообщение': 'This is not your message',
   'Удалить и запретить писать можно по жалобе на сообщение в чате игры':
     'Deleting and barring from posting only apply to a report about a game chat message',
   // Блокировки без «чёрного ящика» (часть 134)
-  'Опишите, почему решение неверно, — от 10 знаков': 'Explain why the decision is wrong — at least 10 characters',
-  'Объясните решение — от 3 знаков': 'Explain the decision — at least 3 characters',
-  'Сумма — целое число копеек': 'The amount is a whole number of kopecks',
-  'Объясните, почему снимаете, — от 3 знаков': 'Explain why you are lifting it — at least 3 characters',
+  'Опишите, почему решение неверно, от 10 знаков': 'Explain why the decision is wrong — at least 10 characters',
+  'Объясните решение, от 3 знаков': 'Explain the decision — at least 3 characters',
+  'Сумма должна быть целым числом копеек': 'The amount is a whole number of kopecks',
+  'Объясните, почему снимаете, от 3 знаков': 'Explain why you are lifting it — at least 3 characters',
   'Решение не найдено': 'Decision not found',
   'Это решение не обжалуется': 'This decision cannot be appealed',
-  'Это решение уже обжаловано — второй раз нельзя': 'This decision has already been appealed — only once',
+  'Это решение уже обжаловано, второй раз нельзя': 'This decision has already been appealed — only once',
   'Обжаловать можно в течение {0} дней после решения': 'You can appeal within {0} days of the decision',
   'Обжалование не найдено': 'Appeal not found',
   'Обжалование уже решено': 'The appeal has already been decided',
-  'Обжалование решает другой сотрудник — не тот, кто принял решение': 'An appeal is decided by another staff member — not the one who made the decision',
+  'Обжалование решает другой сотрудник, не тот, кто принял решение': 'An appeal is decided by another staff member — not the one who made the decision',
   'Это решение не отменяется обжалованием': 'This decision cannot be reversed by an appeal',
   'Свой баланс так не удерживают': 'You cannot put a hold on your own balance',
-  'На балансе {0} ₽ — удержать больше нельзя': 'The balance is {0} ₽ — you cannot hold more',
+  'На балансе {0} ₽, удержать больше нельзя': 'The balance is {0} ₽ — you cannot hold more',
   'Удержание не найдено': 'Hold not found',
   // Арбитраж: обжалование решения (часть 135)
-  'Объясните, почему решение неверно, — от 10 знаков': 'Explain why the decision is wrong — at least 10 characters',
-  'Окно обжалования — от 0 до 72 часов': 'The appeal window is 0 to 72 hours',
-  'Обжалование решает другой арбитр — не тот, кто вынес первое решение': 'An appeal is decided by another arbiter — not the one who made the first decision',
+  'Объясните, почему решение неверно, от 10 знаков': 'Explain why the decision is wrong — at least 10 characters',
+  'Окно обжалования от 0 до 72 часов': 'The appeal window is 0 to 72 hours',
+  'Обжалование решает другой арбитр, не тот, кто вынес первое решение': 'An appeal is decided by another arbiter — not the one who made the first decision',
   'Решение по спору обжалуется один раз': 'A dispute decision can be appealed only once',
-  'Решение уже вступило в силу — обжаловать нельзя': 'The decision has already taken effect — it can’t be appealed',
+  'Решение уже вступило в силу, обжаловать нельзя': 'The decision has already taken effect — it can’t be appealed',
   'Обжаловать может сторона, против которой вынесено решение': 'Only the side the decision went against can appeal',
   'Решение уже вступило в силу': 'The decision has already taken effect',
   'Принять решение может сторона, против которой оно вынесено': 'Only the side the decision went against can accept it',
   // Защита продавца (часть 136)
-  'Открыто {0} спора — дождитесь решения по ним, потом открывайте новый.': '{0} disputes are open — wait for decisions on them before opening a new one.',
+  'Открыто {0} спора. Дождитесь решения по ним, потом открывайте новый.': '{0} disputes are open — wait for decisions on them before opening a new one.',
   'Продавец продаёт покупателям с аккаунтом не моложе {0} дн.': 'This seller sells to buyers whose accounts are at least {0} days old.',
   'Продавец не продаёт покупателям с проигранными спорами за последние 90 дней.': 'This seller doesn’t sell to buyers who lost disputes in the last 90 days.',
   'Продавец не продаёт покупателям, которых другие продавцы чаще не рекомендуют.': 'This seller doesn’t sell to buyers whom other sellers more often don’t recommend.',
   'Отметить «данные получены» можно после ручной выдачи': 'You can mark “details received” after a manual delivery',
-  'Возраст аккаунта — 0, 1, 7 или 30 дней': 'Account age: 0, 1, 7 or 30 days',
-  'Проигранных споров — 0, 1 или 3': 'Lost disputes: 0, 1 or 3',
+  'Возраст аккаунта: 0, 1, 7 или 30 дней': 'Account age: 0, 1, 7 or 30 days',
+  'Проигранных споров: 0, 1 или 3': 'Lost disputes: 0, 1 or 3',
   // Возврат на карту при отмене (часть 137)
   'Отменить с возвратом можно оплаченный, ещё не выданный заказ': 'Only a paid order that hasn’t been delivered can be cancelled with a refund',
-  'Этот заказ вернуть на карту нельзя — только на баланс': 'This order can’t be refunded to the card — only to the balance',
+  'Этот заказ вернуть на карту нельзя, только на баланс': 'This order can’t be refunded to the card — only to the balance',
   'Заказ уже выдан или отменён': 'The order has already been delivered or cancelled',
   'Платёжная система не приняла возврат. Попробуйте позже или верните на баланс.': 'The payment system didn’t accept the refund. Try later or refund to the balance.',
   // Поддержка (часть 138)
-  'Оценка — от 1 до 5': 'The rating is from 1 to 5',
-  'Название — от 2 знаков': 'The title needs at least 2 characters',
-  'Текст — от 5 знаков': 'The text needs at least 5 characters',
+  'Оценка от 1 до 5': 'The rating is from 1 to 5',
+  'Название от 2 знаков': 'The title needs at least 2 characters',
+  'Текст от 5 знаков': 'The text needs at least 5 characters',
   'Оценить можно после ответа поддержки': 'You can rate after support replies',
-  'Заготовок не больше 100 — удалите ненужные': 'No more than 100 templates — delete the ones you don’t need',
+  'Заготовок не больше 100. Удалите ненужные': 'No more than 100 templates — delete the ones you don’t need',
   // Частичный возврат по спору (часть 140)
-  'Доля возврата — 25, 50, 75 или 100%': 'The refund share is 25, 50, 75 or 100%',
+  'Доля возврата: 25, 50, 75 или 100%': 'The refund share is 25, 50, 75 or 100%',
   // Ссылка на обмен Steam (часть 142)
-  'Ссылка на обмен Steam — вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=…':
+  'Ссылка на обмен Steam вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=…':
     'A Steam trade link looks like https://steamcommunity.com/tradeoffer/new/?partner=…&token=…',
   'Ссылка на обмен Steam — вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=… (Steam → Инвентарь → Предложения обмена → «Кто может отправлять мне предложения»)':
     'A Steam trade link looks like https://steamcommunity.com/tradeoffer/new/?partner=…&token=… (Steam → Inventory → Trade Offers → “Who can send me trade offers?”)',

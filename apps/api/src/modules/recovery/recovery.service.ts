@@ -159,7 +159,7 @@ export function newEmailBlocker(rec: AccountRecovery, hasKyc: boolean, deals: De
 /** Почему сделки не доказывают, что аккаунт заявителя, или null — доказывают. */
 function dealsBlocker(rec: AccountRecovery, deals: DealRow[]) {
   if (rec.objectedAt) {
-    return 'Из аккаунта отметили «Заявку подал не я» — по сделкам на новую почту не восстановить';
+    return 'Из аккаунта отметили «Заявку подал не я», по сделкам на новую почту не восстановить';
   }
   if (!rec.dealsAt) return 'Описания сделок по ссылке ещё не присланы';
   if (deals.some((d) => d.answer === 'mismatch')) {
@@ -275,12 +275,12 @@ export class RecoveryService {
       contactEmail
         ? say(
             lang,
-            'Подана заявка на восстановление доступа к аккаунту с просьбой сменить почту: {device}. Если это не вы — отметьте «Заявку подал не я» в «Безопасности».',
+            'Подана заявка на восстановление доступа к аккаунту с просьбой сменить почту: {device}. Если это не вы, отметьте «Заявку подал не я» в «Безопасности».',
             { device: deviceOf(ctx.userAgent, lang) },
           )
         : say(
             lang,
-            'Подана заявка на восстановление доступа к аккаунту: {device}. Если это не вы — отметьте «Заявку подал не я» в «Безопасности».',
+            'Подана заявка на восстановление доступа к аккаунту: {device}. Если это не вы, отметьте «Заявку подал не я» в «Безопасности».',
             { device: deviceOf(ctx.userAgent, lang) },
           ),
     );
@@ -562,7 +562,7 @@ export class RecoveryService {
     if (!rec.contactEmail) throw new BadRequestException('В заявке нет новой почты');
     if (!(await this.approvedKyc(rec.userId))) {
       throw new BadRequestException(
-        'У аккаунта нет пройденной проверки личности — сверять документы не с чем',
+        'У аккаунта нет пройденной проверки личности, сверять документы не с чем',
       );
     }
     const at = new Date();
@@ -583,10 +583,10 @@ export class RecoveryService {
       'recovery_docs',
       at,
       (lang, link) => [
-        say(lang, 'Восстановление доступа: загрузите документы — GameMarket'),
+        say(lang, 'Восстановление доступа: загрузите документы · GameMarket'),
         say(
           lang,
-          'Сотрудник проверяет заявку на восстановление доступа. Загрузите фото документа и селфи с ним — тем же, что при проверке личности (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.',
+          'Сотрудник проверяет заявку на восстановление доступа. Загрузите фото документа и селфи с ним, тем же, что при проверке личности (ссылка действует неделю): {link}\nЕсли заявку подавали не вы, проигнорируйте письмо.',
           { link },
         ),
       ],
@@ -606,7 +606,7 @@ export class RecoveryService {
     if (!rec.contactEmail) throw new BadRequestException('В заявке нет новой почты');
     if (await this.approvedKyc(rec.userId)) {
       throw new BadRequestException(
-        'У аккаунта пройдена проверка личности — попросите документы, они надёжнее',
+        'У аккаунта пройдена проверка личности, попросите документы, они надёжнее',
       );
     }
     const at = new Date();
@@ -630,10 +630,10 @@ export class RecoveryService {
       'recovery_deals',
       at,
       (lang, link) => [
-        say(lang, 'Восстановление доступа: опишите сделки — GameMarket'),
+        say(lang, 'Восстановление доступа: опишите сделки · GameMarket'),
         say(
           lang,
-          'Сотрудник проверяет заявку на восстановление доступа. Проверки личности у аккаунта нет, поэтому опишите две-три сделки с разными продавцами или покупателями — мы спросим их, совпадает ли описание (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.',
+          'Сотрудник проверяет заявку на восстановление доступа. Проверки личности у аккаунта нет, поэтому опишите две-три сделки с разными продавцами или покупателями, и мы спросим их, совпадает ли описание (ссылка действует неделю): {link}\nЕсли заявку подавали не вы, проигнорируйте письмо.',
           { link },
         ),
       ],
@@ -661,7 +661,7 @@ export class RecoveryService {
     if (rec.dealsAt) throw new ConflictException('Описания уже отправлены');
     const names = deals.map((d) => d.counterparty.trim().replace(/^@/, ''));
     if (new Set(names.map((n) => n.toLowerCase())).size !== names.length) {
-      throw new BadRequestException('Каждая сделка — с другим продавцом или покупателем');
+      throw new BadRequestException('Каждая сделка должна быть с другим продавцом или покупателем');
     }
     const rows = await Promise.all(
       deals.map(async (d, i) => ({
@@ -697,7 +697,7 @@ export class RecoveryService {
       this.alert(r.counterpartyId, 'deal_check', { checkId: r.id, username }, (lang) =>
         say(
           lang,
-          '@{username}, с кем вы заключали сделки, восстанавливает доступ к аккаунту. Сверьте описание сделки — ответ увидит только сотрудник.',
+          '@{username}, с кем вы заключали сделки, восстанавливает доступ к аккаунту. Сверьте описание сделки, ответ увидит только сотрудник.',
           { username },
         ),
       );
@@ -807,7 +807,7 @@ export class RecoveryService {
     const cards = await this.cardCounts(rec.userId);
     if (!cards.payments && !cards.payouts) {
       throw new BadRequestException(
-        'В аккаунте не платили картой и не выводили на карту — сверять не с чем',
+        'В аккаунте не платили картой и не выводили на карту, сверять не с чем',
       );
     }
     // Прежняя блокировка, если заявитель её не довёл, — снять.
@@ -835,10 +835,10 @@ export class RecoveryService {
       'recovery_card',
       at,
       (lang, link) => [
-        say(lang, 'Восстановление доступа: проверка картой — GameMarket'),
+        say(lang, 'Восстановление доступа: проверка картой · GameMarket'),
         say(
           lang,
-          'Сотрудник проверяет заявку на восстановление доступа. Заплатите 1 ₽ картой, которой вы платили на GameMarket или на которую выводили деньги: сумма только заблокируется и сразу вернётся (ссылка действует неделю): {link}\nЕсли заявку подавали не вы — проигнорируйте письмо.',
+          'Сотрудник проверяет заявку на восстановление доступа. Заплатите 1 ₽ картой, которой вы платили на GameMarket или на которую выводили деньги: сумма только заблокируется и сразу вернётся (ссылка действует неделю): {link}\nЕсли заявку подавали не вы, проигнорируйте письмо.',
           { link },
         ),
       ],
@@ -893,7 +893,7 @@ export class RecoveryService {
     });
     if (!took.count) {
       this.release(hold.id);
-      throw new ConflictException('Оплата уже начата — обновите страницу');
+      throw new ConflictException('Оплата уже начата, обновите страницу');
     }
     return { url: hold.url };
   }
@@ -1028,13 +1028,13 @@ export class RecoveryService {
       k.startsWith(`recovery/${rec.id}/`) && SAFE_KEY.test(k) && !k.includes('..');
     const files = [...documentKeys, selfieKey];
     if (!files.every(own)) {
-      throw new BadRequestException('Файлы не из этой заявки — загрузите их заново');
+      throw new BadRequestException('Файлы не из этой заявки, загрузите их заново');
     }
     if (new Set(files).size !== files.length)
       throw new BadRequestException('Одно и то же фото дважды');
     for (const key of files) {
       const bytes = await this.storage.getBytes(key).catch(() => null);
-      if (!bytes) throw new BadRequestException('Файл не загрузился — добавьте его ещё раз');
+      if (!bytes) throw new BadRequestException('Файл не загрузился, добавьте его ещё раз');
       const result = await this.scanner.scan(bytes);
       if (!result.clean) {
         await this.storage.remove(key);
@@ -1118,22 +1118,22 @@ export class RecoveryService {
       const email = maskEmail(rec.contactEmail);
       await this.mail.send(
         before.email,
-        say(lang, 'Почта аккаунта изменена — GameMarket'),
+        say(lang, 'Почта аккаунта изменена · GameMarket'),
         proof === 'card'
           ? say(
               lang,
-              'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: заявитель заплатил картой, которой платили в аккаунте. Если это не вы — ответьте на это письмо.',
+              'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: заявитель заплатил картой, которой платили в аккаунте. Если это не вы, ответьте на это письмо.',
               { email },
             )
           : proof === 'documents'
             ? say(
                 lang,
-                'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сотрудник сверил документы с проверкой личности. Если это не вы — ответьте на это письмо.',
+                'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сотрудник сверил документы с проверкой личности. Если это не вы, ответьте на это письмо.',
                 { email },
               )
             : say(
                 lang,
-                'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сделки из заявки подтвердили их участники. Если это не вы — ответьте на это письмо.',
+                'Почта аккаунта GameMarket изменена на {email} по заявке на восстановление доступа: сделки из заявки подтвердили их участники. Если это не вы, ответьте на это письмо.',
                 { email },
               ),
       );

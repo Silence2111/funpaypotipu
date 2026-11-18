@@ -383,7 +383,7 @@ export class ModerationService {
     const report = await this.prisma.report.findUnique({ where: { id: reportId } });
     if (!report) throw new NotFoundException('Жалоба не найдена');
     if (input.action && input.status !== 'resolved') {
-      throw new BadRequestException('Действие над нарушителем — только вместе с решением жалобы');
+      throw new BadRequestException('Действие над нарушителем возможно только вместе с решением жалобы');
     }
     if (input.action) await this.applyAction(staffId, report, input.action, input.note || report.reason, input.rule);
 

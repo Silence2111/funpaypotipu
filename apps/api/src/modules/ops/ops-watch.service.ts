@@ -112,14 +112,14 @@ export class OpsWatchService {
     const fired: string[] = [];
     if (s.errors5m >= t.errorSpike) {
       const top = s.topError ? ` Чаще всего: «${s.topError.slice(0, 160)}».` : '';
-      if (await this.alerts.alert('errors', `за 5 минут — ${s.errors5m} ошибок API.${top}`, now))
+      if (await this.alerts.alert('errors', `за 5 минут ${s.errors5m} ошибок API.${top}`, now))
         fired.push('errors');
     }
     if (s.failedInRow >= t.failedPayments) {
       if (
         await this.alerts.alert(
           'payments',
-          `${s.failedInRow} оплат подряд не прошли — проверьте шлюз и способы оплаты.`,
+          `${s.failedInRow} оплат подряд не прошли. Проверьте шлюз и способы оплаты.`,
           now,
         )
       )
@@ -129,7 +129,7 @@ export class OpsWatchService {
       if (
         await this.alerts.alert(
           'webhooks',
-          `за 15 минут — ${s.webhookFailures15m} отказов вебхуков: шлюз не может провести оплаты или выплаты.`,
+          `за 15 минут ${s.webhookFailures15m} отказов вебхуков: шлюз не может провести оплаты или выплаты.`,
           now,
         )
       )
@@ -140,7 +140,7 @@ export class OpsWatchService {
       if (
         await this.alerts.alert(
           'payouts',
-          `${stuck} выплат «отправляются» дольше ${t.payoutStuckHours} ч — проверьте их у ЮKassa.`,
+          `${stuck} выплат «отправляются» дольше ${t.payoutStuckHours} ч. Проверьте их у ЮKassa.`,
           now,
         )
       )

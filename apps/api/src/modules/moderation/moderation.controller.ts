@@ -40,7 +40,7 @@ const listingsQuery = z.object({
   status: z.enum(LISTING_FILTERS).optional(),
   seller: z.string().uuid().optional(),
   q: z.string().trim().max(100).optional(),
-  cursor: timeCursor('Список лотов устарел — обновите страницу'),
+  cursor: timeCursor('Список лотов устарел, обновите страницу'),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 type ListingsParams = z.infer<typeof listingsQuery>;
@@ -48,7 +48,7 @@ type ListingsParams = z.infer<typeof listingsQuery>;
 const usersQuery = z.object({
   status: z.enum(USER_FILTERS).optional(),
   q: z.string().trim().max(100).optional(),
-  cursor: timeCursor('Список пользователей устарел — обновите страницу'),
+  cursor: timeCursor('Список пользователей устарел, обновите страницу'),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 type UsersParams = z.infer<typeof usersQuery>;
@@ -56,7 +56,7 @@ const reportsQuery = z.object({
   status: z.enum(REPORT_STATUSES).optional(),
   /** Ник нарушителя или пожаловавшегося, название лота, id цели или жалобы. */
   q: z.string().trim().max(100).optional(),
-  cursor: timeCursor('Список жалоб устарел — обновите страницу'),
+  cursor: timeCursor('Список жалоб устарел, обновите страницу'),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 type ReportsParams = z.infer<typeof reportsQuery>;

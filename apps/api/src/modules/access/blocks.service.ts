@@ -29,7 +29,7 @@ export class BlocksService {
       );
     }
     if (rows.some((r) => r.blockerId === fromId)) {
-      throw new ForbiddenException('Пользователь в вашем чёрном списке — уберите его оттуда, чтобы продолжить');
+      throw new ForbiddenException('Пользователь в вашем чёрном списке. Уберите его оттуда, чтобы продолжить');
     }
   }
 

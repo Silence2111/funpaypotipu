@@ -81,14 +81,14 @@ export class PhoneService {
     });
     if (last && now - last.createdAt.getTime() < RESEND_MS) {
       const retryIn = Math.ceil((RESEND_MS - (now - last.createdAt.getTime())) / 1000);
-      throw err(429, 'phone_code_wait', `Новый код — через ${retryIn} сек.`, { retryIn });
+      throw err(429, 'phone_code_wait', `Новый код через ${retryIn} сек.`, { retryIn });
     }
     const [hour, day] = await Promise.all([
       this.prisma.phoneCode.count({ where: { phone, createdAt: { gte: new Date(now - HOUR_MS) } } }),
       this.prisma.phoneCode.count({ where: { phone, createdAt: { gte: new Date(now - 24 * HOUR_MS) } } }),
     ]);
     if (hour >= PHONE_CODES_PER_HOUR || day >= PHONE_CODES_PER_DAY) {
-      throw err(429, 'phone_code_limit', 'Слишком много кодов на этот номер — попробуйте позже');
+      throw err(429, 'phone_code_limit', 'Слишком много кодов на этот номер, попробуйте позже');
     }
 
     const code = String(randomInt(0, 10 ** PHONE_CODE_LENGTH)).padStart(PHONE_CODE_LENGTH, '0');
@@ -114,9 +114,9 @@ export class PhoneService {
       where: { phone, purpose, usedAt: null, expiresAt: { gt: new Date() }, ...(userId ? { userId } : {}) },
       orderBy: { createdAt: 'desc' },
     });
-    if (!row) throw err(400, 'phone_code_expired', 'Код устарел — запросите новый');
+    if (!row) throw err(400, 'phone_code_expired', 'Код устарел, запросите новый');
     if (row.attempts >= PHONE_CODE_ATTEMPTS) {
-      throw err(429, 'phone_code_locked', 'Слишком много неверных кодов — запросите новый');
+      throw err(429, 'phone_code_locked', 'Слишком много неверных кодов, запросите новый');
     }
     const given = Buffer.from(this.hash(phone, code.trim()));
     const stored = Buffer.from(row.codeHash);
@@ -124,13 +124,13 @@ export class PhoneService {
       const attempts = row.attempts + 1;
       await this.prisma.phoneCode.update({ where: { id: row.id }, data: { attempts } });
       if (attempts >= PHONE_CODE_ATTEMPTS) {
-        throw err(429, 'phone_code_locked', 'Слишком много неверных кодов — запросите новый');
+        throw err(429, 'phone_code_locked', 'Слишком много неверных кодов, запросите новый');
       }
       throw err(400, 'phone_code_invalid', 'Код не подошёл', { left: PHONE_CODE_ATTEMPTS - attempts });
     }
     // Погашение — условное: два одновременных ввода одного кода не дают два входа.
     const used = await this.prisma.phoneCode.updateMany({ where: { id: row.id, usedAt: null }, data: { usedAt: new Date() } });
-    if (!used.count) throw err(400, 'phone_code_expired', 'Код устарел — запросите новый');
+    if (!used.count) throw err(400, 'phone_code_expired', 'Код устарел, запросите новый');
     return phone;
   }
 
@@ -168,7 +168,7 @@ export class PhoneService {
 
     const username = input.username?.trim().toLowerCase();
     if (!username) {
-      throw err(400, 'username_required', 'Выберите ник — по нему вас найдут покупатели и продавцы', {
+      throw err(400, 'username_required', 'Выберите ник, по нему вас найдут покупатели и продавцы', {
         suggested: await this.freeUsername(suggestUsername(`player_${phone.slice(-4)}`)),
       });
     }
@@ -247,7 +247,7 @@ export class PhoneService {
     const other =
       !!(u.passwordHash && u.email) ||
       u.socialAccounts.some((a) => (OAUTH_PROVIDERS as readonly string[]).includes(a.provider));
-    if (!other) throw new BadRequestException('Это единственный способ входа — сначала задайте почту и пароль');
+    if (!other) throw new BadRequestException('Это единственный способ входа. Сначала задайте почту и пароль');
     await this.prisma.user.update({ where: { id: userId }, data: { phone: null, phoneVerifiedAt: null } });
     await this.notifications.notify(userId, 'phone_changed', { preview: `− ${maskPhone(u.phone)}` }).catch(() => undefined);
     return this.status(userId);

@@ -161,7 +161,7 @@ describe('сверка с ЮKassa', () => {
     expect(run).toMatchObject({ status: 'issues', newIssues: 4 });
     expect(alerts.alert).toHaveBeenCalledWith(
       'reconcile',
-      expect.stringContaining('новых расхождений — 4'),
+      expect.stringContaining('новых расхождений 4'),
     );
   });
 

@@ -22,7 +22,7 @@ const listSchema = z
   })
   .refine((v) => !v.before === !v.beforeId, {
     path: ['beforeId'],
-    message: 'Список диалогов устарел — обновите страницу',
+    message: 'Список диалогов устарел, обновите страницу',
   });
 type ListQuery = z.infer<typeof listSchema>;
 const uploadSchema = z.object({ mime: z.string().min(3).max(100) });

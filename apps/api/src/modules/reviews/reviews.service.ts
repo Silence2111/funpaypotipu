@@ -64,7 +64,7 @@ export class ReviewsService {
       throw new BadRequestException(`Не больше ${MAX_REVIEW_PHOTOS} фото к отзыву`);
     }
     const own = new RegExp(`^reviews/${authorId}/[0-9a-f-]{36}\\.(jpg|png|webp|gif)$`);
-    if (list.some((k) => !own.test(k))) throw new BadRequestException('Фото не найдено — загрузите его заново');
+    if (list.some((k) => !own.test(k))) throw new BadRequestException('Фото не найдено, загрузите его заново');
     return list;
   }
 

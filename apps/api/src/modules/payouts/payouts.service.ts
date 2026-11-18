@@ -44,11 +44,11 @@ export interface PayoutsQueueQuery {
 
 /** Первый вывод без продаж ждёт столько дней — защита от отмыва через пополнение. */
 /** Без причины отказ не сохраняется: продавцу нечего было бы исправлять. */
-export const REJECT_REASON_NEEDED = 'Напишите причину отказа — продавец увидит её';
+export const REJECT_REASON_NEEDED = 'Напишите причину отказа, продавец увидит её';
 /** Сколько реквизитов помнить: давно не нужные уходят первыми. */
 const MAX_SAVED = 10;
-const SAVED_GONE = 'Сохранённые реквизиты не найдены — укажите их заново';
-const SAVED_STALE = 'Эти реквизиты сейчас не подходят для выплаты — укажите их заново';
+const SAVED_GONE = 'Сохранённые реквизиты не найдены, укажите их заново';
+const SAVED_STALE = 'Эти реквизиты сейчас не подходят для выплаты, укажите их заново';
 export const NEWBIE_HOLD_DAYS = Number(process.env.PAYOUT_NEWBIE_HOLD_DAYS ?? 3);
 // Вывод свыше порога — только после верификации личности (минорные единицы).
 export const KYC_REQUIRED_ABOVE = BigInt(process.env.PAYOUT_KYC_REQUIRED_ABOVE ?? 1_500_000);
@@ -105,7 +105,7 @@ export class PayoutsService {
       if (phone.length === 11 && phone.startsWith('8')) phone = `7${phone.slice(1)}`;
       if (phone.length === 10) phone = `7${phone}`;
       if (!/^7\d{10}$/.test(phone)) {
-        throw new BadRequestException('Телефон для СБП — российский номер, например +7 900 000-00-00');
+        throw new BadRequestException('Телефон для СБП: российский номер, например +7 900 000-00-00');
       }
       const banks = await this.gateway.sbpBanks();
       if (!bankId || !banks.some((b) => b.id === bankId)) {
@@ -114,7 +114,7 @@ export class PayoutsService {
       return JSON.stringify({ phone, bankId });
     }
     const account = raw.replace(/\s/g, '');
-    if (!/^\d{11,20}$/.test(account)) throw new BadRequestException('Номер кошелька ЮMoney — от 11 до 20 цифр');
+    if (!/^\d{11,20}$/.test(account)) throw new BadRequestException('Номер кошелька ЮMoney: от 11 до 20 цифр');
     return account;
   }
 
@@ -166,10 +166,10 @@ export class PayoutsService {
     const wm = getWithdrawalMethod(method);
     if (!wm) throw new BadRequestException('Неизвестный способ вывода');
     if (amount < wm.minAmount) {
-      throw new BadRequestException(`Минимальная сумма вывода для «${wm.label}» — ${Number(wm.minAmount) / 100} ₽`);
+      throw new BadRequestException(`Минимальная сумма вывода для «${wm.label}»: ${Number(wm.minAmount) / 100} ₽`);
     }
     if (amount > wm.maxAmount) {
-      throw new BadRequestException(`Максимум для «${wm.label}» — ${Number(wm.maxAmount) / 100} ₽`);
+      throw new BadRequestException(`Максимум для «${wm.label}»: ${Number(wm.maxAmount) / 100} ₽`);
     }
 
     const balance = await this.ledger.balanceOf(userId, currency);
@@ -183,7 +183,7 @@ export class PayoutsService {
       });
       if (!kyc) {
         throw new BadRequestException(
-          `Вывод больше ${new Intl.NumberFormat('ru-RU').format(Number(KYC_REQUIRED_ABOVE / 100n))} ₽ — после проверки личности: «Безопасность» → «Проверка личности»`,
+          `Вывод больше ${new Intl.NumberFormat('ru-RU').format(Number(KYC_REQUIRED_ABOVE / 100n))} ₽ доступен после проверки личности: «Безопасность» → «Проверка личности»`,
         );
       }
     }
@@ -253,7 +253,7 @@ export class PayoutsService {
       stored = JSON.stringify({ token, first6, last4, type, issuer });
     } else {
       const account = (destination ?? '').replace(/\s/g, '');
-      if (!/^\d{11,20}$/.test(account)) throw new BadRequestException('Номер кошелька ЮMoney — от 11 до 20 цифр');
+      if (!/^\d{11,20}$/.test(account)) throw new BadRequestException('Номер кошелька ЮMoney: от 11 до 20 цифр');
       stored = account;
       // Реквизиты забаненного (часть 128) — и для выплат по «Безопасной сделке».
       await this.antifraud?.assertRequisitesClean(userId, method, this.requisitesFp(method, stored));
@@ -452,7 +452,7 @@ export class PayoutsService {
     }
     if (this.gateway.handles(payout.method)) return this.send(payout, actorId);
     if (this.gatewayOnly(payout)) {
-      throw new BadRequestException('Карта сохранена в ЮKassa — эту заявку выплачивает только она. Включите выплаты через ЮKassa или отклоните заявку');
+      throw new BadRequestException('Карта сохранена в ЮKassa, эту заявку выплачивает только она. Включите выплаты через ЮKassa или отклоните заявку');
     }
 
     // Комиссия за вывод удерживается на выплате и идёт в доход площадки.
@@ -493,7 +493,7 @@ export class PayoutsService {
     const destination = this.destinationOf(payout.method, payout.destinationEnc);
     if (!destination) {
       await release();
-      throw new BadRequestException('Реквизиты заявки не подходят для автоматической выплаты — отклоните её');
+      throw new BadRequestException('Реквизиты заявки не подходят для автоматической выплаты, отклоните её');
     }
     let sent: GatewayPayout;
     try {
@@ -613,7 +613,7 @@ export class PayoutsService {
   async reveal(payoutId: string, actorId: string) {
     const payout = await this.get(payoutId);
     if (this.gateway.handles(payout.method) || this.gatewayOnly(payout)) {
-      throw new BadRequestException('Эту выплату отправляет ЮKassa — реквизиты у неё');
+      throw new BadRequestException('Эту выплату отправляет ЮKassa, реквизиты у неё');
     }
     const raw = this.encryption.decrypt(payout.destinationEnc);
     const d = parseJson(raw);

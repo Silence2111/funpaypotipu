@@ -10,7 +10,7 @@ import { Roles } from '../access/roles.decorator';
 import { AppealsService } from './appeals.service';
 
 const appealBody = z.object({
-  text: z.string().trim().min(10, 'Опишите, почему решение неверно, — от 10 знаков').max(2000),
+  text: z.string().trim().min(10, 'Опишите, почему решение неверно, от 10 знаков').max(2000),
 });
 
 /** Решения модерации о человеке и обжалование (часть 134). */
@@ -38,14 +38,14 @@ export class AppealsController {
 
 const decideBody = z.object({
   outcome: z.enum(['upheld', 'overturned']),
-  note: z.string().trim().min(3, 'Объясните решение — от 3 знаков').max(1000),
+  note: z.string().trim().min(3, 'Объясните решение, от 3 знаков').max(1000),
 });
 const holdBody = z.object({
-  amount: z.string().regex(/^\d{1,12}$/, 'Сумма — целое число копеек'),
-  reason: z.string().trim().min(3, 'Причина — от 3 знаков').max(500),
+  amount: z.string().regex(/^\d{1,12}$/, 'Сумма должна быть целым числом копеек'),
+  reason: z.string().trim().min(3, 'Причина от 3 знаков').max(500),
   rule: z.enum(RULE_IDS as [string, ...string[]]).optional(),
 });
-const releaseBody = z.object({ note: z.string().trim().min(3, 'Объясните, почему снимаете, — от 3 знаков').max(500) });
+const releaseBody = z.object({ note: z.string().trim().min(3, 'Объясните, почему снимаете, от 3 знаков').max(500) });
 
 /** Обжалования и удержания в консоли. */
 @Controller('moderation')

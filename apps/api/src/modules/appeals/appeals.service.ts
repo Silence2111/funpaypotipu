@@ -99,7 +99,7 @@ export class AppealsService {
     const action = await this.prisma.moderationAction.findUnique({ where: { id: actionId }, include: { appeal: true } });
     if (!action || !(await this.concerns(action, userId))) throw new NotFoundException('Решение не найдено');
     if (!APPEALABLE[kindOf(action)]) throw new BadRequestException('Это решение не обжалуется');
-    if (action.appeal) throw new ConflictException('Это решение уже обжаловано — второй раз нельзя');
+    if (action.appeal) throw new ConflictException('Это решение уже обжаловано, второй раз нельзя');
     if (Date.now() - action.createdAt.getTime() > APPEAL_WINDOW_DAYS * 86_400_000) {
       throw new BadRequestException(`Обжаловать можно в течение ${APPEAL_WINDOW_DAYS} дней после решения`);
     }
@@ -183,7 +183,7 @@ export class AppealsService {
     if (!appeal) throw new NotFoundException('Обжалование не найдено');
     if (appeal.status !== 'open') throw new ConflictException('Обжалование уже решено');
     if (appeal.action.actorId === staffId) {
-      throw new ForbiddenException('Обжалование решает другой сотрудник — не тот, кто принял решение');
+      throw new ForbiddenException('Обжалование решает другой сотрудник, не тот, кто принял решение');
     }
     if (outcome === 'overturned') await this.reverse(staffId, appeal.action, note);
     const done = await this.prisma.appeal.update({
@@ -245,7 +245,7 @@ export class AppealsService {
     if (amount <= 0n) throw new BadRequestException('Сумма должна быть положительной');
     const balance = await this.ledger.balanceOf(userId, currency);
     if (balance < amount) {
-      throw new BadRequestException(`На балансе ${new Intl.NumberFormat('ru-RU').format(Number(balance) / 100)} ₽ — удержать больше нельзя`);
+      throw new BadRequestException(`На балансе ${new Intl.NumberFormat('ru-RU').format(Number(balance) / 100)} ₽, удержать больше нельзя`);
     }
     const hold = await this.prisma.$transaction(async (tx) => {
       const h = await tx.balanceHold.create({ data: { userId, amount, currency, reason, rule, createdBy: staffId } });

@@ -35,23 +35,23 @@ const settingsBody = z.object({
   newbiePayDay: z
     .number()
     .int()
-    .min(ANTIFRAUD_LIMITS.newbiePayDay.min, 'Оплаты новичка за сутки — от 1 000 до 1 000 000 ₽')
-    .max(ANTIFRAUD_LIMITS.newbiePayDay.max, 'Оплаты новичка за сутки — от 1 000 до 1 000 000 ₽'),
+    .min(ANTIFRAUD_LIMITS.newbiePayDay.min, 'Оплаты новичка за сутки: от 1 000 до 1 000 000 ₽')
+    .max(ANTIFRAUD_LIMITS.newbiePayDay.max, 'Оплаты новичка за сутки: от 1 000 до 1 000 000 ₽'),
   paymentsPerHour: z
     .number()
     .int()
-    .min(ANTIFRAUD_LIMITS.paymentsPerHour.min, 'Оплат в час — от 3 до 200')
-    .max(ANTIFRAUD_LIMITS.paymentsPerHour.max, 'Оплат в час — от 3 до 200'),
+    .min(ANTIFRAUD_LIMITS.paymentsPerHour.min, 'Оплат в час: от 3 до 200')
+    .max(ANTIFRAUD_LIMITS.paymentsPerHour.max, 'Оплат в час: от 3 до 200'),
   newbiePaymentsPerHour: z
     .number()
     .int()
-    .min(ANTIFRAUD_LIMITS.newbiePaymentsPerHour.min, 'Оплат в час у новичка — от 1 до 100')
-    .max(ANTIFRAUD_LIMITS.newbiePaymentsPerHour.max, 'Оплат в час у новичка — от 1 до 100'),
+    .min(ANTIFRAUD_LIMITS.newbiePaymentsPerHour.min, 'Оплат в час у новичка: от 1 до 100')
+    .max(ANTIFRAUD_LIMITS.newbiePaymentsPerHour.max, 'Оплат в час у новичка: от 1 до 100'),
   newbieLotsPerDay: z
     .number()
     .int()
-    .min(ANTIFRAUD_LIMITS.newbieLotsPerDay.min, 'Лотов в сутки у новичка — от 1 до 1000')
-    .max(ANTIFRAUD_LIMITS.newbieLotsPerDay.max, 'Лотов в сутки у новичка — от 1 до 1000'),
+    .min(ANTIFRAUD_LIMITS.newbieLotsPerDay.min, 'Лотов в сутки у новичка: от 1 до 1000')
+    .max(ANTIFRAUD_LIMITS.newbieLotsPerDay.max, 'Лотов в сутки у новичка: от 1 до 1000'),
   blockLinkedDeals: z.boolean(),
 });
 

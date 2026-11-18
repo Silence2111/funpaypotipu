@@ -149,7 +149,7 @@ export class AdminService {
   async revokeRole(actorId: string, userId: string, roleKey: string) {
     // Последний администратор не должен случайно запереть консоль от всех.
     if (roleKey === 'admin' && actorId === userId) {
-      throw new BadRequestException('Свою роль администратора снять нельзя — попросите другого администратора');
+      throw new BadRequestException('Свою роль администратора снять нельзя, попросите другого администратора');
     }
     const role = await this.prisma.role.findUnique({ where: { key: roleKey } });
     if (!role) throw new NotFoundException('Роль не найдена');

@@ -37,10 +37,10 @@ function setup() {
 describe('доставка сообщений в открытый чат', () => {
   it('системное сообщение сделки уходит в комнату диалога', async () => {
     const { svc, publish } = setup();
-    await svc.postSystem('o1', 'Оплата поступила — средства защищены эскроу.');
+    await svc.postSystem('o1', 'Оплата поступила, средства защищены эскроу.');
     expect(publish).toHaveBeenCalledWith(
       'c1',
-      expect.objectContaining({ senderId: null, body: 'Оплата поступила — средства защищены эскроу.' }),
+      expect.objectContaining({ senderId: null, body: 'Оплата поступила, средства защищены эскроу.' }),
       // и в списки диалогов обоих участников
       ['b1', 's1'],
     );

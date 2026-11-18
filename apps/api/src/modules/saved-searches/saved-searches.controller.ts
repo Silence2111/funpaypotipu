@@ -19,14 +19,14 @@ import { SavedSearchesService, type SearchInput } from './saved-searches.service
 const maxPrice = z
   .number()
   .int()
-  .positive('Цена — больше нуля')
-  .max(1_000_000_000, 'Цена — до 10 млн ₽')
+  .positive('Цена должна быть больше нуля')
+  .max(1_000_000_000, 'Цена до 10 млн ₽')
   .nullish();
 
 const createSchema = z.object({
   categoryId: z.string().uuid(),
   attrs: z.record(z.string(), z.union([z.string(), z.boolean()])).optional(),
-  q: z.string().trim().max(100, 'Текст поиска — до 100 символов').nullish(),
+  q: z.string().trim().max(100, 'Текст поиска до 100 символов').nullish(),
   maxPrice,
   notify: z.boolean().optional(),
 });

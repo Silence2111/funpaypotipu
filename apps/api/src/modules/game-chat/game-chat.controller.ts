@@ -13,8 +13,8 @@ const postBody = z.object({
   body: z
     .string()
     .trim()
-    .min(2, 'Сообщение — от 2 знаков')
-    .max(GAME_CHAT_MAX_LEN, `Сообщение — до ${GAME_CHAT_MAX_LEN} знаков`),
+    .min(2, 'Сообщение от 2 знаков')
+    .max(GAME_CHAT_MAX_LEN, `Сообщение до ${GAME_CHAT_MAX_LEN} знаков`),
 });
 const listQuery = z.object({ before: z.string().uuid().optional() });
 
@@ -50,12 +50,12 @@ const modQuery = z.object({
   before: z.string().uuid().optional(),
 });
 const ruleField = z.enum(RULE_IDS as [string, ...string[]]).optional();
-const reasonBody = z.object({ reason: z.string().trim().min(3, 'Причина — от 3 знаков').max(300), rule: ruleField });
+const reasonBody = z.object({ reason: z.string().trim().min(3, 'Причина от 3 знаков').max(300), rule: ruleField });
 const muteBody = z.object({
   hours: z
     .number()
     .int()
-    .refine((h) => h === 0 || (GAME_CHAT_MUTE_HOURS as readonly number[]).includes(h), 'Срок запрета — сутки, неделя или месяц'),
+    .refine((h) => h === 0 || (GAME_CHAT_MUTE_HOURS as readonly number[]).includes(h), 'Срок запрета: сутки, неделя или месяц'),
   reason: z.string().trim().max(300).default(''),
   rule: ruleField,
 });
