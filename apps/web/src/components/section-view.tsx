@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
 import {
@@ -16,6 +17,8 @@ import { RequestForm } from './buy-requests';
 import { SectionRequests } from './section-requests';
 import { JsonLd, breadcrumbLd } from './json-ld';
 import { GameChat } from './game-chat';
+import { GameIcon } from './game-icon';
+import { gameIcon } from '@/lib/game-icons';
 
 /** Параметры адреса раздела: f_<ключ>, online, drop, q, max (цена до, ₽), sort, page. */
 export type SectionSearch = Record<string, string | undefined>;
@@ -111,6 +114,8 @@ export async function SectionView({
     const s = p.toString();
     return s ? `${base}?${s}` : base;
   };
+  // цвет марки игры для шапки раздела; у чёрных марок и игр без знака — цвет площадки
+  const brand = gameIcon(game.slug)?.color ?? undefined;
   const sellHref = `/cabinet/new?game=${encodeURIComponent(game.slug)}&category=${encodeURIComponent(section.slug)}`;
   const people = section.sellers;
 
@@ -142,8 +147,12 @@ export async function SectionView({
       <Link href="/igry" className="faint back-link" style={{ fontSize: 14 }}>
         ← {t('Все игры')}
       </Link>
-      <div className="section-top" style={{ marginTop: 12 }}>
-        <div>
+      {/* Шапка игры на бледном цвете её марки: значок, название, цифры раздела, вкладки разделов */}
+      <div className="game-hero" style={brand ? ({ ['--brand' as string]: brand } as CSSProperties) : undefined}>
+      <div className="section-top">
+        <div className="game-hero__id">
+          <GameIcon slug={game.slug} title={game.title} size={64} />
+          <div style={{ minWidth: 0 }}>
           <h1 className="h1">{t.d(game.title)}</h1>
           <p className="muted section-meta">
             {t.d(section.title)}
@@ -164,6 +173,7 @@ export async function SectionView({
               </>
             )}
           </p>
+          </div>
         </div>
         <Link href={sellHref} className="btn secondary">
           {t('Продать в разделе')}
@@ -185,6 +195,7 @@ export async function SectionView({
           </Link>
         ))}
       </nav>
+      </div>
 
       <div style={{ marginTop: 20 }}>
         {/* В пустом разделе фильтровать и сортировать нечего: только «Сохранить

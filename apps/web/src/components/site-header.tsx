@@ -13,7 +13,9 @@ export async function SiteHeader() {
     <header className="site-header">
       <div className="container inner">
         <Link href="/" className="brand">
-          <Gamepad2 size={20} strokeWidth={1.75} />
+          <span className="brand-mark" aria-hidden>
+            <Gamepad2 size={18} strokeWidth={2} />
+          </span>
           GameMarket
         </Link>
         <nav className="nav">
