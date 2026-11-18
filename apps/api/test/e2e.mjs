@@ -2051,7 +2051,7 @@ async function scenarioSellerApi(rnd) {
   );
 }
 
-/** «Продавать на GameMarket»: сколько на руки — без входа, по правилу раздела. */
+/** «Продавать на Lutli»: сколько на руки — без входа, по правилу раздела. */
 async function scenarioSellEstimate() {
   console.log('\n— Калькулятор продавца —');
   const game = await j('/catalog/games/cs2');

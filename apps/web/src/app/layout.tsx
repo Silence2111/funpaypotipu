@@ -34,20 +34,20 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(SITE_URL),
     title: {
-      default: t('GameMarket, маркетплейс цифровых игровых товаров'),
-      template: '%s · GameMarket',
+      default: t('Lutli, маркетплейс цифровых игровых товаров'),
+      template: '%s · Lutli',
     },
     description: t(
       'Безопасная покупка игровых аккаунтов, валюты, предметов, ключей и пополнений с защитой сделки (эскроу).',
     ),
     openGraph: {
       type: 'website',
-      siteName: 'GameMarket',
+      siteName: 'Lutli',
       locale: t.lang === 'en' ? 'en_US' : 'ru_RU',
     },
     robots: { index: true, follow: true },
     // С экрана «Домой» на iPhone — без адресной строки, как приложение.
-    appleWebApp: { capable: true, title: 'GameMarket', statusBarStyle: 'default' },
+    appleWebApp: { capable: true, title: 'Lutli', statusBarStyle: 'default' },
   };
 }
 
@@ -92,7 +92,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <Link href="/" className="brand">
                 {/* eslint-disable-next-line @next/next/no-img-element -- объёмный знак, свой рендер (дизайн/3d) */}
             <img className="brand-3d" src="/3d/logo.webp" alt="" width={44} height={44} />
-                GameMarket
+                Lutli
               </Link>
               <p>
                 {t('Аккаунты, валюта, предметы, ключи и донат.')}{' '}
@@ -108,7 +108,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </nav>
             <nav aria-label={t('Продавцам')}>
               <b>{t('Продавцам')}</b>
-              <Link href="/prodavat">{t('Продавать на GameMarket')}</Link>
+              <Link href="/prodavat">{t('Продавать на Lutli')}</Link>
               <Link href="/prodavat/api">{t('API для продавцов')}</Link>
               <Link href="/podbor">{t('Как мы меряем выдачу')}</Link>
               <Link href="/prilozhenie">{t('Приложение')}</Link>
@@ -142,7 +142,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             )}
             <div className="site-footer__bottom">
               <p>
-                © {new Date().getFullYear()} GameMarket
+                © {new Date().getFullYear()} Lutli
                 {/* Только на демо-стенде: на настоящем запуске демо-лотов нет. */}
                 {pricing?.paymentsDemo && <> · {t('лоты с пометкой «Пример» демонстрационные')}</>}
               </p>

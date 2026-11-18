@@ -247,8 +247,8 @@ describe('бот Telegram', () => {
     await tg.handleUpdate({
       message: { text: 'привет', chat: { id: 2, type: 'private' }, from: { language_code: 'ru' } },
     });
-    expect(sent[0]).toMatch(/^This is the GameMarket notifications bot/);
-    expect(sent[1]).toMatch(/^Это бот уведомлений GameMarket/);
+    expect(sent[0]).toMatch(/^This is the Lutli notifications bot/);
+    expect(sent[1]).toMatch(/^Это бот уведомлений Lutli/);
   });
 
   it('привязанному — на языке профиля, привязка — на языке аккаунта', async () => {
@@ -263,7 +263,7 @@ describe('бот Telegram', () => {
     await fresh.tg.handleUpdate({
       message: { text: `/start ${code}`, chat: { id: 4, type: 'private' } },
     });
-    expect(fresh.sent[0]).toMatch(/^Done: GameMarket notifications will arrive here/);
+    expect(fresh.sent[0]).toMatch(/^Done: Lutli notifications will arrive here/);
   });
 });
 
@@ -303,7 +303,7 @@ describe('вход запоминает язык сайта', () => {
     );
     expect(mail.send).toHaveBeenCalledWith(
       'o@e.test',
-      'Confirm your email — GameMarket',
+      'Confirm your email — Lutli',
       expect.stringMatching(/^Hello, olga\. Confirm your email: /),
     );
     expect(prisma.user.updateMany).toHaveBeenCalledWith({
@@ -320,7 +320,7 @@ describe('вход запоминает язык сайта', () => {
     );
     expect(mail.send).toHaveBeenCalledWith(
       'o@e.test',
-      'Подтвердите e-mail · GameMarket',
+      'Подтвердите e-mail · Lutli',
       expect.stringMatching(/^Здравствуйте, olga\./),
     );
     expect(prisma.user.updateMany).not.toHaveBeenCalled();

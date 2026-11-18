@@ -13,7 +13,7 @@ export function IosInstallSteps() {
   const steps = [
     { icon: <Share size={20} strokeWidth={1.75} aria-hidden />, text: t('Откройте сайт в Safari и нажмите «Поделиться» внизу экрана.') },
     { icon: <SquarePlus size={20} strokeWidth={1.75} aria-hidden />, text: t('Выберите «На экран „Домой“» и нажмите «Добавить».') },
-    { icon: <BellRing size={20} strokeWidth={1.75} aria-hidden />, text: t('Откройте GameMarket с иконки и включите уведомления: «Профиль» → «Настройки» → «Уведомления».') },
+    { icon: <BellRing size={20} strokeWidth={1.75} aria-hidden />, text: t('Откройте Lutli с иконки и включите уведомления: «Профиль» → «Настройки» → «Уведомления».') },
   ];
   return (
     <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 12 }}>

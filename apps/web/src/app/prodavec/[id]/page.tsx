@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       ? `${t('Рейтинг {r}, {reviews}.', { r: s.ratingAvg.toFixed(1), reviews: reviewsCount(s.ratingCount, t) })} `
       : '';
   return {
-    title: t('{name}, продавец на GameMarket', { name: s.displayName }),
+    title: t('{name}, продавец на Lutli', { name: s.displayName }),
     description: `${rating}${t('Продаж: {n}', { n: t.num(s.salesCount) })}. ${offersCount(s.activeListings, t)}.`,
   };
 }

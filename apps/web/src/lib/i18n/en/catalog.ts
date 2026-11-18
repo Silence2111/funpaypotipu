@@ -245,8 +245,8 @@ export const CATALOG: Record<string, string> = {
   'На баланс придёт {sum}': '{sum} will be credited to your balance',
 
   // Как мы меряем выдачу
-  'Открытый замер: сравниваем порядок выдачи GameMarket с правилами «дешевле сверху» и «по числу сделок продавца» на настоящих заказах.':
-    'An open measurement: we compare GameMarket’s listing order with the rules “cheapest first” and “by seller deal count” on real orders.',
+  'Открытый замер: сравниваем порядок выдачи Lutli с правилами «дешевле сверху» и «по числу сделок продавца» на настоящих заказах.':
+    'An open measurement: we compare Lutli’s listing order with the rules “cheapest first” and “by seller deal count” on real orders.',
   'Комиссию берут не за список лотов, а за то, что первый лот окажется надёжным. Порядок выдачи стоит ровно столько, на сколько бьёт правило, которое вы примените сами: «дешевле сверху» или «у кого больше сделок».':
     'A fee isn’t paid for a list of listings — it’s paid for the first listing being reliable. The listing order is worth exactly as much as it beats a rule you’d apply yourself: “cheapest first” or “most deals first”.',
   'Сейчас каталог сортируется по поднятию и дате: наверху тот, кто последним нажал «поднять», потом самые свежие лоты. Надёжность продавца на место в выдаче не влияет, и мы не называем это умной выдачей.':
@@ -290,7 +290,7 @@ export const CATALOG: Record<string, string> = {
   'закрыт для продажи': 'closed for sales',
   'Раздел закрыт для продажи': 'This section is closed for sales',
   'Продажа в разделе закрыта правилами площадки.': 'Sales in this section are closed by the marketplace rules.',
-  'Что нельзя продавать на GameMarket': 'What you can’t sell on GameMarket',
+  'Что нельзя продавать на Lutli': 'What you can’t sell on Lutli',
   // Общий чат игры (часть 133)
   'Контакты и ссылки скрыты. Договариваться и платить можно только через лоты.':
     'Contacts and links are hidden: agree and pay only through listings.',
@@ -337,7 +337,7 @@ export const CATALOG: Record<string, string> = {
   '{n} ч назад': '{n} h ago',
   '{n} дн назад': '{n} d ago',
   'Только что выставили': 'Just listed',
-  'GameMarket в цифрах': 'GameMarket in numbers',
+  'Lutli в цифрах': 'Lutli in numbers',
   'игр и сервисов': 'games and services',
   'предложений в продаже': 'offers for sale',
   'разделов с товаром': 'sections with goods',

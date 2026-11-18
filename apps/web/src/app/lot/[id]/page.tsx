@@ -440,7 +440,7 @@ export default async function ListingPage({
                 </li>
                 {/* 289-ФЗ ст. 7 (часть 145): площадка — не продавец. */}
                 <li>
-                  {t('Продаёт {seller}. GameMarket проводит оплату и разбирает споры.', {
+                  {t('Продаёт {seller}. Lutli проводит оплату и разбирает споры.', {
                     seller: listing.seller.profile?.username ?? t('продавец'),
                   })}
                 </li>

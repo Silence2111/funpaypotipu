@@ -526,7 +526,7 @@ body { background:
 .help-cards > a, .help-card { background: var(--plate) !important; border: 0 !important; box-shadow: none !important; border-radius: 22px !important; transition: transform .2s; }
 .help-cards > a:hover, .help-card:hover { transform: translateY(-2px); }
 
-/* Объёмный знак GameMarket (свой рендер, тот же материал, что предметы) */
+/* Объёмный знак Lutli (свой рендер, тот же материал, что предметы) */
 .brand-3d { width: 44px; height: 44px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 6px 10px rgba(14,17,22,.22)); transition: transform .25s; }
 .brand:hover .brand-3d { transform: rotate(-8deg) scale(1.05); }
 .site-footer .brand-3d { width: 36px; height: 36px; }
@@ -764,7 +764,7 @@ h1, h2, h3, .h1, .h2, .pb__title, .sh__h1, .qb2__h, .pk-h h2, .sp-h2, .sp-hero__
 .dir-title .gicon { border-radius: 9px !important; }
 .letters a.letters__ru { margin-left: 14px; position: relative; }
 .letters a.letters__ru::before { content: ''; position: absolute; left: -9px; top: 25%; bottom: 25%; width: 1px; background: var(--border); }
-/* Таблица ставок: у колонок после белой «GameMarket» свой отступ — текст FunPay не прилипает к краю */
+/* Таблица ставок: у колонок после белой «Lutli» свой отступ — текст FunPay не прилипает к краю */
 .gm-price tr > :nth-child(n+3) { padding-left: 18px !important; }
 .gm-price tr > :nth-child(2) { padding-right: 14px !important; }
 /* Щит в «Ваши продажи под защитой» не наезжает на угол карточки «Срок выдачи» */
@@ -812,3 +812,19 @@ details.field[open] > summary.label::after { transform: translateY(2px) rotate(2
 .lc__cover--long .lc__obj { width: 34% !important; bottom: 30%; right: 6%; }
 .lc__cover--long .lc__big { right: 30%; }
 .lc__cover--long .lc__big .lc__sec { font-size: min(clamp(19px, 1.7vw, 24px), calc((68cqw - 14px) / (var(--len, 8) * .62))); }
+/* Знаки игр с их сайтов (GAME_LOGOS): картинка внутри плитки значка */
+.gicon--img img { display: block; object-fit: contain; }
+.gicon--full img { width: 100%; height: 100%; object-fit: cover; }
+/* Пустые «Мои лоты», «Избранное», «Поддержка» — так же, как «Споры» и «Отзывы»: предмет сверху, текст и кнопка по центру */
+.card.empty-state { text-align: center; padding-bottom: 28px; }
+.card.row.empty-state { flex-direction: column; justify-content: center !important; align-items: center; }
+.empty-state--plus::before { background-image: url(/3d/plus.webp); }
+.empty-state--star::before { background-image: url(/3d/star.webp); }
+.empty-state--chat::before { background-image: url(/3d/chat.webp); }
+/* «Инструменты» и «Безопасность»: карточки двумя колонками на широком экране, а не 600 px с пустой половиной справа */
+@media (min-width: 1100px) {
+  .cab-masonry { display: block !important; columns: 2; column-gap: 24px; }
+  .cab-masonry > * { break-inside: avoid; margin: 0 0 24px !important; max-width: none !important; }
+  .cab-masonry > div:first-child, .cab-masonry > .alert, .cab-masonry > [role='status'], .cab-masonry > [role='alert'] { column-span: all; }
+  .cab-masonry [style*='max-width: 600'] { max-width: none !important; }
+}

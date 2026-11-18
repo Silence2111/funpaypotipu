@@ -197,8 +197,8 @@ export const ACCOUNT: Record<string, string> = {
   'Новые резервные коды. Старые больше не работают.':
     'New backup codes — the old ones no longer work.',
   'Двухфакторная защита отключена.': 'Two-factor authentication is off.',
-  'Резервные коды GameMarket, каждый работает один раз':
-    'GameMarket backup codes — each works once',
+  'Резервные коды Lutli, каждый работает один раз':
+    'Lutli backup codes — each works once',
   'Двухфакторная защита': 'Two-factor authentication',
   'При входе, кроме пароля, нужен код из приложения-аутентификатора: Google Authenticator, 1Password и похожих.':
     'When you sign in, besides your password you’ll need a code from an authenticator app: Google Authenticator, 1Password and similar.',

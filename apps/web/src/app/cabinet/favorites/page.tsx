@@ -144,7 +144,7 @@ function FavoritesInner() {
       {items === null ? (
         <div className="skeleton" style={{ height: 240 }} aria-busy="true" />
       ) : items.length === 0 ? (
-        <div className="card flat row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div className="card flat row empty-state empty-state--star" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <span className="muted">{t('В избранном пока пусто. Нажмите «В избранное» на странице лота, чтобы следить за его ценой.')}</span>
           <Link href="/catalog" className="btn secondary">{t('В каталог')}</Link>
         </div>

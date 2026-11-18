@@ -1,4 +1,4 @@
-// Сервис-воркер GameMarket. Кэширует одну страницу — «Нет соединения»:
+// Сервис-воркер Lutli. Кэширует одну страницу — «Нет соединения»:
 // цены, наличие и статусы заказов должны быть свежими, поэтому остальное
 // всегда идёт в сеть. И показывает пуш-уведомления, когда сайт закрыт.
 const CACHE = 'gm-offline-v2'; // v2 — страница «Нет соединения» знает английский
@@ -42,7 +42,7 @@ self.addEventListener('push', (event) => {
           w.focused && w.visibilityState === 'visible' && new URL(w.url).pathname === url.pathname,
       );
       if (watching) return undefined;
-      return self.registration.showNotification(data.title || 'GameMarket', {
+      return self.registration.showNotification(data.title || 'Lutli', {
         body: data.body || '',
         icon: '/icons/icon-192.png',
         badge: '/icons/badge-96.png',

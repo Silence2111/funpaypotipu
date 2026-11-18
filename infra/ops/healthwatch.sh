@@ -19,7 +19,7 @@ alert() {
   [ -n "${ALERT_BOT_TOKEN:-}" ] && [ -n "${ALERT_CHAT_ID:-}" ] || return 0
   curl -s -m 10 -o /dev/null "https://api.telegram.org/bot${ALERT_BOT_TOKEN}/sendMessage" \
     --data-urlencode "chat_id=${ALERT_CHAT_ID}" \
-    --data-urlencode "text=GameMarket ${PUBLIC_URL:-}: $1" || echo "$(date -u +%FT%TZ) Telegram не ответил" >&2
+    --data-urlencode "text=Lutli ${PUBLIC_URL:-}: $1" || echo "$(date -u +%FT%TZ) Telegram не ответил" >&2
 }
 
 check() {

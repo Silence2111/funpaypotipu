@@ -6,8 +6,8 @@ export const COMMON: Record<string, string> = {
   Покупателям: 'For buyers',
   Продавцам: 'For sellers',
   // Шапка и подвал
-  'GameMarket, маркетплейс цифровых игровых товаров':
-    'GameMarket — marketplace for digital game goods',
+  'Lutli, маркетплейс цифровых игровых товаров':
+    'Lutli — marketplace for digital game goods',
   'Безопасная покупка игровых аккаунтов, валюты, предметов, ключей и пополнений с защитой сделки (эскроу).':
     'Buy game accounts, currency, items, keys and top-ups safely, with escrow protection on every deal.',
   'лоты с пометкой «Пример» демонстрационные': 'listings marked “Sample” are for demonstration',
@@ -26,8 +26,8 @@ export const COMMON: Record<string, string> = {
   'Каталог игр': 'Game catalog',
   'Предложения продавцов': 'Offers from sellers',
   'Покупка с защитой сделки': 'Purchase with escrow protection',
-  'GameMarket: игровые ценности с защитой сделки':
-    'GameMarket — game goods with escrow protection',
+  'Lutli: игровые ценности с защитой сделки':
+    'Lutli — game goods with escrow protection',
   'Аккаунты, валюта, предметы, ключи и пополнения от продавцов. Деньги у площадки, пока вы не подтвердите получение.':
     'Accounts, currency, items, keys and top-ups from sellers. The marketplace holds the money until you confirm receipt.',
   'Язык сайта': 'Site language',
@@ -119,18 +119,18 @@ export const COMMON: Record<string, string> = {
     'Account deleted. Until {date} you can restore it: sign in and press “Restore”. After that your email, name and sign-in are erased.',
   // Приложение (часть 139)
   'Приложение': 'App',
-  'Приложение GameMarket': 'GameMarket app',
-  'GameMarket на телефоне: на Android из Google Play и RuStore, на iPhone с экрана «Домой». Уведомления о заказах и сообщениях.':
-    'GameMarket on your phone: Android via Google Play and RuStore, iPhone from the Home Screen. Notifications about orders and messages.',
+  'Приложение Lutli': 'Lutli app',
+  'Lutli на телефоне: на Android из Google Play и RuStore, на iPhone с экрана «Домой». Уведомления о заказах и сообщениях.':
+    'Lutli on your phone: Android via Google Play and RuStore, iPhone from the Home Screen. Notifications about orders and messages.',
   'Заказы, сообщения и уведомления с иконки на телефоне, без адресной строки.': 'Orders, messages and notifications from an icon on your phone, without the address bar.',
-  'Скоро в Google Play и RuStore. Пока установите с сайта: откройте GameMarket в Chrome и нажмите «Установить приложение» внизу страницы или в меню браузера.':
-    'Coming soon to Google Play and RuStore. For now, install it from the site: open GameMarket in Chrome and tap “Install app” at the bottom of the page or in the browser menu.',
+  'Скоро в Google Play и RuStore. Пока установите с сайта: откройте Lutli в Chrome и нажмите «Установить приложение» внизу страницы или в меню браузера.':
+    'Coming soon to Google Play and RuStore. For now, install it from the site: open Lutli in Chrome and tap “Install app” at the bottom of the page or in the browser menu.',
   'iPhone присылает уведомления только сайтам с экрана «Домой», без установки пушей не будет.': 'iPhone only sends notifications to sites added to the Home Screen — without installing, there are no push notifications.',
   'Настройки уведомлений': 'Notification settings',
   'Установить на iPhone': 'Install on iPhone',
   'Откройте сайт в Safari и нажмите «Поделиться» внизу экрана.': 'Open the site in Safari and tap “Share” at the bottom of the screen.',
   'Выберите «На экран „Домой“» и нажмите «Добавить».': 'Choose “Add to Home Screen” and tap “Add”.',
-  'Откройте GameMarket с иконки и включите уведомления: «Профиль» → «Настройки» → «Уведомления».': 'Open GameMarket from the icon and turn on notifications: Profile → Settings → Notifications.',
+  'Откройте Lutli с иконки и включите уведомления: «Профиль» → «Настройки» → «Уведомления».': 'Open Lutli from the icon and turn on notifications: Profile → Settings → Notifications.',
   // Редакции правил (часть 145)
   'Редакция от {date}.': 'Version of {date}.',
   'Прежние редакции': 'Previous versions',

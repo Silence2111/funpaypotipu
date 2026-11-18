@@ -571,8 +571,8 @@ export const CABINET: Record<string, string> = {
   'можно до {date}': 'until {date}',
   // Партнёрская программа (часть 116)
   Партнёрам: 'Partners',
-  'Приводите покупателей и продавцов на GameMarket и получайте долю с их сделок на баланс.':
-    'Bring buyers and sellers to GameMarket and get a share of their deals on your balance.',
+  'Приводите покупателей и продавцов на Lutli и получайте долю с их сделок на баланс.':
+    'Bring buyers and sellers to Lutli and get a share of their deals on your balance.',
   'Не удалось загрузить партнёрскую программу.': 'Couldn’t load the partner program.',
   'Партнёрская программа пока не работает. Когда площадка её включит, здесь появятся ваша ссылка и код.':
     'The partner program isn’t running yet. Once the marketplace turns it on, your link and code will appear here.',

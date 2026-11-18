@@ -29,7 +29,7 @@ describe('номер телефона', () => {
   });
 
   it('в SMS — код и предупреждение', () => {
-    expect(phoneCodeText('123456')).toMatch(/^123456 — код входа на GameMarket/);
+    expect(phoneCodeText('123456')).toMatch(/^123456 — код входа на Lutli/);
     expect(phoneCodeText('123456')).toContain('Никому не сообщайте');
   });
 });

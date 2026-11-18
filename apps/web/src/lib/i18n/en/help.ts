@@ -24,13 +24,13 @@ export const HELP: Record<string, string> = {
     'Payment methods, cashback, balance and how to withdraw money.',
   'Как не потерять деньги и аккаунт.': 'How not to lose your money or your account.',
   'Приложение на телефоне': 'App on your phone',
-  'Как поставить GameMarket на главный экран.': 'How to add GameMarket to your home screen.',
+  'Как поставить Lutli на главный экран.': 'How to add Lutli to your home screen.',
 
   // Страницы «Помощи»
-  'Как купить и продать на GameMarket: оплата, споры, комиссии, вывод денег и безопасность. Коротко и с цифрами.':
-    'How to buy and sell on GameMarket: payment, disputes, fees, withdrawals and security — briefly and with numbers.',
-  'Как устроены покупки и продажи на GameMarket, коротко и с цифрами.':
-    'How buying and selling on GameMarket works — briefly and with numbers.',
+  'Как купить и продать на Lutli: оплата, споры, комиссии, вывод денег и безопасность. Коротко и с цифрами.':
+    'How to buy and sell on Lutli: payment, disputes, fees, withdrawals and security — briefly and with numbers.',
+  'Как устроены покупки и продажи на Lutli, коротко и с цифрами.':
+    'How buying and selling on Lutli works — briefly and with numbers.',
   'Не нашли ответ': 'Didn’t find an answer',
   'Напишите в поддержку, ответим в кабинете.': 'Write to support — we’ll reply in your account.',
   'Полные условия в': 'The full terms are in the',
@@ -45,8 +45,8 @@ export const HELP: Record<string, string> = {
   'Другие статьи': 'Other articles',
 
   // Правила и гарантии
-  'Гарантии сделки, комиссии, ответственность продавца и порядок споров на GameMarket.':
-    'Deal guarantees, fees, seller responsibility and the dispute process on GameMarket.',
+  'Гарантии сделки, комиссии, ответственность продавца и порядок споров на Lutli.':
+    'Deal guarantees, fees, seller responsibility and the dispute process on Lutli.',
   'Условия для покупателей и продавцов коротко.': 'Terms for buyers and sellers — briefly.',
   'Гарантии сделки': 'Deal guarantees',
   'Оплата удерживается эскроу и передаётся продавцу только после подтверждения получения.':

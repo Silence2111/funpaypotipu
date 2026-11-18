@@ -1,5 +1,5 @@
 #!/bin/sh
-# Восстановление GameMarket из бэкапа (backup.sh). Запускается в сервисе backup:
+# Восстановление Lutli из бэкапа (backup.sh). Запускается в сервисе backup:
 #   docker compose -f infra/compose.prod.yaml --env-file infra/.env.production stop api web
 #   docker compose -f infra/compose.prod.yaml --env-file infra/.env.production run --rm \
 #     --entrypoint /ops/restore.sh backup /backups/db-20261110-0300.dump /backups/uploads-20261110-0300.tar.gz

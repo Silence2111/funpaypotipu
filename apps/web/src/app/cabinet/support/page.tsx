@@ -132,7 +132,7 @@ function Support() {
         {tickets === null ? (
           <div className="skeleton" style={{ height: 100 }} aria-busy="true" />
         ) : tickets.length === 0 ? (
-          <p className="muted" style={{ margin: 0 }}>{t('Обращений пока нет. Ответ обычно приходит в течение дня.')}</p>
+          <p className="card flat muted empty-state empty-state--chat" style={{ margin: 0 }}>{t('Обращений пока нет. Ответ обычно приходит в течение дня.')}</p>
         ) : (
           <div className="grid" style={{ gap: 8 }}>
             {tickets.map((tk) => (

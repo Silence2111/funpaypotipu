@@ -1,5 +1,5 @@
 #!/bin/sh
-# Бэкап GameMarket: дамп базы (pg_dump -Fc) и архив файлов из тома uploads.
+# Бэкап Lutli: дамп базы (pg_dump -Fc) и архив файлов из тома uploads.
 # Запускается сервисом backup из infra/compose.prod.yaml каждую ночь; руками:
 #   docker compose -f infra/compose.prod.yaml --env-file infra/.env.production exec backup /ops/backup.sh
 # Кладёт в /backups (BACKUP_DIR на сервере) пару файлов с одной меткой времени,

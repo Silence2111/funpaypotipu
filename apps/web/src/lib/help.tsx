@@ -622,7 +622,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: 'prilozhenie',
     group: 'money',
     title: msg('Приложение на телефоне'),
-    summary: msg('Как поставить GameMarket на главный экран.'),
+    summary: msg('Как поставить Lutli на главный экран.'),
   },
 ];
 

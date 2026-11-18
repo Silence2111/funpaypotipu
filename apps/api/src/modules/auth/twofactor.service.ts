@@ -84,7 +84,7 @@ export class TwoFactorService {
       },
       create: { userId, secretEnc: this.encryption.encrypt(secret) },
     });
-    const otpauth = authenticator.keyuri(username, 'GameMarket', secret);
+    const otpauth = authenticator.keyuri(username, 'Lutli', secret);
     const qrSvg = await QRCode.toString(otpauth, {
       type: 'svg',
       margin: 0,

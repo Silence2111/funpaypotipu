@@ -185,7 +185,7 @@ export default async function HomePage({
 
   return (
     <div className="container home pk-home">
-      <h1 className="sr-only">{t('GameMarket, маркетплейс цифровых игровых товаров')}</h1>
+      <h1 className="sr-only">{t('Lutli, маркетплейс цифровых игровых товаров')}</h1>
       {deletedUntil && (
         <div className="alert" role="status">
           {t('Аккаунт удалён. До {date} его можно вернуть: войдите и нажмите «Восстановить». Потом почта, имя и вход будут уничтожены.', {

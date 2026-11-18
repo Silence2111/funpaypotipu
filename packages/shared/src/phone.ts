@@ -48,5 +48,5 @@ export function maskPhone(phone: string): string {
 
 /** Текст SMS: код, площадка и предупреждение — как у банков. */
 export function phoneCodeText(code: string): string {
-  return `${code} — код входа на GameMarket. Никому не сообщайте его, даже поддержке.`;
+  return `${code} — код входа на Lutli. Никому не сообщайте его, даже поддержке.`;
 }

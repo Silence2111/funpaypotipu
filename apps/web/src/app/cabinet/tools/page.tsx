@@ -166,7 +166,7 @@ export default function ToolsPage() {
   const raise = tools?.raise;
 
   return (
-    <div className="container stack-lg" style={{ paddingTop: 40 }}>
+    <div className="container stack-lg cab-masonry" style={{ paddingTop: 40 }}>
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>
           {t('Инструменты продавца')}

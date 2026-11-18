@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { gameIcon, monogram, monogramColor } from '@/lib/game-icons';
+import { gameIcon, gameLogo, monogram, monogramColor } from '@/lib/game-icons';
 
 /**
  * Значок игры или сервиса — как значок приложения: фирменный цвет и знак (CSS-маска),
@@ -8,6 +8,17 @@ import { gameIcon, monogram, monogramColor } from '@/lib/game-icons';
 export function GameIcon({ slug, title, size = 56 }: { slug: string; title: string; size?: number }) {
   const icon = gameIcon(slug);
   const box: CSSProperties = { width: size, height: size, borderRadius: Math.round(size * 0.24) };
+  const logo = icon ? null : gameLogo(slug);
+  if (logo) {
+    // знак с сайта игры: свой значок на всю плитку или знак на подкладе; мелкий не растягиваем
+    const inner = logo.full ? size : Math.round(Math.min(size * 0.74, logo.px * 1.5));
+    return (
+      <span className={logo.full ? 'gicon gicon--img gicon--full' : 'gicon gicon--img'} aria-hidden style={{ ...box, background: logo.bg }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- маленький значок из public, без оптимизатора */}
+        <img src={logo.src} alt="" width={inner} height={inner} loading="lazy" decoding="async" />
+      </span>
+    );
+  }
   if (!icon) {
     return (
       // на мелких значках (в карточках 22–28 px) две буквы выходили 9–10 px — там одна, крупнее

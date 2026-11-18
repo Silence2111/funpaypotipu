@@ -147,7 +147,7 @@ export class YooKassaPayouts {
       body: JSON.stringify({
         amount: { value: toValue(input.amount), currency: input.currency },
         ...target,
-        description: `Выплата продавцу GameMarket`,
+        description: `Выплата продавцу Lutli`,
         metadata: { payoutId: input.payoutId },
       }),
     });
