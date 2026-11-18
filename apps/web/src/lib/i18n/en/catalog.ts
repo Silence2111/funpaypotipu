@@ -354,4 +354,7 @@ export const CATALOG: Record<string, string> = {
   'Популярные': 'Popular',
   'Способы оплаты': 'Payment methods',
   'МИР': 'MIR',
+  'наценка продавца {markup}': 'seller markup {markup}',
+  'Что купить': 'What to buy',
+  'Купить за {price}': 'Buy for {price}',
 };

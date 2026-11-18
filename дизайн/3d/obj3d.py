@@ -298,6 +298,27 @@ elif KIND == "crown":  # корона: золотой обод, пять зуб�
         sphere(f"Gem{i}", (1.27 * math.cos(r), 1.27 * math.sin(r), -0.55), 0.17, MAIN, scale=(1, 1, 1.2))
     group_rotate(rz=math.radians(-12), rx=math.radians(-4))
     cam_target, cam_dist, lift = Vector((0, 0, 0.1)), 8.6, 1.1
+elif KIND == "logo":  # знак GameMarket в нашем стиле: графитовая глянцевая плитка, белый геймпад, синие кнопки
+    rbox("Tile", (0, 0, 0), (2.7, 0.8, 2.7), GRAPH, 0.62)
+    rbox("Pad", (0, -0.5, 0.06), (1.78, 0.34, 0.82), MILK, 0.38)
+    for s_ in (-1, 1):
+        sphere(f"G{s_}", (0.64 * s_, -0.5, -0.27), 0.38, MILK, scale=(0.9, 0.6, 1.08))
+    rbox("DpH", (-0.43, -0.69, 0.07), (0.38, 0.08, 0.12), GRAPH, 0.035)
+    rbox("DpV", (-0.43, -0.69, 0.07), (0.12, 0.08, 0.38), GRAPH, 0.035)
+    for i, (x, z) in enumerate(((0.4, 0.22), (0.57, 0.06), (0.4, -0.1), (0.23, 0.06))):
+        sphere(f"B{i}", (x, -0.69, z), 0.08, MAIN if i % 2 == 0 else SOFT, scale=(1, 0.5, 1))
+    group_rotate(rz=math.radians(-16), rx=math.radians(-6))
+    cam_target, cam_dist, lift = Vector((0, 0, 0)), 7.8, 1.3
+elif KIND == "padwhite":  # белый геймпад знака анфас — для значков приложения (кладётся на графитовую плитку)
+    rbox("Pad", (0, 0, 0.06), (1.78, 0.34, 0.82), MILK, 0.38)
+    for s_ in (-1, 1):
+        sphere(f"G{s_}", (0.64 * s_, 0, -0.27), 0.38, MILK, scale=(0.9, 0.6, 1.08))
+    rbox("DpH", (-0.43, -0.19, 0.07), (0.38, 0.08, 0.12), GRAPH, 0.035)
+    rbox("DpV", (-0.43, -0.19, 0.07), (0.12, 0.08, 0.38), GRAPH, 0.035)
+    for i, (x, z) in enumerate(((0.4, 0.22), (0.57, 0.06), (0.4, -0.1), (0.23, 0.06))):
+        sphere(f"B{i}", (x, -0.19, z), 0.08, MAIN if i % 2 == 0 else SOFT, scale=(1, 0.5, 1))
+    group_rotate(rz=math.radians(-6), rx=math.radians(-4))
+    cam_target, cam_dist, lift = Vector((0, 0, 0)), 7.0, 0.9
 elif KIND == "gamepad":  # геймпад: графит, синие кнопки, золотая крестовина
     rbox("Body", (0, 0, 0), (3.2, 1.2, 1.5), GRAPH, 0.5)
     for s_ in (-1, 1):

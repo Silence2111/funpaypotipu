@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Gamepad2, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { AuthNav } from './auth-nav';
 import { ThemeToggle } from './theme-toggle';
 import { GameSearch } from './game-search';
@@ -17,9 +17,8 @@ export async function SiteHeader() {
       <div className="container ph__in">
         <div className="ph__plate">
           <Link href="/" className="brand ph__brand">
-            <span className="brand-mark" aria-hidden>
-              <Gamepad2 size={18} strokeWidth={2} />
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element -- объёмный знак, свой рендер (дизайн/3d) */}
+            <img className="brand-3d" src="/3d/logo.webp" alt="" width={44} height={44} />
             GameMarket
           </Link>
           <ThemeToggle />

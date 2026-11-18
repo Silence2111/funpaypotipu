@@ -522,3 +522,134 @@ body { background:
 @media (max-width: 520px) { .cab-quick { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .help-cards > a, .help-card { background: var(--plate) !important; border: 0 !important; box-shadow: none !important; border-radius: 22px !important; transition: transform .2s; }
 .help-cards > a:hover, .help-card:hover { transform: translateY(-2px); }
+
+/* Объёмный знак GameMarket (свой рендер, тот же материал, что предметы) */
+.brand-3d { width: 44px; height: 44px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 6px 10px rgba(14,17,22,.22)); transition: transform .25s; }
+.brand:hover .brand-3d { transform: rotate(-8deg) scale(1.05); }
+.site-footer .brand-3d { width: 36px; height: 36px; }
+@media (max-width: 720px) { .ph .brand-3d { width: 36px; height: 36px; } }
+
+/* ── Быстрая покупка плитой, как у Playerok (второй заход) ── */
+.qb2 { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; }
+.qb2__rail { display: flex; flex-direction: column; gap: 8px; align-items: center; background: var(--plate); border-radius: 26px; padding: 12px 8px; }
+.qb2__rail button { width: 56px; height: 56px; display: grid; place-items: center; border: 0; border-radius: 16px; background: none; cursor: pointer; transition: background .15s, transform .15s; }
+.qb2__rail button:hover { background: var(--bg); }
+.qb2__rail button.on { background: var(--bg); box-shadow: 0 6px 16px -8px rgba(14,17,22,.35), inset 0 0 0 2px var(--accent); }
+.qb2__rail .gicon { border-radius: 12px !important; }
+.qb2__card { position: relative; overflow: hidden; isolation: isolate; display: grid; grid-template-columns: minmax(260px, 360px) minmax(0, 1fr); gap: 28px; align-items: stretch;
+  border-radius: 28px; padding: 22px;
+  background: radial-gradient(70% 120% at 100% 0%, color-mix(in srgb, var(--accent) 14%, var(--plate)) 0%, transparent 60%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--plate)) 0%, var(--plate) 70%); }
+.qb2__card::after { content: ''; position: absolute; inset: 0; z-index: -1; opacity: .5;
+  background-image: radial-gradient(color-mix(in srgb, var(--accent) 22%, transparent) 1.2px, transparent 1.2px); background-size: 18px 18px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 30%, #000); mask-image: linear-gradient(90deg, transparent 30%, #000); }
+.qb2__tile { position: relative; overflow: hidden; border-radius: 22px; min-height: 230px; color: #fff; display: flex; align-items: flex-end; padding: 20px;
+  background: radial-gradient(90% 110% at 100% 0%, color-mix(in srgb, var(--c) 55%, #fff) 0%, transparent 60%),
+    linear-gradient(155deg, color-mix(in srgb, var(--c) 85%, #fff) 0%, var(--c) 45%, color-mix(in srgb, var(--c) 60%, #000) 100%);
+  box-shadow: 0 20px 34px -22px color-mix(in srgb, var(--c) 85%, #000); }
+.qb2__big { position: relative; z-index: 1; font-size: 34px; font-weight: 900; letter-spacing: -0.04em; line-height: .95; text-shadow: 0 2px 14px rgba(0,0,0,.2); max-width: 55%; }
+.qb2__tile img { position: absolute; right: 4%; top: 50%; width: 52%; transform: translateY(-50%) rotate(-8deg); filter: drop-shadow(0 16px 18px rgba(0,0,0,.3));
+  animation: pb-float 6s ease-in-out infinite; }
+.qb2__body { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.qb2__h { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.03em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.qb2__from { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--btn-bg); color: var(--btn-fg); font-size: 13px; font-weight: 700; }
+.qb2__sub { margin: 4px 0 16px; color: var(--fg-faint); font-size: 14.5px; }
+.qb2__form { display: flex; flex-direction: column; gap: 12px; }
+.qb2__fields { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 10px; }
+.qb2__fields--one { grid-template-columns: minmax(0, 1fr); }
+.qb2__f { position: relative; display: flex; flex-direction: column; gap: 2px; background: var(--bg); border-radius: 18px; padding: 12px 18px; min-width: 0; cursor: text;
+  box-shadow: 0 1px 2px rgba(14,17,22,.04); }
+.qb2__f:focus-within { box-shadow: inset 0 0 0 2px var(--accent); }
+.qb2__f > span:first-child { font-size: 13px; color: var(--fg-faint); }
+.qb2__f input, .qb2__f select { border: 0; outline: 0; background: none; padding: 2px 0 0; font: inherit; font-size: 20px; font-weight: 700; color: var(--fg); width: 100%; min-width: 0;
+  height: auto !important; box-shadow: none !important; }
+.qb2__f select { cursor: pointer; font-size: 17px; appearance: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") right center / 16px no-repeat; padding-right: 24px; }
+.qb2__f small { font-size: 12px; color: var(--fg-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qb2__f em { font-style: normal; font-size: 12px; color: var(--danger, #d92d20); }
+.qb2__in { display: flex; align-items: baseline; gap: 6px; }
+.qb2__in b { font-size: 20px; color: var(--fg-faint); }
+.qb2__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.qb2__chips button { height: 36px; padding: 0 14px; border: 0; border-radius: 12px; background: var(--bg); color: var(--fg); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: background .15s; }
+.qb2__chips button:hover { background: var(--plate-2); }
+.qb2__chips button[aria-pressed='true'] { background: var(--btn-bg); color: var(--btn-fg); }
+.qb2__bottom { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-top: 4px; }
+.qb2__tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.qb2__tag { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 10px; background: var(--bg); font-size: 13px; font-weight: 600; color: var(--accent); }
+.qb2__tag--fast { background: #ffe9f1; color: #d6336c; }
+.qb2__note { font-size: 13px; color: var(--fg-faint); text-decoration: none; }
+a.qb2__note:hover { color: var(--accent); }
+.qb2__pay { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 300px; height: 60px; padding: 0 28px; border: 0; border-radius: 18px;
+  background: var(--btn-bg); color: var(--btn-fg); font: inherit; font-size: 19px; font-weight: 800; letter-spacing: -0.01em; cursor: pointer; text-decoration: none;
+  box-shadow: 0 16px 30px -18px rgba(14,17,22,.65); transition: transform .15s, background .15s; }
+.qb2__pay:hover { background: var(--btn-hover); transform: translateY(-1px); }
+.qb2__pay:disabled { opacity: .6; cursor: default; }
+.qb2__bonus { position: absolute; right: 14px; top: -12px; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 999px; background: #2fd06e;
+  color: #06331a; font-size: 12.5px; font-weight: 800; box-shadow: 0 6px 14px -6px rgba(47,208,110,.7); }
+.qb2__demo { margin: 0; font-size: 12.5px; color: var(--fg-faint); }
+@media (max-width: 1100px) {
+  .qb2__card { grid-template-columns: minmax(0, 1fr); }
+  .qb2__tile { min-height: 150px; }
+}
+@media (max-width: 640px) {
+  .qb2 { grid-template-columns: minmax(0, 1fr); }
+  .qb2__rail { flex-direction: row; overflow-x: auto; justify-content: flex-start; padding: 8px; border-radius: 20px; }
+  .qb2__rail button { flex-shrink: 0; width: 52px; height: 52px; }
+  .qb2__card { padding: 14px; border-radius: 22px; }
+  .qb2__fields { grid-template-columns: minmax(0, 1fr); }
+  .qb2__pay { width: 100%; min-width: 0; }
+  .qb2__h { font-size: 22px; }
+}
+/* Заказ: обложка купленного лота рядом с названием */
+.order-ttl { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.order-cover { flex-shrink: 0; width: 120px; }
+.order-cover .lc__cover { border-radius: 14px; }
+.order-cover .lc__big b { font-size: 22px; } .order-cover .lc__big span { font-size: 10px; } .order-cover .lc__big .lc__sec { font-size: 13px; }
+.order-cover .lc__badges { display: none; }
+@media (max-width: 640px) { .order-cover { width: 88px; } }
+
+/* ══ «Более эпловский, приятный, как мы делали» (18.11.2026): механика стиля «Первого счёта» v4 ══
+   один мягкий шрифт Manrope (заголовки 800 с плотным трекингом, текст 500); интерфейс нейтральный, акцент один;
+   фирменный цвет массой — только промо-плиты, чистым градиентом с бликом, без тёмных углов; ночных тёмно-синих плит нет;
+   плиты 28, плашки и кнопки — таблетки; у плиток теней нет, мягкие тени — у объёмных предметов. */
+@font-face { font-family: 'Manrope'; font-style: normal; font-display: swap; font-weight: 400 800;
+  src: url('/fonts/manrope-cyrillic-wght-normal.woff2') format('woff2'); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: 'Manrope'; font-style: normal; font-display: swap; font-weight: 400 800;
+  src: url('/fonts/manrope-latin-ext-wght-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Manrope'; font-style: normal; font-display: swap; font-weight: 400 800;
+  src: url('/fonts/manrope-latin-wght-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+:root { --promo: radial-gradient(120% 90% at 25% 0%, #6f93ff 0%, #1f5bff 55%, #1a50ea 100%); }
+body, button, input, select, textarea { font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif; }
+body { font-weight: 500; letter-spacing: -0.005em; }
+h1, h2, h3, .h1, .h2, .pb__title, .sh__h1, .qb2__h, .pk-h h2, .sp-h2, .sp-hero__h1, .sp-safe__h2, .tw__head h2, .auth-pk__art b { font-weight: 800; letter-spacing: -0.035em; }
+.lc__big b, .qb2__big, .pb__lotc b, .qb__c b { font-weight: 800; }
+.lc__title, .lc__game b { font-weight: 600; }
+
+/* Таблетки: плашки и кнопки */
+.btn, .chip, .pb__cta, .sh__sell, .pk-more__b, .qb__all, .pay-help, .qb2__pay, .qb2__chips button, .qb2__tag, .qb2__from, .tw__pct,
+.pk-sort .chip, .cab-nav a, .pay-b, .kact a, .kact button { border-radius: 999px !important; }
+
+/* Шапка — матовое стекло поверх страницы */
+.site-header.ph { background: transparent; backdrop-filter: none; }
+.ph__plate { background: color-mix(in srgb, var(--plate) 70%, transparent); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.55), 0 12px 30px -24px rgba(14,17,22,.45); }
+:root[data-theme='dark'] .ph__plate { box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 12px 30px -24px rgba(0,0,0,.8); }
+
+/* Промо-плиты чистым синим градиентом с бликом — вместо тёмно-синих «ночных» */
+.sp-hero, .sp-safe, .auth-pk__art { background: var(--promo); }
+.sp-safe__i { background: rgba(255,255,255,.14); }
+.sp-safe__i p, .sp-hero__lead, .auth-pk__art span { color: rgba(255,255,255,.9); }
+/* Баннеры, шапка раздела, обложки — без тёмных углов: блик сверху, низ лишь чуть глубже цвета */
+.pb__slide { background: radial-gradient(120% 100% at 22% 0%, color-mix(in srgb, var(--c) 62%, #fff) 0%, var(--c) 55%, color-mix(in srgb, var(--c) 86%, #000) 100%); }
+.sh { background: radial-gradient(120% 120% at 18% 0%, color-mix(in srgb, var(--c) 66%, #fff) 0%, var(--c) 55%, color-mix(in srgb, var(--c) 86%, #000) 100%); }
+.lc__cover, .qb2__tile { background: radial-gradient(110% 100% at 20% 0%, color-mix(in srgb, var(--c) 70%, #fff) 0%, var(--c) 52%, color-mix(in srgb, var(--c) 86%, #000) 100%); }
+.pb__lotc, .qb__c { background: radial-gradient(110% 100% at 20% 0%, color-mix(in srgb, var(--c) 70%, #fff) 0%, var(--c) 60%, color-mix(in srgb, var(--c) 88%, #000) 100%); }
+.lc:hover .lc__cover { box-shadow: none; }
+
+/* Больше воздуха */
+.pk-home { gap: 40px; }
+.pk-home > .pk-icons { margin-top: -16px; }
+.pk-home > .tk { margin-top: -20px; }
+.sell-pk { gap: 44px; }

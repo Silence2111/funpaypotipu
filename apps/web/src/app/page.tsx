@@ -8,7 +8,6 @@ import { GameIcon } from '@/components/game-icon';
 import { LotCard, coverAmount, lotArt } from '@/components/lot-card';
 import { PromoBanners, type PromoSlide } from '@/components/promo-banners';
 import { QuickBuy, type QuickTab } from '@/components/quick-buy';
-import { CountUp } from '@/components/count-up';
 import { coverColor, gameIcon } from '@/lib/game-icons';
 import { lotTitle } from '@/lib/lot-text';
 import { RecentLots } from '@/components/recent-lots';
@@ -22,6 +21,8 @@ const SEG_3D: Record<string, string> = {
 
 /** Число крупно и единица для мини-обложки баннера: «1800 UC» → ['1800', 'UC']. */
 function bigOf(l: ListingCard, t: T): [string, string] {
+  // у валюты пачка из лота: «100 Robux», «1 000 000 виртов»
+  if (l.unitName && l.pricePerUnits) return [l.pricePerUnits.toLocaleString(t.locale), l.unitName];
   const a = coverAmount(lotTitle(l, t.lang));
   if (!a) return [t.d(l.category.title), ''];
   const [n, ...u] = a.split(' ');
@@ -156,10 +157,11 @@ export default async function HomePage({
     if (!game || !sec || lots.length === 0) return [];
     return [{
       key: `${g}-${c}`, slug: g, title: game.title, section: sec.title, href: `/igra/${g}/${c}`,
+      color: coverColor(g, game.title), art: lotArt(sec.segment, sec.slug), big: t.d(sec.title),
       from: sec.minPrice ? formatPrice(sec.minPrice, 'RUB', t) : null,
       offers: lots.slice(0, 4).map((l) => {
         const [big, unit] = bigOf(l, t);
-        return { id: l.id, title: lotTitle(l, t.lang), price: formatListingPrice(l, t), color: coverColor(l.game.slug, l.game.title), big, unit,
+        return { id: l.id, title: lotTitle(l, t.lang), price: formatPrice(l.price, l.currency, t), full: formatListingPrice(l, t), color: coverColor(l.game.slug, l.game.title), big, unit,
           art: lotArt(l.category.segment, l.category.slug) };
       }),
     }];
@@ -178,9 +180,6 @@ export default async function HomePage({
     return { g, n: cats.reduce((a, c) => a + (c.listingCount ?? 0), 0), min, first: cats[0]?.slug };
   });
 
-  // Полоса цифр (как у SteamBuy): только то, что считается из каталога и правил
-  const lotsTotal = games.reduce((a, g) => a + g.categories.reduce((b, c) => b + c.listingCount, 0), 0);
-  const sectionsLive = games.reduce((a, g) => a + g.categories.filter((c) => c.listingCount > 0).length, 0);
 
   const deletedUntil = /^\d{4}-\d{2}-\d{2}$/.test(query.deleted ?? '') ? new Date(`${query.deleted}T00:00:00Z`) : null;
 
@@ -241,46 +240,29 @@ export default async function HomePage({
       <QuickBuy
         tabs={quickTabs}
         steam={
-          topup ? (
-            <GameTopupForm
-              variant="row"
-              game={topup.game}
-              offers={topup.offers}
-              returnPath="/"
-              initialAccount={(query.account ?? '').slice(0, 120)}
-              initialAmount={query.amount ?? ''}
-              paymentsDemo={pricing?.paymentsDemo ?? false}
-            />
-          ) : null
+          topup
+            ? {
+                title: t('Пополнить {game}', { game: t.d(topup.game.title) }),
+                sub: t('Нужен только логин, пароль не нужен'),
+                color: coverColor('steam', 'Steam'),
+                art: '/3d/card.webp',
+                big: 'Steam',
+                form: (
+                  <GameTopupForm
+                    variant="pk"
+                    game={topup.game}
+                    offers={topup.offers}
+                    returnPath="/"
+                    initialAccount={(query.account ?? '').slice(0, 120)}
+                    initialAmount={query.amount ?? ''}
+                    paymentsDemo={pricing?.paymentsDemo ?? false}
+                    cashbackPct={pricing?.cashbackPct ?? 0}
+                  />
+                ),
+              }
+            : null
         }
       />
-
-      <section className="pk-stats reveal" aria-label={t('GameMarket в цифрах')}>
-        <div>
-          <b><CountUp to={games.length} locale={t.locale} /></b>
-          <span>{t('игр и сервисов')}</span>
-        </div>
-        <div>
-          <b><CountUp to={lotsTotal} locale={t.locale} /></b>
-          <span>{t('предложений в продаже')}</span>
-        </div>
-        <div>
-          <b><CountUp to={sectionsLive} locale={t.locale} /></b>
-          <span>{t('разделов с товаром')}</span>
-        </div>
-        {pricing && pricing.cashbackPct > 0 && (
-          <div>
-            <b>{`${Math.round(pricing.cashbackPct * 100)}%`}</b>
-            <span>{t('кэшбэк с каждой покупки')}</span>
-          </div>
-        )}
-        {pricing?.autoConfirmHours && (
-          <div>
-            <b><CountUp to={pricing.autoConfirmHours} locale={t.locale} /> {t('ч')}</b>
-            <span>{t('на проверку товара')}</span>
-          </div>
-        )}
-      </section>
 
       {svcTiles.length > 0 && (
         <section className="pk-svc reveal" aria-labelledby="svc-title">

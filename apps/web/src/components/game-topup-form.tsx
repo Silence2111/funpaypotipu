@@ -48,10 +48,13 @@ export function GameTopupForm({
   initialAccount = '',
   initialAmount = '',
   paymentsDemo = false,
+  cashbackPct = 0,
 }: {
   game: { slug: string; title: string };
   offers: TopupOffer[];
-  variant: 'hero' | 'lot' | 'row';
+  variant: 'hero' | 'lot' | 'row' | 'pk';
+  /** Доля кэшбэка площадки — плашка «+N ₽ кэшбэк» на кнопке, как бонус на кнопке Playerok. */
+  cashbackPct?: number;
   /** Куда вернуться после входа или регистрации — путь страницы с формой. */
   returnPath: string;
   initialAccount?: string;
@@ -143,6 +146,89 @@ export function GameTopupForm({
 
   const demo = offer ? isDemoSeller(offer.seller.username) : false;
   const ids = { account: `topup-account-${variant}`, amount: `topup-amount-${variant}` };
+
+  // Плита быстрой покупки по образцу Playerok (18.11.2026, второй заход): поля в белых окошках с подписью сверху,
+  // быстрые суммы, плашки «Автовыдача» и «Гарантия», большая кнопка с кэшбэком. Способ оплаты — СБП, сменить можно в заказе.
+  if (variant === 'pk') {
+    const pay = quote ? priceFor(quote.price, method) : null;
+    const back = pay && cashbackPct > 0 ? (pay * BigInt(Math.round(cashbackPct * 10000))) / 10000n / 100n * 100n : 0n;
+    return (
+      <form id="topup" onSubmit={onSubmit} noValidate className="qb2__form">
+        <div className="qb2__fields">
+          <label className="qb2__f">
+            <span>{t.d(spec.label)}</span>
+            <input
+              id={ids.account}
+              value={account}
+              placeholder={t.d(spec.placeholder)}
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              maxLength={120}
+              aria-invalid={!!showAccountError}
+              onChange={(e) => setAccount(e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, account: true }))}
+            />
+            {showAccountError ? <em role="alert">{showAccountError}</em> : <small>{t.d(spec.hint)}</small>}
+          </label>
+          <label className="qb2__f">
+            <span>{t('Сумма')}</span>
+            <span className="qb2__in">
+              <input
+                id={ids.amount}
+                value={amount}
+                inputMode="numeric"
+                autoComplete="off"
+                aria-invalid={!!showAmountError}
+                onChange={(e) => setAmount(e.target.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 7))}
+                onBlur={() => setTouched((prev) => ({ ...prev, amount: true }))}
+              />
+              <b aria-hidden>₽</b>
+            </span>
+            {showAmountError ? (
+              <em role="alert">{showAmountError}</em>
+            ) : (
+              range && <small>{rub(range.min)} – {rub(range.max)}</small>
+            )}
+          </label>
+        </div>
+        {presets.length > 0 && (
+          <div className="qb2__chips" role="group" aria-label={t('Быстрый выбор суммы')}>
+            {presets.map((p) => (
+              <button
+                key={p}
+                type="button"
+                aria-pressed={amount === String(p)}
+                onClick={() => {
+                  setAmount(String(p));
+                  setTouched((prev) => ({ ...prev, amount: true }));
+                }}
+              >
+                {rub(BigInt(p * 100))}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="qb2__bottom">
+          <div className="qb2__tags">
+            <span className="qb2__tag qb2__tag--fast">{t('Автовыдача')}</span>
+            <span className="qb2__tag">{t('Гарантия сделки')}</span>
+            {offer && quote && <span className="qb2__note">{t('наценка продавца {markup}', { markup: pctText(markupLabel(offer.markupBps)) })}</span>}
+          </div>
+          <button className="qb2__pay" type="submit" disabled={busy}>
+            {back > 0n && <span className="qb2__bonus">{t('+{sum} кэшбэк', { sum: rub(back) })}</span>}
+            {busy ? t('Оформляем…') : pay ? t('Оплатить {sum}', { sum: rub(pay) }) : t('Оплатить')}
+          </button>
+        </div>
+        {err && (
+          <p className="field-error" role="alert" style={{ margin: 0 }}>
+            {err}
+          </p>
+        )}
+        {paymentsDemo && <p className="qb2__demo">{t('Оплата демонстрационная, деньги не списываются.')}</p>}
+      </form>
+    );
+  }
 
   // Строка на главной, как у Playerok (18.11.2026): заголовок с наценкой, логин, сумма и «Оплатить» в один ряд.
   // Способ оплаты — СБП по умолчанию, выбрать другой можно на странице заказа.

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { Gamepad2 } from 'lucide-react';
 import { CurrencySwitch } from '@/components/currency-switch';
 import { InstallApp } from '@/components/install-app';
 import { PwaRegister } from '@/components/pwa-register';
@@ -91,9 +90,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <div className="container site-footer__grid">
             <div className="site-footer__brand">
               <Link href="/" className="brand">
-                <span className="brand-mark" aria-hidden>
-                  <Gamepad2 size={18} strokeWidth={2} />
-                </span>
+                {/* eslint-disable-next-line @next/next/no-img-element -- объёмный знак, свой рендер (дизайн/3d) */}
+            <img className="brand-3d" src="/3d/logo.webp" alt="" width={44} height={44} />
                 GameMarket
               </Link>
               <p>
