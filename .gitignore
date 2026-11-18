@@ -52,3 +52,7 @@ prisma/*.db
 # Reports (исходная аналитика — храним отдельно, не в гите)
 Отчет_*.xlsx
 Отчет_*.docx
+
+# юрдокументы, кладёт infra/ops/yur.sh на сервере
+infra/yur/
+apps/web/public/yur/

@@ -1,3 +1,14 @@
+import { existsSync } from 'node:fs';
+
+/**
+ * Юрдокументы (оферта, политика, согласия, форма обращения) собирает общая система
+ * ~/Projects/_система/юр. На сервере их отдаёт Caddy (infra/Caddyfile), на стенде —
+ * этот сайт, если их положил `bash infra/ops/yur.sh --local` в public/yur (папка в .gitignore).
+ * Нет файлов — работают запасные страницы сайта.
+ */
+const YUR = existsSync(new URL('./public/yur/oferta/index.html', import.meta.url));
+const YUR_PATHS = ['privacy', 'oferta', 'soglasie', 'soglasie-rasprostranenie', 'obrashchenie', 'obrashchenie/soglasie'];
+
 /**
  * Заголовки безопасности для всех страниц. CSP — только то, что не ломает
  * встроенные скрипты Next и виджет Telegram: сайт нельзя встроить в чужую
@@ -28,6 +39,16 @@ const nextConfig = {
   transpilePackages: ['@gamemarket/shared'],
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
+  },
+  async rewrites() {
+    if (!YUR) return [];
+    const api = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+    return {
+      beforeFiles: [
+        ...YUR_PATHS.map((p) => ({ source: `/${p}`, destination: `/yur/${p}/index.html` })),
+        { source: '/obrashchenie/otpravit', destination: `${api}/api/obrashchenie/otpravit` },
+      ],
+    };
   },
 };
 

@@ -90,6 +90,7 @@ export class RetentionService {
       await this.eraseDisputeChats(now);
       await this.scrubDeals(now);
       await this.dropOldActs(now);
+      await this.dropOldContactRequests(now);
     } catch (e) {
       this.logger.error(`Сроки хранения: ${(e as Error).message}`);
     } finally {
@@ -181,6 +182,14 @@ export class RetentionService {
   /** Акты старше 3 лет — удалить вместе с журналом. */
   async dropOldActs(now = new Date()) {
     const { count } = await this.prisma.erasureAct.deleteMany({ where: { day: { lt: actCutoff(now) } } });
+    return count;
+  }
+
+  /** Обращения через форму старше 3 лет: согласие на них даётся на три года (/obrashchenie/soglasie). */
+  async dropOldContactRequests(now = new Date()) {
+    const cutoff = new Date(now);
+    cutoff.setFullYear(cutoff.getFullYear() - 3);
+    const { count } = await this.prisma.contactRequest.deleteMany({ where: { createdAt: { lt: cutoff } } });
     return count;
   }
 

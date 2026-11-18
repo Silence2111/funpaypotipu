@@ -7,7 +7,7 @@
  */
 
 /** Версия текста на странице /soglasie: дата редакции. */
-export const PD_CONSENT_VERSION = '2026-11-11';
+export const PD_CONSENT_VERSION = '2026-11-19';
 
 /** Как дано согласие: при регистрации — способом входа, позже — в кабинете. */
 export const PD_CONSENT_METHODS = ['email', 'yandex', 'vk', 'telegram', 'phone', 'account'] as const;

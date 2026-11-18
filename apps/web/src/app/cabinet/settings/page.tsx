@@ -174,6 +174,13 @@ export default function SettingsPage() {
               placeholder={t('Что продаёте, как быстро отвечаете, в какое время на связи')}
               onChange={(e) => setBio(e.target.value)} />
             <p className="hint">{t('{n} / 500. Видно покупателям на странице продавца.', { n: bio.length })}</p>
+            {/* 152-ФЗ ст. 10.1: имя, аватар и «о себе» публичны — согласие на распространение даётся заполнением */}
+            <p className="hint" style={{ marginTop: 2 }}>
+              {t('Ник, имя на витрине, аватар и рассказ видны всем:')}{' '}
+              <a href="/soglasie-rasprostranenie" target="_blank" rel="noopener">
+                {t('согласие на распространение данных')}
+              </a>
+            </p>
           </div>
 
           <div className="field">

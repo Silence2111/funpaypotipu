@@ -2054,3 +2054,20 @@ model OpsAlert {
   @@index([createdAt])
   @@map("ops_alerts")
 }
+
+/// Обращения через форму /obrashchenie/ (юрдокументы из ~/Projects/_система/юр, 19.11.2026): вопросы о данных,
+/// претензии, отказ от договора, просьбы удалить аккаунт — в том числе от тех, у кого аккаунта нет.
+/// Согласие на обработку — на странице /obrashchenie/soglasie: хранится три года (RetentionService).
+model ContactRequest {
+  id         String    @id @default(uuid()) @db.Uuid
+  name       String?   @db.VarChar(120)
+  contact    String    @db.VarChar(200)
+  text       String
+  /// Хеш адреса с секретом — для лимита и защиты от спама, сам адрес не храним.
+  ipHash     String    @map("ip_hash") @db.VarChar(32)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  answeredAt DateTime? @map("answered_at")
+
+  @@index([createdAt])
+  @@map("contact_requests")
+}
