@@ -10,9 +10,6 @@ export const CATALOG: Record<string, string> = {
   'Деньги лежат у площадки, пока вы не подтвердите, что получили товар.':
     'The marketplace holds the money until you confirm you’ve received the goods.',
   'Типы товаров': 'Product types',
-  'Покупателю — без комиссии.': 'No fee for buyers.',
-  'Продавцу — {fee}, вывод от {payout}.': 'Sellers pay {fee}, withdrawals from {payout}.',
-  'Продать свой лот': 'Sell your item',
   'Это демо-стенд. Лоты с пометкой «Пример» — демонстрационные, а оплата проходит без списания денег: платёжный провайдер ещё не подключён.':
     'This is a demo site. Listings marked “Sample” are for demonstration, and payments go through without charging any money: the payment provider isn’t connected yet.',
   'Новые предложения': 'New offers',

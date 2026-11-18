@@ -12,7 +12,8 @@ import { SaleMark } from './sale-mark';
 /** Количество из названия для обложки, как на обложках Playerok и GGSel: «1800 UC», «1000 TL», «12 месяцев». */
 export function coverAmount(title: string): string | null {
   const m = title.match(
-    /(\d[\d\s]{0,8}\d|\d)\s*(UC|TL|USD|\$|₽|руб\S*|алмаз\S*|зв[её]зд\S*|robux|робукс\S*|месяц\S*|мес\b|гем\S*|кристалл\S*|золот\S*|V-?bucks)/iu,
+    // i18n-ignore — единицы из названий лотов, не текст интерфейса
+    /(\d[\d\s]{0,8}\d|\d)\s*(UC|TL|USD|\$|₽|руб\S*|алмаз\S*|зв[её]зд\S*|robux|робукс\S*|месяц\S*|мес\b|гем\S*|кристалл\S*|золот\S*|V-?bucks|months?|diamonds?|stars|gems|crystals|gold)/iu, // i18n-ignore
   );
   return m ? `${m[1].replace(/\s+/g, ' ').trim()} ${m[2].replace(/[,.]$/, '')}` : null;
 }
@@ -31,7 +32,7 @@ export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
   const icon = gameIcon(l.game.slug);
   const coverBg = icon?.bg ?? monogramColor(l.game.title);
   const coverInk = icon?.glyph ?? '#ffffff';
-  const amount = coverAmount(lotTitle(l, 'ru'));
+  const amount = coverAmount(lotTitle(l, t.lang));
   return (
     <Link href={`/lot/${l.id}`} className="lc">
       <span className="lc__game">
