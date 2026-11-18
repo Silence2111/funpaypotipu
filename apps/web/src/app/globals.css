@@ -5724,3 +5724,8 @@ a.my-lot-title:hover {
   .cab-nav__t { display: none; }
   .cab-nav a { flex-shrink: 0; white-space: nowrap; background: var(--bg); border-radius: 999px; padding: 8px 14px; }
 }
+
+/* Заказ: слева статус и действия, справа чат по сделке */
+.order-page { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; padding-top: 32px; }
+.order-chat { position: sticky; top: 84px; }
+@media (max-width: 960px) { .order-page { grid-template-columns: minmax(0, 1fr); } .order-chat { position: static; margin-top: 12px; } }

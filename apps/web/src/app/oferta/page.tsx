@@ -25,7 +25,7 @@ export default async function OfertaPage() {
             ставка снижается с уровнем продавца до {p.levelDiscountMaxPp} п.п.
           </li>
         )}
-        {p && <li>Вывод денег: {p.withdrawal.map((w) => `${w.label} — ${pct(w.feePct)}`).join(', ')}.</li>}
+        {p && <li>Вывод денег: {p.withdrawal.map((w) => `${w.label} ${pct(w.feePct)}`).join(', ')}.</li>}
       </ul>
       <h2>3. Гарантия сделки</h2>
       <ol>

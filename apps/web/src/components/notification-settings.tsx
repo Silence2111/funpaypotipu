@@ -250,7 +250,7 @@ export function NotificationSettings() {
                       <td key={c.key} style={{ textAlign: 'center' }}>
                         <input
                           type="checkbox"
-                          aria-label={`${t.d(g.label)} — ${t(c.label)}`}
+                          aria-label={`${t.d(g.label)}: ${t(c.label)}`}
                           checked={locked || !!s.prefs[c.key][g.key]}
                           disabled={off}
                           onChange={(e) => void toggle(c.key, g.key, e.target.checked)}

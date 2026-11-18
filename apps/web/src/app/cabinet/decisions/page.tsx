@@ -100,7 +100,7 @@ export default function DecisionsPage() {
                   <Link href={`/rules#${ruleAnchor(d.rule)}`} style={{ color: 'var(--accent)' }}>
                     {t('Пункт {n} правил', { n: d.rule })}
                   </Link>
-                  {' — '}{t.d(ruleClause(d.rule)!.title)}
+                  {': '}{t.d(ruleClause(d.rule)!.title)}
                 </p>
               )}
               {d.reason && <p style={{ margin: 0, fontSize: 15 }}>{t('Причина: {reason}', { reason: d.reason })}</p>}

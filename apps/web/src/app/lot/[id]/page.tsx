@@ -72,11 +72,11 @@ export async function generateMetadata({
     description: desc,
     // Картинка — opengraph-image.tsx рядом: название, цена и продавец.
     openGraph: {
-      title: `${name} — ${price}`,
+      title: `${name}, ${price}`,
       description: `${where}. ${desc}`,
       type: 'website',
     },
-    twitter: { card: 'summary_large_image', title: `${name} — ${price}`, description: where },
+    twitter: { card: 'summary_large_image', title: `${name}, ${price}`, description: where },
     alternates: { canonical: `/lot/${id}` },
     // Раздел закрыт для продажи — лот виден по ссылке, но в поиске не нужен.
     ...(listing.category.salesClosed && listing.status === 'paused' && { robots: { index: false, follow: true } }),
