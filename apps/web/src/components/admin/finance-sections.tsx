@@ -285,7 +285,7 @@ export function PayoutsSection() {
                       className="input"
                       style={{ flex: 1, minWidth: 200 }}
                       aria-label="Причина отказа"
-                      placeholder="Причина отказа — её увидит продавец"
+                      placeholder="Причина отказа, её увидит продавец"
                       list="payout-reject-hints"
                       maxLength={300}
                       value={reasons[p.id] ?? ''}

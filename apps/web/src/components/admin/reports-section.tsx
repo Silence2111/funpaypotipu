@@ -189,7 +189,7 @@ export function ReportsSection() {
                 <span style={{ fontWeight: 700 }}>{r.reasons[0]?.reason ?? 'Жалоба'}</span>
                 <span className="faint" style={{ fontSize: 13 }}>
                   {many
-                    ? `${complaints(r.reports)} · ${when(r.firstAt)} — ${when(r.lastAt)}`
+                    ? `${complaints(r.reports)} · с ${when(r.firstAt)} по ${when(r.lastAt)}`
                     : `${names[0] ?? 'пользователь'} · ${when(r.lastAt)}`}
                 </span>
               </div>
@@ -203,7 +203,7 @@ export function ReportsSection() {
                 .map((x) => (
                   <p key={x.createdAt} className="muted" style={{ margin: '8px 0 0', fontSize: 14, whiteSpace: 'pre-wrap' }}>
                     {x.details}
-                    {many && <span className="faint" style={{ fontSize: 13 }}> — {x.reporter ?? 'пользователь'}, {when(x.createdAt)}</span>}
+                    {many && <span className="faint" style={{ fontSize: 13 }}> · {x.reporter ?? 'пользователь'}, {when(x.createdAt)}</span>}
                   </p>
                 ))}
               {many && (
@@ -240,7 +240,7 @@ export function ReportsSection() {
                     {r.targetType === 'buy_request' && (
                       <>
                         <p style={{ margin: '4px 0 0', fontSize: 14, whiteSpace: 'pre-wrap' }}>
-                          «{t.text}»{t.maxPrice ? ` — до ${formatPrice(t.maxPrice)}` : ''}
+                          «{t.text}»{t.maxPrice ? `, до ${formatPrice(t.maxPrice)}` : ''}
                         </p>
                         <p className="faint" style={{ margin: '4px 0 0', fontSize: 13 }}>
                           {t.section?.game ? (

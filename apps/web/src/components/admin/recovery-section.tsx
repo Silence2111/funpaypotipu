@@ -249,7 +249,7 @@ export function RecoverySection() {
   async function decide(id: string, action: Action) {
     setErr(null);
     if (action === 'reject' && note.trim().length < 5) {
-      setErr('Напишите причину отказа — она уйдёт на почту аккаунта.');
+      setErr('Напишите причину отказа, она уйдёт на почту аккаунта.');
       return;
     }
     try {
@@ -388,7 +388,7 @@ function DealsProof({ d, requestProof }: { d: Detail; requestProof: (id: string,
                     {it.party.since ? ` · на площадке с ${when(it.party.since)}` : ''}
                   </span>
                 ) : (
-                  <span className="faint" style={{ fontSize: 13 }}>· сделок аккаунта с таким ником нет — не спрашивали</span>
+                  <span className="faint" style={{ fontSize: 13 }}>· сделок аккаунта с таким ником нет, не спрашивали</span>
                 )}
                 <p className="deal-quote" style={{ marginTop: 6, fontSize: 14 }}>{it.text}</p>
                 {it.party && (
@@ -401,7 +401,7 @@ function DealsProof({ d, requestProof }: { d: Detail; requestProof: (id: string,
                     {it.answeredAt && <span className="faint"> · {when(it.answeredAt)}</span>}
                     {it.sameIp && (
                       <span className="badge warning" style={{ marginLeft: 8 }}>
-                        с IP заявителя — не считается
+                        с IP заявителя не считается
                       </span>
                     )}
                   </p>
@@ -416,7 +416,7 @@ function DealsProof({ d, requestProof }: { d: Detail; requestProof: (id: string,
       {d.status === 'pending' && d.contact && (
         <div style={{ marginTop: 8 }}>
           <button type="button" className="chip" onClick={() => void requestProof(d.id, 'deals')}>
-            {deals ? 'Отправить ссылку ещё раз — прежние описания и ответы сотрутся' : `Попросить описать сделки на ${d.contact.email}`}
+            {deals ? 'Отправить ссылку ещё раз. Прежние описания и ответы сотрутся' : `Попросить описать сделки на ${d.contact.email}`}
           </button>
         </div>
       )}
@@ -460,7 +460,7 @@ function CardProof({ d, requestProof }: { d: Detail; requestProof: (id: string, 
           </span>{' '}
           {r.matched ? (
             <span className="badge success">
-              ✓ совпала: впервые — {r.source === 'payout' ? 'выплата' : 'оплата'}
+              ✓ совпала: впервые {r.source === 'payout' ? 'выплата' : 'оплата'}
               {r.firstUsedAt ? ` ${when(r.firstUsedAt)}` : ''}
             </span>
           ) : (
@@ -608,7 +608,7 @@ function RecoveryDetail({
           </ul>
         )}
         <p className="faint" style={{ margin: '6px 0 0', fontSize: 12 }}>
-          Номера заказов приходят и в письмах — тот, кто читает почту аккаунта, их тоже знает.
+          Номера заказов приходят и в письмах, их знает и тот, кто читает почту аккаунта.
         </p>
       </div>
 
@@ -637,7 +637,7 @@ function RecoveryDetail({
           <p className="faint" style={{ margin: 0, fontSize: 13 }}>
             Восстановление выключит вход с кодом, отвяжет вход через сервисы, Telegram и пуши, выведет все устройства и
             сбросит пароль. Ссылка задать новый пароль уйдёт только на почту аккаунта
-            {d.contact ? ' — прежнюю или, если привязать новую, на новую; прежней придёт письмо о смене' : ''}.
+            {d.contact ? ': прежнюю или, если привязать новую, на новую; прежней придёт письмо о смене' : ''}.
           </p>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
             {d.contact && (

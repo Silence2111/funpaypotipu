@@ -160,7 +160,7 @@ export function CatalogSection() {
         </div>
       )}
       <p className="faint" style={{ fontSize: 13, margin: 0 }}>
-        Игр: {games?.length ?? 0}. Изменённое здесь выкат не перезаписывает; все действия — в журнале,{' '}
+        Игр: {games?.length ?? 0}. Изменённое здесь выкат не перезаписывает; все действия в журнале,{' '}
         <Link href="/admin?tab=audit&kind=catalog">раздел «Каталог»</Link>.
       </p>
     </section>
@@ -209,7 +209,7 @@ function NewGame({ busy, onCreate }: { busy: boolean; onCreate: (b: { title: str
         </div>
         <input className="input" placeholder="Синонимы для поиска через запятую: тл, тхрон" value={aliases}
           onChange={(e) => setAliases(e.target.value)} aria-label="Синонимы" />
-        <p className="hint">Адрес — в ссылке: /igra/{slug || 'адрес'}; потом не меняется. Новая игра — без разделов, их добавить ниже.</p>
+        <p className="hint">Адрес в ссылке: /igra/{slug || 'адрес'}; потом не меняется. Новая игра создаётся без разделов, их добавить ниже.</p>
         <button className="btn" type="submit" disabled={busy || !title.trim() || !slug.trim()} style={{ alignSelf: 'flex-start' }}>
           Добавить
         </button>
@@ -286,7 +286,7 @@ function GameCard({ game: g, open, busy, onToggle, run, send }: { game: Game; op
               {Object.entries(KIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
             <input className="input" style={{ width: 150 }} inputMode="numeric" placeholder="место в популярных" value={form.popular}
-              onChange={(e) => setForm({ ...form, popular: e.target.value.replace(/\D/g, '').slice(0, 3) })} aria-label="Место в популярных, 1–99; пусто — не в популярных" />
+              onChange={(e) => setForm({ ...form, popular: e.target.value.replace(/\D/g, '').slice(0, 3) })} aria-label="Место в популярных, 1–99; пусто значит не в популярных" />
           </div>
           <input className="input" value={form.aliases} onChange={(e) => setForm({ ...form, aliases: e.target.value })} aria-label="Синонимы через запятую" placeholder="синонимы через запятую" />
           <span className="row" style={{ gap: 8 }}>
@@ -299,7 +299,7 @@ function GameCard({ game: g, open, busy, onToggle, run, send }: { game: Game; op
       {open && (
         <div className="stack-form" style={{ gap: 10, marginTop: 14 }}>
           <label className="row faint" style={{ gap: 8, fontSize: 13, alignItems: 'center', flexWrap: 'wrap' }}>
-            Обложка — PNG, JPEG или WebP до 2 МБ, квадратная:
+            Обложка: PNG, JPEG или WebP до 2 МБ, квадратная:
             <input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy}
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -307,7 +307,7 @@ function GameCard({ game: g, open, busy, onToggle, run, send }: { game: Game; op
                 e.target.value = '';
               }} />
           </label>
-          {g.categories.length === 0 && <Empty>Разделов пока нет — без них игра на витрине пустая.</Empty>}
+          {g.categories.length === 0 && <Empty>Разделов пока нет, без них игра на витрине пустая.</Empty>}
           {g.categories.map((c, i) => (
             <CategoryRow key={c.id} c={c} first={i === 0} last={i === g.categories.length - 1} busy={busy} run={run} send={send}
               move={(dir) => {
@@ -422,12 +422,12 @@ function CategoryRow({ c, first, last, busy, run, send, move }: { c: Category; f
             if (ok) setClosing(false);
           }}>
           <div className="field">
-            <label className="label" htmlFor={`close-${c.id}`}>Причина — её увидят покупатели и продавцы на странице раздела</label>
+            <label className="label" htmlFor={`close-${c.id}`}>Причина, её увидят покупатели и продавцы на странице раздела</label>
             <textarea id={`close-${c.id}`} className="input" rows={3} maxLength={400} value={reason} onChange={(e) => setReason(e.target.value)}
               placeholder="Продажа в разделе закрыта правилами площадки." />
           </div>
           <p className="hint" style={{ margin: 0 }}>
-            Новых лотов в разделе не будет; {c.activeListings} в продаже снимутся с витрины и вернутся сами, когда раздел откроют. Открытые заказы — доводятся.
+            Новых лотов в разделе не будет; {c.activeListings} в продаже снимутся с витрины и вернутся сами, когда раздел откроют. Открытые заказы доводятся.
           </p>
           <span className="row" style={{ gap: 8 }}>
             <button className="btn" type="submit" disabled={busy}>Закрыть раздел</button>
@@ -454,7 +454,7 @@ function Fields({ c, busy, run, send }: { c: Category; busy: boolean; run: Run; 
   const [f, setF] = useState({ key: '', label: '', type: 'enum' as Attribute['type'], options: '', isRequired: false });
   return (
     <div className="stack-form" style={{ gap: 6, marginTop: 10 }}>
-      {c.attributes.length === 0 && <span className="faint" style={{ fontSize: 13 }}>Полей нет — лоты выставляются без характеристик.</span>}
+      {c.attributes.length === 0 && <span className="faint" style={{ fontSize: 13 }}>Полей нет, лоты выставляются без характеристик.</span>}
       {c.attributes.map((a, i) => (
         <div key={a.id} className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 14 }}>
           <span className="row" style={{ gap: 2 }}>
