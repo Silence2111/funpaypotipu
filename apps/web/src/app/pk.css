@@ -288,3 +288,11 @@ body { background:
 .lot-aside .seller-card, .lot-aside > .card:not(.lot-buy) { background: var(--plate); border: 0; box-shadow: none; border-radius: 24px; }
 @media (max-width: 1100px) { .lot-more { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .lot-more { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Плашки и поля по всему сайту — серые без рамки, как у Playerok; выбранная плашка графитовая */
+.chip { background: var(--plate); border-color: transparent; box-shadow: none; }
+.chip:hover { background: var(--plate-2); }
+.chip[aria-current='page'], .chip[aria-pressed='true'] { background: var(--btn-bg); color: var(--btn-fg); border-color: transparent; }
+.input, select.input, textarea.input { background: var(--plate); border-color: transparent; box-shadow: none; }
+.input:focus, select.input:focus, textarea.input:focus { background: var(--bg); border-color: var(--accent); }
+.tw__f input, .ph__search input { background: var(--bg); }
