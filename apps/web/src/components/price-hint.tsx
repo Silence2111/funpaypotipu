@@ -69,11 +69,11 @@ export function PriceHint({
     <p className="hint" data-testid="price-hint">
       {text}{' '}
       {place === 'low'
-        ? t('Ваша цена — среди самых низких.')
+        ? t('Ваша цена среди самых низких.')
         : place === 'high'
           ? t('Ваша цена выше, чем у большинства.')
           : place === 'usual'
-            ? t('Ваша цена — в обычном разбросе.')
+            ? t('Ваша цена в обычном разбросе.')
             : null}
     </p>
   );

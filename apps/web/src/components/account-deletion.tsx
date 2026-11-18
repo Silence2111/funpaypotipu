@@ -71,12 +71,12 @@ export function AccountDeletion() {
     b.orders > 0 && { text: t('Сделок в работе: {n}', { n: b.orders }), href: '/cabinet/orders', link: t('Заказы') },
     b.disputes > 0 && { text: t('Открытых споров: {n}', { n: b.disputes }), href: '/cabinet/disputes', link: t('Споры') },
     !s.canDelete && BigInt(b.balance) > 0n && {
-      text: t('На балансе {sum} — выведите их', { sum: formatPrice(b.balance, 'RUB', t) }),
+      text: t('На балансе {sum}, выведите их', { sum: formatPrice(b.balance, 'RUB', t) }),
       href: '/cabinet/wallet',
       link: t('Кошелёк'),
     },
     b.payouts > 0 && { text: t('Заявок на вывод в работе: {n}', { n: b.payouts }), href: '/cabinet/wallet', link: t('Кошелёк') },
-    b.staff && { text: t('Вы сотрудник площадки — роль сначала снимает администратор'), href: '/cabinet/support', link: t('Поддержка') },
+    b.staff && { text: t('Вы сотрудник площадки, роль сначала снимает администратор'), href: '/cabinet/support', link: t('Поддержка') },
   ].filter(Boolean) as Array<{ text: string; href: string; link: string }>;
 
   return (
@@ -86,7 +86,7 @@ export function AccountDeletion() {
       </h2>
       <p className="muted" style={{ margin: '0 0 12px', fontSize: 14 }}>
         {t(
-          'Лоты уйдут из каталога, вход закроется. {days} дней аккаунт можно вернуть входом, потом почта, имя, вход и реквизиты уничтожаются. Сделки и движение денег остаются — без них не исполнить закон и не разобрать спор, ник в них станет «deleted_…».',
+          'Лоты уйдут из каталога, вход закроется. {days} дней аккаунт можно вернуть входом, потом почта, имя, вход и реквизиты уничтожаются. Сделки и движение денег остаются: без них не исполнить закон и не разобрать спор. Ник в них станет «deleted_…».',
           { days: s.graceDays },
         )}
       </p>
@@ -112,7 +112,7 @@ export function AccountDeletion() {
         <form className="card stack-form" style={{ padding: 16, gap: 12 }} onSubmit={submit}>
           <div className="field">
             <label className="label" htmlFor="del-username">
-              {t('Впишите свой ник — это защита от случайного нажатия')}
+              {t('Впишите свой ник, это защита от случайного нажатия')}
             </label>
             <input id="del-username" className="input" value={username} onChange={(e) => setUsername(e.target.value)}
               autoComplete="off" autoCapitalize="none" spellCheck={false} required />
@@ -135,7 +135,7 @@ export function AccountDeletion() {
             <label className="row" style={{ gap: 8, alignItems: 'flex-start', fontSize: 14 }}>
               <input type="checkbox" checked={forfeit} onChange={(e) => setForfeit(e.target.checked)} required />
               <span>
-                {t('На балансе {sum} — меньше минимального вывода. Понимаю, что при удалении они сгорят.', {
+                {t('На балансе {sum}, это меньше минимального вывода. Понимаю, что при удалении они сгорят.', {
                   sum: formatPrice(s.forfeit, 'RUB', t),
                 })}
               </span>

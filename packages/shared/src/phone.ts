@@ -19,7 +19,7 @@ export const PHONE_RESEND_SEC = 60;
 export const PHONE_CODES_PER_HOUR = 5;
 export const PHONE_CODES_PER_DAY = 10;
 
-export const PHONE_INVALID = 'Номер — российский мобильный: +7 9XX XXX-XX-XX';
+export const PHONE_INVALID = 'Нужен российский мобильный номер: +7 9XX XXX-XX-XX';
 
 /**
  * Номер в виде +79XXXXXXXXX или null. Принимает «8 999 123-45-67»,

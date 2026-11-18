@@ -1,5 +1,8 @@
 /** Продавцу: форма лота, «Мои лоты», склад автовыдачи, продвижение. */
 export const SELLER: Record<string, string> = {
+  'Деньги ждут в сделке': 'Money waits in the deal',
+  'Срок выдачи': 'Delivery time',
+  'Вывод денег': 'Withdrawals',
   // Форма лота: заголовок и общие ошибки
   'Новый лот': 'New listing',
   'Изменить лот': 'Edit listing',
@@ -7,9 +10,9 @@ export const SELLER: Record<string, string> = {
     'The listing appears in the catalog right away. Money from a sale reaches your balance once the buyer confirms receipt.',
   'Изменения видны в каталоге сразу. Уже оформленные заказы идут по прежней цене.':
     'Changes show in the catalog right away. Orders already placed keep the old price.',
-  'Изменения не сохранены — поправьте отмеченные поля.':
+  'Изменения не сохранены. Поправьте отмеченные поля.':
     'Changes not saved — fix the highlighted fields.',
-  'Лот не опубликован — поправьте отмеченные поля.':
+  'Лот не опубликован. Поправьте отмеченные поля.':
     'Listing not published — fix the highlighted fields.',
   'Не удалось сохранить изменения. Попробуйте ещё раз через минуту.':
     'Couldn’t save the changes. Try again in a minute.',
@@ -28,19 +31,19 @@ export const SELLER: Record<string, string> = {
     'The game and category of a published listing can’t be changed: its details and orders are tied to them.',
   'Ключи загрузите на склад после публикации: с первым ключом лот появится в каталоге. Покупатель получит ключи сразу после оплаты, можно несколько в одном заказе.':
     'Upload keys to the stock after publishing: the listing appears in the catalog with the first key. The buyer gets keys right after payment, several per order if needed.',
-  '{label} — необязательно': '{label} — optional',
+  '{label}, необязательно': '{label} — optional',
   Выберите: 'Choose',
   Да: 'Yes',
 
   // Название, описание
   Название: 'Title',
-  'Название — от 3 знаков: его видят в каталоге':
+  'Название от 3 знаков, его видят в каталоге':
     'Title must be at least 3 characters: buyers see it in the catalog',
   'Например, AK-47 | Красная линия, после полевых': 'For example, AK-47 | Redline, Field-Tested',
   Описание: 'Description',
   'Опишите, что получит покупатель и как передаёте':
     'Describe what the buyer gets and how you deliver it',
-  'Что входит, как передаёте, сколько ждать. Чем точнее — тем меньше споров.':
+  'Что входит, как передаёте, сколько ждать. Чем точнее, тем меньше споров.':
     'What’s included, how you deliver, how long it takes. The more precise, the fewer disputes.',
 
   // Как продаёте и выдаёте
@@ -49,7 +52,7 @@ export const SELLER: Record<string, string> = {
   'Один номинал за одну цену, например «3280 кристаллов»':
     'One denomination for one price, for example “3280 crystals”',
   'На сумму покупателя': 'Buyer’s amount',
-  'Покупатель вводит сумму, вы задаёте наценку и границы — как пополнение Steam':
+  'Покупатель вводит сумму, вы задаёте наценку и границы, как у пополнения Steam':
     'The buyer enters an amount, you set the markup and limits — like a Steam top-up',
   'Как выдаёте': 'How you deliver',
   Вручную: 'Manually',
@@ -58,13 +61,13 @@ export const SELLER: Record<string, string> = {
   'Автоматически со склада': 'Automatically from stock',
   'Загружаете товар строками: логин и пароль, промокод, ссылка. Покупатель получает свою строку сразу после оплаты':
     'You upload goods as lines: login and password, promo code, link. The buyer gets their line right after payment',
-  'Склад — внизу,': 'Stock is at the bottom of',
+  'Склад внизу,': 'Stock is at the bottom of',
   'на странице лота': 'the listing page',
   'Товар загрузите на склад после сохранения: с первой строкой лот появится в каталоге.':
     'Upload goods to the stock after saving: the listing appears in the catalog with the first line.',
-  'Каждая строка — одна штука: покупатель может взять несколько, наличие считает склад.':
+  'Каждая строка это одна штука: покупатель может взять несколько, наличие считает склад.':
     'Each line is one item: a buyer can take several, and the stock counts what’s left.',
-  'Строки на складе останутся: включите автовыдачу снова — и они вернутся в продажу.':
+  'Строки на складе останутся: включите автовыдачу снова, и они вернутся в продажу.':
     'Lines in stock stay: turn auto-delivery back on and they return to sale.',
   Целиком: 'As a whole',
   'Один товар или услуга за одну цену: предмет, обучение, подписка':
@@ -74,7 +77,7 @@ export const SELLER: Record<string, string> = {
     'Currency or identical items: price per pack, the buyer picks the quantity',
 
   // Что спросить у покупателя
-  'Что спросить у покупателя — необязательно': 'What to ask the buyer — optional',
+  'Что спросить у покупателя, необязательно': 'What to ask the buyer — optional',
   'Поле {n}': 'Field {n}',
   'Например, ник в игре': 'For example, in-game name',
   обязательно: 'required',
@@ -84,25 +87,25 @@ export const SELLER: Record<string, string> = {
   Сервер: 'Server',
   'ID персонажа': 'Character ID',
   'Своё поле': 'Custom field',
-  'Название поля — от 2 символов': 'Field name must be at least 2 characters',
+  'Название поля от 2 символов': 'Field name must be at least 2 characters',
   'Названия полей не должны повторяться': 'Field names must not repeat',
   'Покупатель заполнит это до оплаты, ответы будут в заказе. Пароли и коды не спрашивайте.':
     'The buyer fills this in before paying, and the answers appear in the order. Don’t ask for passwords or codes.',
 
   // Сообщение после оплаты
-  'Сообщение покупателю после оплаты — необязательно':
+  'Сообщение покупателю после оплаты, необязательно':
     'Message to the buyer after payment — optional',
-  'Например: активируйте ключ в Steam — «Игры», затем «Активировать в Steam»':
+  'Например: активируйте ключ в Steam: «Игры», затем «Активировать в Steam»':
     'For example: activate the key in Steam — “Games”, then “Activate a Product on Steam”',
   'Например: войдите по данным из заказа и сразу смените пароль и почту':
     'For example: sign in with the details from the order and change the password and email right away',
-  'Например: спасибо за заказ, передам товар за 15 минут — будьте в сети':
+  'Например: спасибо за заказ, передам товар за 15 минут, будьте в сети':
     'For example: thanks for your order, I’ll deliver within 15 minutes — please stay online',
   'Придёт в чат заказа от вашего имени сразу после оплаты. Контакты и ссылки скрываются, как в любом сообщении.':
     'Sent to the order chat in your name right after payment. Contacts and links are hidden, as in any message.',
 
   // Поштучно
-  'В этом разделе продают количеством: цена — за {qty}, одинаково у всех продавцов, чтобы покупатель сравнивал цены.':
+  'В этом разделе продают количеством: цена за {qty}, одинаково у всех продавцов, чтобы покупатель сравнивал цены.':
     'This category sells by quantity: the price is per {qty}, the same for every seller, so buyers can compare prices.',
   Единица: 'Unit',
   'ед.': 'units',
@@ -128,8 +131,8 @@ export const SELLER: Record<string, string> = {
     'With the same parameters there are {offers} now: from {min}, mostly {range}.',
   'В разделе сейчас {offers}: от {min}, чаще всего {range}.':
     'This category has {offers} now: from {min}, mostly {range}.',
-  'Ваша цена — среди самых низких.': 'Your price is among the lowest.',
-  'Ваша цена — в обычном разбросе.': 'Your price is in the usual range.',
+  'Ваша цена среди самых низких.': 'Your price is among the lowest.',
+  'Ваша цена в обычном разбросе.': 'Your price is in the usual range.',
   'Ваша цена выше, чем у большинства.': 'Your price is higher than most.',
   'Цена за {qty}, ₽': 'Price per {qty}, ₽',
   'Цена в рублях, например 490': 'Price in rubles, for example 490',
@@ -139,12 +142,12 @@ export const SELLER: Record<string, string> = {
   'Вы получите': 'You’ll get',
   'Вы получите за {qty}': 'You’ll get per {qty}',
   'Ваш уровень: {level}': 'Your level: {level}',
-  'Укажите категорию и цену — покажем комиссию и сумму, которую вы получите.':
+  'Укажите категорию и цену, и мы покажем комиссию и сумму, которую вы получите.':
     'Enter a category and price — we’ll show the fee and the amount you’ll get.',
 
   // Фото
-  'Фото — необязательно': 'Photos — optional',
-  'До {n} фото. Первое — обложка в разделе и на странице лота.':
+  'Фото, необязательно': 'Photos — optional',
+  'До {n} фото. Первое станет обложкой в разделе и на странице лота.':
     'Up to {n} photos. The first one is the cover in the category and on the listing page.',
   Обложка: 'Cover',
   'Сделать обложкой': 'Make cover',
@@ -166,7 +169,7 @@ export const SELLER: Record<string, string> = {
 
   // Изменение лота
   'Лот не найден или он не ваш.': 'Listing not found, or it isn’t yours.',
-  'Лот заблокирован модератором — изменить его нельзя. Если это ошибка, напишите в поддержку.':
+  'Лот заблокирован модератором, изменить его нельзя. Если это ошибка, напишите в поддержку.':
     'The listing was blocked by a moderator and can’t be edited. If this is a mistake, contact support.',
   'К моим лотам': 'Back to my listings',
   'Загружаем лот': 'Loading listing',
@@ -188,7 +191,7 @@ export const SELLER: Record<string, string> = {
   'Найти лот': 'Find a listing',
   'Найти лот по названию': 'Find a listing by title',
   'Загружаем лоты': 'Loading listings',
-  'Лотов пока нет. Выставить первый — пара минут.':
+  'Лотов пока нет. Выставить первый можно за пару минут.':
     'No listings yet. Publishing your first takes a couple of minutes.',
   'Создать лот': 'Create listing',
   'Ничего не нашлось.': 'Nothing found.',
@@ -202,7 +205,7 @@ export const SELLER: Record<string, string> = {
   'В отпуск': 'Go on vacation',
   'Снять все лоты разом и вернуть их одной кнопкой':
     'Pause all listings at once and bring them back with one button',
-  'Снять с продажи все лоты в продаже ({n})? Вернуть их можно одной кнопкой. Открытые заказы отпуск не отменяет — их нужно довести.':
+  'Снять с продажи все лоты в продаже ({n})? Вернуть их можно одной кнопкой. Открытые заказы отпуск не отменяет, их нужно довести.':
     'Pause all listings on sale ({n})? You can bring them back with one button. Vacation doesn’t cancel open orders — you still need to complete them.',
   'Вы в отпуске: сняли с продажи {n}.': 'You’re on vacation: {n} paused.',
   'С возвращением: вернули в продажу {n}.': 'Welcome back: {n} returned to sale.',
@@ -219,12 +222,12 @@ export const SELLER: Record<string, string> = {
   Поднять: 'Raise',
   'Снять выбор': 'Clear selection',
   'Подняли: {n}': 'Raised: {n}',
-  'остальные — через {n} мин': 'the rest in {n} min',
+  'остальные через {n} мин': 'the rest in {n} min',
   'не в продаже: {n}': 'not on sale: {n}',
   'Сняли с продажи: {n}.': 'Paused: {n}.',
-  'Пропустили {n} — уже сняты или закончились.': 'Skipped {n} — already paused or sold out.',
+  'Пропустили {n}: уже сняты или закончились.': 'Skipped {n} — already paused or sold out.',
   'Вернули в продажу: {n}.': 'Returned to sale: {n}.',
-  'Пропустили {n} — уже в продаже, без наличия или заблокированы.':
+  'Пропустили {n}: уже в продаже, без наличия или заблокированы.':
     'Skipped {n} — already on sale, out of stock or blocked.',
   'поднято: {n}': 'raised: {n}',
   'нечего поднимать': 'nothing to raise',
@@ -249,16 +252,16 @@ export const SELLER: Record<string, string> = {
   'Изменить «{title}»': 'Edit “{title}”',
   Удалить: 'Delete',
   'Удалить «{title}»': 'Delete “{title}”',
-  'Удалить «{title}»? Если по лоту были заказы, он уйдёт в архив — история сделок сохранится.':
+  'Удалить «{title}»? Если по лоту были заказы, он уйдёт в архив, история сделок сохранится.':
     'Delete “{title}”? If the listing had orders, it goes to the archive and the deal history is kept.',
   'Не удалось удалить лот.': 'Couldn’t delete the listing.',
   'Цена не сохранилась.': 'The price wasn’t saved.',
-  'Цена следует из наценки — меняется в форме лота':
+  'Цена следует из наценки, меняется в форме лота':
     'The price follows from the markup — change it in the listing form',
-  'Цена {price} — изменить': 'Price {price} — edit',
+  'Цена {price}, изменить': 'Price {price} — edit',
   'Новая цена': 'New price',
   'Новая цена {pack}': 'New price {pack}',
-  'Цена — число больше нуля': 'Price must be a number above zero',
+  'Цена должна быть числом больше нуля': 'Price must be a number above zero',
 
   // Поднять в топ
   'Поднять лот в топ': 'Raise the listing to the top',
@@ -282,7 +285,7 @@ export const SELLER: Record<string, string> = {
   // Склад автовыдачи
   'Склад ключей': 'Key stock',
   'Склад автовыдачи': 'Auto-delivery stock',
-  'Видите только вы. Каждая строка — одна штука: покупатель получает свою сразу после оплаты.':
+  'Видите только вы. Каждая строка это одна штука, покупатель получает свою сразу после оплаты.':
     'Only you can see this. Each line is one item: the buyer gets theirs right after payment.',
   'в наличии: {n}': 'in stock: {n}',
   'зарезервировано: {n}': 'reserved: {n}',
@@ -293,7 +296,7 @@ export const SELLER: Record<string, string> = {
   'По одной штуке в строке:': 'One item per line:',
   'логин:пароль': 'login:password',
   'промокод или ссылка': 'promo code or link',
-  'Повторы не ложатся на склад: одна строка — одному покупателю.':
+  'Повторы не ложатся на склад: одна строка для одного покупателя.':
     'Duplicates aren’t added to the stock: one line goes to one buyer.',
   'На склад добавлено: {n}.': 'Added to stock: {n}.',
   'Повторы пропущены: {n}.': 'Duplicates skipped: {n}.',
@@ -354,7 +357,7 @@ export const SELLER: Record<string, string> = {
   'Проверяйте подпись: HMAC-SHA256 тела вашим секретом. Если ответ не 2xx или его нет 5 секунд, повторим через {delays} мин.': 'Check the signature: HMAC-SHA256 of the body with your secret. A non-2xx answer or 5 seconds of silence — we retry in {delays} min.',
   'Не удалось загрузить настройки API.': 'Couldn’t load API settings.',
   'API': 'API',
-  'Свой бот или склад: цены и наличие лотов, загрузка товара для автовыдачи, заказы и отметка выдачи — по ключу, без пароля от аккаунта.': 'Your own bot or warehouse: listing prices and stock, uploading goods for auto-delivery, orders and marking delivery — with a key, without your account password.',
+  'Свой бот или склад: цены и наличие лотов, загрузка товара для автовыдачи, заказы и отметка выдачи по ключу API. Пароль от аккаунта не нужен.': 'Your own bot or warehouse: listing prices and stock, uploading goods for auto-delivery, orders and marking delivery — with a key, without your account password.',
   'Документация': 'Documentation',
   'Скопируйте сейчас: больше мы его не покажем.': 'Copy it now: we won’t show it again.',
   'последний запрос {date}': 'last request {date}',
@@ -372,7 +375,7 @@ export const SELLER: Record<string, string> = {
   'Не удалось сохранить вебхук.': 'Couldn’t save the webhook.',
   'Адрес (https)': 'Address (https)',
   'Сменить': 'Change',
-  'Проверочное событие отправлено — результат ниже через несколько секунд.': 'Test event sent — the result appears below in a few seconds.',
+  'Проверочное событие отправлено, результат появится ниже через несколько секунд.': 'Test event sent — the result appears below in a few seconds.',
   'Не удалось отправить проверку.': 'Couldn’t send the test.',
   'Проверить': 'Test',
   'Не удалось убрать вебхук.': 'Couldn’t remove the webhook.',
@@ -382,8 +385,8 @@ export const SELLER: Record<string, string> = {
   'Свой бот или склад подключается через API по ключу, пароль от аккаунта не нужен.': 'Your own bot or warehouse — via the API with a key, without your account password.',
   // Услуги со сроком (часть 125)
   'Срок выполнения': 'Deadline',
-  'Без срока — выдам в течение суток': 'No deadline: I deliver within a day',
-  'Считается от оплаты. Не успели — покупатель сразу может открыть спор, а без выдачи и спора деньги вернутся ему через сутки после срока.':
+  'Без срока, выдам в течение суток': 'No deadline: I deliver within a day',
+  'Считается от оплаты. Если не успели, покупатель сразу может открыть спор, а без выдачи и спора деньги вернутся ему через сутки после срока.':
     'Counted from payment. Miss it and the buyer can open a dispute right away; with no delivery and no dispute, the money goes back to them a day after the deadline.',
   '«Взять в работу»: покупатель увидит отметку в заказе. У услуг со сроком в заказе есть serviceDueAt, срок выполнения.':
     '“Take on”: the buyer sees the mark on the order. Services with a deadline carry serviceDueAt, the time to complete by.',
@@ -397,7 +400,7 @@ export const SELLER: Record<string, string> = {
   'Отсейте рискованных покупателей. Условия покупатель увидит на странице лота до заказа.': 'Filter out risky buyers. Buyers see the conditions on the listing page before ordering.',
   'Аккаунт покупателя не моложе': 'Buyer account at least',
   'Любой': 'Any age',
-  'Проигранных споров за 90 дней — не больше': 'Lost disputes in 90 days — no more than',
+  'Проигранных споров за 90 дней, не больше': 'Lost disputes in 90 days — no more than',
   'Не важно': 'Doesn’t matter',
   'Ни одного': 'None',
   'Не продавать тем, кого другие продавцы чаще не рекомендуют': 'Don’t sell to buyers whom other sellers more often don’t recommend',
@@ -408,16 +411,16 @@ export const SELLER: Record<string, string> = {
     'We’ll check the Steam trade link format and prefill it in the buyer’s next order.',
   // Чистая выдача (часть 143)
   'Такой лот у вас уже в продаже:': 'You already have this listing on sale:',
-  'В разделе покажем одну карточку — дешёвую, остальные выйдут, когда её купят. Проще добавить наличие в тот лот.':
+  'В разделе покажем одну карточку, дешёвую, остальные выйдут, когда её купят. Проще добавить наличие в тот лот.':
     'The section shows one card, the cheapest; the others appear once it is bought. It’s simpler to add stock to that listing.',
   // Лот на английском (часть 144)
-  'На английском — необязательно': 'In English — optional',
-  'Покупатели с английским языком сайта увидят эти название и описание. Пусто — увидят русские.':
+  'На английском, необязательно': 'In English — optional',
+  'Покупатели с английским языком сайта увидят эти название и описание. Если пусто, увидят русские.':
     'Buyers using the site in English will see this title and description. Left empty — they see the Russian ones.',
   'Название на английском': 'Title in English',
   'Описание на английском': 'Description in English',
-  'Название на английском — от 3 знаков': 'The English title must be at least 3 characters',
-  'Название на английском — латиницей': 'Write the English title in Latin letters',
-  'По желанию — «Название (англ.)» и «Описание (англ.)»: их видят покупатели с английским сайтом.':
+  'Название на английском от 3 знаков': 'The English title must be at least 3 characters',
+  'Название на английском латиницей': 'Write the English title in Latin letters',
+  'По желанию «Название (англ.)» и «Описание (англ.)»: их видят покупатели с английским сайтом.':
     'Optionally — “title_en” and “description_en” columns: buyers using the site in English see them.',
 };

@@ -580,7 +580,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: 'kak-kupit',
     group: 'buyer',
     title: msg('Как купить'),
-    summary: msg('Найти предложение, оплатить, получить товар и подтвердить — по шагам.'),
+    summary: msg('Найти предложение, оплатить, получить товар и подтвердить, по шагам.'),
   },
   {
     slug: 'spory',

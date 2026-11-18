@@ -39,7 +39,7 @@ export function BonusCard() {
         {t('Бонусы')} · {formatPrice(data.balance, 'RUB', t)}
       </h2>
       <p className="muted" style={{ margin: '0 0 12px', fontSize: 14 }}>
-        {t('Спишутся скидкой при оплате следующего заказа — галочкой у кнопки «Оплатить». Не выводятся.')}
+        {t('Спишутся скидкой при оплате следующего заказа, галочкой у кнопки «Оплатить». Не выводятся.')}
       </p>
       <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 6, fontSize: 14 }}>
         {data.entries.slice(0, 10).map((e) => (

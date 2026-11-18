@@ -38,7 +38,7 @@ export function SteamTradeSettings() {
     try {
       const r = await apiFetch<{ url: string | null }>('/account/steam-trade', { method: 'PUT', body: JSON.stringify({ url: value }) });
       setSaved(r.url);
-      setMsg({ ok: true, text: r.url ? t('Сохранили — подставим в следующий заказ.') : t('Ссылку стёрли.') });
+      setMsg({ ok: true, text: r.url ? t('Сохранили, подставим в следующий заказ.') : t('Ссылку стёрли.') });
     } catch (err) {
       setMsg({ ok: false, text: apiErrorMessage(err, t('Не удалось сохранить.')) });
     } finally {

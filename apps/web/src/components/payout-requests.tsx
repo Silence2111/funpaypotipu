@@ -81,7 +81,7 @@ export function PayoutRequests({ items }: { items: MyPayout[] }) {
                 {p.status === 'requested' && !held && p.reviewBy && (
                   <span className="payout-note">
                     {p.escalatedAt
-                      ? t('Проверка затянулась — заявку передали старшему сотруднику.')
+                      ? t('Проверка затянулась, заявку передали старшему сотруднику.')
                       : t('Проверим до {date}.', { date: date(p.reviewBy) })}
                   </span>
                 )}
@@ -93,7 +93,7 @@ export function PayoutRequests({ items }: { items: MyPayout[] }) {
                 {p.status === 'rejected' && !p.rejectReason && p.failureReason && (
                   <span className="payout-note">
                     {t(
-                      'Платёжная система не провела выплату — проверьте реквизиты или выберите другой способ.',
+                      'Платёжная система не провела выплату. Проверьте реквизиты или выберите другой способ.',
                     )}
                   </span>
                 )}

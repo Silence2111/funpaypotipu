@@ -42,7 +42,7 @@ export function BuyAgain({
   return (
     <Link href={`/lot/${listingId}${query ? `?${query}` : ''}#buy`} className="btn secondary">
       <Repeat size={16} strokeWidth={1.75} aria-hidden />
-      {status === 'active' ? t('Купить снова') : t('Закончился — сообщить о поступлении')}
+      {status === 'active' ? t('Купить снова') : t('Закончился, сообщить о поступлении')}
     </Link>
   );
 }

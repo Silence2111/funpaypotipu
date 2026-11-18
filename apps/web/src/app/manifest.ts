@@ -11,7 +11,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const t = await getT();
   return {
     id: '/',
-    name: t('GameMarket — игровые ценности с защитой сделки'),
+    name: t('GameMarket: игровые ценности с защитой сделки'),
     short_name: 'GameMarket',
     description: t(
       'Аккаунты, валюта, предметы, ключи и пополнения от продавцов. Деньги у площадки, пока вы не подтвердите получение.',

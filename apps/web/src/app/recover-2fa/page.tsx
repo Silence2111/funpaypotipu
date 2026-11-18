@@ -24,7 +24,7 @@ function RecoverInner() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!token) { setErr(t('Нет токена в ссылке')); return; }
-    if (next.length < 8) { setErr(t('Новый пароль — от 8 символов')); return; }
+    if (next.length < 8) { setErr(t('Новый пароль от 8 символов')); return; }
     setBusy(true);
     setErr(null);
     try {

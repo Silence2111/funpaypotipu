@@ -33,7 +33,7 @@ const passwordSchema = z.object({
   // Нет у аккаунта, заведённого через сервис: там пароль задают впервые.
   current: z.string().optional(),
   // Те же правила, что при регистрации.
-  next: z.string().min(8, 'Новый пароль — от 8 символов').max(128),
+  next: z.string().min(8, 'Новый пароль от 8 символов').max(128),
 });
 
 @Controller('auth')

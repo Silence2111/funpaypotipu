@@ -281,7 +281,7 @@ export function ChatList({ activeId, meId }: { activeId?: string; meId: string }
           <p className="muted" style={{ padding: '16px 20px', fontSize: 14, margin: 0 }}>
             {needle
               ? t('Никого не нашлось.')
-              : t('Диалогов пока нет. Напишите продавцу со страницы лота — переписка появится здесь.')}
+              : t('Диалогов пока нет. Напишите продавцу со страницы лота, и переписка появится здесь.')}
           </p>
         ) : (
           shown.map(row)

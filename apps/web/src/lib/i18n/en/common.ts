@@ -16,14 +16,14 @@ export const COMMON: Record<string, string> = {
   Контакты: 'Contacts',
   'Как мы меряем выдачу': 'How we measure delivery',
   'Валюта цен': 'Price currency',
-  'Валюта показа цен. Оплата — в рублях.': 'Currency for displaying prices. Payment is in rubles.',
+  'Валюта показа цен. Оплата в рублях.': 'Currency for displaying prices. Payment is in rubles.',
   'Примерно, по курсу площадки. Оплата в рублях.':
     'Approximate, at the marketplace rate. Payment is in rubles.',
   'Установить приложение': 'Install app',
   'Каталог игр': 'Game catalog',
   'Предложения продавцов': 'Offers from sellers',
   'Покупка с защитой сделки': 'Purchase with escrow protection',
-  'GameMarket — игровые ценности с защитой сделки':
+  'GameMarket: игровые ценности с защитой сделки':
     'GameMarket — game goods with escrow protection',
   'Аккаунты, валюта, предметы, ключи и пополнения от продавцов. Деньги у площадки, пока вы не подтвердите получение.':
     'Accounts, currency, items, keys and top-ups from sellers. The marketplace holds the money until you confirm receipt.',
@@ -35,9 +35,9 @@ export const COMMON: Record<string, string> = {
   'Светлая тема': 'Light theme',
   'Тёмная тема': 'Dark theme',
 
-  'Черновик до регистрации юрлица. Места с пометкой «[заполнить]» — реквизиты, которых пока нет.':
+  'Черновик до регистрации юрлица. Места с пометкой «[заполнить]» ждут реквизитов, которых пока нет.':
     'Draft until the company is registered. Highlighted placeholders are details we don’t have yet.',
-  'Этот документ — только на русском. Действует русская версия.':
+  'Этот документ только на русском. Действует русская версия.':
     'This document is available in Russian only. The Russian version is the one that applies.',
 
   // 404
@@ -57,7 +57,7 @@ export const COMMON: Record<string, string> = {
   'Профиль: {n} ждут действия': 'Profile: {n} need action',
   'Меню профиля {name}': 'Profile menu for {name}',
   'Баланс {sum}': 'Balance {sum}',
-  'Баланс — пополнить и вывести в кошельке': 'Balance — top up and withdraw in your wallet',
+  'Баланс: пополнить и вывести в кошельке': 'Balance — top up and withdraw in your wallet',
   Продажи: 'Sales',
   '{n} ждут выдачи': '{n} to deliver',
   Покупки: 'Purchases',
@@ -117,12 +117,12 @@ export const COMMON: Record<string, string> = {
   // Приложение (часть 139)
   'Приложение': 'App',
   'Приложение GameMarket': 'GameMarket app',
-  'GameMarket на телефоне: Android — Google Play и RuStore, iPhone — с экрана «Домой». Уведомления о заказах и сообщениях.':
+  'GameMarket на телефоне: на Android из Google Play и RuStore, на iPhone с экрана «Домой». Уведомления о заказах и сообщениях.':
     'GameMarket on your phone: Android via Google Play and RuStore, iPhone from the Home Screen. Notifications about orders and messages.',
-  'Заказы, сообщения и уведомления — с иконки на телефоне, без адресной строки.': 'Orders, messages and notifications from an icon on your phone, without the address bar.',
-  'Скоро в Google Play и RuStore. Пока — установите с сайта: откройте GameMarket в Chrome и нажмите «Установить приложение» внизу страницы или в меню браузера.':
+  'Заказы, сообщения и уведомления с иконки на телефоне, без адресной строки.': 'Orders, messages and notifications from an icon on your phone, without the address bar.',
+  'Скоро в Google Play и RuStore. Пока установите с сайта: откройте GameMarket в Chrome и нажмите «Установить приложение» внизу страницы или в меню браузера.':
     'Coming soon to Google Play and RuStore. For now, install it from the site: open GameMarket in Chrome and tap “Install app” at the bottom of the page or in the browser menu.',
-  'iPhone присылает уведомления только сайтам с экрана «Домой» — без установки пушей не будет.': 'iPhone only sends notifications to sites added to the Home Screen — without installing, there are no push notifications.',
+  'iPhone присылает уведомления только сайтам с экрана «Домой», без установки пушей не будет.': 'iPhone only sends notifications to sites added to the Home Screen — without installing, there are no push notifications.',
   'Настройки уведомлений': 'Notification settings',
   'Установить на iPhone': 'Install on iPhone',
   'Откройте сайт в Safari и нажмите «Поделиться» внизу экрана.': 'Open the site in Safari and tap “Share” at the bottom of the screen.',
@@ -134,7 +134,7 @@ export const COMMON: Record<string, string> = {
   'Редакции правил': 'Rules versions',
   'Прежние редакции хранятся здесь не меньше трёх лет.': 'Previous versions stay here for at least three years.',
   'Файлы cookie': 'Cookies',
-  'Мы используем Яндекс Метрику, чтобы понимать, что на сайте неудобно. Она ставит файлы cookie — только если вы разрешите.':
+  'Мы используем Яндекс Метрику, чтобы понимать, что на сайте неудобно. Она ставит файлы cookie, только если вы разрешите.':
     'We use Yandex Metrica to understand what is inconvenient on the site. It sets cookies — only if you allow it.',
   'Разрешить': 'Allow',
   'Отказаться': 'Decline',

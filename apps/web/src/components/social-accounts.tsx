@@ -82,12 +82,12 @@ export function SocialAccounts({
         <Link2 size={18} strokeWidth={1.75} /> {t('Вход через сервисы')}
       </h2>
       <p className="muted" style={{ fontSize: 14, margin: '8px 0 6px' }}>
-        {t('Входить в один аккаунт по паролю, через Яндекс ID или VK ID — как удобнее.')}
+        {t('Входить в один аккаунт по паролю, через Яндекс ID или VK ID, как удобнее.')}
       </p>
       {ways.needsLoginMethod && (
         <div className="alert error" role="alert" style={{ margin: '8px 0' }}>
           {t(
-            'Вход через Telegram отключён по закону (149-ФЗ, ч. 10 ст. 8). Чтобы не потерять аккаунт, пока вы в нём, добавьте почту и задайте пароль — выше на этой странице.',
+            'Вход через Telegram отключён по закону (149-ФЗ, ч. 10 ст. 8). Чтобы не потерять аккаунт, пока вы в нём, добавьте почту и задайте пароль выше на этой странице.',
           )}
         </div>
       )}
@@ -109,7 +109,7 @@ export function SocialAccounts({
                 <span style={{ fontWeight: 600 }}>{LABEL[p]}</span>
                 <span className="faint" style={{ display: 'block', fontSize: 13 }}>
                   {acc?.disabled
-                    ? t('Вход отключён по закону · уведомления в Telegram — в настройках уведомлений')
+                    ? t('Вход отключён по закону · уведомления в Telegram в настройках уведомлений')
                     : acc
                       ? `${t('Подключён')}${acc.name ? ` · ${acc.name}` : ''}${acc.email ? ` · ${acc.email}` : ''}`
                       : t('Не подключён')}
@@ -147,7 +147,7 @@ export function SocialAccounts({
       {!ways.hasPassword && !ways.needsLoginMethod && (
         <p className="hint" style={{ marginTop: 10 }}>
           {t(
-            'Пароля у аккаунта нет — вход только через сервис. Задайте пароль выше, чтобы не зависеть от него.',
+            'Пароля у аккаунта нет, вход только через сервис. Задайте пароль выше, чтобы не зависеть от него.',
           )}
         </p>
       )}

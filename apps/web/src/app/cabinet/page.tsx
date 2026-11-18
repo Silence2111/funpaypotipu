@@ -139,7 +139,7 @@ export default function CabinetPage() {
           </div>
         ) : (
           <div className="card flat row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <span className="muted">{t('Лотов пока нет. Выставить первый — пара минут.')}</span>
+            <span className="muted">{t('Лотов пока нет. Выставить первый можно за пару минут.')}</span>
             <Link href="/cabinet/new" className="btn secondary">{t('Создать лот')}</Link>
           </div>
         )}

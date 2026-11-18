@@ -107,7 +107,7 @@ export function BuyerRating({ orderId, role }: { orderId: string; role: 'buyer' 
           <p className="muted buyer-rating-comment">«{userText(t, review.comment)}»</p>
         )}
         <p className="hint" style={{ margin: 0 }}>
-          {t('Комментарий видите только вы, в профиле — только число оценок.')}
+          {t('Комментарий видите только вы, в профиле только число оценок.')}
         </p>
       </div>
     );
@@ -121,7 +121,7 @@ export function BuyerRating({ orderId, role }: { orderId: string; role: 'buyer' 
         <p className="buyer-rating-stats">
           {stats.deals === 0 && rated === 0
             ? t('Покупатель: первая покупка на площадке.')
-            : t('Покупатель: {deals}; продавцы рекомендуют — {good}, не рекомендуют — {bad}.', {
+            : t('Покупатель: {deals}; продавцы рекомендуют: {good}, не рекомендуют: {bad}.', {
                 deals: t.n(stats.deals, 'покупка', 'покупки', 'покупок'),
                 good: stats.good,
                 bad: stats.bad,
@@ -172,7 +172,7 @@ export function BuyerRating({ orderId, role }: { orderId: string; role: 'buyer' 
             {t('Убрать оценку? Покупатель перестанет её видеть, в профиле она не будет считаться.')}{' '}
             {canRate
               ? t('Поставить снова можно в течение 30 дней после сделки.')
-              : t('Срок оценки прошёл — поставить её снова будет нельзя.')}
+              : t('Срок оценки прошёл, поставить её снова будет нельзя.')}
           </span>
           <span className="row" style={{ gap: 8 }}>
             <button
@@ -236,7 +236,7 @@ export function BuyerRating({ orderId, role }: { orderId: string; role: 'buyer' 
             maxLength={300}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder={t('Комментарий — необязательно, его увидит только покупатель')}
+            placeholder={t('Комментарий необязателен, его увидит только покупатель')}
             aria-label={t('Комментарий для покупателя')}
           />
           {err && (

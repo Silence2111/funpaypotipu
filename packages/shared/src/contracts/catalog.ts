@@ -31,8 +31,8 @@ export const createListingSchema = z.object({
     .string()
     .trim()
     .max(120)
-    .refine((v) => v === '' || v.length >= 3, 'Название на английском — от 3 знаков')
-    .refine((v) => !/[а-яё]/i.test(v), 'Название на английском — латиницей')
+    .refine((v) => v === '' || v.length >= 3, 'Название на английском от 3 знаков')
+    .refine((v) => !/[а-яё]/i.test(v), 'Название на английском латиницей')
     .transform((v) => v || null)
     .nullable()
     .optional(),
@@ -53,7 +53,7 @@ export const createListingSchema = z.object({
   buyerFields: z
     .array(
       z.object({
-        label: z.string().trim().min(2, 'Название поля — от 2 символов').max(40),
+        label: z.string().trim().min(2, 'Название поля от 2 символов').max(40),
         required: z.boolean().default(true),
         // Часть 142: ссылка на обмен Steam — с проверкой формата.
         kind: z.enum(['steam_trade']).optional(),

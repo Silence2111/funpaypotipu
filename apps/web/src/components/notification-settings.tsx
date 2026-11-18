@@ -36,13 +36,13 @@ function pushStatus(here: PushHere | null, devices: number, available: boolean, 
     case 'denied':
       return t('Уведомления для сайта запрещены в настройках браузера') + others;
     case 'install':
-      return t('На iPhone — после установки сайта: «Поделиться» → «На экран Домой»') + others;
+      return t('На iPhone после установки сайта: «Поделиться» → «На экран Домой»') + others;
     case 'unsupported':
       return t('Этот браузер пуши не принимает') + others;
     default:
       return elsewhere > 0
         ? t('Включены на других устройствах: {n}', { n: elsewhere })
-        : t('Заказы и сообщения — сразу на экран, даже когда сайт закрыт');
+        : t('Заказы и сообщения сразу на экран, даже когда сайт закрыт');
   }
 }
 
@@ -161,7 +161,7 @@ export function NotificationSettings() {
     <section id="notifications" style={{ maxWidth: 600, scrollMarginTop: 80 }}>
       <h2 className="h2" style={{ fontSize: 18, marginBottom: 6 }}>{t('Уведомления')}</h2>
       <p className="muted" style={{ margin: '0 0 12px', fontSize: 14 }}>
-        {t('На сайте — всегда. Письмом, в Telegram и пушем — по вашему выбору.')}
+        {t('На сайте всегда. Письмом, в Telegram и пушем по вашему выбору.')}
       </p>
       {s && isLang(s.locale) && (
         <p className="faint" style={{ margin: '-4px 0 12px', fontSize: 13 }}>
@@ -186,7 +186,7 @@ export function NotificationSettings() {
                     : s.telegram.linked
                       ? `${t('Подключён')}${s.telegram.bot ? ` · @${s.telegram.bot}` : ''}`
                       : waiting
-                        ? t('Откройте бота и нажмите «Старт» — страница обновится сама')
+                        ? t('Откройте бота и нажмите «Старт», страница обновится сама')
                         : t('Мгновенные уведомления, а подтвердить получение и ответить в чат можно прямо из бота')}
                 </span>
               </span>

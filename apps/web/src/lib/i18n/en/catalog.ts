@@ -153,15 +153,15 @@ export const CATALOG: Record<string, string> = {
   'Мои запросы': 'My requests',
   'В моих разделах': 'In my categories',
   'Во всех разделах': 'In all categories',
-  'У вас пока нет лотов в продаже — показываем запросы всех разделов.':
+  'У вас пока нет лотов в продаже, поэтому показываем запросы всех разделов.':
     'You have no listings on sale yet — showing requests from all categories.',
   'В ваших разделах открытых запросов нет. Новый придёт уведомлением.':
     'No open requests in your categories. A new one will come as a notification.',
   'Открытых запросов пока нет.': 'No open requests yet.',
   'Не удалось загрузить запросы.': 'Couldn’t load requests.',
-  'Запрос закрыт — продавцы его больше не видят.': 'Request closed — sellers no longer see it.',
+  'Запрос закрыт, продавцы его больше не видят.': 'Request closed — sellers no longer see it.',
   'Не удалось закрыть запрос.': 'Couldn’t close the request.',
-  'Запросов нет. Не нашли нужное? Откройте раздел игры и нажмите «Оставить запрос» — продавцы предложат свои лоты.':
+  'Запросов нет. Откройте раздел игры и нажмите «Оставить запрос», и продавцы предложат свои лоты.':
     'No requests. Didn’t find what you need? Open a game category and click “Post a request” — sellers will offer their listings.',
   Открыт: 'Open',
   Истёк: 'Expired',
@@ -172,7 +172,7 @@ export const CATALOG: Record<string, string> = {
   '{name} · ★ {rating}': '{name} · ★ {rating}',
   'Снят с продажи': 'No longer on sale',
   'Дороже вашей цены': 'Above your price',
-  'Продавцы ещё не ответили — ответ придёт уведомлением.': 'No replies from sellers yet — a reply will come as a notification.',
+  'Продавцы ещё не ответили. Ответ придёт уведомлением.': 'No replies from sellers yet — a reply will come as a notification.',
   'Закрыть запрос': 'Close the request',
   'Что не так с запросом': 'What’s wrong with the request',
   'Выставить лот первым': 'List the first item',

@@ -75,7 +75,7 @@ export default function DecisionsPage() {
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>{t('Решения модерации')}</h1>
         <p className="muted" style={{ margin: '8px 0 0', maxWidth: '60ch' }}>
-          {t('Что решили модераторы о вас, ваших лотах и сообщениях, по какому пункту правил и почему. Не согласны — обжалуйте: решит другой сотрудник.')}
+          {t('Что решили модераторы о вас, ваших лотах и сообщениях, по какому пункту правил и почему. Если не согласны, обжалуйте: решит другой сотрудник.')}
         </p>
         <div style={{ marginTop: 16 }}>
           <CabinetNav />
@@ -122,7 +122,7 @@ export default function DecisionsPage() {
                     <textarea id={`ap-${d.id}`} className="input" rows={4} maxLength={2000} value={text}
                       onChange={(e) => setText(e.target.value)} style={{ resize: 'vertical' }} />
                     <span className="hint">
-                      {t('Обжаловать можно один раз. Решит другой сотрудник, не тот, кто принимал решение, — в течение {hours} ч.', { hours: APPEAL_REVIEW_HOURS })}
+                      {t('Обжаловать можно один раз. Решит другой сотрудник, не тот, кто принимал решение, в течение {hours} ч.', { hours: APPEAL_REVIEW_HOURS })}
                     </span>
                     <div className="row" style={{ gap: 8 }}>
                       <button className="btn" type="submit" disabled={busy || text.trim().length < 10}>{t('Отправить')}</button>
@@ -135,7 +135,7 @@ export default function DecisionsPage() {
                   </div>
                 )
               ) : (
-                <span className="hint">{t('Срок обжалования — {days} дней — прошёл.', { days: APPEAL_WINDOW_DAYS })}</span>
+                <span className="hint">{t('Срок обжалования {days} дней прошёл.', { days: APPEAL_WINDOW_DAYS })}</span>
               )}
             </section>
           ))}

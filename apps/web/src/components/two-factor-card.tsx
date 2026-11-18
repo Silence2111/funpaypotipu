@@ -67,7 +67,7 @@ export function TwoFactorCard() {
       });
       setSetup(null);
       setCodes(r.recoveryCodes);
-      return t('Защита включена. Сохраните резервные коды — они понадобятся без телефона.');
+      return t('Защита включена. Сохраните резервные коды, они понадобятся без телефона.');
     }, t('Код не подошёл.'));
 
   const regenerate = () =>
@@ -77,7 +77,7 @@ export function TwoFactorCard() {
         body: JSON.stringify({ code }),
       });
       setCodes(r.recoveryCodes);
-      return t('Новые резервные коды — старые больше не работают.');
+      return t('Новые резервные коды. Старые больше не работают.');
     }, t('Код не подошёл.'));
 
   const disable = () =>
@@ -88,7 +88,7 @@ export function TwoFactorCard() {
 
   function download(list: string[]) {
     const blob = new Blob(
-      [`${t('Резервные коды GameMarket — каждый работает один раз')}\n\n${list.join('\n')}\n`],
+      [`${t('Резервные коды GameMarket, каждый работает один раз')}\n\n${list.join('\n')}\n`],
       {
         type: 'text/plain;charset=utf-8',
       },
@@ -137,7 +137,7 @@ export function TwoFactorCard() {
       {codes ? (
         <div className="stack-form" style={{ gap: 12 }}>
           <p style={{ margin: 0, fontWeight: 600 }}>
-            {t('Резервные коды — каждый работает один раз')}
+            {t('Резервные коды, каждый работает один раз')}
           </p>
           <ol className="reserve-codes">
             {codes.map((c) => (
@@ -211,7 +211,7 @@ export function TwoFactorCard() {
           <div className="stack-form" style={{ gap: 10, minWidth: 0 }}>
             <p style={{ margin: 0 }}>{t('1. Отсканируйте QR-код в приложении-аутентификаторе.')}</p>
             <p className="hint" style={{ margin: 0 }}>
-              {t('Не получается — добавьте ключ вручную:')}
+              {t('Не получается? Добавьте ключ вручную:')}
             </p>
             <code className="secret">{setup.secret.match(/.{1,4}/g)?.join(' ')}</code>
             <p style={{ margin: 0 }}>{t('2. Введите шесть цифр, которые покажет приложение.')}</p>

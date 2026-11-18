@@ -158,7 +158,7 @@ export class PhoneService {
     try {
       phone = this.tokens.verifyData<{ phone: string }>(ticket, 'phone_ticket').phone;
     } catch {
-      throw err(401, 'phone_expired', 'Вход по номеру устарел — запросите код заново');
+      throw err(401, 'phone_expired', 'Вход по номеру устарел, запросите код заново');
     }
     const user = await this.prisma.user.findFirst({
       where: { phone, phoneVerifiedAt: { not: null }, erasedAt: null },

@@ -35,7 +35,7 @@ export const LOT: Record<string, string> = {
     'You can’t buy it right now — see similar offers below.',
   'Сообщить о поступлении': 'Notify me when back in stock',
   'Сообщим о поступлении': 'We’ll let you know',
-  'Продавец может пополнить наличие — пришлём одно уведомление, когда лот снова появится.':
+  'Продавец может пополнить наличие. Пришлём одно уведомление, когда лот снова появится.':
     'The seller may restock it — we’ll send one notification when it’s back.',
   'Пришлём уведомление, когда лот снова появится в продаже. Нажмите ещё раз, чтобы не ждать.':
     'We’ll notify you when it’s back in stock. Tap again to stop waiting.',
@@ -202,7 +202,7 @@ export const LOT: Record<string, string> = {
   'Фото к отзыву': 'Review photos',
   'Загрузка…': 'Uploading…',
   Фото: 'Photo',
-  'До {n} фото — скриншоты товара или игры. Все покупатели их увидят.':
+  'До {n} фото: скриншоты товара или игры. Все покупатели их увидят.':
     'Up to {n} photos — screenshots of the item or the game. All buyers will see them.',
   'С фото': 'With photos',
   'Таких отзывов нет.': 'No such reviews.',

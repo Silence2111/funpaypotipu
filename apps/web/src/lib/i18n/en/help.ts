@@ -5,7 +5,7 @@ export const HELP: Record<string, string> = {
   Продавцу: 'For sellers',
   'Деньги и безопасность': 'Money and security',
   'Как купить': 'How to buy',
-  'Найти предложение, оплатить, получить товар и подтвердить — по шагам.':
+  'Найти предложение, оплатить, получить товар и подтвердить, по шагам.':
     'Find an offer, pay, get the goods and confirm — step by step.',
   'Споры и возврат денег': 'Disputes and refunds',
   'Когда открывать спор, кто его решает и куда возвращаются деньги.':

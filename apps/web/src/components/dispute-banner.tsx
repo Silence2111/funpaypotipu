@@ -43,7 +43,7 @@ export function DisputeBanner() {
         <Clock size={18} strokeWidth={1.75} aria-hidden style={{ color: 'var(--warning)' }} />
         <span style={{ flex: 1 }}>
           {t(
-            'Спор по заказу {number} ждёт вашего ответа — осталось {left}. Без ответа арбитр учтёт молчание при решении.',
+            'Спор по заказу {number} ждёт вашего ответа, осталось {left}. Без ответа арбитр учтёт молчание при решении.',
             {
               number: dispute.orderNumber,
               left,

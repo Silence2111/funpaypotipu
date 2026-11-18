@@ -34,7 +34,7 @@ function ConfirmInner() {
       {email ? (
         <div className="stack-form">
           <p role="status" style={{ margin: 0 }}>
-            {t('Готово: почта аккаунта — {email}. Входите с ней и тем же паролем.', { email })}
+            {t('Готово: почта аккаунта {email}. Входите с ней и тем же паролем.', { email })}
           </p>
           <Link href="/cabinet/security">{t('В «Безопасность»')}</Link>
         </div>

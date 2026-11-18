@@ -395,7 +395,7 @@ export function ListingForm({
     category: categoryId ? null : t('Выберите, что продаёте'),
     title:
       title.trim().length < 3
-        ? t('Название — от 3 знаков: его видят в каталоге')
+        ? t('Название от 3 знаков, его видят в каталоге')
         : // Шумное название (часть 143) — только новое: старое не мешает править цену.
           title.trim() !== (initial?.title ?? '').trim() && titleNoiseError(title)
           ? t.d(titleNoiseError(title)!)
@@ -404,9 +404,9 @@ export function ListingForm({
     titleEn: !titleEn.trim()
       ? null
       : titleEn.trim().length < 3
-        ? t('Название на английском — от 3 знаков')
+        ? t('Название на английском от 3 знаков')
         : /[\u0400-\u04FF]/.test(titleEn)
-          ? t('Название на английском — латиницей')
+          ? t('Название на английском латиницей')
           : titleEn.trim() !== (initial?.titleEn ?? '').trim() && titleNoiseError(titleEn)
             ? t.d(titleNoiseError(titleEn)!)
             : null,
@@ -418,7 +418,7 @@ export function ListingForm({
       !manualLot
         ? null
         : buyerFields.some((f) => f.label.trim().length < 2)
-          ? t('Название поля — от 2 символов')
+          ? t('Название поля от 2 символов')
           : new Set(buyerFields.map((f) => f.label.trim().toLowerCase())).size !== buyerFields.length
             ? t('Названия полей не должны повторяться')
             : null,
@@ -434,8 +434,8 @@ export function ListingForm({
     if (Object.values(fieldErrors).some(Boolean)) {
       setErr(
         editing
-          ? t('Изменения не сохранены — поправьте отмеченные поля.')
-          : t('Лот не опубликован — поправьте отмеченные поля.'),
+          ? t('Изменения не сохранены. Поправьте отмеченные поля.')
+          : t('Лот не опубликован. Поправьте отмеченные поля.'),
       );
       return;
     }
@@ -567,9 +567,9 @@ export function ListingForm({
         {editing
           ? t('Изменения видны в каталоге сразу. Уже оформленные заказы идут по прежней цене.')
           : copyOf
-            ? `${t('Всё — как у «{title}»: поправьте, что нужно, и опубликуйте. Исходный лот не изменится.', { title: copyOf.title })}${
+            ? `${t('Всё как у «{title}»: поправьте, что нужно, и опубликуйте. Исходный лот не изменится.', { title: copyOf.title })}${
                 copyOf.fulfillmentType === 'auto_key'
-                  ? ` ${t('Товар со склада не копируется — загрузите его после публикации.')}`
+                  ? ` ${t('Товар со склада не копируется, загрузите его после публикации.')}`
                   : ''
               }`
             : t('Лот появится в каталоге сразу. Деньги за продажу придут на баланс, когда покупатель подтвердит получение.')}
@@ -621,7 +621,7 @@ export function ListingForm({
             {attrs.map((a) => (
               <div key={a.key} className="field">
                 <label className="label" htmlFor={`attr-${a.key}`}>
-                  {a.isRequired ? t.d(a.label) : t('{label} — необязательно', { label: t.d(a.label) })}
+                  {a.isRequired ? t.d(a.label) : t('{label}, необязательно', { label: t.d(a.label) })}
                 </label>
                 {a.type === 'enum' && a.options ? (
                   <select id={`attr-${a.key}`} className="input" value={String(attrValues[a.key] ?? '')}
@@ -653,7 +653,7 @@ export function ListingForm({
             <div className="alert warning" role="status" style={{ marginTop: 8, fontSize: 14 }}>
               <span>
                 {t('Такой лот у вас уже в продаже:')} <Link href={`/lot/${dupe.id}`}>{dupe.title}</Link>.{' '}
-                {t('В разделе покажем одну карточку — дешёвую, остальные выйдут, когда её купят. Проще добавить наличие в тот лот.')}
+                {t('В разделе покажем одну карточку, дешёвую, остальные выйдут, когда её купят. Проще добавить наличие в тот лот.')}
               </span>
             </div>
           )}
@@ -662,7 +662,7 @@ export function ListingForm({
         <div className="field">
           <label className="label" htmlFor="description">{t('Описание')}</label>
           <textarea id="description" className="input" style={{ minHeight: 120, resize: 'vertical' }}
-            placeholder={t('Что входит, как передаёте, сколько ждать. Чем точнее — тем меньше споров.')}
+            placeholder={t('Что входит, как передаёте, сколько ждать. Чем точнее, тем меньше споров.')}
             value={description} onChange={(e) => setDescription(e.target.value)} onBlur={() => touch('description')}
             aria-invalid={!!showErr('description')} />
           {showErr('description') && <p className="field-error">{showErr('description')}</p>}
@@ -671,10 +671,10 @@ export function ListingForm({
         {/* Лот на английском (часть 144): открыт сразу, если уже заполнен. */}
         <details className="field" open={!!(base?.titleEn || base?.descriptionEn) || undefined}>
           <summary className="label" style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>
-            {t('На английском — необязательно')}
+            {t('На английском, необязательно')}
           </summary>
           <p className="hint" style={{ margin: '0 0 10px' }}>
-            {t('Покупатели с английским языком сайта увидят эти название и описание. Пусто — увидят русские.')}
+            {t('Покупатели с английским языком сайта увидят эти название и описание. Если пусто, увидят русские.')}
           </p>
           <div className="stack-form" style={{ gap: 12 }}>
             <div className="field" style={{ margin: 0 }}>
@@ -699,7 +699,7 @@ export function ListingForm({
               {
                 v: true,
                 t: t('На сумму покупателя'),
-                d: t('Покупатель вводит сумму, вы задаёте наценку и границы — как пополнение Steam'),
+                d: t('Покупатель вводит сумму, вы задаёте наценку и границы, как у пополнения Steam'),
               },
             ].map((o) => (
               <label key={o.t} className="row" style={{ gap: 10, alignItems: 'flex-start', minHeight: 44, cursor: 'pointer' }}>
@@ -740,7 +740,7 @@ export function ListingForm({
               <p className="hint" style={{ margin: '4px 0 0' }}>
                 {initial?.fulfillmentType === 'auto_key' ? (
                   <>
-                    {t('Склад — внизу,')}{' '}
+                    {t('Склад внизу,')}{' '}
                     <Link href={`/lot/${initial.id}#keys`} className="inline-link">
                       {t('на странице лота')}
                     </Link>
@@ -749,11 +749,11 @@ export function ListingForm({
                 ) : (
                   t('Товар загрузите на склад после сохранения: с первой строкой лот появится в каталоге.')
                 )}{' '}
-                {t('Каждая строка — одна штука: покупатель может взять несколько, наличие считает склад.')}
+                {t('Каждая строка это одна штука: покупатель может взять несколько, наличие считает склад.')}
               </p>
             ) : initial?.fulfillmentType === 'auto_key' ? (
               <p className="hint" style={{ margin: '4px 0 0' }}>
-                {t('Строки на складе останутся: включите автовыдачу снова — и они вернутся в продажу.')}
+                {t('Строки на складе останутся: включите автовыдачу снова, и они вернутся в продажу.')}
               </p>
             ) : null}
           </fieldset>
@@ -761,7 +761,7 @@ export function ListingForm({
 
         {manualLot && (
           <div className="field">
-            <span className="label">{t('Что спросить у покупателя — необязательно')}</span>
+            <span className="label">{t('Что спросить у покупателя, необязательно')}</span>
             {buyerFields.map((f, i) => (
               <div key={i} className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                 <input className="input" style={{ flex: 1, minWidth: 160 }} maxLength={40} value={f.kind === 'steam_trade' ? t.d(f.label) : f.label}
@@ -812,13 +812,13 @@ export function ListingForm({
             <label className="label" htmlFor="service-term">{t('Срок выполнения')}</label>
             <select id="service-term" className="input" value={serviceHours ?? ''}
               onChange={(e) => setServiceHours(e.target.value ? Number(e.target.value) : null)}>
-              <option value="">{t('Без срока — выдам в течение суток')}</option>
+              <option value="">{t('Без срока, выдам в течение суток')}</option>
               {serviceTermOptions(t).map((o) => (
                 <option key={o.hours} value={o.hours}>{o.label}</option>
               ))}
             </select>
             <p className="hint">
-              {t('Считается от оплаты. Не успели — покупатель сразу может открыть спор, а без выдачи и спора деньги вернутся ему через сутки после срока.')}
+              {t('Считается от оплаты. Если не успели, покупатель сразу может открыть спор, а без выдачи и спора деньги вернутся ему через сутки после срока.')}
             </p>
           </div>
         )}
@@ -841,14 +841,14 @@ export function ListingForm({
 
         {withNote && (
           <div className="field">
-            <label className="label" htmlFor="note">{t('Сообщение покупателю после оплаты — необязательно')}</label>
+            <label className="label" htmlFor="note">{t('Сообщение покупателю после оплаты, необязательно')}</label>
             <textarea id="note" className="input" style={{ minHeight: 96, resize: 'vertical' }} maxLength={2000}
               placeholder={
                 selected?.fulfillmentType === 'auto_key'
-                  ? t('Например: активируйте ключ в Steam — «Игры», затем «Активировать в Steam»')
+                  ? t('Например: активируйте ключ в Steam: «Игры», затем «Активировать в Steam»')
                   : autoLines
                     ? t('Например: войдите по данным из заказа и сразу смените пароль и почту')
-                    : t('Например: спасибо за заказ, передам товар за 15 минут — будьте в сети')
+                    : t('Например: спасибо за заказ, передам товар за 15 минут, будьте в сети')
               }
               value={template} onChange={(e) => setTemplate(e.target.value)} />
             <p className="hint">
@@ -860,7 +860,7 @@ export function ListingForm({
         {pack && (
           <p className="hint" style={{ margin: 0 }}>
             {t(
-              'В этом разделе продают количеством: цена — за {qty}, одинаково у всех продавцов, чтобы покупатель сравнивал цены.',
+              'В этом разделе продают количеством: цена за {qty}, одинаково у всех продавцов, чтобы покупатель сравнивал цены.',
               { qty: formatQty(pack.pricePerUnits, pack.unitName, t) },
             )}
           </p>
@@ -962,7 +962,7 @@ export function ListingForm({
                 <p className="field-error">{showErr('tiers')}</p>
               ) : tierExample?.tier ? (
                 <p className="hint">
-                  {t('Например, {qty} — {sum} вместо {full}.', {
+                  {t('Например, {qty} за {sum} вместо {full}.', {
                     qty: unitLabel(tierExample.tier.from),
                     sum: formatPrice(tierExample.total.toString(), 'RUB', t),
                     full: formatPrice(tierExample.full.toString(), 'RUB', t),
@@ -970,7 +970,7 @@ export function ListingForm({
                 </p>
               ) : (
                 <p className="hint">
-                  {t('Берут больше — платят меньше: скидка от суммы за количество, за ваш счёт, до {max}%. Необязательно.', {
+                  {t('Берут больше, платят меньше: скидка от суммы за количество, за ваш счёт, до {max}%. Необязательно.', {
                     max: QTY_TIER_MAX_PCT,
                   })}
                 </p>
@@ -1048,13 +1048,13 @@ export function ListingForm({
             )}
           </div>
         ) : (
-          <p className="hint">{t('Укажите категорию и цену — покажем комиссию и сумму, которую вы получите.')}</p>
+          <p className="hint">{t('Укажите категорию и цену, и мы покажем комиссию и сумму, которую вы получите.')}</p>
         )}
 
         <div className="field">
-          <span className="label">{t('Фото — необязательно')}</span>
+          <span className="label">{t('Фото, необязательно')}</span>
           <p className="hint" style={{ margin: '0 0 4px' }}>
-            {t('До {n} фото. Первое — обложка в разделе и на странице лота.', { n: MAX_PHOTOS })}
+            {t('До {n} фото. Первое станет обложкой в разделе и на странице лота.', { n: MAX_PHOTOS })}
           </p>
           {images.length > 0 && (
             <div className="photo-grid">

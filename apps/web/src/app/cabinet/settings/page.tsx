@@ -158,7 +158,7 @@ export default function SettingsPage() {
           <div className="field">
             <span className="label">{t('Ник')}</span>
             <p style={{ margin: 0 }}>
-              @{profile.username} <span className="hint">{t('— не меняется: по нему находят ваши лоты и отзывы')}</span>
+              @{profile.username} <span className="hint">{t('не меняется: по нему находят ваши лоты и отзывы')}</span>
             </p>
           </div>
 
@@ -169,7 +169,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="field">
-            <label className="label" htmlFor="bio">{t('О себе — необязательно')}</label>
+            <label className="label" htmlFor="bio">{t('О себе, необязательно')}</label>
             <textarea id="bio" className="input" rows={4} maxLength={500} value={bio} style={{ resize: 'vertical' }}
               placeholder={t('Что продаёте, как быстро отвечаете, в какое время на связи')}
               onChange={(e) => setBio(e.target.value)} />
@@ -180,7 +180,7 @@ export default function SettingsPage() {
             <span className="label">{t('Почта')}</span>
             <p style={{ margin: 0 }}>
               {profile.email ?? t('не указана')}{' '}
-              <span className="hint">{profile.emailVerified ? t('— подтверждена') : t('— не подтверждена')}</span>
+              <span className="hint">{profile.emailVerified ? t('подтверждена') : t('не подтверждена')}</span>
             </p>
           </div>
 
@@ -199,7 +199,7 @@ export default function SettingsPage() {
       <section style={{ maxWidth: 600 }}>
         <h2 className="h2" style={{ fontSize: 18, marginBottom: 6 }}>{t('Чёрный список')}</h2>
         <p className="muted" style={{ margin: '0 0 12px', fontSize: 14 }}>
-          {t('Кто здесь, тот не напишет вам до сделки и не купит ваши лоты. Добавить — кнопкой на странице продавца.')}
+          {t('Кто здесь, тот не напишет вам до сделки и не купит ваши лоты. Добавить можно кнопкой на странице продавца.')}
         </p>
         {blocks === null ? (
           <div className="skeleton" style={{ height: 60 }} aria-busy="true" />

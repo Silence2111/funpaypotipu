@@ -15,7 +15,7 @@ const requestSchema = z.object({
 });
 const tokenSchema = z.object({ token: z.string().min(10).max(2000) });
 const revertSchema = tokenSchema.extend({
-  password: z.string().min(8, 'Новый пароль — от 8 символов').max(128),
+  password: z.string().min(8, 'Новый пароль от 8 символов').max(128),
 });
 
 /** Смена почты: просьба из «Безопасности», ссылка на новую почту и «Это не я» со старой. */

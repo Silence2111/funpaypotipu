@@ -113,7 +113,7 @@ export function SellerPromos() {
       <h2 className="h2 tools-title">{t('Промокоды')}</h2>
       <p className="muted tools-text">
         {t(
-          'Свой код со скидкой за ваш счёт: цена снижается до расчёта комиссии. Покупатель вводит его при оплате; один покупатель — один раз.',
+          'Свой код со скидкой за ваш счёт: цена снижается до расчёта комиссии. Покупатель вводит его при оплате, один покупатель может применить его один раз.',
         )}
       </p>
       {msg && (
@@ -223,7 +223,7 @@ export function SellerPromos() {
           value={uses}
           maxLength={5}
           aria-label={t('Сколько раз можно использовать')}
-          placeholder={t('Сколько раз — без лимита')}
+          placeholder={t('Сколько раз: без лимита')}
           onChange={(e) => setUses(e.target.value.replace(/\D/g, ''))}
         />
         <label className="row" style={{ gap: 8, alignItems: 'center', fontSize: 14 }}>
@@ -231,7 +231,7 @@ export function SellerPromos() {
           {t('Только тем, кто уже покупал у вас')}
         </label>
         <p className="hint" style={{ margin: 0 }}>
-          {t('Скидка — от {min} до {max}%. Не действует на пополнения.', {
+          {t('Скидка от {min} до {max}%. Не действует на пополнения.', {
             min: SELLER_PROMO_MIN_PCT,
             max: SELLER_PROMO_MAX_PCT,
           })}

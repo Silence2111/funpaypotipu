@@ -216,7 +216,7 @@ export function StatementView() {
       {err && <p className="field-error">{err}</p>}
 
       {invalid ? (
-        <p className="hint">{t('Укажите обе даты — начало не позже конца.')}</p>
+        <p className="hint">{t('Укажите обе даты, начало не позже конца.')}</p>
       ) : !data ? (
         !err && <div className="skeleton" style={{ height: 120 }} aria-busy="true" />
       ) : (
@@ -315,7 +315,7 @@ export function StatementView() {
           )}
           {rows.length > 0 && outsideMsk() && (
             <p className="faint" style={{ fontSize: 13, margin: 0 }}>
-              {t('Даты — по московскому времени, как и период выписки.')}
+              {t('Даты по московскому времени, как и период выписки.')}
             </p>
           )}
         </>

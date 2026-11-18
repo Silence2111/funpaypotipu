@@ -37,15 +37,15 @@ export const CABINET: Record<string, string> = {
     'Balance, top-ups and withdrawals, every money transaction. You can pay for purchases or listing promotion from your balance.',
   Доступно: 'Available',
   'В сделках': 'In deals',
-  '{n} — зачислим, когда покупатели подтвердят получение, а с гарантией — когда она закончится':
+  '{n} зачислим, когда покупатели подтвердят получение, а с гарантией, когда она закончится':
     '{n} — credited once buyers confirm receipt, or when the warranty ends if there is one',
   'На выводе': 'Being withdrawn',
-  '{n} — уже не на балансе': '{n} — already off your balance',
+  '{n} уже не на балансе': '{n} — already off your balance',
   Пополнение: 'Top-up',
   'Пополнить, вывести, выписка →': 'Top up, withdraw, statement →',
   'Первый вывод до первой продажи отправим не раньше {date}.':
     'A first withdrawal before your first sale is sent no earlier than {date}.',
-  'Платёжная система не провела выплату — проверьте реквизиты или выберите другой способ.':
+  'Платёжная система не провела выплату. Проверьте реквизиты или выберите другой способ.':
     'The payment system didn’t complete the payout — check the details or choose another method.',
   'Показать все ({n})': 'Show all ({n})',
   Свернуть: 'Show less',
@@ -61,12 +61,12 @@ export const CABINET: Record<string, string> = {
   'Номер карты или телефон СБП': 'Card number or SBP phone',
   Вывести: 'Withdraw',
   'Укажите сумму и реквизиты': 'Enter the amount and payout details',
-  'Минимум для «{method}» — {sum}': 'The minimum for “{method}” is {sum}',
+  'Минимум для «{method}»: {sum}': 'The minimum for “{method}” is {sum}',
   'Заявка на вывод создана': 'Withdrawal request created',
   'Не удалось создать заявку': 'Couldn’t create the request',
   'Комиссия {sum}': 'Fee {sum}',
   'на руки {sum}': 'you receive {sum}',
-  'Больше {sum} за раз — после проверки личности.': 'Over {sum} at a time — after ID verification.',
+  'Больше {sum} за раз можно после проверки личности.': 'Over {sum} at a time — after ID verification.',
 
   // Аналитика продавца
   'Аналитика продавца': 'Seller analytics',
@@ -105,14 +105,14 @@ export const CABINET: Record<string, string> = {
   'Оплата и баланс': 'Payment and balance',
   'Аккаунт и вход': 'Account and sign-in',
   'Продажи и лоты': 'Sales and listings',
-  'Заказ — необязательно': 'Order — optional',
+  'Заказ, необязательно': 'Order — optional',
   'Без заказа': 'No order',
   'Заказ со страницы заказа': 'Order from the order page',
   Тема: 'Subject',
   'Коротко: что случилось': 'In short: what happened',
   'Что делали, что ожидали, что получилось. Пароли и коды из СМС не присылайте.':
     'What you did, what you expected, what happened. Don’t send passwords or SMS codes.',
-  'Спор по сделке быстрее решит арбитр — откройте его на странице заказа.':
+  'Спор по сделке быстрее решит арбитр. Откройте его на странице заказа.':
     'An arbiter will resolve a deal dispute faster — open one on the order page.',
   'Не удалось отправить обращение.': 'Couldn’t send the request.',
   'Обращений пока нет. Ответ обычно приходит в течение дня.':
@@ -132,13 +132,13 @@ export const CABINET: Record<string, string> = {
   'от пользователя': 'from a user',
   Пользователь: 'User',
   'Сообщение…': 'Message…',
-  'Обращение закрыто — сообщение откроет его снова':
+  'Обращение закрыто, сообщение откроет его снова':
     'The request is closed — a new message will reopen it',
   'Сообщение не отправлено.': 'Message not sent.',
   'Не удалось закрыть обращение.': 'Couldn’t close the request.',
   'Закрыть обращение': 'Close request',
   'Вопрос решён': 'Issue resolved',
-  'Пополнение зачислится, как только банк подтвердит оплату, — обычно за несколько секунд.':
+  'Пополнение зачислится, как только банк подтвердит оплату, обычно за несколько секунд.':
     'The top-up will be credited as soon as the bank confirms the payment — usually within a few seconds.',
   'Телефон, +7 900 000-00-00': 'Phone, +7 900 000-00-00',
   'Номер карты': 'Card number',
@@ -165,7 +165,7 @@ export const CABINET: Record<string, string> = {
   'Сильнее подешевели': 'Biggest price drop',
   'Не удалось загрузить избранное.': 'Couldn’t load your favorites.',
   'Не удалось убрать из избранного.': 'Couldn’t remove it from favorites.',
-  'В избранном пока пусто. «В избранное» на странице лота — и за его ценой можно следить.':
+  'В избранном пока пусто. Нажмите «В избранное» на странице лота, чтобы следить за его ценой.':
     'Your favorites are empty. Tap “Add to favorites” on a listing page to track its price.',
   Показать: 'Show',
   Игра: 'Game',
@@ -184,7 +184,7 @@ export const CABINET: Record<string, string> = {
   'Другая карта': 'Another card',
   'Форма ЮKassa не загрузилась.': 'The YooKassa form didn’t load.',
   'Попробовать снова': 'Try again',
-  'Номер карты принимает ЮKassa — площадка его не видит и не хранит.':
+  'Номер карты принимает ЮKassa, площадка его не видит и не хранит.':
     'YooKassa takes the card number — the marketplace never sees or stores it.',
   '{m} мин': '{m} min',
   '{h} ч {m} мин': '{h} h {m} min',
@@ -200,23 +200,23 @@ export const CABINET: Record<string, string> = {
   'Не удалось сохранить заготовку.': 'Couldn’t save the template.',
   'Заготовка удалена.': 'Template deleted.',
   'Не удалось удалить заготовку.': 'Couldn’t delete the template.',
-  'Автоподнятие, приветствие, заготовки ответов, автоответы на команды и промокоды — без сторонних ботов с доступом к аккаунту.':
+  'Автоподнятие, приветствие, заготовки ответов, автоответы на команды и промокоды. Сторонние боты с доступом к аккаунту не нужны.':
     'Auto-raise, a greeting, reply templates, command auto-replies and promo codes — no third-party bots with access to your account.',
   'Команда для автоответа': 'Command for the auto-reply',
   'Команда, например !оплата': 'Command, for example !payment',
-  'Команда — по желанию: покупатель пишет её отдельным сообщением, и заготовка уходит сама, с пометкой «автоответ». Регистр не важен.':
+  'Команда по желанию: покупатель пишет её отдельным сообщением, и заготовка уходит сама, с пометкой «автоответ». Регистр не важен.':
     'The command is optional: when a buyer sends it as a message on its own, the template goes out by itself, marked “auto-reply”. Case doesn’t matter.',
   Автоподнятие: 'Auto-raise',
   'Поднимать лоты автоматически': 'Raise listings automatically',
   Включено: 'On',
   Выключено: 'Off',
-  'Лоты поднимаются сами, как только проходит пауза между поднятиями. У вас она {h} ч — с ростом продаж короче.':
+  'Лоты поднимаются сами, как только проходит пауза между поднятиями. У вас она {h} ч, с ростом продаж короче.':
     'Listings are raised on their own as soon as the pause between raises is over. Yours is {h} h, and it gets shorter as your sales grow.',
-  'Активных лотов нет — поднимать нечего.': 'No active listings, so there’s nothing to raise.',
-  'Следующее поднятие — через {time}.': 'Next raise in {time}.',
+  'Активных лотов нет, поднимать нечего.': 'No active listings, so there’s nothing to raise.',
+  'Следующее поднятие через {time}.': 'Next raise in {time}.',
   'Лоты поднимутся в ближайшие минуты.': 'Your listings will be raised within minutes.',
   Приветствие: 'Greeting',
-  'Уходит покупателю на первое сообщение в новом диалоге до покупки — с пометкой «автоответ». Контакты скрываются, как в чате.':
+  'Уходит покупателю на первое сообщение в новом диалоге до покупки, с пометкой «автоответ». Контакты скрываются, как в чате.':
     'Sent to a buyer in reply to their first message in a new pre-purchase chat, marked as an auto-reply. Contacts are hidden, as in chat.',
   'Текст приветствия': 'Greeting text',
   'Здравствуйте. Отвечаю в течение часа, товар в наличии.':
@@ -226,7 +226,7 @@ export const CABINET: Record<string, string> = {
   'Название заготовки': 'Template name',
   'Название, например «После оплаты»': 'A name, for example “After payment”',
   'Текст заготовки': 'Template text',
-  '{token}, спасибо за покупку. Данные для входа — выше в чате.':
+  '{token}, спасибо за покупку. Данные для входа выше в чате.':
     '{token}, thanks for your purchase. The login details are above in the chat.',
   'Сохранить заготовку': 'Save template',
   'Добавить заготовку': 'Add template',
@@ -254,7 +254,7 @@ export const CABINET: Record<string, string> = {
   Вернуть: 'Undo',
   'Вернули в список: {n}': 'Restored to the list: {n}',
   'Не удалось вернуть уведомления.': 'Couldn’t restore the notifications.',
-  'Даты — по московскому времени, как и период выписки.': 'Dates are in Moscow time, like the statement period.',
+  'Даты по московскому времени, как и период выписки.': 'Dates are in Moscow time, like the statement period.',
   'За этот период операций нет.': 'No transactions in this period.',
   'Таких операций за период нет.': 'No transactions of this type in this period.',
   'Свой период': 'Custom period',
@@ -264,7 +264,7 @@ export const CABINET: Record<string, string> = {
   по: 'to',
   'Начало периода': 'Start date',
   'Конец периода': 'End date',
-  'Укажите обе даты — начало не позже конца.': 'Enter both dates — the start can’t be after the end.',
+  'Укажите обе даты, начало не позже конца.': 'Enter both dates — the start can’t be after the end.',
   '{kind} за период: поступило {credits}, списано {debits}.':
     '{kind} for the period: {credits} in, {debits} out.',
   '{kind} за период: поступило {sum}.': '{kind} for the period: {sum} in.',
@@ -274,17 +274,17 @@ export const CABINET: Record<string, string> = {
   'Не удалось загрузить поиски.': 'Couldn’t load your searches.',
   'Поиск удалён.': 'Search deleted.',
   'Не удалось удалить поиск.': 'Couldn’t delete the search.',
-  'Условия, сохранённые в разделах. Когда выставят подходящий лот, придёт уведомление — о каждом лоте один раз.':
+  'Условия, сохранённые в разделах. Когда выставят подходящий лот, придёт уведомление, о каждом лоте один раз.':
     'Filters you saved in categories. When a matching listing goes up, you get a notification — once per listing.',
-  'Сохранённых поисков нет. Откройте раздел игры, выберите фильтры и нажмите «Сохранить поиск» — новые предложения придут уведомлением.':
+  'Сохранённых поисков нет. Откройте раздел игры, выберите фильтры и нажмите «Сохранить поиск», и новые предложения придут уведомлением.':
     'No saved searches yet. Open a game category, pick filters and tap “Save search” — new offers will come as notifications.',
-  'Последний новый лот — {date}': 'Latest new listing — {date}',
+  'Последний новый лот: {date}': 'Latest new listing — {date}',
   'Уведомления включены': 'Notifications on',
   'Без уведомлений': 'No notifications',
   Открыть: 'Open',
 
   // Избранное: снижение цены
-  'Лот подешевеет хотя бы на {pct}% — придёт уведомление. Настройка — в группе «Поиски, избранное и подписки».':
+  'Если лот подешевеет хотя бы на {pct}%, придёт уведомление. Настройка в группе «Поиски, избранное и подписки».':
     'If a listing gets at least {pct}% cheaper, you get a notification. Set it up under “Searches, favorites and follows”.',
   'было {price}': 'was {price}',
 
@@ -308,28 +308,28 @@ export const CABINET: Record<string, string> = {
   'Загрузить из таблицы': 'Upload from a table',
   // «Продавать»: переезд таблицей (часть 117)
   'Уже продаёте на другой площадке? Перенесите лоты за 10 минут': 'Already selling elsewhere? Move your listings in 10 minutes',
-  'Выберите игру и раздел и скачайте шаблон — в нём столбцы раздела и две строки-примера.':
+  'Выберите игру и раздел и скачайте шаблон. В нём столбцы раздела и две строки-примера.':
     'Pick a game and a category and download the template — it has the category’s columns and two example rows.',
-  'Откройте его в Excel или Google Таблицах и вставьте свои лоты: название, описание, цену, наличие и параметры. Строки-примеры удалите — как есть они не выставятся.':
+  'Откройте его в Excel или Google Таблицах и вставьте свои лоты: название, описание, цену, наличие и параметры. Строки-примеры удалите, иначе они выставятся как есть.':
     'Open it in Excel or Google Sheets and paste your listings: title, description, price, stock and details. Delete the example rows — as they are, they won’t be listed.',
-  'Загрузите таблицу — до {n} лотов разом. Строки с ошибками сайт покажет до загрузки, остальные выставятся сразу.':
+  'Загрузите таблицу, до {n} лотов разом. Строки с ошибками сайт покажет до загрузки, остальные выставятся сразу.':
     'Upload the table — up to {n} listings at once. The site shows rows with errors before uploading; the rest go live right away.',
-  'Таблицей — только разделы с ручной выдачей': 'Tables work only for manually delivered categories',
+  'Таблицей можно выставить только разделы с ручной выдачей': 'Tables work only for manually delivered categories',
   'Загрузить таблицу': 'Upload the table',
-  'Ключи, пополнения и валюта выставляются по одному — через форму лота: у них склад или пачка.':
+  'Ключи, пополнения и валюта выставляются по одному, через форму лота: у них склад или пачка.':
     'Keys, top-ups and currency are listed one by one through the listing form: they have a stock or a pack size.',
-  'Загружено строк: {done} из {total}. Остальные не ушли: {reason} Загрузите таблицу со строки {line} — уже загруженные строки уберите.':
+  'Загружено строк: {done} из {total}. Остальные не ушли: {reason} Загрузите таблицу со строки {line}, уже загруженные строки уберите.':
     'Rows uploaded: {done} of {total}. The rest didn’t go through: {reason} Upload the table from row {line} — remove the rows already uploaded.',
   'Не получилось.': 'It didn’t work.',
   'Загружаем: {done} из {total}': 'Uploading: {done} of {total}',
-  'Не выставлены строки с ошибками: {lines} — исправьте их и загрузите только эти строки.':
+  'Не выставлены строки с ошибками: {lines}. Исправьте их и загрузите только эти строки.':
     'Rows with errors were not listed: {lines} — fix them and upload only those rows.',
   'Не удалось загрузить игры.': 'Couldn’t load the games.',
-  'Много лотов разом: строка таблицы — лот. Подойдёт CSV из Excel или Google Таблиц или строки, скопированные прямо из таблицы. Один раздел за раз, до {n} лотов; ключи, пополнения и валюта — по одному, через форму лота.':
+  'Много лотов разом: одна строка таблицы, один лот. Подойдёт CSV из Excel или Google Таблиц или строки, скопированные прямо из таблицы. Один раздел за раз, до {n} лотов. Ключи, пополнения и валюта выставляются по одному, через форму лота.':
     'Many listings at once: one table row is one listing. A CSV from Excel or Google Sheets works, or rows copied straight from the table. One category at a time, up to {n} listings; keys, top-ups and currency go one by one through the listing form.',
   '1. Раздел': '1. Category',
-  '{category} — по одному': '{category} — one by one',
-  'Столбцы: {columns}. Обязательные — со звёздочкой, порядок любой.':
+  '{category}: по одному': '{category} — one by one',
+  'Столбцы: {columns}. Обязательные отмечены звёздочкой, порядок любой.':
     'Columns: {columns}. Required ones have an asterisk; any order.',
   'Допустимые значения': 'Allowed values',
   'да или нет': 'yes or no',
@@ -343,14 +343,14 @@ export const CABINET: Record<string, string> = {
   Строка: 'Row',
   'И ещё {n} строк без ошибок.': 'And {n} more rows without errors.',
   'Выставить {lots}': 'List {lots}',
-  'Строки с ошибками пропустим — исправьте их и загрузите отдельно.':
+  'Строки с ошибками пропустим. Исправьте их и загрузите отдельно.':
     'Rows with errors will be skipped — fix them and upload them separately.',
   'Выставлено: {n}': 'Listed: {n}',
   'Строка {line}: {message}': 'Row {line}: {message}',
   'В этом разделе нет ваших лотов, которые правятся таблицей.':
     'You have no listings in this category that can be edited with a table.',
   'Выгрузить мои лоты': 'Export my listings',
-  'В выгрузке — столбец ID: поправьте цены, описания, наличие и загрузите таблицу обратно. Строка с ID меняет лот, без ID — выставляет новый; пустая ячейка у лота с ID — «оставить как есть».':
+  'В выгрузке есть столбец ID: поправьте цены, описания, наличие и загрузите таблицу обратно. Строка с ID меняет лот, без ID выставляет новый. Пустая ячейка у лота с ID значит «оставить как есть».':
     'The export has an ID column: edit prices, descriptions and stock, then upload the table back. A row with an ID changes that listing, a row without one adds a new listing; an empty cell on a row with an ID means “leave as is”.',
   'Новых: {n} · изменить: {m}': 'New: {n} · to change: {m}',
   'Что будет': 'What happens',
@@ -367,10 +367,10 @@ export const CABINET: Record<string, string> = {
   Конверсия: 'Conversion',
   Заработано: 'Earned',
   'Статистика лотов': 'Listing stats',
-  'Сколько раз открывали ваши лоты, добавляли в избранное и покупали. Просмотр считается раз в сутки с одного браузера, ваши собственные — нет.':
+  'Сколько раз открывали ваши лоты, добавляли в избранное и покупали. Просмотр считается раз в сутки с одного браузера, ваши собственные не считаются.':
     'How often your listings were opened, added to favorites and bought. A view counts once a day per browser; your own views don’t count.',
   '{n} дней': '{n} days',
-  'Покупки — заказы, оплаченные за эти дни; заработано — по сделкам, завершённым за эти дни, после комиссии. В избранном — сейчас.':
+  'Покупки: заказы, оплаченные за эти дни. Заработано: по сделкам, завершённым за эти дни, после комиссии. В избранном: на сегодня.':
     'Purchases are orders paid in these days; earned is from deals completed in these days, after the fee. Favorites are as of now.',
   'Просмотры: {title}': 'Views: {title}',
   'Просмотры по дням': 'Views by day',
@@ -378,7 +378,7 @@ export const CABINET: Record<string, string> = {
   'За эти дни просмотров не было.': 'No views in these days.',
   'По дням таблицей': 'By day as a table',
   День: 'Day',
-  'Лотов пока нет — статистика появится после первого.':
+  'Лотов пока нет, статистика появится после первого.':
     'No listings yet — stats will appear after your first one.',
   Лот: 'Listing',
   'Показать график этого лота': 'Show this listing’s chart',
@@ -386,9 +386,9 @@ export const CABINET: Record<string, string> = {
 
   // Скидка на лот
   'скидка до {date}': 'discount until {date}',
-  'Скидка идёт — завершить': 'Discount running — end it',
+  'Скидка идёт, завершить': 'Discount running — end it',
   Скидка: 'Discount',
-  'Идёт скидка — цена вернётся по окончании срока':
+  'Идёт скидка, цена вернётся по окончании срока':
     'A discount is running — the price returns when it ends',
   'до {date}': 'until {date}',
   'Скидка −{pct}% до {date}: было {was}, сейчас {now}.':
@@ -399,7 +399,7 @@ export const CABINET: Record<string, string> = {
   'Скидка, %': 'Discount, %',
   Срок: 'Period',
   'Станет {now} вместо {was} до {date}.': 'It will be {now} instead of {was} until {date}.',
-  'Скидка — от {min} до {max}%.': 'The discount must be from {min} to {max}%.',
+  'Скидка от {min} до {max}%.': 'The discount must be from {min} to {max}%.',
   'Начать скидку': 'Start discount',
   'Покупатели увидят зачёркнутую цену и «−{pct}%». У кого лот в избранном, придёт уведомление. По окончании срока цена вернётся сама.':
     'Buyers will see the crossed-out price and “−{pct}%”. Those who have the listing in favorites get a notification. When the period ends, the price returns by itself.',
@@ -419,7 +419,7 @@ export const CABINET: Record<string, string> = {
   'Промокод удалён.': 'Promo code deleted.',
   'Не удалось удалить промокод.': 'Couldn’t delete the promo code.',
   Промокоды: 'Promo codes',
-  'Свой код со скидкой за ваш счёт: цена снижается до расчёта комиссии. Покупатель вводит его при оплате; один покупатель — один раз.':
+  'Свой код со скидкой за ваш счёт: цена снижается до расчёта комиссии. Покупатель вводит его при оплате, один покупатель может применить его один раз.':
     'Your own discount code at your expense: the price is reduced before the fee is calculated. A buyer enters it at checkout; once per buyer.',
   постоянным: 'repeat buyers',
   'срок вышел': 'expired',
@@ -431,9 +431,9 @@ export const CABINET: Record<string, string> = {
   Код: 'Code',
   'Например SUMMER10': 'e.g. SUMMER10',
   'Сколько раз можно использовать': 'How many times it can be used',
-  'Сколько раз — без лимита': 'Max uses — unlimited',
+  'Сколько раз: без лимита': 'Max uses — unlimited',
   'Только тем, кто уже покупал у вас': 'Only for those who have bought from you',
-  'Скидка — от {min} до {max}%. Не действует на пополнения.':
+  'Скидка от {min} до {max}%. Не действует на пополнения.':
     'The discount is from {min} to {max}%. It doesn’t apply to top-ups.',
   'Создать промокод': 'Create promo code',
 
@@ -442,9 +442,9 @@ export const CABINET: Record<string, string> = {
   'Подписки на продавцов': 'Sellers you follow',
   'Не удалось загрузить подписки.': 'Couldn’t load your follows.',
   'Вы отписались от {name}.': 'You unfollowed {name}.',
-  'Новые лоты и скидки продавцов, на которых вы подписаны. Они же приходят уведомлением — на сайте, в Telegram и пушем, как настроено в группе «Поиски, избранное и подписки».':
+  'Новые лоты и скидки продавцов, на которых вы подписаны. Они же приходят уведомлением на сайте, в Telegram и пушем, как настроено в группе «Поиски, избранное и подписки».':
     'New listings and discounts from sellers you follow. They also come as notifications — on the site, in Telegram and as push, as set in the “Searches, favorites and follows” group.',
-  'Подписок пока нет. Нажмите «Подписаться» в профиле продавца или в его карточке на странице лота — его новые лоты и скидки придут уведомлением.':
+  'Подписок пока нет. Нажмите «Подписаться» в профиле продавца или в его карточке на странице лота, и его новые лоты и скидки придут уведомлением.':
     'You don’t follow anyone yet. Tap “Follow” on a seller’s profile or in their card on a listing page — their new listings and discounts will come as notifications.',
   'нет предложений': 'no offers',
   'со скидкой: {n}': 'on sale: {n}',
@@ -469,8 +469,8 @@ export const CABINET: Record<string, string> = {
   'Ступень {n}: скидка, %': 'Tier {n}: discount, %',
   'Убрать ступень {n}': 'Remove tier {n}',
   'Добавить ступень': 'Add a tier',
-  'Например, {qty} — {sum} вместо {full}.': 'For example, {qty} — {sum} instead of {full}.',
-  'Берут больше — платят меньше: скидка от суммы за количество, за ваш счёт, до {max}%. Необязательно.':
+  'Например, {qty} за {sum} вместо {full}.': 'For example, {qty} — {sum} instead of {full}.',
+  'Берут больше, платят меньше: скидка от суммы за количество, за ваш счёт, до {max}%. Необязательно.':
     'Buy more, pay less: a discount on the total for the quantity, at your expense, up to {max}%. Optional.',
   'оптом до −{pct}%': 'bulk up to −{pct}%',
 
@@ -488,9 +488,9 @@ export const CABINET: Record<string, string> = {
   Копировать: 'Copy',
   'Копировать «{title}»': 'Copy “{title}”',
   'Копия лота': 'Copy of a listing',
-  'Всё — как у «{title}»: поправьте, что нужно, и опубликуйте. Исходный лот не изменится.':
+  'Всё как у «{title}»: поправьте, что нужно, и опубликуйте. Исходный лот не изменится.':
     'Everything is as in “{title}”: change what you need and publish. The original listing stays as it is.',
-  'Товар со склада не копируется — загрузите его после публикации.':
+  'Товар со склада не копируется, загрузите его после публикации.':
     'Stock items aren’t copied — upload them after publishing.',
   'Заблокированный модератором лот скопировать нельзя.':
     'A listing blocked by a moderator can’t be copied.',
@@ -498,16 +498,16 @@ export const CABINET: Record<string, string> = {
   // Цены разом
   'Цена ±%': 'Price ±%',
   'Цены изменены: {n}.': 'Prices changed: {n}.',
-  'идёт скидка — {n}': 'discount running — {n}',
-  'пополнение — {n}': 'top-up — {n}',
-  'меньше 1 ₽ — {n}': 'under 1 ₽ — {n}',
-  'без изменений — {n}': 'unchanged — {n}',
-  'недоступны — {n}': 'unavailable — {n}',
+  'идёт скидка: {n}': 'discount running — {n}',
+  'пополнение: {n}': 'top-up — {n}',
+  'меньше 1 ₽: {n}': 'under 1 ₽ — {n}',
+  'без изменений: {n}': 'unchanged — {n}',
+  'недоступны: {n}': 'unavailable — {n}',
   'Пропустили {n}: {why}.': 'Skipped {n}: {why}.',
   'На сколько процентов изменить цену, например +7 или −5':
     'By how many percent to change the price, for example +7 or −5',
   'и ещё {n}': 'and {n} more',
-  'Цена в целых рублях останется в рублях: 999 ₽ +7% — 1 069 ₽.':
+  'Цена в целых рублях останется в рублях: 999 ₽ +7% будет 1 069 ₽.':
     'A price in whole rubles stays in whole rubles: 999 ₽ +7% is 1,069 ₽.',
   'Не изменятся {n}: идёт скидка, пополнение или лот заблокирован.':
     '{n} won’t change: a discount is running, it’s a top-up or the listing is blocked.',
@@ -516,14 +516,14 @@ export const CABINET: Record<string, string> = {
 
   // Честная скидка
   'После скидки вернётся {list}.': 'After the discount it goes back to {list}.',
-  'За {n} дней до скидки цена была ниже — {ref}. Покупатели увидят скидку от неё: поднять цену накануне и зачеркнуть её не выйдет.':
+  'За {n} дней до скидки цена была ниже: {ref}. Покупатели увидят скидку от неё, поднять цену накануне и зачеркнуть её не выйдет.':
     'In the {n} days before the discount the price was lower — {ref}. Buyers will see the discount from it: raising the price the day before and striking it through won’t work.',
-  'От {ref} это скидка {off}% — нужно от {min}%. Дайте скидку больше.':
+  'От {ref} это скидка {off}%, нужно от {min}%. Дайте скидку больше.':
     'From {ref} that’s a {off}% discount — at least {min}% is needed. Give a bigger discount.',
   // Страница «Уведомления»
   'Не удалось загрузить уведомления.': 'Couldn’t load notifications.',
   'Не удалось отметить уведомления.': 'Couldn’t mark notifications as read.',
-  'Всё, что происходило со сделками, спорами и аккаунтом. Сообщения — в «Сообщениях».':
+  'Всё, что происходило со сделками, спорами и аккаунтом. Переписка в разделе «Сообщения».':
     'Everything that happened with your deals, disputes and account. Messages are in Messages.',
   'Группы уведомлений': 'Notification groups',
   'Только непрочитанные': 'Unread only',
@@ -535,17 +535,17 @@ export const CABINET: Record<string, string> = {
   'не прочитано': 'unread',
   'Все уведомления': 'All notifications',
   // «Споры» в кабинете
-  'Ваш ход — осталось {left}': 'Your turn — {left} left',
+  'Ваш ход, осталось {left}': 'Your turn — {left} left',
   'Ваш ход': 'Your turn',
   'Ждём ответа продавца': 'Waiting for the seller',
   'Ждём ответа покупателя': 'Waiting for the buyer',
   'Не удалось загрузить споры.': 'Couldn’t load disputes.',
-  'Споры по вашим покупкам и продажам. У стороны, от которой ждут ответа, 24 часа — пропущенный срок арбитр учтёт при решении.':
+  'Споры по вашим покупкам и продажам. У стороны, от которой ждут ответа, 24 часа. Пропущенный срок арбитр учтёт при решении.':
     'Disputes over your purchases and sales. The side whose reply is needed has 24 hours — the arbiter takes a missed deadline into account.',
   'Открытые': 'Open',
   'Закрытые': 'Closed',
   'Ждут вашего ответа: {n}': 'Waiting for your reply: {n}',
-  'Открытых споров нет. Если с товаром что-то не так, спор открывают на странице заказа — деньги остаются у площадки, пока его не решат.':
+  'Открытых споров нет. Если с товаром что-то не так, спор открывают на странице заказа. Деньги остаются у площадки, пока его не решат.':
     'No open disputes. If something is wrong with an item, open a dispute on the order page — the marketplace holds the money until it’s resolved.',
   'Закрытых споров пока нет.': 'No closed disputes yet.',
   'вы покупатель, продавец {name}': 'you’re the buyer, seller {name}',
@@ -569,18 +569,18 @@ export const CABINET: Record<string, string> = {
   'можно до {date}': 'until {date}',
   // Партнёрская программа (часть 116)
   Партнёрам: 'Partners',
-  'Приводите покупателей и продавцов на GameMarket — получайте долю с их сделок на баланс.':
+  'Приводите покупателей и продавцов на GameMarket и получайте долю с их сделок на баланс.':
     'Bring buyers and sellers to GameMarket and get a share of their deals on your balance.',
   'Не удалось загрузить партнёрскую программу.': 'Couldn’t load the partner program.',
   'Партнёрская программа пока не работает. Когда площадка её включит, здесь появятся ваша ссылка и код.':
     'The partner program isn’t running yet. Once the marketplace turns it on, your link and code will appear here.',
   'Программа сейчас выключена: новые переходы и сделки не считаются. Начисленное остаётся на балансе.':
     'The program is off right now: new visits and deals aren’t counted. What you’ve earned stays on your balance.',
-  'С каждой завершённой сделки приглашённого — покупки или продажи — вам {share}% того, что площадка на ней заработала. Считаются сделки за {days} дней после его регистрации.':
+  'С каждой завершённой сделки приглашённого, покупки или продажи, вам {share}% того, что площадка на ней заработала. Считаются сделки за {days} дней после его регистрации.':
     'From every completed deal of someone you invited — a purchase or a sale — you get {share}% of what the marketplace earned on it. Deals count for {days} days after they sign up.',
   'Ваша ссылка': 'Your link',
   Скопировано: 'Copied',
-  'Код партнёра — для поля при регистрации': 'Partner code — for the sign-up field',
+  'Код партнёра для поля при регистрации': 'Partner code — for the sign-up field',
   'Переходы за 30 дней': 'Visits in 30 days',
   Регистрации: 'Sign-ups',
   Сделки: 'Deals',
@@ -588,7 +588,7 @@ export const CABINET: Record<string, string> = {
   Начисления: 'Rewards',
   'продажа приглашённого': 'sale by your invitee',
   'покупка приглашённого': 'purchase by your invitee',
-  'Начисления — на баланс, вывести их можно из кошелька, как деньги за продажи. Не считаются: сделки с вами самим, спорные сделки и аккаунты, созданные с того же устройства или адреса, что и ваш.':
+  'Начисления приходят на баланс, вывести их можно из кошелька, как деньги за продажи. Не считаются сделки с вами самим, спорные сделки и аккаунты, созданные с того же устройства или адреса, что и ваш.':
     'Rewards go to your balance and can be withdrawn from the wallet like sale proceeds. Not counted: deals with you yourself, disputed deals and accounts created from the same device or address as yours.',
   'Код партнёра': 'Partner code',
   'Если вас пригласили, необязательно': 'If someone invited you — optional',
@@ -597,7 +597,7 @@ export const CABINET: Record<string, string> = {
 
   // Закрытые разделы и проверка лотов (часть 122)
   'На проверке': 'Under review',
-  'Лот на проверке у модератора: в тексте есть слова о передаче аккаунта, а продавать аккаунты и доступ к ним на площадке нельзя. Если это ошибка — модератор вернёт лот в продажу, обычно в течение дня.':
+  'Лот на проверке у модератора: в тексте есть слова о передаче аккаунта, а продавать аккаунты и доступ к ним на площадке нельзя. Если это ошибка, модератор вернёт лот в продажу, обычно в течение дня.':
     'The listing is under moderator review: its text mentions handing over an account, and selling accounts or access to them is not allowed here. If this is a mistake, a moderator will put it back on sale, usually within a day.',
   'закрыт для продажи': 'closed for sales',
   'Раздел «{section}» закрыт для продажи.': 'The “{section}” section is closed for sales.',
@@ -611,7 +611,7 @@ export const CABINET: Record<string, string> = {
   // «Безопасная сделка» ЮKassa (часть 123)
   'Пополнение баланса недоступно: заказы оплачиваются картой через «Безопасную сделку» ЮKassa.':
     'Balance top-up is unavailable: orders are paid by card through a YooKassa Safe Deal.',
-  'Кошелёк сохранён — ждущие выплаты уйдут на него в течение минуты.': 'Wallet saved — pending payouts will go to it within a minute.',
+  'Кошелёк сохранён, ждущие выплаты уйдут на него в течение минуты.': 'Wallet saved — pending payouts will go to it within a minute.',
   'Не удалось сохранить кошелёк.': 'Couldn’t save the wallet.',
   'Выплаты по сделкам': 'Deal payouts',
   'Оплата идёт через «Безопасную сделку» ЮKassa: деньги за каждую продажу ЮKassa выплачивает сама, на карту или в ЮMoney, не через баланс.':
@@ -619,7 +619,7 @@ export const CABINET: Record<string, string> = {
   'в пути: {n}': 'in transit: {n}',
   'ждут реквизиты: {n}': 'waiting for payout details: {n}',
   'Кошелёк ЮMoney для выплат': 'YooMoney wallet for payouts',
-  'Кошелёк — именной или идентифицированный: на анонимный ЮKassa не выплачивает.':
+  'Кошелёк должен быть именным или идентифицированным: на анонимный ЮKassa не выплачивает.':
     'The wallet must be named or identified: YooKassa doesn’t pay out to anonymous wallets.',
   'Оплата через «Безопасную сделку» ЮKassa. Деньги держит ЮKassa, продавец получит их после вашего подтверждения, возврат на карту.':
     'Payment through a YooKassa Safe Deal: YooKassa holds the money, the seller gets it after you confirm, refunds go back to your card.',
@@ -627,10 +627,10 @@ export const CABINET: Record<string, string> = {
   'Удержано': 'On hold',
   'Модератор удержал спорную сумму, остальное можно выводить.': 'A moderator put the disputed amount on hold; you can withdraw the rest.',
   'Причина и обжалование': 'Reason and appeal',
-  'Проверка затянулась — заявку передали старшему сотруднику.': 'The check is taking longer — your request went to a senior staff member.',
+  'Проверка затянулась, заявку передали старшему сотруднику.': 'The check is taking longer — your request went to a senior staff member.',
   'Проверим до {date}.': 'We’ll check it by {date}.',
   // Чистая выдача (часть 143)
-  'повтор — в разделе виден другой': 'duplicate — another one is shown in the section',
+  'повтор, в разделе виден другой': 'duplicate — another one is shown in the section',
   'В разделе виден самый дешёвый из одинаковых лотов, этот выйдет, когда тот купят. Проще держать один лот с наличием.':
     'The section shows the cheapest of identical listings; this one appears once that is bought. It’s simpler to keep one listing with stock.',
   // Бонусы (часть 146)
@@ -638,6 +638,6 @@ export const CABINET: Record<string, string> = {
   'начислено за заказ': 'earned for an order',
   'списано в заказе': 'used in an order',
   'возвращено: заказ отменён': 'returned: order cancelled',
-  'Спишутся скидкой при оплате следующего заказа — галочкой у кнопки «Оплатить». Не выводятся.':
+  'Спишутся скидкой при оплате следующего заказа, галочкой у кнопки «Оплатить». Не выводятся.':
     'Applied as a discount when you pay for your next order — with the checkbox next to “Pay”. They can’t be withdrawn.',
 };

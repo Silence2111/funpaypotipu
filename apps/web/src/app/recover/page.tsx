@@ -11,7 +11,7 @@ const REASONS = [
   {
     v: 'two_factor',
     t: msg('Вход с кодом включил не я'),
-    d: msg('Пароль сменили, а потом включили вход с кодом — «Это не я» из писем не помогает'),
+    d: msg('Пароль сменили, а потом включили вход с кодом. Кнопка «Это не я» из писем тут не поможет'),
   },
   { v: 'password', t: msg('Пароль сменил не я'), d: msg('Ссылка «Это не я» из письма истекла или не пришла') },
   { v: 'other', t: msg('Другое'), d: msg('Опишите, что случилось') },
@@ -39,7 +39,7 @@ export default function RecoverPage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (details.trim().length < 10) { setErr(t('Опишите, что случилось, — от 10 символов')); return; }
+    if (details.trim().length < 10) { setErr(t('Опишите, что случилось, от 10 символов')); return; }
     const orderNumbers = orders.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
     if (orderNumbers.length > 3) { setErr(t('Не больше трёх номеров заказов')); return; }
     if (noMail && !newEmail.trim()) { setErr(t('Укажите почту, на которую ответить')); return; }
@@ -66,8 +66,8 @@ export default function RecoverPage() {
           <p role="status" style={{ margin: 0 }}>{t('Заявка принята.')}</p>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             {noMail
-              ? t('Если аккаунт с такой почтой есть, сотрудник напишет на новую почту: попросит заплатить 1 ₽ картой, которой вы платили, селфи с документом или описать сделки. Решение — не раньше чем через 3 дня.')
-              : t('Если аккаунт с такой почтой есть, сотрудник проверит, что он ваш, и ответит на почту аккаунта. Решение — не раньше чем через 3 дня: за это время владелец аккаунта увидит заявку и сможет сказать, что подавал её не он.')}
+              ? t('Если аккаунт с такой почтой есть, сотрудник напишет на новую почту и попросит заплатить 1 ₽ картой, которой вы платили, прислать селфи с документом или описать сделки. Решение не раньше чем через 3 дня.')
+              : t('Если аккаунт с такой почтой есть, сотрудник проверит, что он ваш, и ответит на почту аккаунта. Решение не раньше чем через 3 дня: за это время владелец аккаунта увидит заявку и сможет сказать, что подавал её не он.')}
           </p>
         </div>
       ) : (
@@ -113,11 +113,11 @@ export default function RecoverPage() {
               </div>
             )}
             <div className="field">
-              <label className="label" htmlFor="rc-orders">{t('Номера заказов — необязательно')}</label>
+              <label className="label" htmlFor="rc-orders">{t('Номера заказов, необязательно')}</label>
               <input id="rc-orders" className="input" autoCapitalize="characters" spellCheck={false}
                 style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}
                 placeholder="GM-…" value={orders} onChange={(e) => setOrders(e.target.value)} />
-              <p className="hint">{t('До трёх, через запятую. Подтверждают, что сделки — ваши.')}</p>
+              <p className="hint">{t('До трёх, через запятую. Подтверждают, что сделки ваши.')}</p>
             </div>
             <div className="field">
               <label className="label" htmlFor="rc-details">{t('Подробности')}</label>

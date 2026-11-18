@@ -73,7 +73,7 @@ describe('лоты из таблицы', () => {
     expect(read.errors).toEqual([
       { line: 3, message: 'Название — от 3 до 120 знаков' },
       { line: 4, message: 'Укажите характеристику «Звание»' },
-      { line: 5, message: 'Цена — число больше нуля, например 490' },
+      { line: 5, message: 'Цена должна быть числом больше нуля, например 490' },
       { line: 7, message: '«Prime-статус» — «да» или «нет»' },
     ]);
   });
@@ -204,7 +204,7 @@ describe('выгрузка своих лотов и обратно', () => {
       ATTRS,
     );
     expect(r.lots[0]).toMatchObject({ titleEn: 'CS2 account', descriptionEn: 'Prime, 2000 hours' });
-    expect(r.errors).toEqual([{ line: 3, message: 'Название на английском — латиницей' }]);
+    expect(r.errors).toEqual([{ line: 3, message: 'Название на английском латиницей' }]);
     const csv = exportLots(
       [{ id: '11111111-1111-4111-8111-111111111111', title: 'Акк', description: 'Б', price: '10000', stock: null, attributes: {}, titleEn: 'CS2 account', descriptionEn: null }],
       [],

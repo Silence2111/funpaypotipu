@@ -48,7 +48,7 @@ function DealsInner() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (filled.length < 2) return setErr(t('Опишите хотя бы две сделки'));
-    if (filled.some((d) => d.text.trim().length < 20)) return setErr(t('Опишите сделку подробнее — от 20 символов'));
+    if (filled.some((d) => d.text.trim().length < 20)) return setErr(t('Опишите сделку подробнее, от 20 символов'));
     setBusy(true);
     setErr(null);
     try {
@@ -76,18 +76,18 @@ function DealsInner() {
         </div>
       ) : state === 'sent' ? (
         <p role="status" style={{ margin: 0 }}>
-          {t('Описание отправлено. Участники сделок сверят его, а сотрудник ответит на эту почту — не раньше чем через 3 дня после заявки.')}
+          {t('Описание отправлено. Участники сделок сверят его, а сотрудник ответит на эту почту не раньше чем через 3 дня после заявки.')}
         </p>
       ) : (
         <>
           <p className="muted" style={{ fontSize: 14, margin: '0 0 24px' }}>
-            {t('Проверки личности у аккаунта нет, поэтому вспомните две-три сделки с разными продавцами или покупателями. Мы спросим их, совпадает ли описание, — ответ увидит только сотрудник. Нужны подтверждения хотя бы двух.')}
+            {t('Проверки личности у аккаунта нет, поэтому вспомните две-три сделки с разными продавцами или покупателями. Мы спросим их, совпадает ли описание. Ответ увидит только сотрудник. Нужны подтверждения хотя бы двух.')}
           </p>
           <form onSubmit={submit} className="stack-form">
             {deals.map((d, i) => (
               <fieldset key={i} className="deal-entry">
                 <legend className="label">
-                  {i < 2 ? t('Сделка {n}', { n: i + 1 }) : t('Сделка {n} — необязательно', { n: i + 1 })}
+                  {i < 2 ? t('Сделка {n}', { n: i + 1 }) : t('Сделка {n}, необязательно', { n: i + 1 })}
                 </legend>
                 <div className="field">
                   <label className="label" htmlFor={`dl-who-${i}`}>{t('Ник продавца или покупателя')}</label>

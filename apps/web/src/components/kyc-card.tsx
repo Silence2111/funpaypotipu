@@ -39,7 +39,7 @@ export function KycCard() {
       </div>
       <p className="muted" style={{ fontSize: 14, margin: '8px 0 14px' }}>
         {t(
-          'Фото документа и селфи с ним. После проверки — вывод без ограничения суммы и «Документы проверены» в профиле.',
+          'Фото документа и селфи с ним. После проверки вывод без ограничения суммы и «Документы проверены» в профиле.',
         )}
       </p>
       <Link href="/cabinet/verification" className="btn secondary">

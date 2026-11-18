@@ -101,7 +101,7 @@ function Support() {
           </div>
           {(category === 'order' || category === 'payment' || orderId) && (
             <div className="field">
-              <label className="label" htmlFor="sup-order">{t('Заказ — необязательно')}</label>
+              <label className="label" htmlFor="sup-order">{t('Заказ, необязательно')}</label>
               <select id="sup-order" className="input" value={orderId} onChange={(e) => setOrderId(e.target.value)}>
                 <option value="">{t('Без заказа')}</option>
                 {/* Заказ из ссылки виден сразу, даже пока список не загрузился или он старше 30 последних */}
@@ -120,7 +120,7 @@ function Support() {
             <textarea id="sup-body" className="input" rows={5} maxLength={4000} value={body} style={{ resize: 'vertical' }}
               placeholder={t('Что делали, что ожидали, что получилось. Пароли и коды из СМС не присылайте.')}
               onChange={(e) => setBody(e.target.value)} />
-            <p className="hint">{t('Спор по сделке быстрее решит арбитр — откройте его на странице заказа.')}</p>
+            <p className="hint">{t('Спор по сделке быстрее решит арбитр. Откройте его на странице заказа.')}</p>
           </div>
           {err && <div className="alert error" role="alert">{err}</div>}
           <div className="row" style={{ gap: 8 }}>

@@ -72,7 +72,7 @@ export function PhoneCard() {
       setEditing(false);
       setSentTo(null);
       setCode('');
-      setNote({ ok: true, text: t('Номер привязан — теперь по нему можно войти.') });
+      setNote({ ok: true, text: t('Номер привязан, теперь по нему можно войти.') });
     } catch (err) {
       setNote({ ok: false, text: apiErrorMessage(err, t('Код не подошёл')) });
     } finally {
@@ -102,7 +102,7 @@ export function PhoneCard() {
         <Smartphone size={18} strokeWidth={1.75} /> {t('Номер телефона')}
       </h2>
       <p className="muted" style={{ margin: '6px 0 12px', fontSize: 14 }}>
-        {t('Ещё один способ войти и вернуть доступ: забыли пароль — войдите по номеру, код придёт в SMS.')}
+        {t('Ещё один способ войти и вернуть доступ: если забыли пароль, войдите по номеру, код придёт в SMS.')}
       </p>
       <div style={{ display: 'grid', gap: 12 }}>
         <p style={{ margin: 0 }}>

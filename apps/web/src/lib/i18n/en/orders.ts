@@ -48,11 +48,11 @@ export const ORDERS: Record<string, string> = {
     'Payment received, your item is being delivered. Refresh the page in a couple of seconds.',
   'Оплата получена, пополнение отправляется. Обновите страницу через пару секунд.':
     'Payment received, the top-up is being sent. Refresh the page in a couple of seconds.',
-  'Оплата у площадки, продавец её не получит до вашего подтверждения. Ждём, когда он передаст товар; напишите ему в чат ниже. Не выдаст за 24 ч — деньги вернутся на баланс.':
+  'Оплата у площадки, продавец её не получит до вашего подтверждения. Ждём, когда он передаст товар, напишите ему в чат ниже. Если он не выдаст товар за 24 ч, деньги вернутся на баланс.':
     'The marketplace holds the payment; the seller won’t get it until you confirm. Waiting for the seller to hand over the goods — message them in the chat below. If they don’t deliver within 24 h, the money returns to your balance.',
-  'Пополнение отправлено. Проверьте баланс и подтвердите зачисление — тогда продавец получит оплату. Не пришло — откройте спор.':
+  'Пополнение отправлено. Проверьте баланс и подтвердите зачисление, тогда продавец получит оплату. Если не пришло, откройте спор.':
     'Top-up sent. Check your balance and confirm it arrived — then the seller gets paid. Didn’t arrive? Open a dispute.',
-  'Товар выдан. Проверьте его и подтвердите получение — тогда продавец получит оплату.':
+  'Товар выдан. Проверьте его и подтвердите получение, тогда продавец получит оплату.':
     'The goods have been delivered. Check them and confirm receipt — then the seller gets paid.',
   'Сделка закрыта: продавец получил оплату, кэшбэк зачислен на ваш баланс.':
     'Deal closed: the seller has been paid and cashback has been credited to your balance.',
@@ -60,7 +60,7 @@ export const ORDERS: Record<string, string> = {
     'A dispute is open. The money is frozen until the arbiter decides.',
   'Деньги вернулись на ваш баланс на площадке.':
     'The money has been returned to your marketplace balance.',
-  'Покупатель оплатил, деньги у площадки. Передайте товар и нажмите «Отметить выдачу» — у вас 24 ч.':
+  'Покупатель оплатил, деньги у площадки. Передайте товар и нажмите «Отметить выдачу», у вас 24 ч.':
     'The buyer has paid; the marketplace holds the money. Hand over the goods and press “Mark as delivered” — you have 24 h.',
   'Покупатель оплатил, деньги у площадки. Выдача идёт автоматически.':
     'The buyer has paid; the marketplace holds the money. Delivery is automatic.',
@@ -70,7 +70,7 @@ export const ORDERS: Record<string, string> = {
     'The money will reach your balance when the buyer confirms receipt or the review period ends.',
   'Сделка закрыта, оплата зачислена на ваш баланс.':
     'Deal closed, payment credited to your balance.',
-  'Покупатель открыл спор. Ответьте в споре и приложите доказательства передачи — или верните деньги сами.':
+  'Покупатель открыл спор. Ответьте в споре и приложите доказательства передачи или верните деньги сами.':
     'The buyer has opened a dispute. Reply in the dispute and attach proof of delivery — or refund the money yourself.',
   'Деньги вернулись покупателю на баланс. Сделка закрыта.':
     'The money has been returned to the buyer’s balance. Deal closed.',
@@ -84,11 +84,11 @@ export const ORDERS: Record<string, string> = {
   'Заказ не найден или он не ваш.': 'Order not found, or it isn’t yours.',
   'Заказ виден только его участникам. Войдите, чтобы открыть его.':
     'Only the participants can see this order. Sign in to open it.',
-  'Не получилось. Обновите страницу — возможно, статус заказа уже изменился.':
+  'Не получилось. Обновите страницу, возможно, статус заказа уже изменился.':
     'That didn’t work. Refresh the page — the order status may have changed.',
   'Оплата не прошла. Выберите другой способ или попробуйте ещё раз.':
     'Payment failed. Choose another method or try again.',
-  'Оплата не прошла. Заказ создан — выберите способ ниже и попробуйте ещё раз.':
+  'Оплата не прошла. Заказ создан, выберите способ ниже и попробуйте ещё раз.':
     'Payment failed. The order has been created — choose a method below and try again.',
   'Зачисление {sum} на аккаунт': 'Crediting {sum} to the account',
   'Пополнение на аккаунт': 'Top-up to the account',
@@ -106,37 +106,37 @@ export const ORDERS: Record<string, string> = {
   // Оценка покупателя
   'Продавец рекомендует вас как покупателя': 'The seller recommends you as a buyer',
   'Продавец не рекомендует вас как покупателя': 'The seller doesn’t recommend you as a buyer',
-  'Комментарий видите только вы, в профиле — только число оценок.':
+  'Комментарий видите только вы, в профиле только число оценок.':
     'Only you see the comment; your profile shows just the number of ratings.',
   'Покупатель: первая покупка на площадке.': 'Buyer: first purchase on the marketplace.',
-  'Покупатель: {deals}; продавцы рекомендуют — {good}, не рекомендуют — {bad}.':
+  'Покупатель: {deals}; продавцы рекомендуют: {good}, не рекомендуют: {bad}.':
     'Buyer: {deals}; sellers recommend — {good}, don’t recommend — {bad}.',
   'Вы рекомендуете этого покупателя': 'You recommend this buyer',
   'Вы не рекомендуете этого покупателя': 'You don’t recommend this buyer',
   'Оцените покупателя': 'Rate the buyer',
   Порекомендую: 'Recommend',
   'Не порекомендую': 'Don’t recommend',
-  'Комментарий — необязательно, его увидит только покупатель': 'Comment — optional, only the buyer will see it',
+  'Комментарий необязателен, его увидит только покупатель': 'Comment — optional, only the buyer will see it',
   'Комментарий для покупателя': 'Comment for the buyer',
   'Сохранить оценку': 'Save rating',
   'Убрать оценку': 'Remove rating',
   'Убрать оценку? Покупатель перестанет её видеть, в профиле она не будет считаться.':
     'Remove the rating? The buyer will no longer see it, and it won’t count in their profile.',
   'Поставить снова можно в течение 30 дней после сделки.': 'You can rate again within 30 days after the deal.',
-  'Срок оценки прошёл — поставить её снова будет нельзя.':
+  'Срок оценки прошёл, поставить её снова будет нельзя.':
     'The rating period is over — you won’t be able to rate again.',
   'Оценка убрана.': 'Rating removed.',
   'Не удалось убрать оценку.': 'Couldn’t remove the rating.',
-  'Закончился — сообщить о поступлении': 'Sold out — notify me when back',
+  'Закончился, сообщить о поступлении': 'Sold out — notify me when back',
   'Отменить заказ? Деньги вернутся на ваш баланс.':
     'Cancel the order? The money will return to your balance.',
   'Отменить заказ': 'Cancel order',
   'Вернуть деньги покупателю': 'Refund the buyer',
   'Вернуть всю сумму покупателю на баланс? Отменить возврат будет нельзя.':
     'Refund the full amount to the buyer’s balance? The refund can’t be undone.',
-  'Причину увидит покупатель — можно оставить пустой.':
+  'Причину увидит покупатель, можно оставить пустой.':
     'The buyer will see the reason — you can leave it empty.',
-  'Не удалось вернуть деньги. Обновите страницу — возможно, статус заказа уже изменился.':
+  'Не удалось вернуть деньги. Обновите страницу, возможно, статус заказа уже изменился.':
     'Couldn’t refund the money. Refresh the page — the order status may have changed.',
   'Открыть спор': 'Open a dispute',
   'Что пошло не так': 'What went wrong',
@@ -160,7 +160,7 @@ export const ORDERS: Record<string, string> = {
   'Покупатель ещё не оставил отзыв.': 'The buyer hasn’t left a review yet.',
   'Оцените продавца': 'Rate the seller',
   'Изменить отзыв': 'Edit review',
-  'Что понравилось, что нет — необязательно': 'What you liked and what you didn’t — optional',
+  'Что понравилось, что нет, необязательно': 'What you liked and what you didn’t — optional',
   'Поставьте оценку': 'Choose a rating',
   'Не удалось сохранить отзыв.': 'Couldn’t save the review.',
   'Оставить отзыв': 'Leave a review',
@@ -203,7 +203,7 @@ export const ORDERS: Record<string, string> = {
     'No messages yet. Describe the situation and attach evidence.',
   'Сообщение сторонам…': 'Message to the parties…',
   'Сообщение арбитру и второй стороне…': 'Message to the arbiter and the other party…',
-  'Заметка для сотрудников — стороны её не увидят': 'Staff note — the parties won’t see it',
+  'Заметка для сотрудников, стороны её не увидят': 'Staff note — the parties won’t see it',
   'Не удалось отправить': 'Couldn’t send',
   'Файл отклонён (антивирус) или хранилище недоступно':
     'File rejected (antivirus) or storage is unavailable',
@@ -220,7 +220,7 @@ export const ORDERS: Record<string, string> = {
   'Никого не нашлось.': 'No one found.',
   'Не удалось загрузить диалоги. Попробуйте ещё раз.': 'Couldn’t load conversations. Try again.',
   'Открытый диалог': 'Open conversation',
-  'Диалогов пока нет. Напишите продавцу со страницы лота — переписка появится здесь.':
+  'Диалогов пока нет. Напишите продавцу со страницы лота, и переписка появится здесь.':
     'No conversations yet. Message a seller from a listing page — the conversation will appear here.',
   'Покупка {n}': 'Purchase {n}',
   'Продажа {n}': 'Sale {n}',
@@ -287,9 +287,9 @@ export const ORDERS: Record<string, string> = {
   'Вопрос о лоте «{title}»': 'Question about the listing “{title}”',
   'Количество: {qty}.': 'Quantity: {qty}.',
   'Причина: {reason}': 'Reason: {reason}',
-  'Проверяем оплату — обычно это несколько секунд. Страница обновится сама.':
+  'Проверяем оплату, обычно это несколько секунд. Страница обновится сама.':
     'Checking your payment — this usually takes a few seconds. The page will update by itself.',
-  'Банк ещё не подтвердил оплату. Если деньги списаны, заказ оплатится сам, как только подтверждение придёт. Если нет — выберите способ ниже и оплатите снова.':
+  'Банк ещё не подтвердил оплату. Если деньги списаны, заказ оплатится сам, как только подтверждение придёт. Если нет, выберите способ ниже и оплатите снова.':
     'The bank hasn’t confirmed the payment yet. If the money was charged, the order will be paid as soon as the confirmation arrives. If not, choose a method below and pay again.',
   автоответ: 'auto-reply',
   'Заготовки ответов': 'Reply templates',
@@ -309,18 +309,18 @@ export const ORDERS: Record<string, string> = {
     'Your turn: reply by {date}. Without a reply the arbiter will decide on what’s already here.',
   'Ждём ответа {side} до {date}.': 'Waiting for a reply from the {side} until {date}.',
   'Осталось {left}.': '{left} left.',
-  'Спор по заказу {number} ждёт вашего ответа — осталось {left}. Без ответа арбитр учтёт молчание при решении.':
+  'Спор по заказу {number} ждёт вашего ответа, осталось {left}. Без ответа арбитр учтёт молчание при решении.':
     'The dispute on order {number} is waiting for your reply — {left} left. Without a reply, the arbiter will take your silence into account.',
-  'Продавец не ответил в срок — арбитр учтёт это при решении.':
+  'Продавец не ответил в срок. Арбитр учтёт это при решении.':
     'The seller didn’t reply in time — the arbiter will take this into account.',
-  'Покупатель не ответил в срок — арбитр учтёт это при решении.':
+  'Покупатель не ответил в срок. Арбитр учтёт это при решении.':
     'The buyer didn’t reply in time — the arbiter will take this into account.',
   'Договорились сами?': 'Settled it between you?',
-  'Если товар в порядке, закройте спор — деньги уйдут продавцу, арбитр не понадобится.':
+  'Если товар в порядке, закройте спор. Деньги уйдут продавцу, арбитр не понадобится.':
     'If the item is fine, close the dispute — the money goes to the seller and no arbiter is needed.',
-  'Если покупатель прав, верните деньги — спор закроется без арбитра.':
+  'Если покупатель прав, верните деньги, и спор закроется без арбитра.':
     'If the buyer is right, refund the money — the dispute closes without an arbiter.',
-  'Претензий нет — завершить сделку': 'No claims — complete the deal',
+  'Претензий нет, завершить сделку': 'No claims — complete the deal',
   'Запросить пояснения:': 'Ask for an explanation:',
   'у покупателя': 'from the buyer',
   'у продавца': 'from the seller',
@@ -336,11 +336,11 @@ export const ORDERS: Record<string, string> = {
   'Продавец взял заказ в работу.': 'The seller has started on the order.',
   'Срок выполнения вышел. Покупатель может открыть спор; без выдачи и спора деньги вернутся покупателю через сутки.':
     'The deadline has passed. The buyer can open a dispute; with no delivery and no dispute, the money goes back to the buyer in a day.',
-  'Срок выполнения вышел ({due}). Можно сразу открыть спор — арбитр разберётся. Без выдачи и спора деньги вернутся {back}.':
+  'Срок выполнения вышел ({due}). Можно сразу открыть спор, арбитр разберётся. Без выдачи и спора деньги вернутся {back}.':
     'The deadline has passed ({due}). You can open a dispute right away and an arbiter will look into it. With no delivery and no dispute, the money comes back on {back}.',
-  'Оплата у площадки, продавец её не получит до вашего подтверждения. Срок выполнения — до {due}. Не успеет — откройте спор; без выдачи и спора деньги вернутся {back}.':
+  'Оплата у площадки, продавец её не получит до вашего подтверждения. Срок выполнения до {due}. Если продавец не успеет, откройте спор. Без выдачи и спора деньги вернутся {back}.':
     'The payment is held by the marketplace; the seller gets it only after you confirm. Deadline: {due}. If the seller misses it, open a dispute; with no delivery and no dispute, the money comes back on {back}.',
-  'Срок выполнения вышел ({due}). Покупатель может открыть спор; без выдачи деньги вернутся ему {back}. Выполнили — отметьте выдачу.':
+  'Срок выполнения вышел ({due}). Покупатель может открыть спор, без выдачи деньги вернутся ему {back}. Если выполнили, отметьте выдачу.':
     'The deadline has passed ({due}). The buyer can open a dispute; with no delivery, the money goes back to them on {back}. Done? Press “Mark as delivered”.',
   'Покупатель оплатил, деньги у площадки. Выполните заказ до {due} и нажмите «Отметить выдачу».':
     'The buyer has paid, the money is held by the marketplace. Complete the order by {due} and press “Mark as delivered”.',
@@ -351,9 +351,9 @@ export const ORDERS: Record<string, string> = {
   'Срок проверки истёк — заказ подтверждён автоматически. Идёт гарантия продавца: срок — на странице заказа, в этот срок покупатель может открыть спор, деньги до её конца у площадки.':
     'The check period is over and the order was confirmed automatically. The seller’s warranty is running: the end date is on the order page; until then the buyer can open a dispute, and the marketplace holds the money.',
   'Гарантия закончилась — средства переданы продавцу.': 'The warranty has ended and the money has gone to the seller.',
-  'Вы подтвердили получение. Гарантия продавца — до {date}: если с товаром что-то не так, откройте спор. Деньги до этого времени у площадки.':
+  'Вы подтвердили получение. Гарантия продавца до {date}: если с товаром что-то не так, откройте спор. Деньги до этого времени у площадки.':
     'You confirmed receipt. The seller’s warranty runs until {date}: if something is wrong with the goods, open a dispute. Until then the marketplace holds the money.',
-  'Покупатель подтвердил получение. Ваша гарантия — до {date}: в этот срок покупатель может открыть спор. Деньги придут на баланс, когда она закончится.':
+  'Покупатель подтвердил получение. Ваша гарантия до {date}, в этот срок покупатель может открыть спор. Деньги придут на баланс, когда она закончится.':
     'The buyer confirmed receipt. Your warranty runs until {date}: until then the buyer can open a dispute. The money reaches your balance when it ends.',
   'Подтверждён, идёт гарантия': 'Confirmed, under warranty',
   // Арбитраж: окно обжалования, журнал выдачи, доказательства (часть 135)
@@ -370,45 +370,45 @@ export const ORDERS: Record<string, string> = {
     'Decision: pay the seller. The side it goes against can appeal once before it takes effect.',
   'Не удалось обжаловать решение': 'Couldn’t appeal the decision',
   'Принять решение арбитра? Оно исполнится сразу, обжаловать будет нельзя.': 'Accept the arbiter’s decision? It will be carried out at once and can’t be appealed.',
-  'Решение — в пользу покупателя.': 'Decision: in the buyer’s favour.',
-  'Решение — в пользу продавца.': 'Decision: in the seller’s favour.',
+  'Решение в пользу покупателя.': 'Decision: in the buyer’s favour.',
+  'Решение в пользу продавца.': 'Decision: in the seller’s favour.',
   'Вступит в силу {date}.': 'Takes effect {date}.',
-  'Не согласны — обжалуйте один раз: спор пересмотрит другой арбитр, его решение окончательное. Согласны — примите, и решение исполнится сразу.':
+  'Если не согласны, обжалуйте один раз: спор пересмотрит другой арбитр, его решение окончательное. Если согласны, примите, и решение исполнится сразу.':
     'Disagree? Appeal once: another arbiter will review the dispute and their decision is final. Agree? Accept it and it will be carried out at once.',
   'Принять решение': 'Accept the decision',
   'Решение обжаловано': 'The decision was appealed',
-  'Первое решение — в пользу покупателя': 'First decision: in the buyer’s favour',
-  'Первое решение — в пользу продавца': 'First decision: in the seller’s favour',
-  'Пересматривает другой арбитр — его решение окончательное.': 'Another arbiter is reviewing it — their decision is final.',
+  'Первое решение в пользу покупателя': 'First decision: in the buyer’s favour',
+  'Первое решение в пользу продавца': 'First decision: in the seller’s favour',
+  'Пересматривает другой арбитр, его решение окончательное.': 'Another arbiter is reviewing it — their decision is final.',
   'Журнал выдачи': 'Delivery log',
-  'Из системы площадки — не со слов сторон.': 'From the marketplace’s records, not the parties’ words.',
+  'Из системы площадки, не со слов сторон.': 'From the marketplace’s records, not the parties’ words.',
   'открывал {n}': 'opened {n}',
   'Что приложить': 'What to attach',
   'Что приложить покупателю': 'What the buyer should attach',
   'Что приложить продавцу': 'What the seller should attach',
-  'Файлы — скрепкой под перепиской. Чем точнее доказательства, тем быстрее решение.': 'Attach files with the paperclip below the conversation. The clearer the evidence, the faster the decision.',
+  'Файлы прикрепляйте скрепкой под перепиской. Чем точнее доказательства, тем быстрее решение.': 'Attach files with the paperclip below the conversation. The clearer the evidence, the faster the decision.',
   // Защита продавца (часть 136)
   'Данные получены': 'Details received',
   'Данные получены {date}': 'Details received {date}',
-  'Продавец передал данные? Отметьте «Данные получены» — это не подтверждение сделки: проверить товар можно и после, деньги продавец получит, только когда вы подтвердите.':
+  'Продавец передал данные? Отметьте «Данные получены». Это ещё не подтверждение сделки: проверить товар можно и после, деньги продавец получит, только когда вы подтвердите.':
     'Did the seller hand over the details? Mark “Details received” — this doesn’t confirm the deal: you can still check the goods, and the seller is paid only after you confirm.',
   'Покупатель отметил: данные получены': 'The buyer marked: details received',
   'Покупатель отметил: данные получены.': 'The buyer marked: details received.',
   // Возврат при отмене (часть 137)
   'Куда вернуть деньги?': 'Where should we return the money?',
-  'На баланс — сразу': 'To the balance — instantly',
-  'Тем же способом оплаты — 1–10 дней': 'The same payment method — 1–10 days',
-  'На баланс — сумма заказа, комиссия способа оплаты {fee} не возвращается. Тем же способом — всё, что списали, вместе с комиссией.':
+  'На баланс, сразу': 'To the balance — instantly',
+  'Тем же способом оплаты, 1–10 дней': 'The same payment method — 1–10 days',
+  'На баланс вернётся сумма заказа, комиссия способа оплаты {fee} не возвращается. Тем же способом вернётся всё, что списали, вместе с комиссией.':
     'To the balance: the order amount; the {fee} payment-method fee isn’t returned. The same method: everything that was charged, including the fee.',
-  'На баланс деньги придут сразу, тем же способом — когда банк зачислит возврат.': 'To the balance the money arrives at once; via the same method — when the bank credits the refund.',
+  'На баланс деньги придут сразу, тем же способом, когда банк зачислит возврат.': 'To the balance the money arrives at once; via the same method — when the bank credits the refund.',
   'Не отменять': 'Don’t cancel',
-  'Не удалось вернуть деньги на карту — попробуйте вернуть на баланс.': 'Couldn’t refund to the card — try refunding to the balance.',
+  'Не удалось вернуть деньги на карту. Попробуйте вернуть на баланс.': 'Couldn’t refund to the card — try refunding to the balance.',
   'Заказ отменён, деньги возвращаются тем же способом оплаты — банк зачислит их за 1–10 дней.':
     'The order was cancelled; the money is going back via the same payment method — the bank will credit it within 1–10 days.',
   // Частичный возврат по спору (часть 140)
   'Спор решён: покупателю возвращено {pct}% суммы, остаток — продавцу.': 'Dispute resolved: the buyer got {pct}% back, the rest went to the seller.',
-  'Вернуть покупателю {pct}%, остаток — продавцу?': 'Refund {pct}% to the buyer and the rest to the seller?',
+  'Вернуть покупателю {pct}%, остаток продавцу?': 'Refund {pct}% to the buyer and the rest to the seller?',
   'Вернуть {pct}%': 'Refund {pct}%',
-  'Решение вступит в силу после окна обжалования, стороны получат уведомление. Частичный возврат — когда товар не совпал с описанием лишь отчасти (пункт 2.2).':
+  'Решение вступит в силу после окна обжалования, стороны получат уведомление. Частичный возврат делают, когда товар не совпал с описанием лишь отчасти (пункт 2.2).':
     'The decision takes effect after the appeal window; both sides are notified. A partial refund is for goods that only partly didn’t match the description (rule 2.2).',
 };

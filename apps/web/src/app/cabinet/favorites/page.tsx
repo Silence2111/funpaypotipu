@@ -132,7 +132,7 @@ function FavoritesInner() {
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>{t('Избранное')}</h1>
         <p className="muted" style={{ margin: '8px 0 0', maxWidth: '60ch' }}>
-          {t('Лот подешевеет хотя бы на {pct}% — придёт уведомление. Настройка — в группе «Поиски, избранное и подписки».', {
+          {t('Если лот подешевеет хотя бы на {pct}%, придёт уведомление. Настройка в группе «Поиски, избранное и подписки».', {
             pct: PRICE_DROP_MIN_PCT,
           })}
         </p>
@@ -147,7 +147,7 @@ function FavoritesInner() {
         <div className="skeleton" style={{ height: 240 }} aria-busy="true" />
       ) : items.length === 0 ? (
         <div className="card flat row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <span className="muted">{t('В избранном пока пусто. «В избранное» на странице лота — и за его ценой можно следить.')}</span>
+          <span className="muted">{t('В избранном пока пусто. Нажмите «В избранное» на странице лота, чтобы следить за его ценой.')}</span>
           <Link href="/catalog" className="btn secondary">{t('В каталог')}</Link>
         </div>
       ) : (

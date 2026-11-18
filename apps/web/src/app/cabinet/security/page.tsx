@@ -106,7 +106,7 @@ function Security() {
 
   function changePassword(e: FormEvent) {
     e.preventDefault();
-    if (next.length < 8) return setMsg({ ok: false, text: t('Новый пароль — от 8 символов') });
+    if (next.length < 8) return setMsg({ ok: false, text: t('Новый пароль от 8 символов') });
     void run(async () => {
       const r = await apiFetch<{ closedSessions: number }>('/auth/password', {
         method: 'POST',
@@ -135,8 +135,8 @@ function Security() {
       // Смена пароля выводит и остальные устройства — к ней и ведём.
       setTimeout(() => document.getElementById(firstPassword ? 'pwd-next' : 'pwd-current')?.focus(), 0);
       return firstPassword
-        ? t('Сеанс завершён — устройство вышло из аккаунта. Проверьте, какие сервисы подключены для входа.')
-        : t('Сеанс завершён — устройство вышло из аккаунта. Смените пароль: тогда выйдут и все остальные устройства.');
+        ? t('Сеанс завершён, устройство вышло из аккаунта. Проверьте, какие сервисы подключены для входа.')
+        : t('Сеанс завершён, устройство вышло из аккаунта. Смените пароль, тогда выйдут и все остальные устройства.');
     }, t('Не удалось завершить сеанс.'));
   }
 
@@ -181,10 +181,10 @@ function Security() {
           </p>
           <p className="muted" style={{ fontSize: 14, margin: '12px 0 0' }}>
             {recovery.newEmail
-              ? t('Кто-то сообщил поддержке, что не может войти в этот аккаунт, и просит сменить его почту. Сотрудник решит не раньше {date}. Если это не вы — обязательно отметьте это.', {
+              ? t('Кто-то сообщил поддержке, что не может войти в этот аккаунт, и просит сменить его почту. Сотрудник решит не раньше {date}. Если это не вы, обязательно отметьте это.', {
                   date: when(recovery.decideAfter, t),
                 })
-              : t('Кто-то сообщил поддержке, что не может войти в этот аккаунт. Сотрудник решит не раньше {date}. Если это вы — ждите ответа на почту. Если не вы — отметьте это, сотрудник увидит до решения.', {
+              : t('Кто-то сообщил поддержке, что не может войти в этот аккаунт. Сотрудник решит не раньше {date}. Если это вы, ждите ответа на почту. Если не вы, отметьте это, и сотрудник увидит до решения.', {
                   date: when(recovery.decideAfter, t),
                 })}
           </p>
@@ -217,7 +217,7 @@ function Security() {
               <p style={{ margin: '16px 0 0', fontWeight: 600 }}>{t('Это были вы?')}</p>
               <div className="row" style={{ gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
                 <button type="button" className="btn" disabled={busy} onClick={() => notMe(suspect)}>
-                  {t('Это не я — завершить сеанс')}
+                  {t('Это не я, завершить сеанс')}
                 </button>
                 <button type="button" className="btn secondary" disabled={busy} onClick={itWasMe}>
                   {t('Да, это я')}
@@ -228,8 +228,8 @@ function Security() {
             <>
               <p className="muted" style={{ margin: '12px 0 0', fontSize: 14 }}>
                 {target
-                  ? t('Этот вход — с устройства, на котором вы сейчас. Если это были вы, ничего делать не нужно.')
-                  : t('Этот сеанс уже завершён: устройство вышло из аккаунта. Если входили не вы — смените пароль.')}
+                  ? t('Этот вход с устройства, на котором вы сейчас. Если это были вы, ничего делать не нужно.')
+                  : t('Этот сеанс уже завершён: устройство вышло из аккаунта. Если входили не вы, смените пароль.')}
               </p>
               <div style={{ marginTop: 12 }}>
                 <button type="button" className="chip" onClick={itWasMe}>{t('Понятно')}</button>
@@ -250,14 +250,14 @@ function Security() {
         {firstPassword && !ways?.email ? (
           <p className="muted" style={{ fontSize: 14, margin: '10px 0 0' }}>
             {t(
-              'Вход по паролю — это почта и пароль, а у аккаунта нет почты. Добавьте почту выше или подключите сервис ниже, чтобы не зависеть от одного способа входа.',
+              'Для входа по паролю нужны почта и пароль, а у аккаунта нет почты. Добавьте почту выше или подключите сервис ниже, чтобы не зависеть от одного способа входа.',
             )}
           </p>
         ) : (
           <form onSubmit={changePassword} className="stack-form" style={{ gap: 14, marginTop: 14 }}>
             {firstPassword ? (
               <p className="muted" style={{ fontSize: 14, margin: 0 }}>
-                {t('Пароля нет — аккаунт заведён через сервис. Задайте пароль, чтобы входить и по почте {email}.', {
+                {t('Пароля нет, аккаунт заведён через сервис. Задайте пароль, чтобы входить и по почте {email}.', {
                   email: ways?.email ?? '',
                 })}
               </p>
@@ -322,7 +322,7 @@ function Security() {
                   <button type="button" className="chip" disabled={busy}
                     onClick={() => void run(async () => {
                       await apiFetch(`/auth/sessions/${s.id}/revoke`, { method: 'POST' });
-                      return t('Сеанс завершён — устройство вышло из аккаунта.');
+                      return t('Сеанс завершён, устройство вышло из аккаунта.');
                     }, t('Не удалось завершить сеанс.'))}>
                     {t('Завершить')}
                   </button>

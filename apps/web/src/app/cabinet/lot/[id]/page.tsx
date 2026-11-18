@@ -45,7 +45,7 @@ function EditListing() {
         <div className="card" style={{ padding: 24 }}>
           <p style={{ margin: '0 0 12px' }}>
             {listing?.status === 'blocked'
-              ? t('Лот заблокирован модератором — изменить его нельзя. Если это ошибка, напишите в поддержку.')
+              ? t('Лот заблокирован модератором, изменить его нельзя. Если это ошибка, напишите в поддержку.')
               : err}
           </p>
           <Link href={backToMyLots(back)} className="btn secondary">

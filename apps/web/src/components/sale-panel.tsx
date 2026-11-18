@@ -186,7 +186,7 @@ export function SalePanel({
       {raised && (
         <p className="hint" style={{ margin: 0 }}>
           {t(
-            'За {n} дней до скидки цена была ниже — {ref}. Покупатели увидят скидку от неё: поднять цену накануне и зачеркнуть её не выйдет.',
+            'За {n} дней до скидки цена была ниже: {ref}. Покупатели увидят скидку от неё, поднять цену накануне и зачеркнуть её не выйдет.',
             { n: SALE_REF_DAYS, ref: formatPrice(ref.toString(), currency, t) },
           )}
         </p>
@@ -196,14 +196,14 @@ export function SalePanel({
         className={valid && !honest ? 'field-error' : undefined}
       >
         {!valid
-          ? t('Скидка — от {min} до {max}%.', { min: SALE_MIN_PCT, max: SALE_MAX_PCT })
+          ? t('Скидка от {min} до {max}%.', { min: SALE_MIN_PCT, max: SALE_MAX_PCT })
           : honest
             ? t('Станет {now} вместо {was} до {date}.', {
                 now: formatPrice(next!.toString(), currency, t),
                 was: formatPrice(ref.toString(), currency, t),
                 date: date(Date.now() + days * 86_400_000, t),
               })
-            : t('От {ref} это скидка {off}% — нужно от {min}%. Дайте скидку больше.', {
+            : t('От {ref} это скидка {off}%, нужно от {min}%. Дайте скидку больше.', {
                 ref: formatPrice(ref.toString(), currency, t),
                 off: shown,
                 min: SALE_MIN_PCT,

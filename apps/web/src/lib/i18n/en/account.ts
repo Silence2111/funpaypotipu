@@ -4,10 +4,10 @@ export const ACCOUNT: Record<string, string> = {
   // Заявка «Не могу войти» на этот аккаунт
   'Заявка на восстановление доступа': 'Account recovery request',
   'подана {when}': 'filed {when}',
-  'Кто-то сообщил поддержке, что не может войти в этот аккаунт. Сотрудник решит не раньше {date}. Если это вы — ждите ответа на почту. Если не вы — отметьте это, сотрудник увидит до решения.':
+  'Кто-то сообщил поддержке, что не может войти в этот аккаунт. Сотрудник решит не раньше {date}. Если это вы, ждите ответа на почту. Если не вы, отметьте это, и сотрудник увидит до решения.':
     'Someone told support they can’t sign in to this account. Staff won’t decide before {date}. If it was you, wait for a reply by email. If not, mark it — staff will see this before deciding.',
   'Отмечено: заявку подали не вы': 'Marked: you didn’t file this request',
-  'Кто-то сообщил поддержке, что не может войти в этот аккаунт, и просит сменить его почту. Сотрудник решит не раньше {date}. Если это не вы — обязательно отметьте это.':
+  'Кто-то сообщил поддержке, что не может войти в этот аккаунт, и просит сменить его почту. Сотрудник решит не раньше {date}. Если это не вы, обязательно отметьте это.':
     'Someone told support they can’t sign in to this account and asked to change its email. Staff won’t decide before {date}. If it wasn’t you, be sure to mark it.',
   'Заявку подал не я': 'I didn’t file this',
   'Отмечено: сотрудник увидит, что заявку подали не вы.':
@@ -16,24 +16,24 @@ export const ACCOUNT: Record<string, string> = {
   // Вопрос «Это были вы?» после входа с нового устройства
   'Вход с нового устройства': 'Sign-in from a new device',
   'Это были вы?': 'Was this you?',
-  'Это не я — завершить сеанс': 'It wasn’t me — end the session',
+  'Это не я, завершить сеанс': 'It wasn’t me — end the session',
   'Да, это я': 'Yes, it was me',
   Понятно: 'Got it',
   'новый вход': 'new sign-in',
-  'Сеанс завершён — устройство вышло из аккаунта. Смените пароль: тогда выйдут и все остальные устройства.':
+  'Сеанс завершён, устройство вышло из аккаунта. Смените пароль, тогда выйдут и все остальные устройства.':
     'Session ended — the device was signed out. Change your password to sign out all other devices too.',
-  'Сеанс завершён — устройство вышло из аккаунта. Проверьте, какие сервисы подключены для входа.':
+  'Сеанс завершён, устройство вышло из аккаунта. Проверьте, какие сервисы подключены для входа.':
     'Session ended — the device was signed out. Check which services are connected for sign-in.',
-  'Этот вход — с устройства, на котором вы сейчас. Если это были вы, ничего делать не нужно.':
+  'Этот вход с устройства, на котором вы сейчас. Если это были вы, ничего делать не нужно.':
     'This sign-in is from the device you’re using now. If it was you, there’s nothing to do.',
-  'Этот сеанс уже завершён: устройство вышло из аккаунта. Если входили не вы — смените пароль.':
+  'Этот сеанс уже завершён: устройство вышло из аккаунта. Если входили не вы, смените пароль.':
     'This session has already ended: the device was signed out. If it wasn’t you, change your password.',
   'Сервис подключён: теперь можно входить через него.':
     'Service connected: you can now sign in with it.',
   'Этот аккаунт сервиса уже привязан к другому пользователю площадки.':
     'This service account is already linked to another user on the marketplace.',
   'Не удалось подключить сервис. Попробуйте ещё раз.': 'Couldn’t connect the service. Try again.',
-  'Новый пароль — от 8 символов': 'New password must be at least 8 characters',
+  'Новый пароль от 8 символов': 'New password must be at least 8 characters',
   'Пароль задан: теперь можно входить и по почте с паролем.':
     'Password set: you can now also sign in with email and password.',
   'Пароль изменён. Другие устройства вышли из аккаунта: {n}.':
@@ -41,9 +41,9 @@ export const ACCOUNT: Record<string, string> = {
   'Пароль изменён.': 'Password changed.',
   'Не удалось сменить пароль.': 'Couldn’t change the password.',
   Пароль: 'Password',
-  'Вход по паролю — это почта и пароль, а у аккаунта нет почты. Добавьте почту выше или подключите сервис ниже, чтобы не зависеть от одного способа входа.':
+  'Для входа по паролю нужны почта и пароль, а у аккаунта нет почты. Добавьте почту выше или подключите сервис ниже, чтобы не зависеть от одного способа входа.':
     'Password sign-in is email plus password, and the account has no email. Add an email above or connect a service below so you don’t depend on one sign-in method.',
-  'Пароля нет — аккаунт заведён через сервис. Задайте пароль, чтобы входить и по почте {email}.':
+  'Пароля нет, аккаунт заведён через сервис. Задайте пароль, чтобы входить и по почте {email}.':
     'No password yet — the account was created through a service. Set a password to also sign in with {email}.',
   'Текущий пароль': 'Current password',
   'Новый пароль': 'New password',
@@ -58,7 +58,7 @@ export const ACCOUNT: Record<string, string> = {
   'Завершить все, кроме этого': 'End all except this one',
   'это устройство': 'this device',
   'вход {when}': 'signed in {when}',
-  'Сеанс завершён — устройство вышло из аккаунта.':
+  'Сеанс завершён, устройство вышло из аккаунта.':
     'Session ended — the device has been signed out.',
   'Не удалось завершить сеанс.': 'Couldn’t end the session.',
   Завершить: 'End',
@@ -74,22 +74,22 @@ export const ACCOUNT: Record<string, string> = {
   'Загрузить аватар': 'Upload avatar',
   Убрать: 'Remove',
   Ник: 'Username',
-  '— не меняется: по нему находят ваши лоты и отзывы':
+  'не меняется: по нему находят ваши лоты и отзывы':
     '— can’t be changed: people find your listings and reviews by it',
   'Имя на витрине': 'Display name',
-  'О себе — необязательно': 'About — optional',
+  'О себе, необязательно': 'About — optional',
   'Что продаёте, как быстро отвечаете, в какое время на связи':
     'What you sell, how fast you reply, when you’re available',
   '{n} / 500. Видно покупателям на странице продавца.':
     '{n} / 500. Buyers see this on your seller page.',
   Почта: 'Email',
   'не указана': 'not set',
-  '— подтверждена': '— verified',
-  '— не подтверждена': '— not verified',
+  'подтверждена': '— verified',
+  'не подтверждена': '— not verified',
   'Сохраняем…': 'Saving…',
   Сохранить: 'Save',
   'Чёрный список': 'Block list',
-  'Кто здесь, тот не напишет вам до сделки и не купит ваши лоты. Добавить — кнопкой на странице продавца.':
+  'Кто здесь, тот не напишет вам до сделки и не купит ваши лоты. Добавить можно кнопкой на странице продавца.':
     'People on this list can’t message you before a deal or buy your listings. Add someone with the button on their seller page.',
   'Список пуст.': 'The list is empty.',
   пользователь: 'user',
@@ -97,7 +97,7 @@ export const ACCOUNT: Record<string, string> = {
 
   // Проверка личности
   'Подойдёт фото (JPG, PNG, WebP, HEIC) или PDF': 'Use a photo (JPG, PNG, WebP, HEIC) or a PDF',
-  'Файл больше 15 МБ — сфотографируйте заново или сожмите':
+  'Файл больше 15 МБ, сфотографируйте заново или сожмите':
     'The file is over 15 MB — retake the photo or compress it',
   'Убрать файл': 'Remove file',
   'Добавить ещё': 'Add another',
@@ -108,7 +108,7 @@ export const ACCOUNT: Record<string, string> = {
   'Не удалось отправить документы. Попробуйте ещё раз.': 'Couldn’t send the documents. Try again.',
   'Проверка личности': 'ID verification',
   'Документы проверены': 'ID verified',
-  '{date}. Вывод — без ограничения суммы, в профиле и на ваших лотах — «Документы проверены».':
+  '{date}. Вывод без ограничения суммы, в профиле и на ваших лотах пометка «Документы проверены».':
     '{date}. Withdrawals have no amount limit, and your profile and listings show “ID verified”.',
   'Документы на проверке': 'Documents under review',
   'Отправлены {date}. Решение придёт уведомлением.':
@@ -117,19 +117,19 @@ export const ACCOUNT: Record<string, string> = {
     'Documents not accepted: {reason}. Please upload them again.',
   'Документы не приняты. Загрузите их заново.': 'Documents not accepted. Please upload them again.',
   'Что даёт проверка': 'What verification gives you',
-  'Вывод без ограничения суммы — без проверки за раз можно вывести до {limit}':
+  'Вывод без ограничения суммы. Без проверки за раз можно вывести до {limit}':
     'Withdrawals without an amount limit — without verification you can withdraw up to {limit} at a time',
   '«Документы проверены» в профиле и в карточке продавца на ваших лотах':
     '“ID verified” on your profile and on the seller card of your listings',
-  'Уровень Pro — когда хватит продаж и оценок':
+  'Уровень Pro, когда хватит продаж и оценок':
     'Pro level — once you have enough sales and ratings',
   Документ: 'Document',
   'Паспорт или другой документ с фото: разворот с фотографией целиком, без бликов. Можно добавить второе фото.':
     'A passport or other photo ID: the whole photo page, without glare. You can add a second photo.',
   'Селфи с документом': 'Selfie with the document',
-  'Лицо и раскрытый документ в одном кадре — так видно, что документ ваш.':
+  'Лицо и раскрытый документ в одном кадре, так видно, что документ ваш.':
     'Your face and the open document in one shot — this shows the document is yours.',
-  'Фото или PDF до 15 МБ. Документы видит только сотрудник проверки — другим пользователям они недоступны.':
+  'Фото или PDF до 15 МБ. Документы видит только сотрудник проверки, другим пользователям они недоступны.':
     'Photos or PDF up to 15 MB. Only the verification officer sees the documents — other users can’t access them.',
   'Отправляем {progress}…': 'Sending {progress}…',
   'Отправляем…': 'Sending…',
@@ -141,7 +141,7 @@ export const ACCOUNT: Record<string, string> = {
   'документы проверены': 'ID verified',
   'документы не приняты': 'not accepted',
   'Загрузить заново': 'Upload again',
-  'Фото документа и селфи с ним. После проверки — вывод без ограничения суммы и «Документы проверены» в профиле.':
+  'Фото документа и селфи с ним. После проверки вывод без ограничения суммы и «Документы проверены» в профиле.':
     'A photo of your ID and a selfie with it. Once verified — withdrawals without an amount limit and “ID verified” on your profile.',
 
   // Уведомления
@@ -151,11 +151,11 @@ export const ACCOUNT: Record<string, string> = {
   'Включены на этом устройстве': 'On for this device',
   'Уведомления для сайта запрещены в настройках браузера':
     'Notifications for this site are blocked in browser settings',
-  'На iPhone — после установки сайта: «Поделиться» → «На экран Домой»':
+  'На iPhone после установки сайта: «Поделиться» → «На экран Домой»':
     'On iPhone — after installing the site: Share → Add to Home Screen',
   'Этот браузер пуши не принимает': 'This browser doesn’t support push',
   'Включены на других устройствах: {n}': 'On for other devices: {n}',
-  'Заказы и сообщения — сразу на экран, даже когда сайт закрыт':
+  'Заказы и сообщения сразу на экран, даже когда сайт закрыт':
     'Orders and messages right on your screen, even when the site is closed',
   'Не удалось загрузить настройки уведомлений': 'Couldn’t load notification settings',
   'Не удалось сохранить настройку.': 'Couldn’t save the setting.',
@@ -165,11 +165,11 @@ export const ACCOUNT: Record<string, string> = {
   'Не удалось выключить пуши.': 'Couldn’t turn off push.',
   'Письма, Telegram и пуши приходят на языке: {lang}. Он меняется вместе с языком сайта.':
     'Emails, Telegram and push notifications arrive in: {lang}. It changes along with the site language.',
-  'На сайте — всегда. Письмом, в Telegram и пушем — по вашему выбору.':
+  'На сайте всегда. Письмом, в Telegram и пушем по вашему выбору.':
     'On the site — always. By email, Telegram and push — as you choose.',
   'Бот на стенде не подключён': 'The bot isn’t connected on this site',
   Подключён: 'Connected',
-  'Откройте бота и нажмите «Старт» — страница обновится сама':
+  'Откройте бота и нажмите «Старт», страница обновится сама':
     'Open the bot and tap “Start” — this page will update by itself',
   'Мгновенные уведомления, а подтвердить получение и ответить в чат можно прямо из бота':
     'Instant notifications — and you can confirm receipt and reply in chats right from the bot',
@@ -187,22 +187,22 @@ export const ACCOUNT: Record<string, string> = {
   '{name} отключён.': '{name} disconnected.',
   'Не удалось отключить.': 'Couldn’t disconnect.',
   Подключить: 'Connect',
-  'Пароля у аккаунта нет — вход только через сервис. Задайте пароль выше, чтобы не зависеть от него.':
+  'Пароля у аккаунта нет, вход только через сервис. Задайте пароль выше, чтобы не зависеть от него.':
     'This account has no password — you can only sign in through a service. Set a password above so you don’t depend on it.',
 
   // Код из приложения
-  'Защита включена. Сохраните резервные коды — они понадобятся без телефона.':
+  'Защита включена. Сохраните резервные коды, они понадобятся без телефона.':
     'Two-factor authentication is on. Save your backup codes — you’ll need them if you lose your phone.',
   'Код не подошёл.': 'The code didn’t work.',
-  'Новые резервные коды — старые больше не работают.':
+  'Новые резервные коды. Старые больше не работают.':
     'New backup codes — the old ones no longer work.',
   'Двухфакторная защита отключена.': 'Two-factor authentication is off.',
-  'Резервные коды GameMarket — каждый работает один раз':
+  'Резервные коды GameMarket, каждый работает один раз':
     'GameMarket backup codes — each works once',
   'Двухфакторная защита': 'Two-factor authentication',
   'При входе, кроме пароля, нужен код из приложения-аутентификатора: Google Authenticator, 1Password и похожих.':
     'When you sign in, besides your password you’ll need a code from an authenticator app: Google Authenticator, 1Password and similar.',
-  'Резервные коды — каждый работает один раз': 'Backup codes — each works once',
+  'Резервные коды, каждый работает один раз': 'Backup codes — each works once',
   'Сохраните их там, где нет телефона: в менеджере паролей или на бумаге. Больше мы их не покажем.':
     'Keep them somewhere other than your phone: in a password manager or on paper. We won’t show them again.',
   Скопировать: 'Copy',
@@ -217,13 +217,13 @@ export const ACCOUNT: Record<string, string> = {
   'QR-код для приложения': 'QR code for the app',
   '1. Отсканируйте QR-код в приложении-аутентификаторе.':
     '1. Scan the QR code in your authenticator app.',
-  'Не получается — добавьте ключ вручную:': 'Can’t scan it? Add the key manually:',
+  'Не получается? Добавьте ключ вручную:': 'Can’t scan it? Add the key manually:',
   '2. Введите шесть цифр, которые покажет приложение.': '2. Enter the six digits the app shows.',
   Включить: 'Turn on',
   Настроить: 'Set up',
   // «Подтверждение сделок»: другая сторона сделки отвечает на заявку на восстановление
   'Подтверждение сделок': 'Deal confirmations',
-  'Тот, с кем вы заключали сделки, восстанавливает доступ к аккаунту. Сверьте описание сделки из заявки с тем, что было, — ответ увидит только сотрудник.':
+  'Тот, с кем вы заключали сделки, восстанавливает доступ к аккаунту. Сверьте описание сделки из заявки с тем, что было. Ответ увидит только сотрудник.':
     'Someone you’ve had deals with is recovering their account. Compare the deal description from their request with what actually happened — only staff will see your answer.',
   'Просьб подтвердить сделку нет.': 'No requests to confirm a deal.',
   '@{username} восстанавливает доступ': '@{username} is recovering their account',
@@ -243,24 +243,24 @@ export const ACCOUNT: Record<string, string> = {
   'Спасибо: ответили, что не помните.': 'Thank you: you answered that you don’t remember.',
   'Не удалось отправить ответ. Попробуйте ещё раз.': 'Couldn’t send your answer. Try again.',
   // «Почта» в «Безопасности»
-  'Письмо со ссылкой ушло на {email}. Откройте его, чтобы подтвердить, — ссылка действует сутки.':
+  'Письмо со ссылкой ушло на {email}. Откройте его, чтобы подтвердить, ссылка действует сутки.':
     'A link has been sent to {email}. Open it to confirm — the link works for a day.',
   'Не удалось сменить почту.': 'Couldn’t change the email.',
-  'Почты у аккаунта нет — добавьте её, чтобы письма о сделках и входе приходили на неё.': 'The account has no email — add one to get deal and sign-in emails.',
-  'На новую почту придёт ссылка для подтверждения, на прежнюю — письмо со ссылкой «Это не я»: 7 дней её можно вернуть.':
+  'Почты у аккаунта нет. Добавьте её, чтобы письма о сделках и входе приходили на неё.': 'The account has no email — add one to get deal and sign-in emails.',
+  'На новую почту придёт ссылка для подтверждения, на прежнюю письмо со ссылкой «Это не я»: 7 дней её можно вернуть.':
     'The new email will get a confirmation link, and the previous one a letter with an “It wasn’t me” link: it can be restored for 7 days.',
   'На почту придёт ссылка для подтверждения. С почтой можно входить по паролю и восстановить доступ.':
     'A confirmation link will be sent to the email. With an email you can sign in with a password and recover access.',
   'Сменить почту': 'Change email',
   'Добавить почту': 'Add email',
   // Вход через Telegram убран (часть 118)
-  'Входить в один аккаунт по паролю, через Яндекс ID или VK ID — как удобнее.':
+  'Входить в один аккаунт по паролю, через Яндекс ID или VK ID, как удобнее.':
     'Sign in to one account with a password, Yandex ID or VK ID — whichever is easier.',
-  'Вход отключён по закону · уведомления в Telegram — в настройках уведомлений':
+  'Вход отключён по закону · уведомления в Telegram в настройках уведомлений':
     'Sign-in is off by law · Telegram notifications are in notification settings',
-  'Вход через Telegram отключён по закону (149-ФЗ, ч. 10 ст. 8). Чтобы не потерять аккаунт, пока вы в нём, добавьте почту и задайте пароль — выше на этой странице.':
+  'Вход через Telegram отключён по закону (149-ФЗ, ч. 10 ст. 8). Чтобы не потерять аккаунт, пока вы в нём, добавьте почту и задайте пароль выше на этой странице.':
     'Sign-in with Telegram is off by law (Federal Law 149-FZ, Art. 8 Part 10). To keep your account, add an email and set a password while you are signed in — above on this page.',
-  'Вход через Telegram отключён по закону. Добавьте почту и пароль, пока вы в аккаунте, — иначе после выхода войти будет нечем.':
+  'Вход через Telegram отключён по закону. Добавьте почту и пароль, пока вы в аккаунте, иначе после выхода войти будет нечем.':
     'Sign-in with Telegram is off by law. Add an email and a password while you are signed in — otherwise you won’t be able to sign in after signing out.',
   'Добавить почту и пароль': 'Add email and password',
 
@@ -268,15 +268,15 @@ export const ACCOUNT: Record<string, string> = {
   'Не получилось удалить аккаунт. Попробуйте ещё раз.': 'Couldn’t delete the account. Please try again.',
   'Сделок в работе: {n}': 'Deals in progress: {n}',
   'Открытых споров: {n}': 'Open disputes: {n}',
-  'На балансе {sum} — выведите их': '{sum} on your balance — withdraw it',
+  'На балансе {sum}, выведите их': '{sum} on your balance — withdraw it',
   'Заявок на вывод в работе: {n}': 'Withdrawals in progress: {n}',
-  'Вы сотрудник площадки — роль сначала снимает администратор': 'You’re marketplace staff — an administrator must remove your role first',
+  'Вы сотрудник площадки, роль сначала снимает администратор': 'You’re marketplace staff — an administrator must remove your role first',
   'Удалить аккаунт': 'Delete account',
-  'Лоты уйдут из каталога, вход закроется. {days} дней аккаунт можно вернуть входом, потом почта, имя, вход и реквизиты уничтожаются. Сделки и движение денег остаются — без них не исполнить закон и не разобрать спор, ник в них станет «deleted_…».':
+  'Лоты уйдут из каталога, вход закроется. {days} дней аккаунт можно вернуть входом, потом почта, имя, вход и реквизиты уничтожаются. Сделки и движение денег остаются: без них не исполнить закон и не разобрать спор. Ник в них станет «deleted_…».':
     'Your listings leave the catalogue and sign-in closes. For {days} days you can restore the account by signing in; after that your email, name, sign-in and payout details are erased. Deals and money movements stay — they’re needed by law and for disputes; your username in them becomes “deleted_…”.',
   'Сначала доведите до конца:': 'Finish these first:',
-  'Впишите свой ник — это защита от случайного нажатия': 'Type your username — this protects against an accidental click',
-  'На балансе {sum} — меньше минимального вывода. Понимаю, что при удалении они сгорят.':
+  'Впишите свой ник, это защита от случайного нажатия': 'Type your username — this protects against an accidental click',
+  'На балансе {sum}, это меньше минимального вывода. Понимаю, что при удалении они сгорят.':
     '{sum} on your balance — below the minimum withdrawal. I understand it will be forfeited on deletion.',
   'Удаляем…': 'Deleting…',
   // Решения модерации и обжалования (часть 134)
@@ -286,23 +286,23 @@ export const ACCOUNT: Record<string, string> = {
   'Не удалось загрузить решения.': 'Couldn’t load the decisions.',
   'Не удалось отправить обжалование.': 'Couldn’t send the appeal.',
   'Решения модерации': 'Moderation decisions',
-  'Что решили модераторы о вас, ваших лотах и сообщениях, по какому пункту правил и почему. Не согласны — обжалуйте: решит другой сотрудник.':
+  'Что решили модераторы о вас, ваших лотах и сообщениях, по какому пункту правил и почему. Если не согласны, обжалуйте: решит другой сотрудник.':
     'What moderators decided about you, your listings and messages, under which rule and why. Disagree? Appeal — another staff member will decide.',
   'Решений о вас нет.': 'There are no decisions about you.',
   'Пункт {n} правил': 'Rule {n}',
   'Ответим до {date}.': 'We’ll reply by {date}.',
   'Ответ: {note}': 'Reply: {note}',
   'Почему решение неверно': 'Why the decision is wrong',
-  'Обжаловать можно один раз. Решит другой сотрудник, не тот, кто принимал решение, — в течение {hours} ч.':
+  'Обжаловать можно один раз. Решит другой сотрудник, не тот, кто принимал решение, в течение {hours} ч.':
     'You can appeal once. Another staff member, not the one who decided, will answer within {hours} h.',
   'Обжаловать': 'Appeal',
-  'Срок обжалования — {days} дней — прошёл.': 'The {days}-day appeal window has passed.',
+  'Срок обжалования {days} дней прошёл.': 'The {days}-day appeal window has passed.',
   // Поддержка (часть 138)
   'Не удалось сохранить оценку.': 'Couldn’t save the rating.',
   'Ваша оценка ответа: {n} из 5. Можно поменять.': 'Your rating of the reply: {n} of 5. You can change it.',
   'Оцените ответ поддержки': 'Rate the support reply',
   'Оценка от 1 до 5': 'Rating from 1 to 5',
-  'Что можно сделать лучше — необязательно': 'What could be better — optional',
+  'Что можно сделать лучше, необязательно': 'What could be better — optional',
   'Комментарий к оценке': 'Comment on the rating',
   'Оценка автора: {n} из 5': 'Author’s rating: {n} of 5',
   'Заготовка ответа': 'Reply template',
@@ -310,7 +310,7 @@ export const ACCOUNT: Record<string, string> = {
   'Обычно отвечаем за {n} мин': 'We usually reply within {n} min',
   'Обычно отвечаем за {n} ч': 'We usually reply within {n} h',
   // Ссылка на обмен Steam (часть 142)
-  'Сохранили — подставим в следующий заказ.': 'Saved — we’ll prefill it in your next order.',
+  'Сохранили, подставим в следующий заказ.': 'Saved — we’ll prefill it in your next order.',
   'Ссылку стёрли.': 'Link removed.',
   'Ссылка вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=…':
     'The link looks like https://steamcommunity.com/tradeoffer/new/?partner=…&token=…',

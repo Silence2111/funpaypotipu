@@ -36,7 +36,7 @@ export function DealPayouts({
         body: JSON.stringify({ method: 'yoomoney', destination: account.trim() }),
       });
       setAccount('');
-      setNote({ ok: true, text: t('Кошелёк сохранён — ждущие выплаты уйдут на него в течение минуты.') });
+      setNote({ ok: true, text: t('Кошелёк сохранён, ждущие выплаты уйдут на него в течение минуты.') });
       onSaved();
     } catch (err) {
       setNote({ ok: false, text: apiErrorMessage(err, t('Не удалось сохранить кошелёк.')) });
@@ -76,7 +76,7 @@ export function DealPayouts({
         </button>
       </form>
       <p className="hint" style={{ margin: 0 }}>
-        {t('Кошелёк — именной или идентифицированный: на анонимный ЮKassa не выплачивает.')}
+        {t('Кошелёк должен быть именным или идентифицированным: на анонимный ЮKassa не выплачивает.')}
       </p>
     </section>
   );
