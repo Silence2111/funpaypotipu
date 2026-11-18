@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!game || !cat) return { title: t('Раздел не найден') };
   const names = { category: t.d(cat.title), game: t.d(game.title) };
   return {
-    title: t('{category} {game} — купить у продавцов', names),
+    title: t('Купить {category} {game} у продавцов', names),
     // Пустой раздел — без «0 предложений» в сниппете и превью ссылки.
     description: !cat.listingCount
       ? t(

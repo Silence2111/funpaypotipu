@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const a = helpArticle((await params).slug);
   if (!a) return { title: t('Статья не найдена') };
   return {
-    title: t('{title} — помощь', { title: t(a.title) }),
+    title: t('{title}: помощь', { title: t(a.title) }),
     description: t(a.summary),
     alternates: { canonical: `/pomosch/${a.slug}` },
   };
@@ -53,7 +53,7 @@ export default async function HelpArticlePage({ params }: { params: Params }) {
           <div>
             <div style={{ fontWeight: 700 }}>{t('Остались вопросы')}</div>
             <p className="muted" style={{ margin: '2px 0 0', fontSize: 14 }}>
-              {t('Поддержка отвечает в кабинете, а по сделке — пишите в чате заказа.')}
+              {t('Поддержка отвечает в кабинете. По сделке пишите в чате заказа.')}
             </p>
           </div>
           <Link href="/cabinet/support" className="btn secondary">

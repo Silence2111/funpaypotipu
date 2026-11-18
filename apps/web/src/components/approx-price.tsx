@@ -14,7 +14,7 @@ export function ApproxPrice({ minor, currency = 'RUB', style }: { minor: string;
   if (cur === 'RUB' || currency !== 'RUB' || !rates) return null;
   return (
     <span className="faint" style={{ fontSize: 13, fontWeight: 400, letterSpacing: 0, ...style }}
-      title={t('Примерно, по курсу площадки. Оплата — в рублях.')}>
+      title={t('Примерно, по курсу площадки. Оплата в рублях.')}>
       {approx(minor, cur, rates, t.locale)}
     </span>
   );

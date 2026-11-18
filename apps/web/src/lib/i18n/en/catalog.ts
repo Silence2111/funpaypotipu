@@ -1,6 +1,7 @@
 /** Главная, каталог, указатель игр, раздел игры: таблица предложений, фильтры, пополнение, замер выдачи. */
 export const CATALOG: Record<string, string> = {
   // Главная
+  'Не нашли нужное?': 'Didn’t find it?',
   'Игровые товары с гарантией сделки': 'Game goods with a guaranteed deal',
   'Популярные игры и сервисы': 'Popular games and services',
   'Автовыдача': 'Instant delivery',
@@ -10,7 +11,7 @@ export const CATALOG: Record<string, string> = {
   'Деньги лежат у площадки, пока вы не подтвердите, что получили товар.':
     'The marketplace holds the money until you confirm you’ve received the goods.',
   'Типы товаров': 'Product types',
-  'Это демо-стенд. Лоты с пометкой «Пример» — демонстрационные, а оплата проходит без списания денег: платёжный провайдер ещё не подключён.':
+  'Это демо-стенд. Лоты с пометкой «Пример» демонстрационные, оплата проходит без списания денег.':
     'This is a demo site. Listings marked “Sample” are for demonstration, and payments go through without charging any money: the payment provider isn’t connected yet.',
   'Новые предложения': 'New offers',
   'Все игры от А до Я': 'All games A to Z',
@@ -23,17 +24,17 @@ export const CATALOG: Record<string, string> = {
   'Продавец получит оплату, когда вы подтвердите получение.':
     'The seller gets paid when you confirm receipt.',
   'Спор с арбитром': 'Dispute with an arbiter',
-  'Не получили или товар не как в описании — открываете спор, деньги замораживаются до решения.':
+  'Не получили товар или он не как в описании? Откройте спор, деньги заморозятся до решения.':
     'Didn’t receive it, or it’s not as described — open a dispute and the money is frozen until a decision.',
   'Ключи сразу': 'Keys instantly',
-  'Ключи и пополнения выдаются автоматически после оплаты, а с каждой покупки — {pct} кэшбэка на баланс.':
+  'Ключи и пополнения выдаются автоматически после оплаты. С каждой покупки {pct} кэшбэка на баланс.':
     'Keys and top-ups are delivered automatically after payment, and every purchase earns {pct} cashback to your balance.',
   'Ключи и пополнения выдаются автоматически после оплаты.':
     'Keys and top-ups are delivered automatically after payment.',
   'Сколько это стоит': 'What it costs',
   'Ставки конкурентов сверены с их сайтами и справкой 26 сентября 2026 года.':
     'Competitor rates were checked against their websites and help pages on September 26, 2026.',
-  'Комиссия продавца снижается за продажи, рейтинг и подтверждённые документы — до {n} процентных пунктов. Покупатель комиссию площадки не платит.':
+  'Комиссия продавца снижается за продажи, рейтинг и подтверждённые документы, до {n} процентных пунктов. Покупатель комиссию площадки не платит.':
     'The seller fee goes down with sales, rating and verified ID — by up to {n} percentage points. Buyers pay no marketplace fee.',
   'Комиссия продавца': 'Seller fee',
   'в среднем 9%, от 3%': 'average 9%, from 3%',
@@ -50,7 +51,7 @@ export const CATALOG: Record<string, string> = {
   'Комиссия с покупателя': 'Buyer fee',
 
   // Поиск по предложениям
-  'Все предложения — поиск игровых товаров': 'All offers — search game goods',
+  'Все предложения: поиск игровых товаров': 'All offers — search game goods',
   'Поиск по предложениям продавцов: аккаунты, валюта, предметы, ключи, донат и услуги во всех играх.':
     'Search sellers’ offers: accounts, currency, items, keys, top-ups and services in every game.',
   'Сначала поднятые': 'Raised first',
@@ -70,7 +71,7 @@ export const CATALOG: Record<string, string> = {
   Очистить: 'Clear',
   'Сначала большие снижения': 'Biggest drops first',
   'Большие снижения': 'Biggest drops',
-  'Идёт скидка или цена — самая низкая у лота за {n} дней':
+  'Идёт скидка или цена самая низкая у лота за {n} дней':
     'On sale, or the lowest price this offer has had in {n} days',
   'Разделы: {game}': 'Categories: {game}',
   'Найдено: {n}': 'Found: {n}',
@@ -87,18 +88,18 @@ export const CATALOG: Record<string, string> = {
   'Все игры и сервисы от А до Я': 'All games and services A to Z',
   'Игры, мобильные игры и сервисы с разделами: аккаунты, валюта, предметы, ключи, донат и услуги.':
     'Games, mobile games and services with categories: accounts, currency, items, keys, top-ups and services.',
-  '{n} — от А до Я, с разделами.': '{n} — A to Z, with categories.',
+  '{n} от А до Я, с разделами.': '{n} — A to Z, with categories.',
   'Что показать': 'What to show',
   Все: 'All',
   'Каталог пока собирается.': 'The catalog is still being put together.',
   'Игра не найдена': 'Game not found',
-  '{game} — купить у продавцов': '{game} — buy from sellers',
+  'Купить {game} у продавцов': '{game} — buy from sellers',
   '{game}: {sections}. Деньги у площадки, пока вы не подтвердите получение.':
     '{game}: {sections}. The marketplace holds the money until you confirm receipt.',
   'предложения продавцов': 'sellers’ offers',
   'Разделов у игры пока нет.': 'This game has no categories yet.',
   'Раздел не найден': 'Category not found',
-  '{category} {game} — купить у продавцов': '{game} {category} — buy from sellers',
+  'Купить {category} {game} у продавцов': '{game} {category} — buy from sellers',
   '{category} {game}: {offers} от продавцов с рейтингом и отзывами. Деньги у площадки, пока вы не подтвердите получение.':
     '{game} {category}: {offers} from sellers with ratings and reviews. The marketplace holds the money until you confirm receipt.',
   'Буквы указателя': 'Index letters',
@@ -111,36 +112,36 @@ export const CATALOG: Record<string, string> = {
   'Сбросить фильтры': 'Reset filters',
   // Пустой раздел и пустой каталог (часть 114)
   'Предложений пока нет': 'No offers yet',
-  'В разделе «{category}» ещё никто не продаёт. Выставьте лот первым — покупатели раздела увидят его сразу. Покупаете? Оставьте запрос — продавцы предложат лоты, или сохраните поиск.':
+  'В разделе «{category}» ещё никто не продаёт. Выставьте лот первым, покупатели раздела увидят его сразу. Если покупаете, оставьте запрос или сохраните поиск, и продавцы предложат лоты.':
     'Nobody sells in “{category}” yet. List the first item — buyers in this category will see it right away. Buying? Post a request and sellers will offer their listings, or save the search.',
   // Запросы покупателей «Хочу купить» (часть 115)
   'Оставить запрос': 'Post a request',
   'Что вы ищете?': 'What are you looking for?',
-  'Продавцы раздела получат уведомление и предложат свои лоты. Запрос виден {days} дней; контакты в тексте скрываются — договориться можно в чате лота.':
+  'Продавцы раздела получат уведомление и предложат свои лоты. Запрос виден {days} дней. Контакты в тексте скрываются, договориться можно в чате лота.':
     'Sellers in this category will be notified and offer their listings. The request stays up for {days} days; contacts in the text are hidden — you can agree on details in the listing chat.',
   Запрос: 'Request',
   'Что нужно: параметры, регион, к какому сроку': 'What you need: details, region, by when',
-  'До какой цены, ₽ — необязательно': 'Up to what price, ₽ — optional',
-  'Опишите, что ищете, — от 10 символов': 'Describe what you are looking for — at least 10 characters',
+  'До какой цены, ₽, необязательно': 'Up to what price, ₽ — optional',
+  'Опишите, что ищете, от 10 символов': 'Describe what you are looking for — at least 10 characters',
   'Не удалось отправить запрос.': 'Couldn’t send the request.',
-  'Запрос отправлен продавцам раздела — ответы в «Запросах»': 'Request sent to sellers in this category — replies are in “Requests”',
+  'Запрос отправлен продавцам раздела, ответы будут в «Запросах»': 'Request sent to sellers in this category — replies are in “Requests”',
   'Покупатели ищут': 'Buyers are looking for',
-  'Запросы покупателей этого раздела. Есть подходящий лот — предложите: покупателю придёт ссылка на него.':
+  'Запросы покупателей этого раздела. Если у вас есть подходящий лот, предложите его, и покупателю придёт ссылка.':
     'Buyer requests in this category. Have a matching listing? Offer it — the buyer will get a link to it.',
   '{date}, открыт до {until}': '{date}, open until {until}',
   'Предложено лотов: {n}': 'Listings offered: {n}',
   'Предложить лот': 'Offer a listing',
   'Вы предложили: {n}': 'You offered: {n}',
   'Не удалось загрузить ваши лоты.': 'Couldn’t load your listings.',
-  'Лот отправлен покупателю — ему пришла ссылка.': 'Listing sent to the buyer — they got a link.',
+  'Лот отправлен покупателю, ему пришла ссылка.': 'Listing sent to the buyer — they got a link.',
   'Не удалось предложить лот.': 'Couldn’t offer the listing.',
-  'У вас нет лотов в продаже в этом разделе. Выставьте лот — он сразу уйдёт покупателю.':
+  'У вас нет лотов в продаже в этом разделе. Выставьте лот, и он сразу уйдёт покупателю.':
     'You have no listings on sale in this category. List one — it will go to the buyer right away.',
   Предложен: 'Offered',
   'Дороже, чем хочет покупатель': 'Above the buyer’s price',
   Предложить: 'Offer',
   'Выставить новый лот': 'List a new item',
-  'Лот отправлен покупателю в ответ на его запрос — ему пришла ссылка.':
+  'Лот отправлен покупателю в ответ на его запрос, ему пришла ссылка.':
     'The listing was sent to the buyer in reply to their request — they got a link.',
   'Покупателю лот пока не ушёл: предложить можно лот в продаже.':
     'The listing hasn’t been sent to the buyer yet: only a listing on sale can be offered.',
@@ -177,11 +178,11 @@ export const CATALOG: Record<string, string> = {
   'Выставить лот первым': 'List the first item',
   '{category} {game}: покупка у продавцов с рейтингом и отзывами. Деньги у площадки, пока вы не подтвердите получение.':
     '{category} {game}: buy from sellers with ratings and reviews. The money stays with the marketplace until you confirm receipt.',
-  'Покупаете? Откройте игру и сохраните поиск — сообщим о первом предложении.':
+  'Откройте игру и сохраните поиск, и мы сообщим о первом предложении.':
     'Buying? Open the game and save the search — we’ll let you know about the first offer.',
-  'По запросу «{q}» предложений нет — загляните в раздел игры:':
+  'По запросу «{q}» предложений нет. Загляните в раздел игры:':
     'No offers for “{q}” — check the game’s category:',
-  'Площадка только открылась — выставьте лот первым: покупатели увидят его сразу.':
+  'Площадка только открылась. Выставьте лот первым, покупатели увидят его сразу.':
     'The marketplace has just opened — list the first item and buyers will see it right away.',
 
   // Фильтры раздела
@@ -208,7 +209,7 @@ export const CATALOG: Record<string, string> = {
   // Поиск по играм
   'Поиск по {n} играм и сервисам': 'Search {n} games and services',
   Подсказки: 'Suggestions',
-  'Игры с таким названием нет — поищем среди предложений.':
+  'Игры с таким названием нет. Поищем среди предложений.':
     'No game with that name — we’ll search the offers.',
   'Искать «{q}» в предложениях': 'Search offers for “{q}”',
   'Поиск лотов и игр…': 'Search listings and games…',
@@ -232,7 +233,7 @@ export const CATALOG: Record<string, string> = {
   'Продавец {name}': 'Seller {name}',
   'условия лота': 'listing terms',
   'Пополнить {game}': 'Top up {game}',
-  'Без пароля — нужен только логин': 'No password needed — just your login',
+  'Нужен только логин, пароль не нужен': 'No password needed — just your login',
 
   // Пополнение баланса
   'Введите сумму в рублях, например 1000': 'Enter an amount in rubles, for example 1000',
@@ -272,7 +273,7 @@ export const CATALOG: Record<string, string> = {
   'до {price}': 'up to {price}',
   '«{q}»': '“{q}”',
   'Убрать цену {price}': 'Remove price {price}',
-  'Цена — целым числом рублей больше нуля.':
+  'Цена целым числом рублей больше нуля.':
     'Enter the price as a whole number of rubles above zero.',
   'Не удалось сохранить поиск.': 'Couldn’t save the search.',
   'Поиск сохранён, уведомления включены': 'Search saved, notifications on',
@@ -282,7 +283,7 @@ export const CATALOG: Record<string, string> = {
   'Цена до, ₽': 'Price up to, ₽',
   'Без предела': 'No limit',
   'Уведомлять о новых предложениях': 'Notify me about new offers',
-  'Новый подходящий лот придёт уведомлением — на сайте, в Telegram или пушем, как настроено в уведомлениях. О каждом лоте — один раз.':
+  'Новый подходящий лот придёт уведомлением на сайте, в Telegram или пушем, как настроено в уведомлениях. О каждом лоте один раз.':
     'A new matching listing will come as a notification — on the site, in Telegram or as a push, as set in your notification settings. Once per listing.',
 
   // Закрытые разделы (часть 122)
@@ -291,7 +292,7 @@ export const CATALOG: Record<string, string> = {
   'Продажа в разделе закрыта правилами площадки.': 'Sales in this section are closed by the marketplace rules.',
   'Что нельзя продавать на GameMarket': 'What you can’t sell on GameMarket',
   // Общий чат игры (часть 133)
-  'Контакты и ссылки скрыты: договариваться и платить — только через лоты.':
+  'Контакты и ссылки скрыты. Договариваться и платить можно только через лоты.':
     'Contacts and links are hidden: agree and pay only through listings.',
   'Писать в чаты игр нельзя до {until}. Причина: {reason}': 'You can’t post in game chats until {until}. Reason: {reason}',
   'нарушение правил чата': 'breaking the chat rules',
@@ -299,7 +300,7 @@ export const CATALOG: Record<string, string> = {
   'Удалить сообщение?': 'Delete the message?',
   'Не удалось удалить сообщение.': 'Couldn’t delete the message.',
   'Чат игры {game}': '{game} chat',
-  'Общий чат: ищут и предлагают. Контакты и ссылки скрываются — сделки только через лоты, иначе защиты сделки нет.':
+  'Общий чат игры. Контакты и ссылки скрываются, сделки проходят только через лоты.':
     'A shared chat for asks and offers. Contacts and links are hidden — deal only through listings, or there is no deal protection.',
   'Пока тихо. Напишите первым: что ищете или что предлагаете.': 'Quiet so far. Be the first: say what you’re looking for or offering.',
   'Например: скупаю скины, кто продаст голду': 'E.g. buying skins, who sells gold',

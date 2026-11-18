@@ -61,7 +61,7 @@ function PhoneLogin() {
 
   async function sendCode(e?: FormEvent) {
     e?.preventDefault();
-    if (!normalizeRuPhone(phone)) return setMsg(t('Номер — российский мобильный: +7 9XX XXX-XX-XX'));
+    if (!normalizeRuPhone(phone)) return setMsg(t('Нужен российский мобильный номер: +7 9XX XXX-XX-XX'));
     setBusy(true);
     setMsg(null);
     try {
@@ -104,7 +104,7 @@ function PhoneLogin() {
           setUsername((u) => u || body.suggested || '');
           break;
         case 'username_taken':
-          setMsg(body.suggested ? t('Ник занят — например, свободен {name}', { name: body.suggested }) : t('Ник занят'));
+          setMsg(body.suggested ? t('Ник занят. Свободен, например, {name}', { name: body.suggested }) : t('Ник занят'));
           break;
         case 'consent_required':
           setMsg(t('Без согласия на обработку персональных данных аккаунт не создать'));
@@ -118,7 +118,7 @@ function PhoneLogin() {
           break;
         case 'phone_expired':
           setStep('phone');
-          setMsg(apiErrorMessage(err, t('Вход по номеру устарел — запросите код заново')));
+          setMsg(apiErrorMessage(err, t('Вход по номеру устарел, запросите код заново')));
           break;
         default:
           setMsg(apiErrorMessage(err, t('Не получилось войти. Попробуйте ещё раз.')));
@@ -129,7 +129,7 @@ function PhoneLogin() {
 
   async function checkCode(e: FormEvent) {
     e.preventDefault();
-    if (!/^\d{6}$/.test(code.trim())) return setMsg(t('Код — 6 цифр из SMS'));
+    if (!/^\d{6}$/.test(code.trim())) return setMsg(t('Код из SMS, 6 цифр'));
     setBusy(true);
     setMsg(null);
     try {
@@ -148,7 +148,7 @@ function PhoneLogin() {
   function submitUsername(e: FormEvent) {
     e.preventDefault();
     const u = username.trim().toLowerCase();
-    if (!USERNAME_RE.test(u)) return setMsg(t('Ник — строчные латинские буквы, цифры и _, от 3 символов'));
+    if (!USERNAME_RE.test(u)) return setMsg(t('Ник: строчные латинские буквы, цифры и _, от 3 символов'));
     if (!agreed) return setMsg(t('Без согласия с правилами аккаунт не создать'));
     if (!pdConsent) return setMsg(t('Без согласия на обработку персональных данных аккаунт не создать'));
     void finish({ username: u, pdConsent: true });
@@ -167,13 +167,13 @@ function PhoneLogin() {
       </h1>
       <p className="muted" style={{ margin: '8px 0 0' }}>
         {step === 'username'
-          ? t('Номер подтверждён. Выберите ник — по нему вас найдут покупатели и продавцы.')
-          : t('Пришлём код в SMS. Новый номер — новый аккаунт, знакомый — вход в ваш.')}
+          ? t('Номер подтверждён. Выберите ник, по нему вас найдут покупатели и продавцы.')
+          : t('Пришлём код в SMS. С новым номером создадим аккаунт, со знакомым войдёте в свой.')}
       </p>
 
       {enabled === false && (
         <div className="alert" role="status" style={{ marginTop: 20 }}>
-          {t('Вход по телефону пока не работает — войдите по почте, через Яндекс ID или VK ID.')}{' '}
+          {t('Вход по телефону пока не работает. Войдите по почте, через Яндекс ID или VK ID.')}{' '}
           <Link href={`/login?next=${encodeURIComponent(next)}`} style={{ color: 'var(--accent)' }}>
             {t('Ко входу')}
           </Link>
@@ -205,7 +205,7 @@ function PhoneLogin() {
               inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456" />
             <p className="hint">
               {wait > 0 ? (
-                t('Новый код — через {n} сек.', { n: wait })
+                t('Новый код через {n} сек.', { n: wait })
               ) : (
                 <button type="button" className="link-button" disabled={busy} onClick={() => void sendCode()}>
                   {t('Отправить код ещё раз')}
@@ -230,7 +230,7 @@ function PhoneLogin() {
             <label className="label" htmlFor="totp">{t('Код из приложения-аутентификатора')}</label>
             <input id="totp" className="input" autoFocus value={totp} onChange={(e) => setTotp(e.target.value)}
               inputMode="numeric" autoComplete="one-time-code" maxLength={20} placeholder="123456" />
-            <p className="hint">{t('У аккаунта включена двухфакторная защита — она действует и при входе по номеру.')}</p>
+            <p className="hint">{t('У аккаунта включена двухфакторная защита, она действует и при входе по номеру.')}</p>
           </div>
           {error}
           <button className="btn lg block" type="submit" disabled={busy || !totp.trim()}>
@@ -274,7 +274,7 @@ function PhoneLogin() {
         <div className="card stack-form" style={box}>
           <p style={{ margin: 0 }}>
             {eraseAt
-              ? t('Аккаунт удалён. До {date} его можно вернуть — лоты останутся в архиве.', {
+              ? t('Аккаунт удалён. До {date} его можно вернуть, лоты останутся в архиве.', {
                   date: new Date(eraseAt).toLocaleDateString(t.locale),
                 })
               : t('Аккаунт удалён. Его можно вернуть в течение 30 дней после удаления.')}

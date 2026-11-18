@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t('Продавать на GameMarket'),
     description: t(
-      'Сколько вы получите с продажи скина, ключа или валюты — комиссия, вывод и сумма на руки до регистрации, рядом со ставками FunPay и Playerok.',
+      'Сколько вы получите с продажи скина, ключа или валюты: комиссия, вывод и сумма на руки до регистрации, рядом со ставками FunPay и Playerok.',
     ),
     alternates: { canonical: `${SITE}/prodavat` },
   };
@@ -47,7 +47,7 @@ export default async function SellPage() {
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>{t('Продавать на GameMarket')}</h1>
         <p className="lead">
-          {t('Посчитайте, сколько получите с продажи, — до регистрации. Комиссия берётся только с проданного, выставлять лоты бесплатно.')}
+          {t('Посчитайте, сколько получите с продажи, ещё до регистрации. Комиссия берётся только с проданного, выставлять лоты бесплатно.')}
         </p>
         {/* Кнопка — в первом экране телефона: калькулятор её ниже уводит. */}
         <Link href="/cabinet/new" className="btn" style={{ marginTop: 16 }}>
@@ -64,7 +64,7 @@ export default async function SellPage() {
           initialPrice={START.price}
         />
       ) : (
-        <p className="muted">{t('Калькулятор сейчас недоступен — попробуйте обновить страницу.')}</p>
+        <p className="muted">{t('Калькулятор сейчас недоступен. Попробуйте обновить страницу.')}</p>
       )}
 
       {start && <MoveLots games={games} initialGame={start.slug} />}
@@ -75,23 +75,23 @@ export default async function SellPage() {
           <li className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
             <ShieldCheck size={20} strokeWidth={1.75} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
             <span>
-              {t('Покупатель платит площадке, деньги ждут в сделке. Выдали товар, покупатель подтвердил — деньги на вашем балансе.')}
+              {t('Покупатель платит площадке, деньги ждут в сделке. Вы выдали товар, покупатель подтвердил, и деньги на вашем балансе.')}
               {pricing?.autoConfirmHours !== undefined && (
                 <span className="faint">
                   {' '}
-                  {t('Не подтвердил и не открыл спор — через {h} ч подтверждение само.', { h: pricing.autoConfirmHours })}
+                  {t('Если покупатель не подтвердил и не открыл спор, через {h} ч сделка подтвердится сама.', { h: pricing.autoConfirmHours })}
                 </span>
               )}
             </span>
           </li>
           <li className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
             <Zap size={20} strokeWidth={1.75} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
-            <span>{t('Ключи и коды можно выдавать автоматически: загрузите их на склад лота — покупатель получит сразу после оплаты.')}</span>
+            <span>{t('Ключи и коды можно выдавать автоматически. Загрузите их на склад лота, и покупатель получит товар сразу после оплаты.')}</span>
           </li>
           <li className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
             <Zap size={20} strokeWidth={1.75} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
             <span>
-              {t('Свой бот или склад — через API по ключу, без пароля от аккаунта.')}{' '}
+              {t('Свой бот или склад подключается через API по ключу, пароль от аккаунта не нужен.')}{' '}
               <Link href="/prodavat/api" style={{ color: 'var(--accent)' }}>{t('API для продавцов')}</Link>
             </span>
           </li>
@@ -99,7 +99,7 @@ export default async function SellPage() {
             <li className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
               <Clock size={20} strokeWidth={1.75} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
               <span>
-                {t('Ручная выдача — в течение {h} ч после оплаты, иначе заказ отменится и деньги вернутся покупателю.', {
+                {t('При ручной выдаче на неё есть {h} ч после оплаты. Иначе заказ отменится и деньги вернутся покупателю.', {
                   h: pricing.fulfillHours,
                 })}
               </span>
@@ -109,7 +109,7 @@ export default async function SellPage() {
             <li className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
               <Percent size={20} strokeWidth={1.75} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
               <span>
-                {t('Вывод на карту, СБП и ЮMoney — {pct}, в USDT — {usdt}. Комиссия продавца снижается за продажи, рейтинг и проверенные документы.', {
+                {t('Вывод на карту, СБП и ЮMoney {pct}, в USDT {usdt}. Комиссия продавца снижается за продажи, рейтинг и проверенные документы.', {
                   pct: pct(sbp.feePct),
                   usdt: pct(pricing.withdrawal.find((w) => w.key === 'usdt')?.feePct ?? 0),
                 })}

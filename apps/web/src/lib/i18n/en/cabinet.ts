@@ -408,7 +408,7 @@ export const CABINET: Record<string, string> = {
   'Промокод продавца {code}: −{sum}': 'Seller’s promo code {code}: −{sum}',
   'Промокод не подошёл.': 'The promo code didn’t work.',
   Применить: 'Apply',
-  'Скидка продавца {pct}% — уже в цене.': 'Seller’s discount {pct}% — already in the price.',
+  'Скидка продавца {pct}% уже в цене.': 'Seller’s discount {pct}% — already in the price.',
   'Промокод площадки: скидка учтётся в сумме заказа.':
     'Marketplace promo code: the discount will be applied to the order total.',
   'без срока': 'no end date',
@@ -462,8 +462,8 @@ export const CABINET: Record<string, string> = {
   'Скидка за количество': 'Quantity discount',
   'Скидка за количество {pct}%: −{sum}': 'Quantity discount {pct}%: −{sum}',
   'Оптом дешевле: {tiers}': 'Cheaper in bulk: {tiers}',
-  'от {qty} — {pct}%': 'from {qty} — {pct}%',
-  'Взять {qty} — скидка {pct}%': 'Take {qty} — {pct}% off',
+  'от {qty}: {pct}%': 'from {qty} — {pct}%',
+  'Взять {qty}, скидка {pct}%': 'Take {qty} — {pct}% off',
   'От, {unit}': 'From, {unit}',
   'Ступень {n}: от какого количества': 'Tier {n}: starting quantity',
   'Ступень {n}: скидка, %': 'Tier {n}: discount, %',
@@ -591,9 +591,9 @@ export const CABINET: Record<string, string> = {
   'Начисления — на баланс, вывести их можно из кошелька, как деньги за продажи. Не считаются: сделки с вами самим, спорные сделки и аккаунты, созданные с того же устройства или адреса, что и ваш.':
     'Rewards go to your balance and can be withdrawn from the wallet like sale proceeds. Not counted: deals with you yourself, disputed deals and accounts created from the same device or address as yours.',
   'Код партнёра': 'Partner code',
-  'Если вас пригласили — необязательно': 'If someone invited you — optional',
+  'Если вас пригласили, необязательно': 'If someone invited you — optional',
   'Есть код партнёра?': 'Have a partner code?',
-  'Код партнёра — 6–12 латинских букв и цифр': 'A partner code is 6–12 Latin letters and digits',
+  'Код партнёра: 6–12 латинских букв и цифр': 'A partner code is 6–12 Latin letters and digits',
 
   // Закрытые разделы и проверка лотов (часть 122)
   'На проверке': 'Under review',
@@ -621,7 +621,7 @@ export const CABINET: Record<string, string> = {
   'Кошелёк ЮMoney для выплат': 'YooMoney wallet for payouts',
   'Кошелёк — именной или идентифицированный: на анонимный ЮKassa не выплачивает.':
     'The wallet must be named or identified: YooKassa doesn’t pay out to anonymous wallets.',
-  'Оплата через «Безопасную сделку» ЮKassa: деньги держит ЮKassa, продавец получит их после вашего подтверждения, возврат — на карту.':
+  'Оплата через «Безопасную сделку» ЮKassa. Деньги держит ЮKassa, продавец получит их после вашего подтверждения, возврат на карту.':
     'Payment through a YooKassa Safe Deal: YooKassa holds the money, the seller gets it after you confirm, refunds go back to your card.',
   // Удержания и срок проверки вывода (часть 134)
   'Удержано': 'On hold',

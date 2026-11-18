@@ -40,7 +40,7 @@ export function PhoneCard() {
 
   async function send(e?: FormEvent) {
     e?.preventDefault();
-    if (!normalizeRuPhone(phone)) return setNote({ ok: false, text: t('Номер — российский мобильный: +7 9XX XXX-XX-XX') });
+    if (!normalizeRuPhone(phone)) return setNote({ ok: false, text: t('Нужен российский мобильный номер: +7 9XX XXX-XX-XX') });
     setBusy(true);
     setNote(null);
     try {
@@ -122,7 +122,7 @@ export function PhoneCard() {
                   inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456" autoFocus />
                 <p className="hint">
                   {wait > 0 ? (
-                    t('Новый код — через {n} сек.', { n: wait })
+                    t('Новый код через {n} сек.', { n: wait })
                   ) : (
                     <button type="button" className="link-button" disabled={busy} onClick={() => void send()}>
                       {t('Отправить код ещё раз')}

@@ -6,7 +6,7 @@ export const AUTH: Record<string, string> = {
   'Аккаунт продавца': 'Seller account',
   'Один аккаунт и для покупок, и для продаж. После регистрации сразу откроется форма лота.':
     'One account for buying and selling. After sign-up, the listing form opens right away.',
-  'Бесплатно. Один аккаунт — и покупать, и продавать.': 'Free. One account to buy and sell.',
+  'Бесплатно. Один аккаунт, чтобы покупать и продавать.': 'Free. One account to buy and sell.',
   'Войдите, чтобы купить, продать или открыть заказ.': 'Sign in to buy, sell or open an order.',
   Почта: 'Email',
   'name@mail.ru': 'name@example.com',
@@ -14,14 +14,14 @@ export const AUTH: Record<string, string> = {
   'Нужен вид name@mail.ru': 'Use the format name@example.com',
   'Имя в профиле': 'Profile name',
   'Например, nightfox': 'For example, nightfox',
-  'Имя в профиле — от 3 символов, его увидят продавцы и покупатели':
+  'Имя в профиле от 3 символов, его увидят продавцы и покупатели':
     'Profile name must be at least 3 characters — sellers and buyers will see it',
   'Строчные латинские буквы, цифры и _, от 3 символов':
     'Lowercase Latin letters, digits and _, at least 3 characters',
   Пароль: 'Password',
   'Придумайте пароль': 'Create a password',
   'Введите пароль': 'Enter your password',
-  'Пароль — не короче 8 символов': 'Password must be at least 8 characters',
+  'Пароль не короче 8 символов': 'Password must be at least 8 characters',
   'Не короче 8 символов': 'At least 8 characters',
   'Мне есть 18 лет, я принимаю': 'I’m 18 or older, I accept the',
   правила: 'rules',
@@ -49,9 +49,9 @@ export const AUTH: Record<string, string> = {
   'Шесть цифр из Google Authenticator, 1Password или похожего.':
     'Six digits from Google Authenticator, 1Password or a similar app.',
   'Ввести код из приложения': 'Enter an authenticator code',
-  'Нет телефона — ввести резервный код': 'No phone — enter a backup code',
+  'Нет телефона? Введите резервный код': 'No phone — enter a backup code',
   '← Другая почта или пароль': '← Different email or password',
-  'У аккаунта включена двухфакторная защита — она действует и при входе через сервис.':
+  'У аккаунта включена двухфакторная защита, она действует и при входе через сервис.':
     'Two-factor protection is on for this account — it also applies when you sign in with a service.',
 
   // Вход через сервисы
@@ -74,13 +74,13 @@ export const AUTH: Record<string, string> = {
   '{name}, вы входите через {via} впервые.':
     '{name}, you’re signing in with {via} for the first time.',
   'Вы входите через {via} впервые.': 'You’re signing in with {via} for the first time.',
-  'Выберите ник — по нему вас найдут покупатели и продавцы, сменить его потом нельзя.':
+  'Выберите ник. По нему вас найдут покупатели и продавцы, сменить его потом нельзя.':
     'Choose a username — buyers and sellers will find you by it, and it can’t be changed later.',
   Ник: 'Username',
-  'Ник — строчные латинские буквы, цифры и _, от 3 символов':
+  'Ник: строчные латинские буквы, цифры и _, от 3 символов':
     'Username: lowercase Latin letters, digits and _, at least 3 characters',
   'Ник занят': 'Username is taken',
-  'Ник занят — например, свободен {name}': 'Username is taken — {name} is available, for example',
+  'Ник занят. Свободен, например, {name}': 'Username is taken — {name} is available, for example',
   'Вход не завершён. Начните заново.': 'Sign-in wasn’t completed. Start again.',
   'Ко входу': 'Back to sign in',
 
@@ -221,8 +221,8 @@ export const AUTH: Record<string, string> = {
   'Без согласия на обработку персональных данных аккаунт не создать':
     'You can’t create an account without consent to the processing of personal data',
   'Не удалось загрузить согласие.': 'Couldn’t load the consent.',
-  'Согласие дано — спасибо.': 'Consent given — thank you.',
-  'Согласие отозвано. Подборки и предложения больше не придут. Через 30 дней уничтожим имя на витрине, «о себе», аватар, историю входов, сохранённые поиски и подписки, если не дадите согласие снова. Сделки, деньги и вход по почте остаются — это договор и закон.':
+  'Согласие дано, спасибо.': 'Consent given — thank you.',
+  'Согласие отозвано. Подборки и предложения больше не придут. Через 30 дней уничтожим имя на витрине, «о себе», аватар, историю входов, сохранённые поиски и подписки, если не дадите согласие снова. Сделки, деньги и вход по почте остаются по договору и закону.':
     'Consent withdrawn. You won’t get recommendations and offers any more. In 30 days we’ll erase your display name, “about”, avatar, sign-in history, saved searches and subscriptions unless you give consent again. Deals, money and email sign-in stay — that’s the contract and the law.',
   дано: 'given',
   'не дано': 'not given',
@@ -237,7 +237,7 @@ export const AUTH: Record<string, string> = {
   'Отозвать согласие': 'Withdraw consent',
   'Отзыв записывается с датой. Подборки и предложения перестанут приходить сразу, а через 30 дней уничтожим то, что обрабатывали только по согласию: имя на витрине, «о себе», аватар, историю входов, поиски и подписки. Сделки, расчёты и вход останутся.':
     'The withdrawal is recorded with a date. Recommendations and offers stop right away, and in 30 days we’ll erase what we processed only with your consent: display name, “about”, avatar, sign-in history, searches and subscriptions. Deals, payments and sign-in stay.',
-  'Подтвердите согласие на обработку персональных данных — теперь оно оформляется отдельно от оферты.':
+  'Подтвердите согласие на обработку персональных данных. Теперь оно оформляется отдельно от оферты.':
     'Please confirm your consent to the processing of personal data — it is now given separately from the offer.',
   Позже: 'Later',
   'при регистрации по почте': 'when signing up by email',
@@ -247,7 +247,7 @@ export const AUTH: Record<string, string> = {
   'в кабинете': 'in your account',
 
   // Удаление аккаунта (часть 124)
-  'Аккаунт удалён. До {date} его можно вернуть — лоты останутся в архиве.':
+  'Аккаунт удалён. До {date} его можно вернуть, лоты останутся в архиве.':
     'Account deleted. You can restore it until {date} — listings stay archived.',
   'Аккаунт удалён. Его можно вернуть в течение 30 дней после удаления.':
     'Account deleted. You can restore it within 30 days of deletion.',
@@ -256,24 +256,24 @@ export const AUTH: Record<string, string> = {
   // Вход по номеру телефона (часть 121)
   'Привязан номер телефона? Войдите по нему — код придёт в SMS, а новый пароль задайте в «Безопасности».': 'Have a phone number linked? Sign in with it — the code comes by SMS — then set a new password in “Security”.',
   'Войти по номеру телефона': 'Sign in with phone number',
-  'Номер — российский мобильный: +7 9XX XXX-XX-XX': 'The number must be a Russian mobile: +7 9XX XXX-XX-XX',
+  'Нужен российский мобильный номер: +7 9XX XXX-XX-XX': 'The number must be a Russian mobile: +7 9XX XXX-XX-XX',
   'Не удалось отправить код. Попробуйте ещё раз.': 'Couldn’t send the code. Please try again.',
-  'Вход по номеру устарел — запросите код заново': 'Phone sign-in has expired — request a code again',
-  'Код — 6 цифр из SMS': 'The code is the 6 digits from the SMS',
+  'Вход по номеру устарел, запросите код заново': 'Phone sign-in has expired — request a code again',
+  'Код из SMS, 6 цифр': 'The code is the 6 digits from the SMS',
   'Код не подошёл': 'Wrong code',
   'Вход по номеру телефона': 'Sign in with phone number',
-  'Номер подтверждён. Выберите ник — по нему вас найдут покупатели и продавцы.': 'Number confirmed. Choose a username — buyers and sellers will find you by it.',
-  'Пришлём код в SMS. Новый номер — новый аккаунт, знакомый — вход в ваш.': 'We’ll text you a code. A new number creates a new account; a known one signs you in.',
-  'Вход по телефону пока не работает — войдите по почте, через Яндекс ID или VK ID.': 'Phone sign-in isn’t available yet — sign in with email, Yandex ID or VK ID.',
+  'Номер подтверждён. Выберите ник, по нему вас найдут покупатели и продавцы.': 'Number confirmed. Choose a username — buyers and sellers will find you by it.',
+  'Пришлём код в SMS. С новым номером создадим аккаунт, со знакомым войдёте в свой.': 'We’ll text you a code. A new number creates a new account; a known one signs you in.',
+  'Вход по телефону пока не работает. Войдите по почте, через Яндекс ID или VK ID.': 'Phone sign-in isn’t available yet — sign in with email, Yandex ID or VK ID.',
   'Номер телефона': 'Phone number',
   'Только российский мобильный номер: так требует закон о входе на сайты.': 'Russian mobile numbers only: that’s what the law on website sign-in requires.',
   'Получить код': 'Get code',
   'Код из SMS на {phone}': 'Code from the SMS sent to {phone}',
   'Код из SMS': 'Code from the SMS',
-  'Новый код — через {n} сек.': 'New code in {n} s',
+  'Новый код через {n} сек.': 'New code in {n} s',
   'Отправить код ещё раз': 'Send the code again',
   'Другой номер': 'Another number',
-  'У аккаунта включена двухфакторная защита — она действует и при входе по номеру.': 'This account has two-factor protection — it applies to phone sign-in too.',
+  'У аккаунта включена двухфакторная защита, она действует и при входе по номеру.': 'This account has two-factor protection — it applies to phone sign-in too.',
   'Войти по почте или через сервис': 'Sign in with email or a service',
   'при входе по номеру телефона': 'when signing in with a phone number',
   'Номер привязан — теперь по нему можно войти.': 'Number linked — you can now sign in with it.',

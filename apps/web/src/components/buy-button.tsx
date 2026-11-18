@@ -204,7 +204,7 @@ export function BuyButton({
               <p className="hint" style={{ margin: 0 }}>
                 {t('Оптом дешевле: {tiers}', {
                   tiers: tiers
-                    .map((x) => t('от {qty} — {pct}%', { qty: formatQty(x.from, qtyOffer.unitName, t), pct: x.pct }))
+                    .map((x) => t('от {qty}: {pct}%', { qty: formatQty(x.from, qtyOffer.unitName, t), pct: x.pct }))
                     .join(' · '),
                 })}
               </p>
@@ -219,7 +219,7 @@ export function BuyButton({
               {reachable && (
                 <button type="button" className="chip" style={{ justifySelf: 'start' }}
                   onClick={() => { setQtyInput(String(reachable.from)); setErr(null); }}>
-                  {t('Взять {qty} — скидка {pct}%', {
+                  {t('Взять {qty}, скидка {pct}%', {
                     qty: formatQty(reachable.from, qtyOffer.unitName, t),
                     pct: reachable.pct,
                   })}
@@ -253,7 +253,7 @@ export function BuyButton({
               )}
             </div>
           ))}
-          <p className="hint" style={{ margin: 0 }}>{t('Продавец увидит это в заказе — переписываться не придётся.')}</p>
+          <p className="hint" style={{ margin: 0 }}>{t('Продавец увидит это в заказе, переписываться не придётся.')}</p>
         </div>
       )}
 
@@ -289,7 +289,7 @@ export function BuyButton({
             </button>
           </div>
           {promoInfo?.source === 'seller' ? (
-            <p className="promo-applied">{t('Скидка продавца {pct}% — уже в цене.', { pct: promoInfo.percent ?? 0 })}</p>
+            <p className="promo-applied">{t('Скидка продавца {pct}% уже в цене.', { pct: promoInfo.percent ?? 0 })}</p>
           ) : promoInfo ? (
             <p className="promo-applied">{t('Промокод площадки: скидка учтётся в сумме заказа.')}</p>
           ) : promoErr ? (
@@ -309,7 +309,7 @@ export function BuyButton({
             <span className="hint" style={{ display: 'block' }}>
               {promoInfo?.source === 'platform'
                 ? t('С промокодом площадки бонусы спишутся в пределах оставшейся скидки.')
-                : t('Всего бонусов {sum}. Скидка — из вознаграждения площадки, продавец получит столько же.', {
+                : t('Всего бонусов {sum}. Скидка идёт из вознаграждения площадки, продавец получит столько же.', {
                     sum: formatPrice(bonus.balance.toString(), currency, t),
                   })}
             </span>

@@ -118,7 +118,7 @@ export function ReportButton({
             value={details}
             onChange={(e) => setDetails(e.target.value)}
             maxLength={2000}
-            placeholder={t('Подробности для модератора — необязательно')}
+            placeholder={t('Подробности для модератора, необязательно')}
             aria-label={t('Подробности')}
             style={{ resize: 'vertical', marginTop: 12 }}
           />

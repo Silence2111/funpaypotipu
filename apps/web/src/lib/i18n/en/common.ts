@@ -1,11 +1,13 @@
 /** Общее: шапка, подвал, нижняя панель, меню профиля, цены, «в сети». */
 export const COMMON: Record<string, string> = {
+  Покупателям: 'For buyers',
+  Продавцам: 'For sellers',
   // Шапка и подвал
-  'GameMarket — маркетплейс цифровых игровых товаров':
+  'GameMarket, маркетплейс цифровых игровых товаров':
     'GameMarket — marketplace for digital game goods',
   'Безопасная покупка игровых аккаунтов, валюты, предметов, ключей и пополнений с защитой сделки (эскроу).':
     'Buy game accounts, currency, items, keys and top-ups safely, with escrow protection on every deal.',
-  'лоты с пометкой «Пример» — демонстрационные': 'listings marked “Sample” are for demonstration',
+  'лоты с пометкой «Пример» демонстрационные': 'listings marked “Sample” are for demonstration',
   Документы: 'Documents',
   Помощь: 'Help',
   'Правила и гарантии': 'Rules and guarantees',
@@ -15,7 +17,7 @@ export const COMMON: Record<string, string> = {
   'Как мы меряем выдачу': 'How we measure delivery',
   'Валюта цен': 'Price currency',
   'Валюта показа цен. Оплата — в рублях.': 'Currency for displaying prices. Payment is in rubles.',
-  'Примерно, по курсу площадки. Оплата — в рублях.':
+  'Примерно, по курсу площадки. Оплата в рублях.':
     'Approximate, at the marketplace rate. Payment is in rubles.',
   'Установить приложение': 'Install app',
   'Каталог игр': 'Game catalog',
@@ -40,7 +42,7 @@ export const COMMON: Record<string, string> = {
 
   // 404
   'Страница не найдена': 'Page not found',
-  'Похоже, этот лот уже купили, а страницу — телепортировали. Но в каталоге ещё много всего.':
+  'Такой страницы нет. Возможно, лот уже купили. Посмотрите похожие в каталоге.':
     'Looks like this listing has been sold and the page teleported away. There’s plenty more in the catalog.',
   'В каталог': 'Go to catalog',
   'На главную': 'Home page',

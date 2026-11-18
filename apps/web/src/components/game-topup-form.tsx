@@ -298,7 +298,7 @@ export function GameTopupForm({
             {t('Пополнить {game}', { game: t.d(game.title) })}
           </h2>
           <p className="faint" style={{ margin: 0, fontSize: 13 }}>
-            {t('Без пароля — нужен только логин')}
+            {t('Нужен только логин, пароль не нужен')}
           </p>
         </div>
       </div>

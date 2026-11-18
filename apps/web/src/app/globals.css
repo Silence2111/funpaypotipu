@@ -5654,3 +5654,37 @@ a.my-lot-title:hover {
   .game-hero__id { gap: 12px; }
   .game-hero__id .gicon { width: 48px !important; height: 48px !important; }
 }
+
+/* Раздел игры: фильтры, поиск и сортировка одним рядом на широком экране */
+@media (min-width: 1100px) {
+  .filters { flex-wrap: nowrap; }
+  .filters-inline { flex: 0 0 auto; flex-wrap: nowrap; }
+  .filters-side { flex: 1 1 0; min-width: 0; flex-wrap: nowrap; }
+  .filter-search { flex: 1 1 auto; min-width: 150px; max-width: none; }
+  .filters .chip, .filters .filter-select { white-space: nowrap; }
+}
+/* «Не нашли нужное?» — тихая строка под списком */
+.save-search-row--after { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 16px; }
+/* Чат игры свёрнут в строку */
+.game-chat-fold { margin-top: 28px; border-radius: var(--radius); background: var(--bg); box-shadow: inset 0 0 0 1px var(--border); }
+.game-chat-fold > summary { cursor: pointer; list-style: none; padding: 16px 20px; font-weight: 600; display: flex; justify-content: space-between; }
+.game-chat-fold > summary::-webkit-details-marker { display: none; }
+.game-chat-fold > summary::after { content: '+'; color: var(--fg-faint); font-weight: 400; font-size: 20px; line-height: 1; }
+.game-chat-fold[open] > summary::after { content: '−'; }
+.game-chat-fold > .card { margin-top: 0 !important; box-shadow: none; background: transparent; border: 0; padding-top: 0 !important; }
+.game-chat-fold > .card > h2 { display: none !important; }
+
+/* Подвал колонками */
+.site-footer { margin-top: 72px; background: var(--bg); border-top: 1px solid var(--border); padding: 44px 0 28px; }
+.site-footer__grid { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); gap: 28px; }
+.site-footer__brand p { margin: 12px 0 0; max-width: 340px; font-size: 14px; line-height: 1.55; color: var(--fg-faint); }
+.site-footer nav { display: flex; flex-direction: column; gap: 9px; font-size: 14px; }
+.site-footer nav b { font-size: 14px; font-weight: 600; color: var(--fg); margin-bottom: 3px; }
+.site-footer nav a { color: var(--fg-muted); text-decoration: none; }
+.site-footer nav a:hover { color: var(--accent); }
+.site-footer__bottom { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+  padding-top: 18px; border-top: 1px solid var(--border); }
+.site-footer__bottom p { margin: 0; font-size: 13px; color: var(--fg-faint); }
+.site-footer__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+@media (max-width: 860px) { .site-footer__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .site-footer__brand { grid-column: 1 / -1; } }
+@media (max-width: 640px) { .site-footer { padding-bottom: 96px; } }

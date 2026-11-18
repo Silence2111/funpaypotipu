@@ -7,15 +7,15 @@ export const LOT: Record<string, string> = {
   'Все игры': 'All games',
   'Лот опубликован и уже виден в каталоге.':
     'The listing is published and already visible in the catalog.',
-  'Лот создан. Загрузите ключи на склад ниже — с первым ключом он появится в каталоге.':
+  'Лот создан. Загрузите ключи на склад ниже, с первым ключом он появится в каталоге.':
     'Listing created. Upload keys to the stock below — it will appear in the catalog with the first key.',
-  'Лот создан. Загрузите товар на склад ниже — с первой строкой он появится в каталоге.':
+  'Лот создан. Загрузите товар на склад ниже, с первой строкой он появится в каталоге.':
     'Listing created. Upload goods to the stock below — it will appear in the catalog with the first line.',
-  'Лот создан. Наличие — ноль: лот появится в каталоге, когда вы его пополните.':
+  'Лот создан. Наличие пока ноль, лот появится в каталоге, когда вы его пополните.':
     'Listing created. Stock is zero: the listing will appear in the catalog once you restock it.',
   'Изменения сохранены и уже видны в каталоге.':
     'Changes saved and already visible in the catalog.',
-  'Автовыдача включена. Загрузите товар на склад ниже — с первой строкой лот вернётся в каталог.':
+  'Автовыдача включена. Загрузите товар на склад ниже, с первой строкой лот вернётся в каталог.':
     'Auto-delivery is on. Upload goods to the stock below — the listing returns to the catalog with the first line.',
   'Ключ сразу после оплаты': 'Key right after payment',
   'Выдача сразу после оплаты': 'Delivered right after payment',
@@ -26,12 +26,12 @@ export const LOT: Record<string, string> = {
   Закончился: 'Out of stock',
   'Продаж: {n}': 'Sales: {n}',
   Покупка: 'Purchase',
-  'Сумму выбираете вы, наценка продавца — {pct}':
+  'Сумму выбираете вы, наценка продавца {pct}':
     'You choose the amount, the seller’s markup is {pct}',
   'Количество выбираете вы, от {qty}': 'You choose the quantity, from {qty}',
   'Количество выбираете вы': 'You choose the quantity',
   'Лот закончился': 'Out of stock',
-  'Пока его нельзя купить — посмотрите похожие предложения ниже.':
+  'Пока его нельзя купить. Похожие предложения ниже.':
     'You can’t buy it right now — see similar offers below.',
   'Сообщить о поступлении': 'Notify me when back in stock',
   'Сообщим о поступлении': 'We’ll let you know',
@@ -44,28 +44,28 @@ export const LOT: Record<string, string> = {
   'Как защищена покупка': 'How your purchase is protected',
   'Деньги лежат у площадки. Продавец получит их, только когда вы подтвердите получение.':
     'The marketplace holds the money. The seller gets it only after you confirm receipt.',
-  'Ключ выдаётся сразу. Не выдался — деньги вернутся на баланс автоматически.':
+  'Ключ выдаётся сразу. Если не выдался, деньги вернутся на баланс автоматически.':
     'The key is delivered instantly. If it isn’t, the money returns to your balance automatically.',
-  'Товар выдаётся со склада продавца сразу. Не выдался — деньги вернутся на баланс автоматически.':
+  'Товар выдаётся со склада продавца сразу. Если не выдался, деньги вернутся на баланс автоматически.':
     'The goods are delivered instantly from the seller’s stock. If they aren’t, the money returns to your balance automatically.',
-  'Пополнение уходит сразу после оплаты. Не прошло — деньги вернутся на баланс автоматически.':
+  'Пополнение уходит сразу после оплаты. Если не прошло, деньги вернутся на баланс автоматически.':
     'The top-up is sent right after payment. If it fails, the money returns to your balance automatically.',
-  'Продавец не выдал товар за {h} ч — деньги вернутся на баланс автоматически.':
+  'Если продавец не выдаст товар за {h} ч, деньги вернутся на баланс автоматически.':
     'If the seller doesn’t deliver within {h} h, the money returns to your balance automatically.',
   'После выдачи у вас {h} ч на проверку: подтвердить или открыть спор с арбитром.':
     'After delivery you have {h} h to check: confirm, or open a dispute with an arbiter.',
   '+{pct}% кэшбэк на баланс после подтверждения':
     '+{pct}% cashback to your balance after confirmation',
-  'Это пример лота: по нему видно, как устроена сделка. Купить можно — оплата на стенде демонстрационная, а ключ придёт с пометкой «ПРИМЕР» и в игре не активируется.':
+  'Это пример лота, на нём видно, как устроена сделка. Оплата на стенде демонстрационная, ключ придёт с пометкой «ПРИМЕР» и в игре не активируется.':
     'This is a sample listing that shows how a deal works. You can buy it — payment here is simulated, and the key comes marked as a sample and won’t activate in the game.',
-  'Это пример лота: по нему видно, как устроена сделка. Купить можно — оплата на стенде демонстрационная.':
+  'Это пример лота, на нём видно, как устроена сделка. Оплата на стенде демонстрационная.':
     'This is a sample listing that shows how a deal works. You can buy it — payment here is simulated.',
   Параметры: 'Details',
   Раздел: 'Category',
   Описание: 'Description',
   'Похожие предложения': 'Similar offers',
   'Весь раздел →': 'Whole category →',
-  'У других продавцов этого раздела — сначала дешёвые':
+  'У других продавцов раздела, сначала дешёвые':
     'From other sellers in this category, cheapest first',
   'Ещё у продавца': 'More from this seller',
   'Все →': 'All →',
@@ -76,7 +76,7 @@ export const LOT: Record<string, string> = {
   // Профиль и карточка продавца
   'Продавец не найден': 'Seller not found',
   'Рейтинг {r}, {reviews}.': 'Rating {r}, {reviews}.',
-  '{name} — продавец на GameMarket': '{name} — seller on GameMarket',
+  '{name}, продавец на GameMarket': '{name} — seller on GameMarket',
   Продавец: 'Seller',
   'в отпуске': 'on vacation',
   'не в сети': 'offline',
@@ -92,7 +92,7 @@ export const LOT: Record<string, string> = {
   'Оценки покупателей': 'Buyer ratings',
   Предложения: 'Offers',
   'Все предложения': 'All offers',
-  'Продавец в отпуске — предложения вернутся вместе с ним.':
+  'Продавец в отпуске. Предложения вернутся вместе с ним.':
     'The seller is on vacation — their offers will return with them.',
   'Сейчас у продавца нет активных предложений.': 'The seller has no active offers right now.',
   'показаны первые {n}': 'showing the first {n}',
@@ -113,7 +113,7 @@ export const LOT: Record<string, string> = {
   'От {qty}': 'From {qty}',
   'в наличии {qty}': '{qty} in stock',
   необязательно: 'optional',
-  'Продавец увидит это в заказе — переписываться не придётся.':
+  'Продавец увидит это в заказе, переписываться не придётся.':
     'The seller will see this in the order — no need to message back and forth.',
   'Игровой ID или логин': 'Game ID or login',
   'Например, 812345678': 'For example, 812345678',
@@ -147,7 +147,7 @@ export const LOT: Record<string, string> = {
   'Вопрос продавцу': 'Question for the seller',
   'В сообщениях': 'In messages',
   'Свернуть чат': 'Collapse chat',
-  'Спросите до покупки — ответ придёт сюда и в «Сообщения».':
+  'Спросите до покупки. Ответ придёт сюда и в «Сообщения».':
     'Ask before buying — the reply will appear here and in “Messages”.',
   Сообщение: 'Message',
   'Сообщение продавцу': 'Message to the seller',
@@ -177,7 +177,7 @@ export const LOT: Record<string, string> = {
   Пожаловаться: 'Report',
   'Что не так с лотом': 'What’s wrong with the listing',
   'Что не так с пользователем': 'What’s wrong with the user',
-  'Подробности для модератора — необязательно': 'Details for the moderator — optional',
+  'Подробности для модератора, необязательно': 'Details for the moderator — optional',
   Подробности: 'Details',
   'Отправить жалобу': 'Send report',
   Отмена: 'Cancel',
@@ -209,13 +209,13 @@ export const LOT: Record<string, string> = {
 
   // История цены
   'История цены': 'Price history',
-  'Цена не менялась с {date} — {price}.': 'The price hasn’t changed since {date} — {price}.',
-  'Цена не менялась последние {n} дней — {price}.':
+  'Цена {price} не менялась с {date}.': 'The price hasn’t changed since {date} — {price}.',
+  'Цена {price} не менялась последние {n} дней.':
     'The price hasn’t changed in the last {n} days — {price}.',
   '{price} с {from} по {to}': '{price} from {from} to {to}',
   сегодня: 'today',
   'с {from} по {to}': 'from {from} to {to}',
-  'с {from} — сейчас': 'from {from} — now',
+  'с {from} по сегодня': 'from {from} — now',
   Сейчас: 'Now',
   минимум: 'lowest',
   максимум: 'highest',
@@ -239,9 +239,9 @@ export const LOT: Record<string, string> = {
   'Деньги держит ЮKassa в «Безопасной сделке». Продавец получит их, только когда вы подтвердите получение.':
     'YooKassa holds the money in a Safe Deal. The seller gets it only after you confirm receipt.',
   // Услуги со сроком (часть 125)
-  'Срок выполнения — {term} с оплаты. Не успеет продавец — можно сразу открыть спор.':
+  'Срок выполнения {term} с оплаты. Если продавец не успеет, можно сразу открыть спор.':
     'Deadline: {term} from payment. If the seller misses it, you can open a dispute right away.',
-  'Гарантия продавца — {term} после получения: что-то не так — спор, деньги до конца гарантии у площадки.':
+  'Гарантия продавца {term} после получения. Если что-то не так, откройте спор: до конца гарантии деньги у площадки.':
     'Seller’s warranty: {term} after receipt. Something wrong? Open a dispute; the marketplace holds the money until the warranty ends.',
   'Что не так с сообщением': 'What’s wrong with the message',
   // Кому продаёт продавец (часть 136)
@@ -255,12 +255,12 @@ export const LOT: Record<string, string> = {
     'Where to find it: Steam → Inventory → Trade Offers → “Who can send me trade offers?”. We’ll remember it for next orders.',
   // 289-ФЗ ст. 7 (часть 145)
   'продавец': 'the seller',
-  'GameMarket — площадка, а не продавец: продаёт {seller}, площадка проводит оплату и разбирает споры.':
+  'Продаёт {seller}. GameMarket проводит оплату и разбирает споры.':
     'GameMarket is a marketplace, not the seller: {seller} sells, the marketplace handles payment and settles disputes.',
   // Бонусы (часть 146)
   'Списать бонусы: −{sum}': 'Use bonuses: −{sum}',
   'С промокодом площадки бонусы спишутся в пределах оставшейся скидки.': 'With a marketplace promo code, bonuses apply within the remaining discount.',
-  'Всего бонусов {sum}. Скидка — из вознаграждения площадки, продавец получит столько же.':
+  'Всего бонусов {sum}. Скидка идёт из вознаграждения площадки, продавец получит столько же.':
     'You have {sum} in bonuses. The discount comes from the marketplace’s fee; the seller gets the same.',
-  '+{pct}% бонусами после подтверждения — спишутся скидкой в следующем заказе': '+{pct}% in bonuses after confirmation — applied as a discount on your next order',
+  '+{pct}% бонусами после подтверждения, они спишутся скидкой в следующем заказе': '+{pct}% in bonuses after confirmation — applied as a discount on your next order',
 };

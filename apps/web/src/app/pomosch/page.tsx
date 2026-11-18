@@ -9,7 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t('Помощь'),
     description: t(
-      'Как купить и продать на GameMarket: оплата, споры, комиссии, вывод денег и безопасность — коротко и с цифрами.',
+      'Как купить и продать на GameMarket: оплата, споры, комиссии, вывод денег и безопасность. Коротко и с цифрами.',
     ),
     alternates: { canonical: '/pomosch' },
   };
@@ -22,7 +22,7 @@ export default async function HelpIndex() {
     <div className="container" style={{ paddingTop: 48, paddingBottom: 24 }}>
       <h1 className="h1">{t('Помощь')}</h1>
       <p className="lead" style={{ maxWidth: '60ch' }}>
-        {t('Как устроены покупки и продажи на GameMarket — коротко и с цифрами.')}
+        {t('Как устроены покупки и продажи на GameMarket, коротко и с цифрами.')}
       </p>
 
       {HELP_GROUPS.map((group) => (
@@ -46,7 +46,7 @@ export default async function HelpIndex() {
         <div>
           <div style={{ fontWeight: 700 }}>{t('Не нашли ответ')}</div>
           <p className="muted" style={{ margin: '2px 0 0', fontSize: 14 }}>
-            {t('Напишите в поддержку — ответим в кабинете.')} {t('Полные условия — в')}{' '}
+            {t('Напишите в поддержку, ответим в кабинете.')} {t('Полные условия в')}{' '}
             <Link href="/rules" className="inline-link">
               {t('правилах')}
             </Link>

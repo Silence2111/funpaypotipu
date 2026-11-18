@@ -113,7 +113,7 @@ export function GameSearch({
         <ul className="search-pop" role="listbox" id={listId} aria-label={t('Подсказки')}>
           {index && hits.length === 0 && (
             <li className="search-empty" role="presentation">
-              {t('Игры с таким названием нет — поищем среди предложений.')}
+              {t('Игры с таким названием нет. Поищем среди предложений.')}
             </li>
           )}
           {options.map((o, i) => (

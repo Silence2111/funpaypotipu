@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { Gamepad2 } from 'lucide-react';
 import { CurrencySwitch } from '@/components/currency-switch';
 import { InstallApp } from '@/components/install-app';
 import { PwaRegister } from '@/components/pwa-register';
@@ -16,6 +17,13 @@ import { Metrika } from '@/components/metrika';
 import { getPublicPricing } from '@/lib/api';
 import { LangProvider } from '@/lib/i18n/client';
 import { dictOf, getLang, getT } from '@/lib/i18n/server';
+// Inter со своего сервера (@fontsource): Google Fonts из России грузится через раз и передаёт
+// IP посетителя за границу (152-ФЗ). Кириллица — в тех же файлах, по unicode-range.
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/inter/800.css';
 import './globals.css';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
@@ -25,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(SITE_URL),
     title: {
-      default: t('GameMarket — маркетплейс цифровых игровых товаров'),
+      default: t('GameMarket, маркетплейс цифровых игровых товаров'),
       template: '%s · GameMarket',
     },
     description: t(
@@ -57,13 +65,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang={lang}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body>
         <script
@@ -81,29 +82,53 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <ConsentBanner />
         <LoginMethodBanner />
         <main>{children}</main>
-        <footer className="container" style={{ padding: '48px 24px 40px', marginTop: 64 }}>
-          <hr className="divider" style={{ marginBottom: 20 }} />
-          <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <p className="faint" style={{ fontSize: 13, margin: 0 }}>
-              © {new Date().getFullYear()} GameMarket
-              {/* Только на демо-стенде: на настоящем запуске демо-лотов нет. */}
-              {pricing?.paymentsDemo && <> · {t('лоты с пометкой «Пример» — демонстрационные')}</>}
-            </p>
-            <nav className="row faint" style={{ gap: '0 16px', fontSize: 13, flexWrap: 'wrap' }} aria-label={t('Документы')}>
-              <Link href="/prodavat" className="footer-link">{t('Продавать на GameMarket')}</Link>
-              <Link href="/pomosch" className="footer-link">{t('Помощь')}</Link>
-              <Link href="/rules" className="footer-link">{t('Правила и гарантии')}</Link>
-              <Link href="/oferta" className="footer-link">{t('Оферта')}</Link>
-              <Link href="/privacy" className="footer-link">{t('Персональные данные')}</Link>
-              <Link href="/contacts" className="footer-link">{t('Контакты')}</Link>
-              <Link href="/podbor" className="footer-link">{t('Как мы меряем выдачу')}</Link>
-              <Link href="/prilozhenie" className="footer-link">{t('Приложение')}</Link>
+        {/* Подвал колонками: кому что нужно (покупателю, продавцу, документы); внизу копирайт, язык, валюта. */}
+        <footer className="site-footer">
+          <div className="container site-footer__grid">
+            <div className="site-footer__brand">
+              <Link href="/" className="brand">
+                <span className="brand-mark" aria-hidden>
+                  <Gamepad2 size={18} strokeWidth={2} />
+                </span>
+                GameMarket
+              </Link>
+              <p>
+                {t('Аккаунты, валюта, предметы, ключи и донат.')}{' '}
+                {t('Деньги лежат у площадки, пока вы не подтвердите, что получили товар.')}
+              </p>
+            </div>
+            <nav aria-label={t('Покупателям')}>
+              <b>{t('Покупателям')}</b>
+              <Link href="/catalog">{t('Каталог')}</Link>
+              <Link href="/igry">{t('Все игры')}</Link>
+              <Link href="/pomosch">{t('Помощь')}</Link>
+              <Link href="/rules">{t('Правила и гарантии')}</Link>
             </nav>
-            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-              <InstallApp />
-              {/* На телефоне в шапке нет места — язык и валюта цен здесь, для всех ширин */}
-              <LangSwitch label />
-              <CurrencySwitch label={t('Валюта цен')} />
+            <nav aria-label={t('Продавцам')}>
+              <b>{t('Продавцам')}</b>
+              <Link href="/prodavat">{t('Продавать на GameMarket')}</Link>
+              <Link href="/prodavat/api">{t('API для продавцов')}</Link>
+              <Link href="/podbor">{t('Как мы меряем выдачу')}</Link>
+              <Link href="/prilozhenie">{t('Приложение')}</Link>
+            </nav>
+            <nav aria-label={t('Документы')}>
+              <b>{t('Документы')}</b>
+              <Link href="/oferta">{t('Оферта')}</Link>
+              <Link href="/privacy">{t('Персональные данные')}</Link>
+              <Link href="/contacts">{t('Контакты')}</Link>
+            </nav>
+            <div className="site-footer__bottom">
+              <p>
+                © {new Date().getFullYear()} GameMarket
+                {/* Только на демо-стенде: на настоящем запуске демо-лотов нет. */}
+                {pricing?.paymentsDemo && <> · {t('лоты с пометкой «Пример» демонстрационные')}</>}
+              </p>
+              <div className="site-footer__tools">
+                <InstallApp />
+                {/* На телефоне в шапке нет места — язык и валюта цен здесь, для всех ширин */}
+                <LangSwitch label />
+                <CurrencySwitch label={t('Валюта цен')} />
+              </div>
             </div>
           </div>
         </footer>

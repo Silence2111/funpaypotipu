@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     .join(', ');
   const name = t.d(game.title);
   return {
-    title: t('{game} — купить у продавцов', { game: name }),
+    title: t('Купить {game} у продавцов', { game: name }),
     description: t('{game}: {sections}. Деньги у площадки, пока вы не подтвердите получение.', {
       game: name,
       sections: sections || t('предложения продавцов'),
