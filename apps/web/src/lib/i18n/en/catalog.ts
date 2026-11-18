@@ -1,7 +1,9 @@
 /** Главная, каталог, указатель игр, раздел игры: таблица предложений, фильтры, пополнение, замер выдачи. */
 export const CATALOG: Record<string, string> = {
   // Главная
-  'Игровые товары. Безопасно.': 'Game goods. Safely.',
+  'Игровые товары с гарантией сделки': 'Game goods with a guaranteed deal',
+  'Популярные игры и сервисы': 'Popular games and services',
+  'Автовыдача': 'Instant delivery',
   '{n} игр и сервисов: аккаунты, валюта, предметы, ключи и донат.':
     '{n} games and services: accounts, currency, items, keys and top-ups.',
   'Аккаунты, валюта, предметы, ключи и донат.': 'Accounts, currency, items, keys and top-ups.',
@@ -13,7 +15,6 @@ export const CATALOG: Record<string, string> = {
   'Продать свой лот': 'Sell your item',
   'Это демо-стенд. Лоты с пометкой «Пример» — демонстрационные, а оплата проходит без списания денег: платёжный провайдер ещё не подключён.':
     'This is a demo site. Listings marked “Sample” are for demonstration, and payments go through without charging any money: the payment provider isn’t connected yet.',
-  Популярные: 'Popular',
   'Новые предложения': 'New offers',
   'Все игры от А до Я': 'All games A to Z',
   Мобильные: 'Mobile',
