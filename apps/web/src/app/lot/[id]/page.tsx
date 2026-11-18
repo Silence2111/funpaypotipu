@@ -32,7 +32,7 @@ import { SellerReviews } from '@/components/seller-reviews';
 import { OwnerLotActions } from '@/components/owner-lot-actions';
 import { ReportButton } from '@/components/report-button';
 import { ApproxPrice } from '@/components/approx-price';
-import { OfferTable } from '@/components/offers';
+import { LotCard, LotCover } from '@/components/lot-card';
 import { SellerCard } from '@/components/seller-card';
 import { MobileBuyBar } from '@/components/mobile-buy-bar';
 import { LotGallery } from '@/components/lot-gallery';
@@ -278,6 +278,10 @@ export default async function ListingPage({
       </nav>
 
       <div className="lot-layout">
+        {/* Обложка крупно слева, как у Playerok: фото продавца, а без фото — оформленная обложка лота */}
+        <div className="lot-cover">
+          {images.length > 0 ? <LotGallery images={images.slice(0, 12)} title={name} /> : <LotCover l={listing} t={t} big />}
+        </div>
         <div className="lot-head">
           <h1 className="h1 lot-title">{name}</h1>
           <div className="row" style={{ gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
@@ -482,7 +486,6 @@ export default async function ListingPage({
 
           {/* Фото — только настоящие. Без них страница не рисует заглушку на
               полэкрана: она выдавала себя за картинку товара. */}
-          {images.length > 0 && <LotGallery images={images.slice(0, 12)} title={name} />}
 
           {paramList.length > 0 && (
             <section>
@@ -544,7 +547,11 @@ export default async function ListingPage({
               <p className="faint" style={{ fontSize: 14, margin: '0 0 12px' }}>
                 {t('У других продавцов раздела, сначала дешёвые')}
               </p>
-              <OfferTable items={similar} attributes={defs ?? []} compact t={t} />
+              <div className="gm-lots lot-more">
+                {similar.slice(0, 8).map((l) => (
+                  <LotCard key={l.id} l={l} t={t} />
+                ))}
+              </div>
             </section>
           )}
 
@@ -558,7 +565,11 @@ export default async function ListingPage({
                   {t('Все →')}
                 </Link>
               </div>
-              <OfferTable items={sellerOthers} showSection compact hideSeller t={t} />
+              <div className="gm-lots lot-more">
+                {sellerOthers.slice(0, 8).map((l) => (
+                  <LotCard key={l.id} l={l} t={t} />
+                ))}
+              </div>
             </section>
           )}
 

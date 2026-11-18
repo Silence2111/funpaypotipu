@@ -55,16 +55,9 @@ export function lotArt(segment?: string, categorySlug?: string): string {
  * из настоящих отзывов; демо-лоты помечены «Пример».
  */
 export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
-  const instant = l.fulfillmentType === 'auto_key' || l.fulfillmentType === 'provider';
-  const demo = isDemoSeller(l.seller.profile?.username);
   const seller = l.seller.profile;
   const reviews = seller?.ratingCount ?? 0;
-  const icon = gameIcon(l.game.slug);
   const title = lotTitle(l, t.lang);
-  const amount = coverAmount(title);
-  // «1800 UC» → число крупно, единица строкой ниже; без количества — раздел («Аккаунты», «Скины»)
-  const [num, ...unit] = (amount ?? '').split(' ');
-  const light = coverIsLight(l.game.slug);
   return (
     <Link href={`/lot/${l.id}`} className="lc">
       <span className="lc__game">
@@ -74,8 +67,43 @@ export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
           <small>{t.d(l.category.title)}</small>
         </span>
       </span>
+      <LotCover l={l} t={t} />
+      <span className="lc__price">
+        {formatListingPrice(l, t)}
+        <SaleMark listPrice={l.saleRefPrice ?? l.saleListPrice} price={l.price} currency={l.currency} t={t} />
+      </span>
+      <span className="lc__title">{title}</span>
+      <span className="lc__seller">
+        {reviews > 0 ? (
+          <>
+            <span className="lc__stars" aria-label={t('Рейтинг {r} из 5', { r: seller!.ratingAvg.toFixed(1) })}>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <Star key={i} size={12} strokeWidth={0} className={i < Math.round(seller!.ratingAvg) ? 'on' : ''} aria-hidden />
+              ))}
+            </span>
+            <span className="faint">{reviews}</span>
+          </>
+        ) : (
+          <span className="faint">{t('нет отзывов')}</span>
+        )}
+        {seller && <span className="lc__name">{seller.username}</span>}
+      </span>
+    </Link>
+  );
+}
+
+/** Обложка лота — одна и в ленте, и крупно на странице лота: фото продавца или цвет марки, надпись и предмет. */
+export function LotCover({ l, t = RU, big = false }: { l: ListingCard; t?: T; big?: boolean }) {
+  const instant = l.fulfillmentType === 'auto_key' || l.fulfillmentType === 'provider';
+  const demo = isDemoSeller(l.seller.profile?.username);
+  const icon = gameIcon(l.game.slug);
+  const title = lotTitle(l, t.lang);
+  const amount = coverAmount(title);
+  const [num, ...unit] = (amount ?? '').split(' ');
+  const light = coverIsLight(l.game.slug);
+  return (
       <span
-        className={light ? 'lc__cover lc__cover--light' : 'lc__cover'}
+        className={`lc__cover${light ? ' lc__cover--light' : ''}${big ? ' lc__cover--big' : ''}`}
         style={{ ['--c' as string]: coverColor(l.game.slug, l.game.title) }}
       >
         {l.images?.[0] ? (
@@ -119,27 +147,5 @@ export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
           )}
         </span>
       </span>
-      <span className="lc__price">
-        {formatListingPrice(l, t)}
-        <SaleMark listPrice={l.saleRefPrice ?? l.saleListPrice} price={l.price} currency={l.currency} t={t} />
-      </span>
-      <span className="lc__title">{title}</span>
-      <span className="lc__seller">
-        {reviews > 0 ? (
-          <>
-            <span className="lc__stars" aria-label={t('Рейтинг {r} из 5', { r: seller!.ratingAvg.toFixed(1) })}>
-              {[0, 1, 2, 3, 4].map((i) => (
-                <Star key={i} size={12} strokeWidth={0} className={i < Math.round(seller!.ratingAvg) ? 'on' : ''} aria-hidden />
-              ))}
-            </span>
-            <span className="faint">{reviews}</span>
-          </>
-        ) : (
-          <span className="faint">{t('нет отзывов')}</span>
-        )}
-        {seller && <span className="lc__name">{seller.username}</span>}
-      </span>
-    </Link>
   );
 }
-

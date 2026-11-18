@@ -259,3 +259,32 @@ body { background:
   .sh__sell { margin-right: 0; }
   .sh__id .gicon { width: 56px !important; height: 56px !important; }
 }
+
+/* ── Страница лота по Playerok: обложка слева, справа название и панель покупки, ниже описание ── */
+.lot-layout { grid-template-columns: minmax(0, 1.25fr) minmax(340px, 440px); grid-template-areas: 'cover head' 'cover aside' 'main aside';
+  grid-template-rows: auto auto 1fr; gap: 18px 32px; }
+.lot-cover { grid-area: cover; min-width: 0; }
+.lc__cover--big { border-radius: 28px; aspect-ratio: 16 / 11; }
+.lc__cover--big .lc__big { left: 32px; bottom: 28px; right: 44%; }
+.lc__cover--big .lc__big b { font-size: clamp(48px, 6vw, 88px); }
+.lc__cover--big .lc__big span { font-size: 20px; }
+.lc__cover--big .lc__big .lc__sec { font-size: clamp(30px, 3.6vw, 52px); }
+.lc__cover--big .lc__obj { width: 42% !important; right: 6%; bottom: 10%; }
+.lc__cover--big .lc__badges { top: 18px; left: 18px; right: 18px; }
+.lc__cover--big .lc__badge { font-size: 13px; padding: 6px 12px; }
+.lot-head .lot-title { font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; }
+.lot-aside { position: sticky; top: 112px; }
+.lot-buy { background: var(--plate) !important; border: 0 !important; box-shadow: none !important; border-radius: 24px !important; }
+.lot-buy .price { font-weight: 800; letter-spacing: -0.02em; }
+.lot-buy .btn.lg, .lot-buy .btn.block { min-height: 56px; font-size: 17px; border-radius: 14px; }
+.lot-buy .card.flat { background: var(--bg) !important; border: 0; border-radius: 16px; }
+.crumbs { margin-top: 4px; }
+@media (max-width: 900px) {
+  .lot-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'cover' 'head' 'aside' 'main'; }
+  .lot-aside { position: static; }
+  .lc__cover--big { border-radius: 22px; }
+}
+.lot-more { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 14px; }
+.lot-aside .seller-card, .lot-aside > .card:not(.lot-buy) { background: var(--plate); border: 0; box-shadow: none; border-radius: 24px; }
+@media (max-width: 1100px) { .lot-more { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .lot-more { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
