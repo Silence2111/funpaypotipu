@@ -5,11 +5,11 @@
 
 :root {
   /* как у Playerok: страница белая, серые — только плиты; ширина как у них, почти во весь экран */
-  --page: #f5f9ff;
-  --page-top: #e8f2ff;
+  --page: #edf4ff;
+  --page-top: #d9e9ff;
   --maxw: 1400px;
-  --plate: #ebf1fa;
-  --plate-2: #e0e8f4;
+  --plate: #e1ebf9;
+  --plate-2: #d5e2f5;
   --sale: #ff3b47;
   --star: #ffb800;
 }
@@ -30,7 +30,7 @@
 body { background:
   radial-gradient(900px 420px at 12% -120px, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
   radial-gradient(760px 380px at 92% -80px, rgba(255, 190, 70, .14), transparent 70%),
-  linear-gradient(180deg, var(--page-top) 0, var(--page) 720px) no-repeat,
+  linear-gradient(180deg, var(--page-top) 0, var(--page) 900px) no-repeat,
   var(--page); background-repeat: no-repeat; }
 
 /* ── Шапка: серая плита, поиск, кнопки со значком и подписью ── */
@@ -424,7 +424,7 @@ body { background:
 .pk-svc__i:hover { transform: translateY(-3px); background: var(--plate-2); }
 .pk-svc__i .gicon { border-radius: 16px !important; margin-bottom: 8px; box-shadow: 0 10px 18px -12px rgba(14,17,22,.5); }
 .pk-svc__i b { font-size: 15px; font-weight: 700; }
-.pk-svc__i span { font-size: 13.5px; color: var(--fg-faint); }
+.pk-svc__i > span:last-child { font-size: 13.5px; color: var(--fg-faint); }
 
 /* Сортировка ленты */
 .pk-sort { display: flex; gap: 6px; margin: -6px 0 16px; flex-wrap: wrap; }
@@ -714,8 +714,9 @@ h1, h2, h3, .h1, .h2, .pb__title, .sh__h1, .qb2__h, .pk-h h2, .sp-h2, .sp-hero__
 .pk-svc__i { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; row-gap: 1px; align-items: center;
   padding: 12px 14px; border-radius: 20px; }
 .pk-svc__i .gicon { grid-row: 1 / 3; margin: 0; border-radius: 13px !important; box-shadow: 0 8px 14px -10px rgba(14,17,22,.5); }
-.pk-svc__i b, .pk-svc__i span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: end; }
-.pk-svc__i span { align-self: start; font-size: 13px; }
+/* только подписи: значок — тоже span, общее правило сдвигало знак внутри плитки вверх («кривые лого») */
+.pk-svc__i > b, .pk-svc__i > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: end; }
+.pk-svc__i > span:last-child { align-self: start; font-size: 13px; }
 .pk-svc__grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
 /* Лот: обложка не выше экрана ноутбука — было 16:11 во всю колонку (~600 px) */
 .lc__cover--big { aspect-ratio: 16 / 9; }
@@ -729,3 +730,85 @@ h1, h2, h3, .h1, .h2, .pb__title, .sh__h1, .qb2__h, .pk-h h2, .sp-h2, .sp-hero__
     background: var(--bg); border-radius: 20px; padding: 16px 22px; gap: 10px 28px; }
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .ph__plate { box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 12px 30px -24px rgba(0,0,0,.8); } }
+/* Знак сервиса на плитке быстрой покупки: прямо, без наклона; у Steam — крупно, карта уходит назад */
+.qb2__mark { position: absolute; z-index: 2; left: 14px; top: 14px; width: 26px; height: 26px; background: #fff;
+  -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.25)); }
+.qb2__tile--logo .qb2__mark { left: auto; right: 16%; top: 50%; width: 76px; height: 76px; transform: translateY(-58%); filter: drop-shadow(0 10px 16px rgba(0,0,0,.3)); }
+.qb2__tile--logo img { width: 34%; right: 4%; top: auto; bottom: 8%; transform: rotate(-12deg); opacity: .95; z-index: 1; }
+.qb2__tile--logo .qb2__mark { z-index: 0; }
+/* Строка продавца в карточке: имя слева, оценка справа (на телефоне тоже — без него строка пустая) */
+.lc__seller .lc__name { margin-left: 0; padding-left: 0; display: block; color: var(--fg-faint); }
+.lc__rate { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; font-weight: 700; color: var(--fg); white-space: nowrap; }
+.lc__rate svg { fill: var(--star); }
+/* Ряд игр: длинные названия в две строки вместо «Counter-St…»; края лент гаснут, а не режутся */
+.pk-icons__i > span:last-child { white-space: normal; overflow: visible; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  line-height: 1.15; font-size: 12.5px; min-height: 2.3em; overflow: hidden; }
+.pk-icons { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 56px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 56px), transparent); }
+/* Оплата в подвале: настоящие цветные знаки на белых таблетках (были серые маски, мелкие и «чёрные круги» вместо Mastercard) */
+.pay-b { background: #fff; box-shadow: 0 1px 2px rgba(14,17,22,.06); height: 36px; min-width: 62px; }
+.pay-b--txt { color: #15171c; }
+.pay-b:not(.pay-b--txt)::before { width: 40px; height: 20px; background: var(--i) center / contain no-repeat; -webkit-mask: none; mask: none; }
+/* Плитка Steam: только знак, без карты поверх (владелец: «кривые лого») */
+.qb2__tile--logo img { display: none; }
+.qb2__tile--logo .qb2__mark { right: 12%; width: 84px; height: 84px; transform: translateY(-62%); }
+/* Надпись обложки не заходит под предмет: кегль ограничен шириной левой части обложки и длиной самого длинного слова */
+.lc__cover { container-type: inline-size; }
+.lc__big .lc__sec { font-size: min(clamp(19px, 1.7vw, 24px), calc((54cqw - 14px) / (var(--len, 8) * .6))); }
+.lc__big b { font-size: min(clamp(26px, 2.4vw, 38px), calc((54cqw - 14px) / (var(--len, 4) * .62))); }
+.lc__cover--big .lc__big .lc__sec { font-size: min(clamp(30px, 3.6vw, 52px), calc((56cqw - 32px) / (var(--len, 8) * .6))); }
+.lc__cover--big .lc__big b { font-size: min(clamp(44px, 5vw, 76px), calc((56cqw - 32px) / (var(--len, 4) * .62))); }
+.pay-b--txt.pay-b--mir { color: #0f7a43; }
+/* «Продавать»: заголовок «Сколько вы получите» уже стоит слева на плите — в карточке калькулятора второй раз не нужен */
+.sp-calc #sell-calc-title { display: none; }
+.dir-title .gicon { border-radius: 9px !important; }
+.letters a.letters__ru { margin-left: 14px; position: relative; }
+.letters a.letters__ru::before { content: ''; position: absolute; left: -9px; top: 25%; bottom: 25%; width: 1px; background: var(--border); }
+/* Таблица ставок: у колонок после белой «GameMarket» свой отступ — текст FunPay не прилипает к краю */
+.gm-price tr > :nth-child(n+3) { padding-left: 18px !important; }
+.gm-price tr > :nth-child(2) { padding-right: 14px !important; }
+/* Щит в «Ваши продажи под защитой» не наезжает на угол карточки «Срок выдачи» */
+.sp-safe__obj { width: 120px; margin: -26px 6px -4px 0; }
+.sp-safe { padding: 38px 40px 40px; }
+/* Помощь: карточки на всю ширину ряда — без пустой трети справа у разделов из двух статей */
+.help-cards { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+/* Кабинет: заказ строкой «название — покупка/продажа, с кем, номер» */
+.cab-order { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.cab-order b { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cab-order small { font-size: 13px; color: var(--fg-faint); }
+/* Шапка вошедшего: колокольчик, баланс и профиль — прозрачные таблетки на плите шапки, как кнопки гостя */
+.ph .user-bar { gap: 2px; }
+.ph .user-bar .chip { background: transparent; box-shadow: none; min-height: 44px; }
+.ph .user-bar .chip:hover, .ph .user-bar .chip[aria-expanded='true'] { background: var(--bg); }
+.ph .user-bar .balance-chip { font-weight: 700; }
+.ph__act { position: relative; }
+.ph__act .notif-badge { position: absolute; top: 2px; right: 12px; }
+/* Кошелёк: поля пополнения и вывода ровной сеткой во всю ширину карточки, а не 220/130/260 px вразнобой */
+.wallet-action .input { max-width: none !important; width: 100%; }
+.wallet-action .row > .input, .wallet-action .row > select.input, .wallet-action .row > .card-slot { flex: 1 1 180px; width: auto; }
+.wallet-action .btn { min-height: 48px; padding: 0 24px; }
+/* Суммы и цифры — общим шрифтом с ровными цифрами: моноширинный от прежнего дизайна давал «0   ₽» и выбивался из стиля.
+   Коды, ключи, маски карт и склад автовыдачи остаются моноширинными — там важно видеть каждый знак. */
+.wallet-amount, .wallet-pending dd, .payout-amount, .stats-value, .stats-money dd, .today-kpis dd.num, .partner-stat-value,
+.statement-totals dd, .save-search-price, .request-budget, .request-lot-price, .notif-group-count, .notif-time, .gallery-count {
+  font-family: inherit; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+/* Раскрывашки в формах («На английском, необязательно»): у summary с display:flex пропадал треугольник —
+   пункт выглядел пустым заголовком. Возвращаем знак раскрытия и цвет ссылки. */
+details.field > summary.label { list-style: none; gap: 10px; color: var(--accent); font-weight: 600; }
+details.field > summary.label::-webkit-details-marker { display: none; }
+details.field > summary.label::after { content: ''; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg); transition: transform .2s; }
+details.field[open] > summary.label::after { transform: translateY(2px) rotate(225deg); }
+.ph__act[aria-current='page'] { color: var(--accent); background: var(--bg); }
+/* Профиль в кабинете — две колонки на широком экране, карточки во всю ширину своей колонки */
+.settings-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+.settings-col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.settings-cols [style*='max-width: 600'], .settings-cols > * { max-width: none !important; }
+#notifications { max-width: none !important; }
+@media (min-width: 1100px) { .settings-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+/* Статус заказа одной строкой, а не «подтвердите / получение» в две */
+.badge { white-space: nowrap; }
+/* Длинное слово на обложке («Пополнение»): предмет меньше и выше, надпись не наезжает на него */
+.lc__cover--long .lc__obj { width: 34% !important; bottom: 30%; right: 6%; }
+.lc__cover--long .lc__big { right: 30%; }
+.lc__cover--long .lc__big .lc__sec { font-size: min(clamp(19px, 1.7vw, 24px), calc((68cqw - 14px) / (var(--len, 8) * .62))); }

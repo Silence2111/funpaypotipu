@@ -126,14 +126,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 {pricing.payMethods.includes('card') && (
                   <>
                     <span className="pay-b pay-b--txt pay-b--mir">{t('МИР')}</span>
-                    <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/visa.svg)' }} aria-label="Visa" />
-                    <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/mastercard.svg)' }} aria-label="Mastercard" />
+                    <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/c-visa.svg)' }} aria-label="Visa" />
+                    <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/c-mastercard.svg)' }} aria-label="Mastercard" />
                   </>
                 )}
-                {pricing.payMethods.includes('applepay') && <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/applepay.svg)' }} aria-label="Apple Pay" />}
-                {pricing.payMethods.includes('googlepay') && <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/googlepay.svg)' }} aria-label="Google Pay" />}
+                {pricing.payMethods.includes('applepay') && <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/c-applepay.svg)' }} aria-label="Apple Pay" />}
+                {pricing.payMethods.includes('googlepay') && <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/c-googlepay.svg)' }} aria-label="Google Pay" />}
                 {pricing.payMethods.some((m) => m === 'crypto' || m === 'usdt') && (
-                  <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/tether.svg)' }} aria-label="USDT" />
+                  <span className="pay-b" style={{ ['--i' as string]: 'url(/pay/c-tether.svg)' }} aria-label="USDT" />
                 )}
                 <Link href="/pomosch" className="pay-help">
                   {t('Написать в поддержку')}

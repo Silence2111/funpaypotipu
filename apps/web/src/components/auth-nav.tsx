@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, LogOut, MessagesSquare } from 'lucide-react';
+import { ChevronDown, LogOut } from 'lucide-react';
 import { getUser, isStaff, type SessionUser } from '@/lib/session';
 import { logout } from '@/lib/logout';
 import { formatPrice } from '@/lib/format';
@@ -64,14 +64,16 @@ function UserBar({ user }: { user: SessionUser }) {
 
   return (
     <div className="row user-bar">
+      {/* как у гостя и у Playerok: объёмный значок с подписью, а не голый кружок */}
       <Link
         href="/chat"
-        className="chip hide-mobile"
+        className="ph__act hide-mobile"
         aria-label={unread ? t('Сообщения: {n} непрочитанных', { n: unread }) : t('Сообщения')}
-        title={t('Сообщения')}
         aria-current={pathname.startsWith('/chat') ? 'page' : undefined}
       >
-        <MessagesSquare size={16} strokeWidth={1.75} />
+        {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер */}
+        <img src="/3d/chat.webp" alt="" width={26} height={26} />
+        <span>{t('Чаты')}</span>
         {unread > 0 && <span className="notif-badge">{unread > 99 ? '99+' : unread}</span>}
       </Link>
       <NotificationsBell />

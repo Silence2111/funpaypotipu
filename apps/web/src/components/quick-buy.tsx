@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { GameIcon } from './game-icon';
 import { useT } from '@/lib/i18n/client';
+import { gameIcon } from '@/lib/game-icons';
 
 export type QuickOffer = { id: string; title: string; price: string; full: string; color: string; big: string; unit: string; art: string };
 export type QuickTab = {
@@ -34,6 +35,9 @@ export function QuickBuy({ steam, tabs }: { steam: QuickSteam | null; tabs: Quic
   if (!rail.length) return null;
   const cur = tabs.find((x) => x.key === on);
   const tile = on === 'steam' && steam ? steam : cur;
+  // Знак сервиса на плитке (владелец: «лого Steam нельзя вставить?»): у Steam — крупно вместо безликой карты,
+  // у остальных — значком в углу рядом с предметом
+  const mark = gameIcon(on === 'steam' ? 'steam' : cur?.slug ?? '');
   const chosen = cur ? cur.offers.find((o) => o.id === pick[cur.key]) ?? cur.offers[0] : null;
 
   return (
@@ -55,8 +59,9 @@ export function QuickBuy({ steam, tabs }: { steam: QuickSteam | null; tabs: Quic
       </div>
       <div className="qb2__card">
         {tile && (
-          <div className="qb2__tile" style={{ ['--c' as string]: tile.color }} aria-hidden>
+          <div className={on === 'steam' && mark ? 'qb2__tile qb2__tile--logo' : 'qb2__tile'} style={{ ['--c' as string]: tile.color }} aria-hidden>
             <span className="qb2__big">{tile.big}</span>
+            {mark && <span className="qb2__mark" style={{ background: mark.glyph, WebkitMaskImage: `url(${mark.src})`, maskImage: `url(${mark.src})` }} />}
             {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер */}
             <img src={tile.art} alt="" />
           </div>

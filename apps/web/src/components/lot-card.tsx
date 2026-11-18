@@ -31,7 +31,8 @@ export function coverWords(title: string): string {
     if (!STOP.has(w.toLowerCase())) content++;
   }
   while (out.length > 1 && STOP.has(out[out.length - 1].toLowerCase())) out.pop();
-  return out.join(' ');
+  // неразрывный дефис: «В‑баксов» не рвётся на «В-» и «баксов»
+  return out.join(' ').replace(/-/g, '\u2011');
 }
 
 /** Небольшой разброс наклона и размера предмета по лоту — чтобы соседние обложки не были копиями. */
@@ -81,20 +82,17 @@ export function LotCard({ l, t = RU, cashback }: { l: ListingCard; t?: T; cashba
         <span className="lc__cb">{t('+{sum} кэшбэк', { sum: formatPrice(String(Math.round((Number(l.price) * cashback) / 100) * 100), l.currency, t) })}</span>
       ) : null}
       <span className="lc__title">{title}</span>
+      {/* Продавец и оценка, как у Playerok: имя слева, звезда с числом справа; «нет отзывов» на каждой карточке
+          владелец увидел шумом — без отзывов строка показывает только продавца */}
       <span className="lc__seller">
-        {reviews > 0 ? (
-          <>
-            <span className="lc__stars" aria-label={t('Рейтинг {r} из 5', { r: seller!.ratingAvg.toFixed(1) })}>
-              {[0, 1, 2, 3, 4].map((i) => (
-                <Star key={i} size={12} strokeWidth={0} className={i < Math.round(seller!.ratingAvg) ? 'on' : ''} aria-hidden />
-              ))}
-            </span>
-            <span className="faint">{reviews}</span>
-          </>
-        ) : (
-          <span className="faint">{t('нет отзывов')}</span>
-        )}
         {seller && <span className="lc__name">{seller.username}</span>}
+        {reviews > 0 && (
+          <span className="lc__rate" aria-label={t('Рейтинг {r} из 5', { r: seller!.ratingAvg.toFixed(1) })}>
+            <Star size={12} strokeWidth={0} aria-hidden />
+            {seller!.ratingAvg.toFixed(1)}
+            <span className="faint">({reviews})</span>
+          </span>
+        )}
       </span>
     </Link>
   );
@@ -109,9 +107,12 @@ export function LotCover({ l, t = RU, big = false }: { l: ListingCard; t?: T; bi
   const amount = coverAmount(title);
   const [num, ...unit] = (amount ?? '').split(' ');
   const light = coverIsLight(l.game.slug);
+  const words = amount ? num : coverWords(title) || t.d(l.category.title);
+  // самое длинное слово надписи: по нему кегль уменьшается, чтобы «Пополнение» не уходило под предмет
+  const len = Math.max(4, ...words.split(/\s+/).map((w) => w.length));
   return (
       <span
-        className={`lc__cover${light ? ' lc__cover--light' : ''}${big ? ' lc__cover--big' : ''}`}
+        className={`lc__cover${light ? ' lc__cover--light' : ''}${big ? ' lc__cover--big' : ''}${len >= 9 ? ' lc__cover--long' : ''}`}
         style={{ ['--c' as string]: coverColor(l.game.slug, l.game.title) }}
       >
         {l.images?.[0] ? (
@@ -130,14 +131,14 @@ export function LotCover({ l, t = RU, big = false }: { l: ListingCard; t?: T; bi
               loading="lazy"
               style={{ ['--r' as string]: `${wobble(l.id).rot}deg`, width: `${wobble(l.id).size}%` }}
             />
-            <span className="lc__big">
+            <span className="lc__big" style={{ ['--len' as string]: len }}>
               {amount ? (
                 <>
                   <b>{num}</b>
                   <span>{unit.join(' ')}</span>
                 </>
               ) : (
-                <span className="lc__sec">{coverWords(title) || t.d(l.category.title)}</span>
+                <span className="lc__sec">{words}</span>
               )}
             </span>
           </>

@@ -8,6 +8,8 @@ export const CABINET: Record<string, string> = {
   Заказы: 'Orders',
   Консоль: 'Console',
   'Мои заказы': 'My orders',
+  'Покупка': 'Purchase',
+  'Продажа': 'Sale',
   'Все покупки и продажи →': 'All purchases and sales →',
   'Номер заказа, лот или ник': 'Order number, listing or username',
   'Поиск по заказам': 'Search orders',
