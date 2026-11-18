@@ -1,6 +1,7 @@
 :root {
   /* Система «Спокойный минимализм», референс rollypay (~/.claude/design-refs):
-     серый фон страницы + белые карточки, один акцент, без градиентов.
+     серый фон страницы + белые карточки, один акцент — лёгкий фиолетовый #7a5af8
+     (выбор владельца 18.11.2026: «фиолетовый, только легче»; был синий #225aea).
      Та же система, что у ЮГС и arka. --bg — поверхность карточек и полей,
      --page — фон страницы. */
   --page: #f4f5f7;
@@ -11,9 +12,9 @@
   --fg-faint: #676b74;
   --border: #ececf2;
   --border-strong: #dcdee6;
-  --accent: #225aea;
-  --accent-hover: #1b49c4;
-  --accent-tint: #eaf0ff;
+  --accent: #7a5af8;
+  --accent-hover: #6a48f0;
+  --accent-tint: #f1edff;
   --success: #0f7a38;
   --success-bg: #e7f6ed;
   --danger: #c22a30;
@@ -24,7 +25,7 @@
   --data-violet: #6355e6;
   /* Данные: линии графиков. Светлая — поэтому у графика всегда подписи и таблица. */
   --data-sky: #7fbff0;
-  --focus-ring: 0 0 0 3px rgba(34, 90, 234, 0.35);
+  --focus-ring: 0 0 0 3px rgba(122, 90, 248, 0.35);
   --shadow: 0 1px 3px rgba(14, 17, 22, 0.08);
   --shadow-hover: 0 4px 12px rgba(14, 17, 22, 0.08);
   --header-bg: rgba(255, 255, 255, 0.86);
@@ -44,9 +45,9 @@
   --fg-faint: #a0a3ad;
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.16);
-  --accent: #4e82ff;
-  --accent-hover: #6d97ff;
-  --accent-tint: rgba(78, 130, 255, 0.16);
+  --accent: #9d85ff;
+  --accent-hover: #b19dff;
+  --accent-tint: rgba(157, 133, 255, 0.16);
   --success: #3ed598;
   --success-bg: rgba(62, 213, 152, 0.12);
   --danger: #ff6b7a;
@@ -69,9 +70,9 @@
     --fg-faint: #a0a3ad;
     --border: rgba(255, 255, 255, 0.08);
     --border-strong: rgba(255, 255, 255, 0.16);
-    --accent: #4e82ff;
-    --accent-hover: #6d97ff;
-    --accent-tint: rgba(78, 130, 255, 0.16);
+    --accent: #9d85ff;
+    --accent-hover: #b19dff;
+    --accent-tint: rgba(157, 133, 255, 0.16);
     --success: #3ed598;
     --success-bg: rgba(62, 213, 152, 0.12);
     --danger: #ff6b7a;
@@ -333,7 +334,7 @@ a {
   font-weight: 600;
   border: 1px solid transparent;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(34, 90, 234, 0.25);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 28%, transparent);
   transition: background 0.15s ease;
 }
 .btn:hover {
@@ -5540,3 +5541,15 @@ a.my-lot-title:hover {
   flex-basis: 100%;
   margin-left: 0;
 }
+
+/* Значок игры или сервиса (components/game-icon.tsx): главная, форма пополнения, указатель игр.
+ * Знаки — Simple Icons (CC0) маской цвета марки на её бледном оттенке. */
+.gicon { display: inline-grid; place-items: center; flex-shrink: 0; overflow: hidden; background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--border); transition: transform 0.25s ease; }
+.gicon--brand { background: color-mix(in srgb, var(--brand) 12%, var(--bg)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 14%, transparent); }
+.gicon--neutral { background: var(--bg-subtle); }
+.gicon__g { display: block; background: var(--brand, var(--fg)); -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
+.gicon--neutral .gicon__g { background: var(--fg); }
+
+.dir-title:has(.gicon) { display: inline-flex; align-items: center; gap: 9px; }

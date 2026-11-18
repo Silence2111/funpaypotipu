@@ -1,79 +1,36 @@
 /**
  * Знаки игр и сервисов для плиток (главная, карточки лотов). Глифы — Simple Icons (CC0, simpleicons.org),
- * белые или тёмные на фирменном цвете, лежат в public/igry/<slug>.svg. Только точные знаки: игры без своего
- * знака в наборе (Genshin, Minecraft, Standoff 2…) показываются буквенной плиткой, не чужим логотипом.
+ * лежат в public/igry/<slug>.svg и рисуются CSS-маской: цвет знака — фирменный, плитка — его бледный оттенок
+ * (лёгкий вид, выбор владельца 18.11.2026). У чёрных и серых марок (Steam, CS2, Roblox…) color = null:
+ * знак цветом текста темы, чтобы в тёмной теме не пропадал. Только точные знаки: игры без своего знака
+ * в наборе (Genshin, Minecraft, Standoff 2…) показываются буквенной плиткой, не чужим логотипом.
  * Без персонажей и ключевых артов — только эмблемы (правило владельца: без людей и животных на картинках).
  */
-export const GAME_ICONS: Record<string, { bg: string }> = {
-  "cs2": {
-    bg: "#1B1F24"
-  },
-  "dota2": {
-    bg: "#BF2E1A"
-  },
-  "steam": {
-    bg: "#171A21"
-  },
-  "roblox": {
-    bg: "#15171C"
-  },
-  "telegram": {
-    bg: "#26A5E4"
-  },
-  "fortnite": {
-    bg: "#15171C"
-  },
-  "valorant": {
-    bg: "#FA4454"
-  },
-  "gta5": {
-    bg: "#FCAF17"
-  },
-  "pubg-mobile": {
-    bg: "#F4B942"
-  },
-  "pubg": {
-    bg: "#F4B942"
-  },
-  "discord": {
-    bg: "#5865F2"
-  },
-  "apple": {
-    bg: "#15171C"
-  },
-  "battlenet": {
-    bg: "#4381C3"
-  },
-  "ea": {
-    bg: "#15171C"
-  },
-  "epic": {
-    bg: "#313131"
-  },
-  "faceit": {
-    bg: "#FF5500"
-  },
-  "google-play": {
-    bg: "#414141"
-  },
-  "lol": {
-    bg: "#C28F2C"
-  },
-  "playstation": {
-    bg: "#0070D1"
-  },
-  "spotify": {
-    bg: "#1ED760"
-  },
-  "tiktok": {
-    bg: "#15171C"
-  },
-  "ubisoft": {
-    bg: "#15171C"
-  },
-  "youtube": {
-    bg: "#FF0000"
-  },
+export const GAME_ICONS: Record<string, { color: string | null }> = {
+  'cs2': { color: null },
+  'dota2': { color: "#bf2e1a" },
+  'steam': { color: null },
+  'roblox': { color: null },
+  'telegram': { color: "#229ed9" },
+  'fortnite': { color: null },
+  'valorant': { color: "#fa4454" },
+  'gta5': { color: "#b07a10" },
+  'pubg-mobile': { color: "#aa812e" },
+  'pubg': { color: "#aa812e" },
+  'discord': { color: "#5865f2" },
+  'apple': { color: null },
+  'battlenet': { color: "#4381c3" },
+  'ea': { color: null },
+  'epic': { color: null },
+  'faceit': { color: "#ff5500" },
+  'google-play': { color: null },
+  'lol': { color: "#b8862a" },
+  'playstation': { color: "#0070d1" },
+  'spotify': { color: "#159643" },
+  'tiktok': { color: null },
+  'ubisoft': { color: null },
+  'youtube': { color: "#ff0000" },
 };
 
-export const gameIcon = (slug: string) => (GAME_ICONS[slug] ? { src: `/igry/${slug}.svg`, bg: GAME_ICONS[slug].bg } : null);
+export const gameIcon = (slug: string) =>
+  GAME_ICONS[slug] ? { src: `/igry/${slug}.svg`, color: GAME_ICONS[slug].color } : null;

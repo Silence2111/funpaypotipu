@@ -28,8 +28,7 @@ export default async function HomePage({
 }: {
   // Логин и сумма возвращаются сюда после входа: виджет открывается заполненным.
   // deleted — дата уничтожения данных после удаления аккаунта (часть 124).
-  // p — палитра для выбора владельцем (временно): siniy | fiolet | zelen
-  searchParams: Promise<{ account?: string; amount?: string; deleted?: string; p?: string }>;
+  searchParams: Promise<{ account?: string; amount?: string; deleted?: string }>;
 }) {
   const [index, browse, pricing, steam, query, t] = await Promise.all([
     getGameIndex(),
@@ -61,12 +60,11 @@ export default async function HomePage({
     .slice(0, 18);
   // Облако знаков в плите первого экрана: самые популярные, разного размера
   const cloud = iconRow.slice(0, 7);
-  const pal = ['siniy', 'fiolet', 'zelen'].includes(query.p ?? '') ? query.p : 'siniy';
 
   const deletedUntil = /^\d{4}-\d{2}-\d{2}$/.test(query.deleted ?? '') ? new Date(`${query.deleted}T00:00:00Z`) : null;
 
   return (
-    <div className={`container stack-lg home home2 pal-${pal}`}>
+    <div className="container stack-lg home home2">
       {deletedUntil && (
         <div className="alert" role="status">
           {t('Аккаунт удалён. До {date} его можно вернуть: войдите и нажмите «Восстановить». Потом почта, имя и вход будут уничтожены.', {
@@ -186,33 +184,11 @@ export default async function HomePage({
 
       <RecentLots />
 
-      {games.length > 0 && (
-        <section id="catalog" aria-labelledby="catalog-title" style={{ scrollMarginTop: 80 }}>
-          <div className="section-head" style={{ flexWrap: 'wrap', gap: 12 }}>
-            <h2 className="h2" id="catalog-title">
-              {t('Все игры от А до Я')}
-            </h2>
-            <div className="kind-links">
-              <Link href="/igry?vid=game" className="chip">
-                {t('Игры')}
-              </Link>
-              <Link href="/igry?vid=mobile" className="chip">
-                {t('Мобильные')}
-              </Link>
-              <Link href="/igry?vid=app" className="chip">
-                {t('Приложения')}
-              </Link>
-            </div>
-          </div>
-          <GameDirectory games={games} />
-        </section>
-      )}
-
       <section aria-labelledby="trust-title">
         <h2 className="h2" id="trust-title" style={{ marginBottom: 20 }}>
           {t('Как защищена сделка')}
         </h2>
-        <div className="trust-row">
+        <div className="trust-row gm-trust">
           <div>
             <h3>
               <ShieldCheck size={18} strokeWidth={1.75} aria-hidden /> {t('Деньги у площадки')}
@@ -270,6 +246,28 @@ export default async function HomePage({
           </p>
         </section>
       )}
+      {games.length > 0 && (
+        <section id="catalog" aria-labelledby="catalog-title" style={{ scrollMarginTop: 80 }}>
+          <div className="section-head" style={{ flexWrap: 'wrap', gap: 12 }}>
+            <h2 className="h2" id="catalog-title">
+              {t('Все игры от А до Я')}
+            </h2>
+            <div className="kind-links">
+              <Link href="/igry?vid=game" className="chip">
+                {t('Игры')}
+              </Link>
+              <Link href="/igry?vid=mobile" className="chip">
+                {t('Мобильные')}
+              </Link>
+              <Link href="/igry?vid=app" className="chip">
+                {t('Приложения')}
+              </Link>
+            </div>
+          </div>
+          <GameDirectory games={games} />
+        </section>
+      )}
+
     </div>
   );
 }
@@ -300,7 +298,7 @@ function PricingTable({
   return (
     // maxWidth: '100%' обязателен: без него grid-элемент растягивается
     // под min-width таблицы и уносит с собой всю страницу.
-    <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+    <div className="gm-price" style={{ overflowX: 'auto', maxWidth: '100%' }}>
       <table style={{ width: '100%', minWidth: 620, borderCollapse: 'collapse', fontSize: 14 }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border)' }}>

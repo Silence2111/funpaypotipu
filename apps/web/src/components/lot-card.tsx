@@ -19,7 +19,7 @@ export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
   const demo = isDemoSeller(l.seller.profile?.username);
   const seller = l.seller.profile;
   const reviews = seller?.ratingCount ?? 0;
-  const tint = gameIcon(l.game.slug)?.bg;
+  const tint = gameIcon(l.game.slug)?.color;
   return (
     <Link href={`/lot/${l.id}`} className="lc">
       <span className="lc__game">

@@ -1,24 +1,33 @@
+import type { CSSProperties } from 'react';
 import { gameIcon } from '@/lib/game-icons';
 import { GameTile } from './cards';
 
 /**
- * Значок игры или сервиса: фирменный знак на фирменном цвете (как значок приложения),
- * у кого знака нет — буквенная плитка. Подпись — рядом, сам значок для чтения экрана скрыт.
+ * Значок игры или сервиса в лёгком виде: бледная плитка цвета марки и сам знак этим цветом
+ * (знак — CSS-маска, цвет задаётся стилем, поэтому верен в обеих темах). У кого знака нет —
+ * буквенная плитка. Подпись — рядом, сам значок для чтения экрана скрыт.
  */
 export function GameIcon({ slug, title, size = 56 }: { slug: string; title: string; size?: number }) {
   const icon = gameIcon(slug);
+  const radius = Math.round(size * 0.27);
+  if (!icon) {
+    return (
+      <span className="gicon" aria-hidden style={{ width: size, height: size, borderRadius: radius }}>
+        <GameTile title={title} size={Math.round(size * 0.34)} />
+      </span>
+    );
+  }
+  const glyph = Math.round(size * 0.52);
   return (
     <span
-      className="gicon"
+      className={icon.color ? 'gicon gicon--brand' : 'gicon gicon--neutral'}
       aria-hidden
-      style={{ width: size, height: size, borderRadius: Math.round(size * 0.27), background: icon?.bg }}
+      style={{ width: size, height: size, borderRadius: radius, ['--brand' as string]: icon.color ?? undefined } as CSSProperties}
     >
-      {icon ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={icon.src} alt="" width={Math.round(size * 0.54)} height={Math.round(size * 0.54)} loading="lazy" />
-      ) : (
-        <GameTile title={title} size={Math.round(size * 0.34)} />
-      )}
+      <span
+        className="gicon__g"
+        style={{ width: glyph, height: glyph, WebkitMaskImage: `url(${icon.src})`, maskImage: `url(${icon.src})` }}
+      />
     </span>
   );
 }
