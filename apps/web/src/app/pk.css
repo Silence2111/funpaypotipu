@@ -254,8 +254,8 @@ body { background:
 .sv .filters .input, .sv .filter-search input { background: var(--plate); border: 0; border-radius: 12px; min-height: 42px; box-shadow: none; }
 @media (max-width: 900px) {
   .sh { min-height: 0; padding: 22px 20px; flex-direction: column; align-items: flex-start; border-radius: 24px; }
-  .sh__obj { width: 120px; right: 2%; top: 30%; }
-  .sh__h1 { font-size: 26px; padding-right: 90px; }
+  .sh__obj { width: 92px; right: 3%; top: 16%; transform: rotate(-8deg); }
+  .sh__h1 { font-size: 26px; padding-right: 70px; }
   .sh__sell { margin-right: 0; }
   .sh__id .gicon { width: 56px !important; height: 56px !important; }
 }
@@ -357,3 +357,4 @@ body { background:
 .profile-head, .profile-card { background: var(--plate); border: 0 !important; box-shadow: none !important; border-radius: 28px; }
 .profile-breakdown { background: var(--plate); border-radius: 22px; padding: 16px 18px; }
 .review-card, .reviews-list .card { background: var(--plate) !important; border: 0 !important; box-shadow: none !important; border-radius: 20px !important; }
+.igry-top { margin-top: 24px; }

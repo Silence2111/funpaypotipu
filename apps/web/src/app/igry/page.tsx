@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { getGameIndex, KIND_LABELS, type GameIndexEntry } from '@/lib/api';
 import { GameSearch } from '@/components/game-search';
 import { GameDirectory } from '@/components/game-directory';
+import { GameIcon } from '@/components/game-icon';
+import { gameIcon } from '@/lib/game-icons';
 import { getT } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,7 +27,7 @@ export default async function GamesIndexPage({ searchParams }: { searchParams: P
   const games = kind ? all.filter((g) => g.kind === kind) : all;
 
   return (
-    <div className="container" style={{ paddingTop: 40, paddingBottom: 24 }}>
+    <div className="container" style={{ paddingTop: 24, paddingBottom: 24 }}>
       <h1 className="h1" style={{ fontSize: 34 }}>
         {kind ? t(KIND_LABELS[kind]) : t('Все игры')}
       </h1>
@@ -36,6 +38,22 @@ export default async function GamesIndexPage({ searchParams }: { searchParams: P
       <div style={{ marginTop: 24, maxWidth: 640 }}>
         <GameSearch index={all} size="lg" />
       </div>
+
+      {/* Популярные крупными значками, как страница игр у Playerok; ниже — указатель А–Я с разделами */}
+      {!kind && (
+        <nav className="pk-icons igry-top" aria-label={t('Популярные игры и сервисы')}>
+          {all
+            .filter((g) => gameIcon(g.slug))
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .slice(0, 16)
+            .map((g) => (
+              <Link key={g.id} href={`/igra/${g.slug}`} className="pk-icons__i">
+                <GameIcon slug={g.slug} title={g.title} size={80} />
+                <span>{t.d(g.title)}</span>
+              </Link>
+            ))}
+        </nav>
+      )}
 
       <nav className="kind-links" aria-label={t('Что показать')} style={{ marginTop: 20 }}>
         <Link href="/igry" className="chip" aria-current={!kind ? 'page' : undefined}>
