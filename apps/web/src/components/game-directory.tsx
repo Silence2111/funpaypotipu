@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import Link from 'next/link';
 import type { GameIndexEntry } from '@/lib/api';
 import { GameTile } from './cards';
+import { GameIcon } from './game-icon';
 import { offersCount } from '@/lib/format';
 import { getT } from '@/lib/i18n/server';
 import { RU, type T } from '@/lib/i18n/lang';
@@ -57,6 +58,7 @@ export async function GameDirectory({ games }: { games: GameIndexEntry[] }) {
             {grp.games.map((g) => (
               <div key={g.id} className="dir-game">
                 <Link href={`/igra/${g.slug}`} className="dir-title">
+                  <GameIcon slug={g.slug} title={g.title} size={26} />
                   {t.d(g.title)}
                 </Link>
                 <div className="dir-sections">

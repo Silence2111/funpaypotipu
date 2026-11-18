@@ -20,9 +20,9 @@ import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { payOrder } from '@/lib/checkout';
 import { formatPrice } from '@/lib/format';
-import { tileFor } from '@/lib/tile';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
+import { GameIcon } from './game-icon';
 import { PayMethods, methodFee, priceFor, type PayMethod } from '@/components/pay-methods';
 
 /** Быстрые суммы, ₽: самые частые пополнения кошелька. */
@@ -141,7 +141,6 @@ export function GameTopupForm({
     void pay();
   }
 
-  const tile = tileFor(game.title);
   const demo = offer ? isDemoSeller(offer.seller.username) : false;
   const ids = { account: `topup-account-${variant}`, amount: `topup-amount-${variant}` };
 
@@ -292,24 +291,8 @@ export function GameTopupForm({
   return (
     <div id="topup" className="card topup-card">
       <div className="row" style={{ gap: 12, marginBottom: 16 }}>
-        <div
-          aria-hidden
-          style={{
-            width: 44,
-            height: 44,
-            flex: 'none',
-            borderRadius: 12,
-            background: tile.background,
-            color: tile.color,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            letterSpacing: '-0.02em',
-          }}
-        >
-          {tile.initials}
-        </div>
+        {/* знак игры (Steam, PlayStation…) или буквенная плитка, как в ряду значков на главной */}
+        <GameIcon slug={game.slug} title={game.title} size={44} />
         <div style={{ minWidth: 0 }}>
           <h2 className="h2" style={{ fontSize: 20 }}>
             {t('Пополнить {game}', { game: t.d(game.title) })}

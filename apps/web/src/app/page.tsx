@@ -3,8 +3,11 @@ import { ShieldCheck, MessagesSquare, Zap, Info } from 'lucide-react';
 import { browseListings, getGameIndex, getPublicPricing, getTopupOffers, SEGMENTS } from '@/lib/api';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { GameSearch } from '@/components/game-search';
-import { GameDirectory, PopularGames } from '@/components/game-directory';
-import { OfferTable } from '@/components/offers';
+import { GameDirectory } from '@/components/game-directory';
+import { GameIcon } from '@/components/game-icon';
+import { LotCard } from '@/components/lot-card';
+import { gameIcon } from '@/lib/game-icons';
+import './home.css';
 import { RecentLots } from '@/components/recent-lots';
 import { getT } from '@/lib/i18n/server';
 import type { T } from '@/lib/i18n/lang';
@@ -29,7 +32,7 @@ export default async function HomePage({
 }) {
   const [index, browse, pricing, steam, query, t] = await Promise.all([
     getGameIndex(),
-    browseListings({ limit: 8, sort: 'new' }),
+    browseListings({ limit: 10, sort: 'new' }),
     getPublicPricing(),
     getTopupOffers('steam'),
     searchParams,
@@ -50,10 +53,18 @@ export default async function HomePage({
       : null;
   const payoutFee = pricing?.withdrawal.find((w) => w.key === 'sbp')?.feePct ?? null;
 
+  // Ряд значков сверху, как у Playerok и GGSel: игры и сервисы с настоящим знаком, по популярности каталога
+  const iconRow = games
+    .filter((g) => gameIcon(g.slug))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title))
+    .slice(0, 18);
+  // Облако знаков в плите первого экрана: самые популярные, разного размера
+  const cloud = iconRow.slice(0, 7);
+
   const deletedUntil = /^\d{4}-\d{2}-\d{2}$/.test(query.deleted ?? '') ? new Date(`${query.deleted}T00:00:00Z`) : null;
 
   return (
-    <div className="container stack-lg home">
+    <div className="container stack-lg home home2">
       {deletedUntil && (
         <div className="alert" role="status">
           {t('Аккаунт удалён. До {date} его можно вернуть: войдите и нажмите «Восстановить». Потом почта, имя и вход будут уничтожены.', {
@@ -61,20 +72,38 @@ export default async function HomePage({
           })}
         </div>
       )}
-      {/* Первый экран: поиск по играм и пополнение Steam — самый короткий путь
-          к первой покупке. «Оплатить» в виджете — единственный акцент экрана. */}
-      <section className={topup ? 'home-hero' : undefined}>
-        <div>
-          <h1 className="h1">{t('Игровые товары. Безопасно.')}</h1>
-          <p className="lead">
+      {/* Первый экран (18.11.2026), гибрид конкурентов: ряд значков игр (Playerok, GGSel), плита с поиском
+          и разделами слева, пополнение Steam справа (GGSel), ниже лоты плитками с вкладками разделов (Playerok). */}
+      {iconRow.length > 0 && (
+        <nav className="gm-icons" aria-label={t('Популярные игры и сервисы')}>
+          {iconRow.map((g) => (
+            <Link key={g.id} href={`/igra/${g.slug}`} className="gm-icons__item">
+              <GameIcon slug={g.slug} title={g.title} size={60} />
+              <span>{t.d(g.title)}</span>
+            </Link>
+          ))}
+        </nav>
+      )}
+
+      <section className={topup ? 'gm-hero' : 'gm-hero gm-hero--solo'}>
+        <div className="gm-hero__panel">
+          {cloud.length >= 5 && (
+            <div className="gm-cloud" aria-hidden>
+              {cloud.map((g, i) => (
+                <span key={g.id} className={`gm-cloud__i gm-cloud__i--${i}`}>
+                  <GameIcon slug={g.slug} title={g.title} size={[84, 64, 72, 52, 60, 48, 56][i] ?? 52} />
+                </span>
+              ))}
+            </div>
+          )}
+          <h1 className="gm-hero__h1">{t('Игровые товары с гарантией сделки')}</h1>
+          <p className="gm-hero__lead">
             {games.length > 0
               ? t('{n} игр и сервисов: аккаунты, валюта, предметы, ключи и донат.', { n: games.length })
               : t('Аккаунты, валюта, предметы, ключи и донат.')}{' '}
             {t('Деньги лежат у площадки, пока вы не подтвердите, что получили товар.')}
           </p>
-          <div style={{ marginTop: 24 }}>
-            <GameSearch index={games} size="lg" />
-          </div>
+          <GameSearch index={games} size="lg" />
           <nav className="type-chips" aria-label={t('Типы товаров')}>
             {SEGMENTS.map(([key, label]) => (
               <Link key={key} href={`/catalog?segment=${key}`} className="chip">
@@ -82,21 +111,23 @@ export default async function HomePage({
               </Link>
             ))}
           </nav>
-          <p className="muted" style={{ fontSize: 14, marginTop: 20 }}>
-            {t('Покупателю — без комиссии.')}
+          <ul className="gm-hero__pluses">
+            <li>
+              <ShieldCheck size={16} strokeWidth={2} aria-hidden /> {t('Покупателю — без комиссии.')}
+            </li>
             {feeRange && (
-              <>
-                {' '}
+              <li>
+                <Zap size={16} strokeWidth={2} aria-hidden />{' '}
                 {t('Продавцу — {fee}, вывод от {payout}.', {
                   fee: feeRange,
                   payout: payoutFee != null ? pct(payoutFee) : '—',
-                })}
-              </>
-            )}{' '}
-            <Link href="/cabinet/new" className="inline-link">
-              {t('Продать свой лот')}
-            </Link>
-          </p>
+                })}{' '}
+                <Link href="/cabinet/new" className="inline-link">
+                  {t('Продать свой лот')}
+                </Link>
+              </li>
+            )}
+          </ul>
         </div>
 
         {topup && (
@@ -113,7 +144,7 @@ export default async function HomePage({
       </section>
 
       {pricing?.paymentsDemo && (
-        <div className="alert" role="note" style={{ maxWidth: 760, margin: '32px auto 0' }}>
+        <div className="alert gm-demo" role="note">
           <Info size={18} strokeWidth={1.75} />
           <span>
             {t(
@@ -122,22 +153,6 @@ export default async function HomePage({
           </span>
         </div>
       )}
-
-      {games.length > 0 && (
-        <section aria-labelledby="popular-title">
-          <div className="section-head">
-            <h2 className="h2" id="popular-title">
-              {t('Популярные')}
-            </h2>
-            <a href="#catalog" className="muted" style={{ fontSize: 14 }}>
-              {t('Все игры')} →
-            </a>
-          </div>
-          <PopularGames games={games} />
-        </section>
-      )}
-
-      <RecentLots />
 
       {listings.length > 0 && (
         <section aria-labelledby="fresh-title">
@@ -149,37 +164,31 @@ export default async function HomePage({
               {t('Все')} →
             </Link>
           </div>
-          <OfferTable items={listings} showSection t={t} />
+          <nav className="gm-tabs" aria-label={t('Типы товаров')}>
+            <Link href="/catalog" className="gm-tabs__on">
+              {t('Все')}
+            </Link>
+            {SEGMENTS.map(([key, label]) => (
+              <Link key={key} href={`/catalog?segment=${key}`}>
+                {t(label)}
+              </Link>
+            ))}
+          </nav>
+          <div className="gm-lots">
+            {listings.map((l) => (
+              <LotCard key={l.id} l={l} t={t} />
+            ))}
+          </div>
         </section>
       )}
 
-      {games.length > 0 && (
-        <section id="catalog" aria-labelledby="catalog-title" style={{ scrollMarginTop: 80 }}>
-          <div className="section-head" style={{ flexWrap: 'wrap', gap: 12 }}>
-            <h2 className="h2" id="catalog-title">
-              {t('Все игры от А до Я')}
-            </h2>
-            <div className="kind-links">
-              <Link href="/igry?vid=game" className="chip">
-                {t('Игры')}
-              </Link>
-              <Link href="/igry?vid=mobile" className="chip">
-                {t('Мобильные')}
-              </Link>
-              <Link href="/igry?vid=app" className="chip">
-                {t('Приложения')}
-              </Link>
-            </div>
-          </div>
-          <GameDirectory games={games} />
-        </section>
-      )}
+      <RecentLots />
 
       <section aria-labelledby="trust-title">
         <h2 className="h2" id="trust-title" style={{ marginBottom: 20 }}>
           {t('Как защищена сделка')}
         </h2>
-        <div className="trust-row">
+        <div className="trust-row gm-trust">
           <div>
             <h3>
               <ShieldCheck size={18} strokeWidth={1.75} aria-hidden /> {t('Деньги у площадки')}
@@ -237,6 +246,28 @@ export default async function HomePage({
           </p>
         </section>
       )}
+      {games.length > 0 && (
+        <section id="catalog" aria-labelledby="catalog-title" style={{ scrollMarginTop: 80 }}>
+          <div className="section-head" style={{ flexWrap: 'wrap', gap: 12 }}>
+            <h2 className="h2" id="catalog-title">
+              {t('Все игры от А до Я')}
+            </h2>
+            <div className="kind-links">
+              <Link href="/igry?vid=game" className="chip">
+                {t('Игры')}
+              </Link>
+              <Link href="/igry?vid=mobile" className="chip">
+                {t('Мобильные')}
+              </Link>
+              <Link href="/igry?vid=app" className="chip">
+                {t('Приложения')}
+              </Link>
+            </div>
+          </div>
+          <GameDirectory games={games} />
+        </section>
+      )}
+
     </div>
   );
 }
@@ -267,7 +298,7 @@ function PricingTable({
   return (
     // maxWidth: '100%' обязателен: без него grid-элемент растягивается
     // под min-width таблицы и уносит с собой всю страницу.
-    <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+    <div className="gm-price" style={{ overflowX: 'auto', maxWidth: '100%' }}>
       <table style={{ width: '100%', minWidth: 620, borderCollapse: 'collapse', fontSize: 14 }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border)' }}>

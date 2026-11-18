@@ -15,6 +15,9 @@ set -a; source ./.env; set +a
 export NODE_ENV=development PAYMENT_PROVIDER="${PAYMENT_PROVIDER:-mock}"
 export API_PORT=4077 API_URL=http://localhost:4077 PUBLIC_ASSET_BASE=http://localhost:4077
 export NEXT_PUBLIC_API_URL=http://localhost:4077 NEXT_PUBLIC_SITE_URL=http://localhost:3077
+# Сайт стенда — :3077, а API по умолчанию пускает из браузера только :3000 (CORS):
+# без этого на стенде молча ломались все запросы из браузера — калькулятор продавца, вход, покупка.
+export WEB_URL=http://localhost:3077 CORS_ORIGINS=http://localhost:3077,http://127.0.0.1:3077
 
 [ -d node_modules ] || pnpm install
 pnpm --filter @gamemarket/db generate >/dev/null
