@@ -3,8 +3,8 @@ import { Star, Zap } from 'lucide-react';
 import { isDemoSeller } from '@gamemarket/shared';
 import { lotTitle } from '@/lib/lot-text';
 import type { ListingCard } from '@/lib/api';
-import { gameIcon, monogram, monogramColor } from '@/lib/game-icons';
-import { formatListingPrice } from '@/lib/format';
+import { coverColor, coverIsLight, gameIcon } from '@/lib/game-icons';
+import { formatListingPrice, formatPrice } from '@/lib/format';
 import { RU, type T } from '@/lib/i18n/lang';
 import { GameIcon } from './game-icon';
 import { SaleMark } from './sale-mark';
@@ -18,51 +18,135 @@ export function coverAmount(title: string): string | null {
   return m ? `${m[1].replace(/\s+/g, ' ').trim()} ${m[2].replace(/[,.]$/, '')}` : null;
 }
 
+/** Крупная надпись обложки без количества — начало названия: «AWP Asiimov», «Перчатки Hydra» (у Playerok обложки разные). */
+export function coverWords(title: string): string {
+  // служебные слова не считаем и на них не обрываем: «Ключ от кейса», а не «Ключ от»
+  const STOP = new Set(['от', 'для', 'на', 'и', 'в', 'по', 'с', 'за', 'из', 'через', 'без', 'к', 'of', 'for', 'the', 'to', 'on', 'via']); // i18n-ignore
+  const words = title.replace(/[^\p{L}\p{N}\s\-.]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  let content = 0;
+  for (const w of words) {
+    if (content >= 2 || (out.length && (out.join(' ') + ' ' + w).length > 22)) break;
+    out.push(w);
+    if (!STOP.has(w.toLowerCase())) content++;
+  }
+  while (out.length > 1 && STOP.has(out[out.length - 1].toLowerCase())) out.pop();
+  // неразрывный дефис: «В‑баксов» не рвётся на «В-» и «баксов»
+  return out.join(' ').replace(/-/g, '\u2011');
+}
+
+/** Небольшой разброс наклона и размера предмета по лоту — чтобы соседние обложки не были копиями. */
+function wobble(id: string): { rot: number; size: number } {
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return { rot: (h % 17) - 8, size: 42 + (h >> 5) % 9 };
+}
+
+/** Объёмный предмет на обложке по типу товара (свои рендеры Blender, `дизайн/3d`): как предметы на обложках Playerok. */
+export function lotArt(segment?: string, categorySlug?: string): string {
+  const bySlug: Record<string, string> = {
+    stars: 'star', cards: 'card', topup: 'card', gifts: 'chest', keys: 'key', skins: 'chest', boost: 'bolt',
+    'ps-plus': 'crown', premium: 'crown', nitro: 'crown', subscription: 'crown', subscriptions: 'crown', pass: 'crown',
+  };
+  const bySeg: Record<string, string> = { accounts: 'account', currency: 'coins', items: 'chest', key: 'key', topup: 'gem', service: 'wrench' };
+  const k = (categorySlug && bySlug[categorySlug]) || (segment && bySeg[segment]) || 'gamepad';
+  return `/3d/${k}.webp`;
+}
+
 /**
- * Карточка лота плиткой, как в выдаче Playerok и GGSel: сверху игра и раздел, обложка
- * (фото продавца, а без фото — знак игры на её цвете), цена, название, продавец.
- * Рейтинг — только из настоящих отзывов; демо-лоты помечены «Пример».
+ * Карточка лота по образцу выдачи Playerok (18.11.2026): сверху игра и раздел, яркая обложка
+ * (фото продавца, а без фото — цвет марки, крупно количество или раздел и большой знак игры у края),
+ * цена со скидкой красной плашкой, название в две строки, звёзды продавца. Рейтинг — только
+ * из настоящих отзывов; демо-лоты помечены «Пример».
  */
-export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
-  const instant = l.fulfillmentType === 'auto_key' || l.fulfillmentType === 'provider';
-  const demo = isDemoSeller(l.seller.profile?.username);
+/** cashback — доля кэшбэка площадки: «+66 ₽ кэшбэк» под ценой, как плашка Cashback у Eneba. */
+export function LotCard({ l, t = RU, cashback }: { l: ListingCard; t?: T; cashback?: number }) {
   const seller = l.seller.profile;
   const reviews = seller?.ratingCount ?? 0;
-  // Обложка без фото — цвет игры и крупно количество из названия, как обложки продавцов в нише
-  const icon = gameIcon(l.game.slug);
-  const coverBg = icon?.bg ?? monogramColor(l.game.title);
-  const coverInk = icon?.glyph ?? '#ffffff';
-  const amount = coverAmount(lotTitle(l, t.lang));
+  const title = lotTitle(l, t.lang);
   return (
     <Link href={`/lot/${l.id}`} className="lc">
       <span className="lc__game">
-        <GameIcon slug={l.game.slug} title={l.game.title} size={30} />
+        <GameIcon slug={l.game.slug} title={l.game.title} size={28} />
         <span>
           <b>{t.d(l.game.title)}</b>
           <small>{t.d(l.category.title)}</small>
         </span>
       </span>
-      <span className="lc__cover" style={{ background: coverBg, color: coverInk }}>
+      <LotCover l={l} t={t} />
+      <span className="lc__price">
+        {formatListingPrice(l, t)}
+        <SaleMark listPrice={l.saleRefPrice ?? l.saleListPrice} price={l.price} currency={l.currency} t={t} />
+      </span>
+      {cashback && cashback > 0 && l.currency === 'RUB' && !l.unitName ? (
+        <span className="lc__cb">{t('+{sum} кэшбэк', { sum: formatPrice(String(Math.round((Number(l.price) * cashback) / 100) * 100), l.currency, t) })}</span>
+      ) : null}
+      <span className="lc__title">{title}</span>
+      {/* Продавец и оценка, как у Playerok: имя слева, звезда с числом справа; «нет отзывов» на каждой карточке
+          владелец увидел шумом — без отзывов строка показывает только продавца */}
+      <span className="lc__seller">
+        {seller && <span className="lc__name">{seller.username}</span>}
+        {reviews > 0 && (
+          <span className="lc__rate" aria-label={t('Рейтинг {r} из 5', { r: seller!.ratingAvg.toFixed(1) })}>
+            <Star size={12} strokeWidth={0} aria-hidden />
+            {seller!.ratingAvg.toFixed(1)}
+            <span className="faint">({reviews})</span>
+          </span>
+        )}
+      </span>
+    </Link>
+  );
+}
+
+/** Обложка лота — одна и в ленте, и крупно на странице лота: фото продавца или цвет марки, надпись и предмет. */
+export function LotCover({ l, t = RU, big = false }: { l: ListingCard; t?: T; big?: boolean }) {
+  const instant = l.fulfillmentType === 'auto_key' || l.fulfillmentType === 'provider';
+  const demo = isDemoSeller(l.seller.profile?.username);
+  const icon = gameIcon(l.game.slug);
+  const title = lotTitle(l, t.lang);
+  const amount = coverAmount(title);
+  const [num, ...unit] = (amount ?? '').split(' ');
+  const light = coverIsLight(l.game.slug);
+  const words = amount ? num : coverWords(title) || t.d(l.category.title);
+  // самое длинное слово надписи: по нему кегль уменьшается, чтобы «Пополнение» не уходило под предмет
+  const len = Math.max(4, ...words.split(/\s+/).map((w) => w.length));
+  return (
+      <span
+        className={`lc__cover${light ? ' lc__cover--light' : ''}${big ? ' lc__cover--big' : ''}${len >= 9 ? ' lc__cover--long' : ''}`}
+        style={{ ['--c' as string]: coverColor(l.game.slug, l.game.title) }}
+      >
         {l.images?.[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img className="lc__photo" src={l.images[0]} alt="" loading="lazy" />
         ) : (
-          <span className="lc__art">
+          <>
             {icon ? (
-              <span
-                className="lc__glyph"
-                style={{ background: coverInk, WebkitMaskImage: `url(${icon.src})`, maskImage: `url(${icon.src})` }}
-              />
-            ) : (
-              <span className="lc__letters">{monogram(l.game.title)}</span>
-            )}
-            {amount && <span className="lc__amount">{amount}</span>}
-          </span>
+              <span className="lc__mark" style={{ WebkitMaskImage: `url(${icon.src})`, maskImage: `url(${icon.src})` }} aria-hidden />
+            ) : null}
+            {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер из public */}
+            <img
+              className="lc__obj"
+              src={lotArt(l.category.segment, l.category.slug)}
+              alt=""
+              loading="lazy"
+              style={{ ['--r' as string]: `${wobble(l.id).rot}deg`, width: `${wobble(l.id).size}%` }}
+            />
+            <span className="lc__big" style={{ ['--len' as string]: len }}>
+              {amount ? (
+                <>
+                  <b>{num}</b>
+                  <span>{unit.join(' ')}</span>
+                </>
+              ) : (
+                <span className="lc__sec">{words}</span>
+              )}
+            </span>
+          </>
         )}
         <span className="lc__badges">
           {instant && (
             <span className="lc__badge lc__badge--fast">
-              <Zap size={12} strokeWidth={2.2} aria-hidden /> {t('Автовыдача')}
+              <Zap size={12} strokeWidth={2.4} aria-hidden /> {t('Автовыдача')}
             </span>
           )}
           {demo && (
@@ -72,22 +156,5 @@ export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
           )}
         </span>
       </span>
-      <span className="lc__price">
-        {formatListingPrice(l, t)}
-        <SaleMark listPrice={l.saleRefPrice ?? l.saleListPrice} price={l.price} currency={l.currency} t={t} />
-      </span>
-      <span className="lc__title">{lotTitle(l, t.lang)}</span>
-      <span className="lc__seller">
-        {reviews > 0 ? (
-          <>
-            <Star size={13} strokeWidth={1.75} className="star" aria-hidden /> {seller!.ratingAvg.toFixed(1)}
-            <span className="faint"> · {t.n(reviews, 'отз.', 'отз.', 'отз.')}</span>
-          </>
-        ) : (
-          <span className="faint">{t('нет отзывов')}</span>
-        )}
-        {seller && <span className="lc__name">{seller.username}</span>}
-      </span>
-    </Link>
   );
 }

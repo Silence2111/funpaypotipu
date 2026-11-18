@@ -109,8 +109,6 @@ export default function SettingsPage() {
     <div className="container stack-lg" style={{ paddingTop: 40 }}>
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>{t('Профиль')}</h1>
-        <div style={{ marginTop: 16 }}>
-        </div>
       </div>
 
       {msg && (
@@ -119,6 +117,10 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Две колонки на широком экране (18.11.2026, «пройдись, где что не доделано»): раньше все карточки были по 600 px
+          и справа на всю длинную страницу стояла пустота. Слева профиль, справа Steam, согласие и чёрный список. */}
+      <div className="settings-cols">
+        <div className="settings-col">
       {!profile ? (
         <div className="skeleton" style={{ height: 240 }} aria-busy="true" />
       ) : (
@@ -187,10 +189,9 @@ export default function SettingsPage() {
           </div>
         </form>
       )}
-
+        </div>
+        <div className="settings-col">
       <SteamTradeSettings />
-
-      <NotificationSettings />
 
       <ConsentSettings />
 
@@ -220,12 +221,18 @@ export default function SettingsPage() {
           </div>
         )}
       </section>
+        </div>
+      </div>
 
-      {/* Свои данные одним файлом (к части 124, ст. 14 152-ФЗ). */}
-      <DataExport />
+      <NotificationSettings />
 
-      {/* Удаление — последним: необратимое действие внизу страницы (часть 124). */}
-      <AccountDeletion />
+      <div className="settings-cols">
+        {/* Свои данные одним файлом (к части 124, ст. 14 152-ФЗ). */}
+        <DataExport />
+
+        {/* Удаление — последним: необратимое действие внизу страницы (часть 124). */}
+        <AccountDeletion />
+      </div>
     </div>
   );
 }

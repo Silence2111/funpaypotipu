@@ -8,6 +8,8 @@ import { apiFetch, getToken, useSession } from '@/lib/session';
 import { formatPrice, formatQty, perPackLabel } from '@/lib/format';
 import { apiErrorMessage } from '@/lib/errors';
 import { OrderChat } from '@/components/order-chat';
+import { LotCover } from '@/components/lot-card';
+import type { ListingCard } from '@/lib/api';
 import { OrderReview } from '@/components/order-review';
 import { BuyAgain } from '@/components/buy-again';
 import { BuyerRating } from '@/components/buyer-rating';
@@ -136,6 +138,19 @@ export default function OrderPage() {
   const id = params.id;
   const t = useT();
   const [order, setOrder] = useState<Order | null>(null);
+  // Обложка купленного лота, как в заказе у Playerok (18.11.2026): в заказе нет игры и раздела — берём сам лот по номеру
+  const [cover, setCover] = useState<ListingCard | null>(null);
+  const coverId = order?.listingId;
+  useEffect(() => {
+    if (!coverId) return;
+    let live = true;
+    apiFetch<ListingCard>(`/listings/${coverId}`)
+      .then((l) => live && setCover(l))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [coverId]);
   const [keys, setKeys] = useState<string[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -354,9 +369,16 @@ export default function OrderPage() {
           : t('Заказ {n} · вы продавец', { n: order.publicNumber })}
       </p>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginTop: 6 }}>
-        <h1 className="h2" style={{ lineHeight: 1.25 }}>
-          {title && order.listingId ? <Link href={`/lot/${order.listingId}`}>{title}</Link> : title ?? t('Заказ')}
-        </h1>
+        <div className="order-ttl">
+          {cover && (
+            <Link href={`/lot/${cover.id}`} className="order-cover" aria-hidden tabIndex={-1}>
+              <LotCover l={cover} t={t} />
+            </Link>
+          )}
+          <h1 className="h2" style={{ lineHeight: 1.25 }}>
+            {title && order.listingId ? <Link href={`/lot/${order.listingId}`}>{title}</Link> : title ?? t('Заказ')}
+          </h1>
+        </div>
         <div className="price" style={{ fontSize: 22, whiteSpace: 'nowrap' }}>{formatPrice(order.amount, order.currency, t)}</div>
       </div>
       {order.listingSnapshot?.qtyDiscount && (

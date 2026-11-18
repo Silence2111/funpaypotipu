@@ -147,7 +147,8 @@ const cardSelect = {
       },
     },
   },
-  category: { select: { id: true, slug: true, title: true } },
+  // segment — тип товара: витрина рисует по нему значок на обложке лота без фото (18.11.2026)
+  category: { select: { id: true, slug: true, title: true, segment: true } },
   game: { select: { slug: true, title: true } },
 } satisfies Prisma.ListingSelect;
 

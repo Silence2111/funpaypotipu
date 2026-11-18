@@ -43,8 +43,9 @@ export async function GameDirectory({ games }: { games: GameIndexEntry[] }) {
   return (
     <div className="directory">
       <nav className="letters" aria-label={t('Буквы указателя')}>
-        {groups.map((g) => (
-          <a key={g.letter} href={`#l-${g.letter}`}>
+        {groups.map((g, i) => (
+          // первая кириллическая буква отделена: иначе «М» (Мир танков) после Z читалась как второе латинское M
+          <a key={g.letter} href={`#l-${g.letter}`} className={groupRank(g.letter) === 2 && groupRank(groups[i - 1]?.letter ?? '') !== 2 ? 'letters__ru' : undefined}>
             {g.letter}
           </a>
         ))}
@@ -58,7 +59,7 @@ export async function GameDirectory({ games }: { games: GameIndexEntry[] }) {
             {grp.games.map((g) => (
               <div key={g.id} className="dir-game">
                 <Link href={`/igra/${g.slug}`} className="dir-title">
-                  <GameIcon slug={g.slug} title={g.title} size={26} />
+                  <GameIcon slug={g.slug} title={g.title} size={34} />
                   {t.d(g.title)}
                 </Link>
                 <div className="dir-sections">

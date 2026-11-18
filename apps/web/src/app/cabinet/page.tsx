@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Wallet, Package, Tag } from 'lucide-react';
+import { Wallet } from 'lucide-react';
 import { apiFetch, getToken, getUser } from '@/lib/session';
 import { logout } from '@/lib/logout';
 import { formatListingPrice, formatPrice } from '@/lib/format';
@@ -14,7 +14,7 @@ import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
 
 interface WalletDto { currency: string; balance: string }
-interface OrderRow { id: string; publicNumber: string; status: string; amount: string; currency: string }
+interface OrderRow { id: string; publicNumber: string; status: string; amount: string; currency: string; title?: string | null; role?: 'buyer' | 'seller'; counterparty?: string | null }
 interface ListingRow { id: string; title: string; price: string; currency: string; status: string; boostUntil?: string | null; topupMarkupBps?: number | null }
 
 const STATUS: Record<string, string> = {
@@ -80,18 +80,44 @@ export default function CabinetPage() {
         </div>
         <Link href="/cabinet/new" className="btn">{t('Продать лот')}</Link>
       </div>
+
+      {/* Быстрые действия с объёмными значками, как в профиле Playerok (18.11.2026) */}
+      <nav className="cab-quick" aria-label={t('Быстрые действия')}>
+        {(
+          [
+            ['/cabinet/new', 'plus', t('Создать лот')],
+            ['/cabinet/wallet', 'coins', t('Пополнить баланс')],
+            ['/cabinet/orders?role=buyer', 'chest', t('Мои покупки')],
+            ['/chat', 'chat', t('Сообщения')],
+            ['/cabinet/favorites', 'star', t('Избранное')],
+          ] as const
+        ).map(([href, art, label]) => (
+          <Link key={href} href={href} className="cab-quick__i">
+            {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер */}
+            <img src={`/3d/${art}.webp`} alt="" width={48} height={48} />
+            <span>{label}</span>
+          </Link>
+        ))}
+      </nav>
       <SellerToday />
 
       <section>
         <div className="section-head">
-          <h2 className="h2 row" style={{ fontSize: 20, gap: 8 }}><Package size={18} strokeWidth={1.75} /> {t('Мои заказы')}</h2>
+          <h2 className="h2" style={{ fontSize: 20 }}>{t('Мои заказы')}</h2>
         </div>
         {orders.length ? (
           <div className="grid" style={{ gap: 8 }}>
             {orders.slice(0, 5).map((o) => (
               <Link key={o.id} href={`/orders/${o.id}`} className="card link row"
                 style={{ justifyContent: 'space-between', padding: 16, gap: 12, flexWrap: 'wrap' }}>
-                <span className="muted" style={{ fontSize: 14 }}>{o.publicNumber}</span>
+                {/* что за заказ, а не один номер: название лота, покупка или продажа и с кем (владелец: «доделано ли») */}
+                <span className="cab-order">
+                  <b>{o.title ?? o.publicNumber}</b>
+                  <small>
+                    {o.role === 'seller' ? t('Продажа') : t('Покупка')}
+                    {o.counterparty ? ` · ${o.counterparty}` : ''} · {o.publicNumber}
+                  </small>
+                </span>
                 <span className="row" style={{ gap: 12 }}>
                   <span className="price">{formatPrice(o.amount, o.currency, t)}</span>
                   <span className={o.status === 'completed' ? 'badge success' : o.status === 'paid' || o.status === 'delivered' ? 'badge accent' : 'badge'}>
@@ -114,7 +140,7 @@ export default function CabinetPage() {
 
       <section>
         <div className="section-head">
-          <h2 className="h2 row" style={{ fontSize: 20, gap: 8 }}><Tag size={18} strokeWidth={1.75} /> {t('Мои лоты')}</h2>
+          <h2 className="h2" style={{ fontSize: 20 }}>{t('Мои лоты')}</h2>
         </div>
         {listings.length ? (
           <div className="grid" style={{ gap: 8 }}>

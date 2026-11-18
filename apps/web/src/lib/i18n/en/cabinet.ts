@@ -8,6 +8,8 @@ export const CABINET: Record<string, string> = {
   Заказы: 'Orders',
   Консоль: 'Console',
   'Мои заказы': 'My orders',
+  'Покупка': 'Purchase',
+  'Продажа': 'Sale',
   'Все покупки и продажи →': 'All purchases and sales →',
   'Номер заказа, лот или ник': 'Order number, listing or username',
   'Поиск по заказам': 'Search orders',
@@ -640,4 +642,7 @@ export const CABINET: Record<string, string> = {
   'возвращено: заказ отменён': 'returned: order cancelled',
   'Спишутся скидкой при оплате следующего заказа, галочкой у кнопки «Оплатить». Не выводятся.':
     'Applied as a discount when you pay for your next order — with the checkbox next to “Pay”. They can’t be withdrawn.',
+  // Быстрые действия кабинета (18.11.2026)
+  'Быстрые действия': 'Quick actions',
+  'Мои покупки': 'My purchases',
 };

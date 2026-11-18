@@ -3,14 +3,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { TrendingDown, Zap } from 'lucide-react';
 import { PRICE_LOW_DAYS } from '@gamemarket/shared/price-history';
-import {
-  browseListings,
-  getGameIndex,
-  getCategoryAttributes,
-  SEGMENTS,
-  type Attribute,
-} from '@/lib/api';
-import { OfferTable } from '@/components/offers';
+import { browseListings, getGameIndex, SEGMENTS } from '@/lib/api';
+import { LotCard } from '@/components/lot-card';
 import { SearchBar } from '@/components/search-bar';
 import { ParamSelect } from '@/components/param-select';
 import { hitHref, searchGames } from '@/lib/game-search';
@@ -86,9 +80,6 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   ]);
   const games = index ?? [];
   const game = sp.game ? games.find((g) => g.slug === sp.game) : undefined;
-  const selectedCat = game?.categories.find((c) => c.slug === sp.category);
-  let columns: Attribute[] = [];
-  if (selectedCat) columns = (await getCategoryAttributes(selectedCat.id)) ?? [];
 
   const items = browse?.items ?? [];
   const total = browse?.total ?? 0;
@@ -222,7 +213,12 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       )}
       {items.length ? (
         // Без выбранного раздела в выдаче смешаны разделы: пишем их в строке.
-        <OfferTable items={items} attributes={columns} showSection={!selectedCat} t={t} />
+        // Сетка карточек, как лента Playerok (была таблица, как у FunPay)
+        <div className="gm-lots">
+          {items.map((l) => (
+            <LotCard key={l.id} l={l} t={t} />
+          ))}
+        </div>
       ) : (
         <div className="card flat empty-state" style={marketEmpty ? { marginTop: 20 } : undefined}>
           {marketEmpty ? (

@@ -10,8 +10,9 @@ export function GameIcon({ slug, title, size = 56 }: { slug: string; title: stri
   const box: CSSProperties = { width: size, height: size, borderRadius: Math.round(size * 0.24) };
   if (!icon) {
     return (
-      <span className="gicon gicon--letters" aria-hidden style={{ ...box, background: monogramColor(title), fontSize: Math.round(size * 0.36) }}>
-        {monogram(title)}
+      // на мелких значках (в карточках 22–28 px) две буквы выходили 9–10 px — там одна, крупнее
+      <span className="gicon gicon--letters" aria-hidden style={{ ...box, background: monogramColor(title), fontSize: Math.round(size * (size < 30 ? 0.5 : 0.36)) }}>
+        {size < 30 ? monogram(title).slice(0, 1) : monogram(title)}
       </span>
     );
   }
