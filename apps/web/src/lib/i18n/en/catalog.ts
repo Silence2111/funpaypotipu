@@ -328,4 +328,8 @@ export const CATALOG: Record<string, string> = {
   'Вперёд': 'Next',
   'Слайд {n}': 'Slide {n}',
   'Действия': 'Actions',
+  'Выберите игру, раздел и цену: калькулятор покажет комиссию, вывод и сумму на руки.': 'Pick a game, section and price: the calculator shows the fee, the withdrawal and what you take home.',
+  'Ваши продажи под защитой': 'Your sales are protected',
+  'Всего {n}': '{n} in total',
+  '{section} {game}': '{section} · {game}',
 };
