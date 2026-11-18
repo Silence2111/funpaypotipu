@@ -309,4 +309,23 @@ export const CATALOG: Record<string, string> = {
   // «Выдача сразу» (часть 141)
   'Выдача сразу': 'Instant delivery',
   'Автовыдача со склада: товар сразу после оплаты': 'Auto-delivery from stock: the goods right after payment',
+  // Витрина по устройству Playerok (18.11.2026): баннеры, пополнение строкой, ряд карточек
+  'Пополнение Steam': 'Steam top-up',
+  'Steam за минуту, по одному логину': 'Steam in a minute, with just a login',
+  'Пароль не нужен. Наценка продавца от {pct}, деньги у площадки до зачисления.': 'No password needed. Seller markup from {pct}; the marketplace holds the money until the funds arrive.',
+  '₽ на Steam': '₽ to Steam',
+  '{section} от {price}': '{section} from {price}',
+  '{n} с гарантией сделки: деньги у площадки, пока вы не подтвердите получение.': '{n} with a deal guarantee: the marketplace holds the money until you confirm receipt.',
+  'Смотреть предложения': 'See offers',
+  'Гарантия сделки': 'Deal guarantee',
+  'Деньги у площадки, пока вы не получили товар': 'The marketplace holds the money until you get the goods',
+  'Не пришло или не как в описании: откройте спор, деньги заморозятся до решения. Без спора продавец получит оплату через {n} ч.': 'Didn’t arrive or not as described: open a dispute and the money is frozen until a decision. Without a dispute the seller is paid in {n} h.',
+  'Не пришло или не как в описании: откройте спор, деньги заморозятся до решения.': 'Didn’t arrive or not as described: open a dispute and the money is frozen until a decision.',
+  'Здесь пока нет предложений.': 'No offers here yet.',
+  'Чаты': 'Chats',
+  'от {pct}': 'from {pct}',
+  'Рейтинг {r} из 5': 'Rated {r} out of 5',
+  'Вперёд': 'Next',
+  'Слайд {n}': 'Slide {n}',
+  'Действия': 'Actions',
 };

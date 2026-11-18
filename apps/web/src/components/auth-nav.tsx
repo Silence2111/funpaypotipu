@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, LogOut, MessagesSquare } from 'lucide-react';
+import { ChevronDown, LogOut, MessagesSquare, UserRound } from 'lucide-react';
 import { getUser, isStaff, type SessionUser } from '@/lib/session';
 import { logout } from '@/lib/logout';
 import { formatPrice } from '@/lib/format';
@@ -31,10 +31,18 @@ export function AuthNav() {
   const t = useT();
   const user = useSessionUser();
   if (!user) {
+    // Гостю — те же кнопки, что у Playerok: «Чаты» и «Профиль» ведут во вход и возвращают обратно
     return (
-      <Link href="/login" className="chip">
-        {t('Войти')}
-      </Link>
+      <>
+        <Link href="/login?next=%2Fchat" className="ph__act hide-mobile">
+          <MessagesSquare size={22} strokeWidth={1.9} />
+          <span>{t('Чаты')}</span>
+        </Link>
+        <Link href="/login" className="ph__act">
+          <UserRound size={22} strokeWidth={1.9} />
+          <span>{t('Войти')}</span>
+        </Link>
+      </>
     );
   }
   return <UserBar user={user} />;

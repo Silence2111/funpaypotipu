@@ -25,6 +25,7 @@ import '@fontsource/inter/600.css';
 import '@fontsource/inter/700.css';
 import '@fontsource/inter/800.css';
 import './globals.css';
+import './pk.css';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
@@ -70,7 +71,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}",
+              "try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);" +
+              // палитра на выбор владельцу: ?pal=a|b|c, запоминается на этом браузере
+              "var m=/[?&]pal=([abc])/.exec(location.search);if(m)localStorage.setItem('pal',m[1]);" +
+              "var p=localStorage.getItem('pal');if(p&&p!=='a')document.documentElement.setAttribute('data-pal',p);}catch(e){}",
           }}
         />
         <LangProvider lang={lang} dict={dictOf(lang)}>

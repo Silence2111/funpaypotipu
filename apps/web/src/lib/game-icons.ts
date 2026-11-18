@@ -34,6 +34,23 @@ export const GAME_ICONS: Record<string, { bg: string; glyph: string }> = {
 export const gameIcon = (slug: string) =>
   GAME_ICONS[slug] ? { src: `/igry/${slug}.svg`, ...GAME_ICONS[slug] } : null;
 
+/**
+ * Цвет обложки лота и баннера (18.11.2026, по образцу Playerok: витрина яркая). У марок с почти чёрной
+ * плиткой (Steam, CS2, Roblox, Fortnite…) обложка цветом плитки выходила серой — берём второй цвет
+ * из их же фирменной гаммы. У остальных — цвет плитки.
+ */
+const COVER: Record<string, string> = {
+  'cs2': '#de9b35', 'steam': '#1a9fff', 'roblox': '#3b6cff', 'fortnite': '#9d4dbb', 'apple': '#0071e3',
+  'ea': '#ff4747', 'epic': '#0078f2', 'google-play': '#01875f', 'tiktok': '#fe2c55', 'ubisoft': '#0070ff',
+};
+
+export function coverColor(slug: string, title: string): string {
+  return COVER[slug] ?? GAME_ICONS[slug]?.bg ?? monogramColor(title);
+}
+
+/** Светлая ли обложка (жёлтые PUBG и GTA, зелёный Spotify): тогда текст на ней тёмный. */
+export const coverIsLight = (slug: string) => !COVER[slug] && GAME_ICONS[slug]?.glyph === '#15171c';
+
 /** Цвет буквенной плитки для игры без знака: постоянный по названию, насыщенный, под белые буквы. */
 export function monogramColor(title: string): string {
   let h = 0;

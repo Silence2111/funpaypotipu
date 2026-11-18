@@ -1,42 +1,43 @@
 import Link from 'next/link';
-import { Gamepad2, Search } from 'lucide-react';
+import { CirclePlus, Gamepad2, Search } from 'lucide-react';
 import { AuthNav } from './auth-nav';
 import { ThemeToggle } from './theme-toggle';
-import { CurrencySwitch } from './currency-switch';
 import { GameSearch } from './game-search';
-import { LangSwitch } from './lang-switch';
 import { getT } from '@/lib/i18n/server';
 
+/**
+ * Шапка по устройству Playerok (18.11.2026, выбор владельца «основываться на них»): серая плита,
+ * в ней знак и переключатель темы, большой поиск по играм и справа кнопки со значком и подписью —
+ * «Продать», «Чаты», «Профиль». Язык и валюта — в подвале, как и раньше на телефоне.
+ */
 export async function SiteHeader() {
   const t = await getT();
   return (
-    <header className="site-header">
-      <div className="container inner">
-        <Link href="/" className="brand">
-          <span className="brand-mark" aria-hidden>
-            <Gamepad2 size={18} strokeWidth={2} />
-          </span>
-          GameMarket
-        </Link>
-        <nav className="nav">
-          <Link href="/catalog" className="hide-mobile">{t('Каталог')}</Link>
-          {/* «Продать» — страница с калькулятором и кнопкой «Выставить лот»: продавец,
-              который пришёл посмотреть, видит, сколько получит, до регистрации. */}
-          <Link href="/prodavat" className="hide-mobile">{t('Продать')}</Link>
-        </nav>
-        {/* Поиск по играм, как «Поиск по 885 играм» в шапке FunPay. На телефоне
-            места нет — там лупа ведёт в указатель игр с тем же поиском. */}
-        <div className="header-search hide-mobile">
-          <GameSearch />
+    <header className="site-header ph">
+      <div className="container ph__in">
+        <div className="ph__plate">
+          <Link href="/" className="brand ph__brand">
+            <span className="brand-mark" aria-hidden>
+              <Gamepad2 size={18} strokeWidth={2} />
+            </span>
+            GameMarket
+          </Link>
+          <ThemeToggle />
+          <div className="ph__search hide-mobile">
+            <GameSearch />
+          </div>
+          <span className="spacer only-mobile-flex" />
+          <Link href="/igry" className="ph__act only-mobile-flex" aria-label={t('Поиск по играм')}>
+            <Search size={22} strokeWidth={1.9} />
+          </Link>
+          <nav className="ph__acts" aria-label={t('Действия')}>
+            <Link href="/prodavat" className="ph__act hide-mobile">
+              <CirclePlus size={22} strokeWidth={1.9} />
+              <span>{t('Продать')}</span>
+            </Link>
+            <AuthNav />
+          </nav>
         </div>
-        <span className="spacer" />
-        <Link href="/igry" className="chip only-mobile-flex" aria-label={t('Поиск по играм')}>
-          <Search size={16} strokeWidth={1.75} />
-        </Link>
-        <LangSwitch className="hide-mobile" />
-        <CurrencySwitch className="hide-mobile" />
-        <ThemeToggle />
-        <AuthNav />
       </div>
     </header>
   );
