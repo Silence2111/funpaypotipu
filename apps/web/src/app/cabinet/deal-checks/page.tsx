@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { formatPrice } from '@/lib/format';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
 import { msg, type T } from '@/lib/i18n/lang';
 
@@ -84,7 +83,6 @@ export default function DealChecksPage() {
           {t('Тот, с кем вы заключали сделки, восстанавливает доступ к аккаунту. Сверьте описание сделки из заявки с тем, что было. Ответ увидит только сотрудник.')}
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

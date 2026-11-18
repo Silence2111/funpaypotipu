@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { APPEAL_REVIEW_HOURS, APPEAL_WINDOW_DAYS, ruleAnchor, ruleClause } from '@gamemarket/shared/rules';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
 import { msg } from '@/lib/i18n/lang';
 
@@ -78,7 +77,6 @@ export default function DecisionsPage() {
           {t('Что решили модераторы о вас, ваших лотах и сообщениях, по какому пункту правил и почему. Если не согласны, обжалуйте: решит другой сотрудник.')}
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { SUPPORT_CATEGORY, TicketStatusBadge } from '@/components/support-ui';
 import { useT } from '@/lib/i18n/client';
 
@@ -86,7 +85,6 @@ function Support() {
           </p>
         )}
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { SellerPromos } from '@/components/seller-promos';
 import { SellerApi } from '@/components/seller-api';
 import { BuyerFilterCard } from '@/components/buyer-filter';
@@ -178,7 +177,6 @@ export default function ToolsPage() {
           )}
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

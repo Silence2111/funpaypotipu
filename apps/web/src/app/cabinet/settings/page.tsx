@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { NotificationSettings } from '@/components/notification-settings';
 import { useT } from '@/lib/i18n/client';
 import { ConsentSettings } from '@/components/consent';
@@ -111,7 +110,6 @@ export default function SettingsPage() {
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>{t('Профиль')}</h1>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

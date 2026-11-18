@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Check, Copy } from 'lucide-react';
 import { apiFetch, getToken } from '@/lib/session';
 import { formatPrice, mskDate } from '@/lib/format';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
 
 type Me = {
@@ -71,7 +70,6 @@ export default function PartnerPage() {
           )}
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 

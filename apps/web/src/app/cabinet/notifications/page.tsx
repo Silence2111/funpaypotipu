@@ -8,7 +8,6 @@ import { apiFetch, getToken } from '@/lib/session';
 import { apiErrorMessage } from '@/lib/errors';
 import { isCurrentQuery, replaceUrl, withQuery } from '@/lib/url';
 import { dayLabel } from '@/lib/chat';
-import { CabinetNav } from '@/components/cabinet-nav';
 import { useT } from '@/lib/i18n/client';
 import type { T } from '@/lib/i18n/lang';
 import { noteText } from '@/lib/hidden';
@@ -231,7 +230,6 @@ function NotificationsInner() {
           <Link href="/cabinet/settings#notifications">{t('Настроить уведомления')}</Link>
         </p>
         <div style={{ marginTop: 16 }}>
-          <CabinetNav />
         </div>
       </div>
 
