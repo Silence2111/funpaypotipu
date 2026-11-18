@@ -18,6 +18,25 @@ export function coverAmount(title: string): string | null {
   return m ? `${m[1].replace(/\s+/g, ' ').trim()} ${m[2].replace(/[,.]$/, '')}` : null;
 }
 
+/** Крупная надпись обложки без количества — начало названия: «AWP Asiimov», «Перчатки Hydra» (у Playerok обложки разные). */
+export function coverWords(title: string): string {
+  const words = title.replace(/[^\p{L}\p{N}\s\-.]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  for (const w of words) {
+    if (out.length && (out.join(' ') + ' ' + w).length > 18) break;
+    out.push(w);
+    if (out.length >= 2) break;
+  }
+  return out.join(' ');
+}
+
+/** Небольшой разброс наклона и размера предмета по лоту — чтобы соседние обложки не были копиями. */
+function wobble(id: string): { rot: number; size: number } {
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return { rot: (h % 17) - 8, size: 42 + (h >> 5) % 9 };
+}
+
 /** Объёмный предмет на обложке по типу товара (свои рендеры Blender, `дизайн/3d`): как предметы на обложках Playerok. */
 export function lotArt(segment?: string, categorySlug?: string): string {
   const bySlug: Record<string, string> = {
@@ -68,7 +87,13 @@ export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
               <span className="lc__mark" style={{ WebkitMaskImage: `url(${icon.src})`, maskImage: `url(${icon.src})` }} aria-hidden />
             ) : null}
             {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер из public */}
-            <img className="lc__obj" src={lotArt(l.category.segment, l.category.slug)} alt="" loading="lazy" />
+            <img
+              className="lc__obj"
+              src={lotArt(l.category.segment, l.category.slug)}
+              alt=""
+              loading="lazy"
+              style={{ ['--r' as string]: `${wobble(l.id).rot}deg`, width: `${wobble(l.id).size}%` }}
+            />
             <span className="lc__big">
               {amount ? (
                 <>
@@ -76,7 +101,7 @@ export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
                   <span>{unit.join(' ')}</span>
                 </>
               ) : (
-                <span className="lc__sec">{t.d(l.category.title)}</span>
+                <span className="lc__sec">{coverWords(title) || t.d(l.category.title)}</span>
               )}
             </span>
           </>

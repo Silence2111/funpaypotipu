@@ -10,7 +10,7 @@ import {
 } from '@/lib/api';
 import { formatPrice, offersCount, sellersCount } from '@/lib/format';
 import { getT } from '@/lib/i18n/server';
-import { OfferTable } from './offers';
+import { LotCard, lotArt } from './lot-card';
 import { SectionFilters } from './section-filters';
 import { SaveSearch } from './save-search';
 import { RequestForm } from './buy-requests';
@@ -18,7 +18,8 @@ import { SectionRequests } from './section-requests';
 import { JsonLd, breadcrumbLd } from './json-ld';
 import { GameChat } from './game-chat';
 import { GameIcon } from './game-icon';
-import { gameIcon } from '@/lib/game-icons';
+import { coverColor, gameIcon } from '@/lib/game-icons';
+import type { T } from '@/lib/i18n/lang';
 
 /** Параметры адреса раздела: f_<ключ>, online, drop, q, max (цена до, ₽), sort, page. */
 export type SectionSearch = Record<string, string | undefined>;
@@ -114,13 +115,10 @@ export async function SectionView({
     const s = p.toString();
     return s ? `${base}?${s}` : base;
   };
-  // цвет марки игры для шапки раздела; у игр без знака — цвет площадки
-  const brand = gameIcon(game.slug)?.bg;
   const sellHref = `/cabinet/new?game=${encodeURIComponent(game.slug)}&category=${encodeURIComponent(section.slug)}`;
-  const people = section.sellers;
 
   return (
-    <div className="container" style={{ paddingTop: 40, paddingBottom: 24 }}>
+    <div className="container sv" style={{ paddingTop: 8, paddingBottom: 24 }}>
       <JsonLd
         data={breadcrumbLd([
           [t('Все игры'), '/igry'],
@@ -144,58 +142,7 @@ export async function SectionView({
           }}
         />
       )}
-      <Link href="/igry" className="faint back-link" style={{ fontSize: 14 }}>
-        ← {t('Все игры')}
-      </Link>
-      {/* Шапка игры на бледном цвете её марки: значок, название, цифры раздела, вкладки разделов */}
-      <div className="game-hero" style={brand ? ({ ['--brand' as string]: brand } as CSSProperties) : undefined}>
-      <div className="section-top">
-        <div className="game-hero__id">
-          <GameIcon slug={game.slug} title={game.title} size={64} />
-          <div style={{ minWidth: 0 }}>
-          <h1 className="h1">{t.d(game.title)}</h1>
-          <p className="muted section-meta">
-            {t.d(section.title)}
-            {section.minPrice && (section.listingCount ?? 0) > 0 && (
-              <> · {t('от {price}', { price: formatPrice(section.minPrice, 'RUB', t) })}</>
-            )}
-            {(section.listingCount ?? total) > 0 && (
-              <> · {offersCount(section.listingCount ?? total, t)}</>
-            )}
-            {people && people.sellers > 0 && <> · {sellersCount(people.sellers, t)}</>}
-            {people && people.online > 0 && (
-              <>
-                {' · '}
-                <span className="section-online">
-                  <span className="dot-online" aria-hidden />{' '}
-                  {t('{n} в сети', { n: people.online })}
-                </span>
-              </>
-            )}
-          </p>
-          </div>
-        </div>
-        <Link href={sellHref} className="btn secondary">
-          {t('Продать в разделе')}
-        </Link>
-      </div>
-
-      <nav className="tabs" aria-label={t('Разделы игры')} style={{ marginTop: 24 }}>
-        {game.categories.map((c) => (
-          <Link
-            key={c.id}
-            href={`/igra/${game.slug}/${c.slug}`}
-            className="tab"
-            aria-current={c.id === section.id ? 'page' : undefined}
-          >
-            {t.d(c.title)}
-            {/* Ноль у каждой вкладки на старте площадки читается как «здесь мёртво». */}
-            {(c.listingCount ?? 0) > 0 && <span className="count">{c.listingCount}</span>}
-            {c.salesClosed && <Lock size={12} strokeWidth={2} aria-label={t('закрыт для продажи')} />}
-          </Link>
-        ))}
-      </nav>
-      </div>
+      <SectionHero game={game} section={section} sellHref={sellHref} t={t} />
 
       <div className="section-filters-row" style={{ marginTop: 20 }}>
         {/* В пустом разделе фильтровать и сортировать нечего: только «Сохранить
@@ -221,7 +168,15 @@ export async function SectionView({
         aria-label={t('Предложения: {category}', { category: t.d(section.title) })}
       >
         {items.length > 0 ? (
-          <OfferTable items={items} attributes={attributes} t={t} />
+          <>
+            <p className="sh__count">{t('Всего {n}', { n: offersCount(total, t) })}</p>
+            {/* Сетка карточек, как выдача раздела у Playerok (была таблица, как у FunPay) */}
+            <div className="gm-lots">
+              {items.map((l) => (
+                <LotCard key={l.id} l={l} t={t} />
+              ))}
+            </div>
+          </>
         ) : (
           <div className="card flat empty-state">
             {filtered ? (
@@ -330,7 +285,7 @@ async function ClosedSection({ game, section }: { game: GameWithCategories; sect
   const base = `/igra/${game.slug}/${section.slug}`;
   const open = game.categories.filter((c) => !c.salesClosed);
   return (
-    <div className="container" style={{ paddingTop: 40, paddingBottom: 24 }}>
+    <div className="container sv" style={{ paddingTop: 8, paddingBottom: 24 }}>
       <JsonLd
         data={breadcrumbLd([
           [t('Все игры'), '/igry'],
@@ -338,28 +293,7 @@ async function ClosedSection({ game, section }: { game: GameWithCategories; sect
           [t.d(section.title), base],
         ])}
       />
-      <Link href="/igry" className="faint back-link" style={{ fontSize: 14 }}>
-        ← {t('Все игры')}
-      </Link>
-      <h1 className="h1" style={{ marginTop: 12 }}>
-        {t.d(game.title)}
-      </h1>
-      <p className="muted section-meta">{t.d(section.title)}</p>
-
-      <nav className="tabs" aria-label={t('Разделы игры')} style={{ marginTop: 24 }}>
-        {game.categories.map((c) => (
-          <Link
-            key={c.id}
-            href={`/igra/${game.slug}/${c.slug}`}
-            className="tab"
-            aria-current={c.id === section.id ? 'page' : undefined}
-          >
-            {t.d(c.title)}
-            {(c.listingCount ?? 0) > 0 && <span className="count">{c.listingCount}</span>}
-            {c.salesClosed && <Lock size={12} strokeWidth={2} aria-label={t('закрыт для продажи')} />}
-          </Link>
-        ))}
-      </nav>
+      <SectionHero game={game} section={section} t={t} />
 
       <section className="card flat empty-state closed-section" style={{ marginTop: 20 }} aria-labelledby="closed-title">
         <Lock size={22} strokeWidth={1.75} aria-hidden />
@@ -384,5 +318,63 @@ async function ClosedSection({ game, section }: { game: GameWithCategories; sect
         </Link>
       </section>
     </div>
+  );
+}
+
+/**
+ * Шапка раздела по образцу Playerok (18.11.2026): баннер цветом игры (обложка из консоли — фоном, если есть),
+ * знак игры бледно, объёмный предмет раздела, значок и заголовок «Аккаунты Counter-Strike 2», цифры
+ * раздела; под баннером — вкладки разделов игры с числом предложений.
+ */
+function SectionHero({ game, section, sellHref, t }: { game: GameWithCategories; section: Category; sellHref?: string; t: T }) {
+  const icon = gameIcon(game.slug);
+  const people = section.sellers;
+  const count = section.listingCount ?? 0;
+  return (
+    <>
+      <div className="sh" style={{ ['--c' as string]: coverColor(game.slug, game.title) } as CSSProperties}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- обложка игры из консоли */}
+        {game.coverUrl && <img className="sh__photo" src={game.coverUrl} alt="" />}
+        {icon && <span className="sh__mark" style={{ WebkitMaskImage: `url(${icon.src})`, maskImage: `url(${icon.src})` }} aria-hidden />}
+        {/* eslint-disable-next-line @next/next/no-img-element -- свой рендер */}
+        <img className="sh__obj" src={lotArt(section.segment, section.slug)} alt="" />
+        <div className="sh__id">
+          <GameIcon slug={game.slug} title={game.title} size={72} />
+          <div style={{ minWidth: 0 }}>
+            <h1 className="sh__h1">{t('{section} {game}', { section: t.d(section.title), game: t.d(game.title) })}</h1>
+            <p className="sh__meta">
+              {section.minPrice && count > 0 && <span>{t('от {price}', { price: formatPrice(section.minPrice, 'RUB', t) })}</span>}
+              {count > 0 && <span>{offersCount(count, t)}</span>}
+              {people && people.sellers > 0 && <span>{sellersCount(people.sellers, t)}</span>}
+              {people && people.online > 0 && (
+                <span className="section-online">
+                  <span className="dot-online" aria-hidden /> {t('{n} в сети', { n: people.online })}
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+        {sellHref && (
+          <Link href={sellHref} className="sh__sell">
+            {t('Продать в разделе')}
+          </Link>
+        )}
+      </div>
+      <nav className="pk-tabs sh__tabs" aria-label={t('Разделы игры')}>
+        {game.categories.map((c) => (
+          <Link
+            key={c.id}
+            href={`/igra/${game.slug}/${c.slug}`}
+            className={c.id === section.id ? 'on' : ''}
+            aria-current={c.id === section.id ? 'page' : undefined}
+          >
+            {t.d(c.title)}
+            {/* Ноль у вкладки на старте площадки читается как «здесь мёртво» */}
+            {(c.listingCount ?? 0) > 0 && <span className="sh__n">{c.listingCount}</span>}
+            {c.salesClosed && <Lock size={13} strokeWidth={2} aria-label={t('закрыт для продажи')} />}
+          </Link>
+        ))}
+      </nav>
+    </>
   );
 }
