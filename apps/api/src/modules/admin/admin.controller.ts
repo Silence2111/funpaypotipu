@@ -31,7 +31,7 @@ const auditSchema = z.object({
     .optional()
     .transform((v) => (v ? { type: v.slice(0, v.indexOf(':')), id: v.slice(v.indexOf(':') + 1) } : undefined)),
   q: z.string().trim().max(100).optional(),
-  cursor: timeCursor('Журнал устарел — обновите страницу'),
+  cursor: timeCursor('Журнал устарел, обновите страницу'),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 type AuditParams = z.infer<typeof auditSchema>;

@@ -58,9 +58,9 @@ const saleSchema = z.object({
   percent: z
     .number()
     .int()
-    .min(SALE_MIN_PCT, `Скидка — от ${SALE_MIN_PCT}%`)
-    .max(SALE_MAX_PCT, `Скидка — до ${SALE_MAX_PCT}%`),
-  days: z.number().int().min(1, 'Срок — от суток').max(SALE_MAX_DAYS, `Срок — до ${SALE_MAX_DAYS} суток`),
+    .min(SALE_MIN_PCT, `Скидка от ${SALE_MIN_PCT}%`)
+    .max(SALE_MAX_PCT, `Скидка до ${SALE_MAX_PCT}%`),
+  days: z.number().int().min(1, 'Срок от суток').max(SALE_MAX_DAYS, `Срок до ${SALE_MAX_DAYS} суток`),
 });
 
 /** Лоты из таблицы — уже разобранные сайтом строки; API проверит каждую заново. */

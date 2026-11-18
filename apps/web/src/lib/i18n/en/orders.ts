@@ -251,23 +251,37 @@ export const ORDERS: Record<string, string> = {
     'Order created. Discuss the details and wait for payment.',
   'Пришла ещё одна оплата, когда заказ уже был оплачен или закрыт, — она зачислена на баланс покупателя.':
     'Another payment arrived after the order was already paid or closed — it has been credited to the buyer’s balance.',
+  'Пришла ещё одна оплата, когда заказ уже был оплачен или закрыт. Она зачислена на баланс покупателя.':
+    'Another payment arrived after the order was already paid or closed — it has been credited to the buyer’s balance.',
   'Оплата поступила — средства защищены эскроу.':
+    'Payment received — the funds are protected by escrow.',
+  'Оплата поступила, средства защищены эскроу.':
     'Payment received — the funds are protected by escrow.',
   'Пополнение отправлено. Проверьте баланс и подтвердите получение.':
     'Top-up sent. Check your balance and confirm receipt.',
   'Товар выдан автоматически — он на странице заказа. Проверьте его и подтвердите получение.':
     'The item was delivered automatically — it’s on the order page. Check it and confirm receipt.',
+  'Товар выдан автоматически, он на странице заказа. Проверьте его и подтвердите получение.':
+    'The item was delivered automatically — it’s on the order page. Check it and confirm receipt.',
   'Товар выдан автоматически. Заберите ключ на странице заказа.':
     'Delivered automatically. Get your key on the order page.',
   'Провайдер не принял пополнение — деньги вернулись на баланс покупателя.':
     'The provider didn’t accept the top-up — the money has been returned to the buyer’s balance.',
+  'Провайдер не принял пополнение, деньги вернулись на баланс покупателя.':
+    'The provider didn’t accept the top-up — the money has been returned to the buyer’s balance.',
   'Товара не оказалось на складе — деньги вернулись на баланс покупателя.':
     'The item was out of stock — the money has been returned to the buyer’s balance.',
+  'Товара не оказалось на складе, деньги вернулись на баланс покупателя.':
+    'The item was out of stock — the money has been returned to the buyer’s balance.',
   'Пока шла оплата, товар закончился — деньги вернулись на баланс покупателя.':
+    'The item sold out while the payment was processing — the money has been returned to the buyer’s balance.',
+  'Пока шла оплата, товар закончился. Деньги вернулись на баланс покупателя.':
     'The item sold out while the payment was processing — the money has been returned to the buyer’s balance.',
   'Продавец отметил выдачу. Проверьте товар и подтвердите получение.':
     'The seller marked the order as delivered. Check the goods and confirm receipt.',
   'Срок проверки истёк — заказ подтверждён автоматически. Средства переданы продавцу.':
+    'The review period has ended — the order was confirmed automatically. The funds have been released to the seller.',
+  'Срок проверки истёк, заказ подтверждён автоматически. Средства переданы продавцу.':
     'The review period has ended — the order was confirmed automatically. The funds have been released to the seller.',
   'Покупатель подтвердил получение. Сделка завершена, средства переданы продавцу.':
     'The buyer confirmed receipt. Deal completed, the funds have been released to the seller.',
@@ -277,6 +291,8 @@ export const ORDERS: Record<string, string> = {
   'Продавец вернул деньги покупателю на баланс.':
     'The seller refunded the money to the buyer’s balance.',
   'Продавец не выдал товар в срок — заказ отменён автоматически, средства возвращены покупателю.':
+    'The seller didn’t deliver in time — the order was cancelled automatically and the funds returned to the buyer.',
+  'Продавец не выдал товар в срок, заказ отменён автоматически, средства возвращены покупателю.':
     'The seller didn’t deliver in time — the order was cancelled automatically and the funds returned to the buyer.',
   'Открыт спор. К обсуждению подключится арбитр площадки.':
     'A dispute has been opened. A marketplace arbiter will join the conversation.',
@@ -327,11 +343,14 @@ export const ORDERS: Record<string, string> = {
 
   // «Безопасная сделка» (часть 123)
   'Оплата поступила — деньги держит ЮKassa в «Безопасной сделке».': 'Payment received — YooKassa holds the money in a Safe Deal.',
+  'Оплата поступила, деньги держит ЮKassa в «Безопасной сделке».': 'Payment received — YooKassa holds the money in a Safe Deal.',
   'Заказ отменён, средства возвращены покупателю на карту.': 'Order cancelled, the money has been returned to the buyer’s card.',
   'Продавец вернул деньги покупателю на карту.': 'The seller refunded the buyer to their card.',
   'Спор решён в пользу покупателя. Средства возвращены покупателю на карту.': 'Dispute resolved in the buyer’s favour. The money has been returned to the buyer’s card.',
   // Услуги со сроком (часть 125)
   'Срок выполнения — на странице заказа. Не успеет продавец — можно сразу открыть спор; без выдачи и спора деньги вернутся через сутки после срока.':
+    'The deadline is on the order page. If the seller misses it, you can open a dispute right away; with no delivery and no dispute, the money comes back a day after the deadline.',
+  'Срок выполнения указан на странице заказа. Если продавец не успеет, можно сразу открыть спор. Без выдачи и спора деньги вернутся через сутки после срока.':
     'The deadline is on the order page. If the seller misses it, you can open a dispute right away; with no delivery and no dispute, the money comes back a day after the deadline.',
   'Продавец взял заказ в работу.': 'The seller has started on the order.',
   'Срок выполнения вышел. Покупатель может открыть спор; без выдачи и спора деньги вернутся покупателю через сутки.':
@@ -348,9 +367,14 @@ export const ORDERS: Record<string, string> = {
   // Гарантия продавца (часть 126)
   'Покупатель подтвердил получение. Идёт гарантия продавца: срок — на странице заказа, в этот срок покупатель может открыть спор, деньги до её конца у площадки.':
     'The buyer confirmed receipt. The seller’s warranty is running: the end date is on the order page; until then the buyer can open a dispute, and the marketplace holds the money.',
+  'Покупатель подтвердил получение. Идёт гарантия продавца, срок указан на странице заказа. В этот срок покупатель может открыть спор, деньги до её конца у площадки.':
+    'The buyer confirmed receipt. The seller’s warranty is running: the end date is on the order page; until then the buyer can open a dispute, and the marketplace holds the money.',
   'Срок проверки истёк — заказ подтверждён автоматически. Идёт гарантия продавца: срок — на странице заказа, в этот срок покупатель может открыть спор, деньги до её конца у площадки.':
     'The check period is over and the order was confirmed automatically. The seller’s warranty is running: the end date is on the order page; until then the buyer can open a dispute, and the marketplace holds the money.',
+  'Срок проверки истёк, заказ подтверждён автоматически. Идёт гарантия продавца, срок указан на странице заказа. В этот срок покупатель может открыть спор, деньги до её конца у площадки.':
+    'The check period is over and the order was confirmed automatically. The seller’s warranty is running: the end date is on the order page; until then the buyer can open a dispute, and the marketplace holds the money.',
   'Гарантия закончилась — средства переданы продавцу.': 'The warranty has ended and the money has gone to the seller.',
+  'Гарантия закончилась, средства переданы продавцу.': 'The warranty has ended and the money has gone to the seller.',
   'Вы подтвердили получение. Гарантия продавца до {date}: если с товаром что-то не так, откройте спор. Деньги до этого времени у площадки.':
     'You confirmed receipt. The seller’s warranty runs until {date}: if something is wrong with the goods, open a dispute. Until then the marketplace holds the money.',
   'Покупатель подтвердил получение. Ваша гарантия до {date}, в этот срок покупатель может открыть спор. Деньги придут на баланс, когда она закончится.':
@@ -404,6 +428,8 @@ export const ORDERS: Record<string, string> = {
   'Не отменять': 'Don’t cancel',
   'Не удалось вернуть деньги на карту. Попробуйте вернуть на баланс.': 'Couldn’t refund to the card — try refunding to the balance.',
   'Заказ отменён, деньги возвращаются тем же способом оплаты — банк зачислит их за 1–10 дней.':
+    'The order was cancelled; the money is going back via the same payment method — the bank will credit it within 1–10 days.',
+  'Заказ отменён, деньги возвращаются тем же способом оплаты. Банк зачислит их за 1–10 дней.':
     'The order was cancelled; the money is going back via the same payment method — the bank will credit it within 1–10 days.',
   // Частичный возврат по спору (часть 140)
   'Спор решён: покупателю возвращено {pct}% суммы, остаток — продавцу.': 'Dispute resolved: the buyer got {pct}% back, the rest went to the seller.',

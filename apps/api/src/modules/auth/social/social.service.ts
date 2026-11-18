@@ -226,7 +226,7 @@ export class SocialService {
     try {
       profile = this.tokens.verifyData<SocialProfile>(ticketCookie ?? '', 'social_ticket');
     } catch {
-      throw ticketError(401, 'social_expired', 'Вход через сервис устарел — начните заново');
+      throw ticketError(401, 'social_expired', 'Вход через сервис устарел, начните заново');
     }
     // Билет Telegram, выданный до части 118, — тоже не вход.
     if (profile.provider === 'telegram') throw telegramLoginRemoved();
@@ -288,7 +288,7 @@ export class SocialService {
       throw ticketError(
         400,
         'username_required',
-        'Выберите ник — по нему вас найдут покупатели и продавцы',
+        'Выберите ник, по нему вас найдут покупатели и продавцы',
         {
           suggested,
           name: p.name,
@@ -341,7 +341,7 @@ export class SocialService {
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         throw new ConflictException(
-          'Ник или аккаунт уже заняты — обновите страницу и попробуйте ещё раз',
+          'Ник или аккаунт уже заняты. Обновите страницу и попробуйте ещё раз',
         );
       }
       throw e;
@@ -370,7 +370,7 @@ export class SocialService {
     });
     if (mine && mine.subject !== p.subject) {
       throw new ConflictException(
-        `К аккаунту уже подключён другой ${PROVIDER_LABEL[p.provider]} — сначала отключите его в «Безопасности»`,
+        `К аккаунту уже подключён другой ${PROVIDER_LABEL[p.provider]}. Сначала отключите его в «Безопасности»`,
       );
     }
     if (!mine) {
@@ -424,8 +424,8 @@ export class SocialService {
     if (provider !== 'telegram' && canSignIn(user) && !canSignIn(rest)) {
       throw new BadRequestException(
         user.email
-          ? 'Это единственный способ входа — сначала задайте пароль'
-          : 'Это единственный способ входа — сначала подключите другой сервис',
+          ? 'Это единственный способ входа. Сначала задайте пароль'
+          : 'Это единственный способ входа. Сначала подключите другой сервис',
       );
     }
     await this.prisma.socialAccount.delete({ where: { id: account.id } });

@@ -201,7 +201,7 @@ export class OrdersService {
       if (amountError) throw new BadRequestException(amountError);
       base = topupQuote(topupNominal, listing.topupMarkupBps).price;
     } else if (opts.topupAmount) {
-      throw new BadRequestException('У этого лота фиксированная цена — сумму выбирает продавец');
+      throw new BadRequestException('У этого лота фиксированная цена, сумму выбирает продавец');
     }
 
     // Поштучно: цена лота — за пачку единиц, сумма — за выбранное количество,
@@ -415,7 +415,7 @@ export class OrdersService {
     if (outcome === 'paid') return this.afterPaid(orderId);
     const order = await this.get(orderId);
     await this.notifications.notify(order.buyerId, 'payment_to_balance', { orderId });
-    await this.sys(orderId, 'Пришла ещё одна оплата, когда заказ уже был оплачен или закрыт, — она зачислена на баланс покупателя.');
+    await this.sys(orderId, 'Пришла ещё одна оплата, когда заказ уже был оплачен или закрыт. Она зачислена на баланс покупателя.');
     return order;
   }
 
@@ -451,7 +451,7 @@ export class OrdersService {
     this.assertTransition(order.status, 'paid');
     // «Безопасная сделка» (часть 123): деньги площадки в сделку ЮKassa не попадают.
     if (order.dealId || (await this.safeDeal.scheme()) === 'safe_deal') {
-      throw new BadRequestException('Оплата с баланса недоступна: платежи идут через «Безопасную сделку» ЮKassa — оплатите картой');
+      throw new BadRequestException('Оплата с баланса недоступна: платежи идут через «Безопасную сделку» ЮKassa, оплатите картой');
     }
 
     const balance = await this.ledger.balanceOf(buyerId, order.currency);
@@ -544,11 +544,11 @@ export class OrdersService {
         : '';
     // В «Безопасной сделке» (часть 123) деньги держит ЮKassa, а не площадка.
     const held = paid.dealId ? 'деньги держит ЮKassa в «Безопасной сделке»' : 'средства защищены эскроу';
-    await this.sys(paid.id, `Оплата поступила — ${held}.${howMany}`);
+    await this.sys(paid.id, `Оплата поступила, ${held}.${howMany}`);
     if (paid.serviceDueAt) {
       await this.sys(
         paid.id,
-        'Срок выполнения — на странице заказа. Не успеет продавец — можно сразу открыть спор; без выдачи и спора деньги вернутся через сутки после срока.',
+        'Срок выполнения указан на странице заказа. Если продавец не успеет, можно сразу открыть спор. Без выдачи и спора деньги вернутся через сутки после срока.',
       );
     }
 
@@ -564,7 +564,7 @@ export class OrdersService {
           topup
             ? 'Пополнение отправлено. Проверьте баланс и подтвердите получение.'
             : item
-              ? 'Товар выдан автоматически — он на странице заказа. Проверьте его и подтвердите получение.'
+              ? 'Товар выдан автоматически, он на странице заказа. Проверьте его и подтвердите получение.'
               : 'Товар выдан автоматически. Заберите ключ на странице заказа.',
         );
         await this.sellerNote(fulfilled);
@@ -572,8 +572,8 @@ export class OrdersService {
         await this.sys(
           fulfilled.id,
           topup
-            ? 'Провайдер не принял пополнение — деньги вернулись на баланс покупателя.'
-            : 'Товара не оказалось на складе — деньги вернулись на баланс покупателя.',
+            ? 'Провайдер не принял пополнение, деньги вернулись на баланс покупателя.'
+            : 'Товара не оказалось на складе, деньги вернулись на баланс покупателя.',
         );
       }
       return fulfilled;
@@ -613,7 +613,7 @@ export class OrdersService {
       });
       await this.prisma.order.update({ where: { id: order.id }, data: { status: 'refunded' } });
       await this.notifications.notify(order.buyerId, 'order_refunded', { orderId: order.id, reason: 'out_of_stock' });
-      await this.sys(order.id, 'Пока шла оплата, товар закончился — деньги вернулись на баланс покупателя.');
+      await this.sys(order.id, 'Пока шла оплата, товар закончился. Деньги вернулись на баланс покупателя.');
       return false;
     }
     // Распродано — лот уходит из каталога сам, как на FunPay.
@@ -822,8 +822,8 @@ export class OrdersService {
       await this.sys(
         order.id,
         opts.system
-          ? 'Срок проверки истёк — заказ подтверждён автоматически. Идёт гарантия продавца: срок — на странице заказа, в этот срок покупатель может открыть спор, деньги до её конца у площадки.'
-          : 'Покупатель подтвердил получение. Идёт гарантия продавца: срок — на странице заказа, в этот срок покупатель может открыть спор, деньги до её конца у площадки.',
+          ? 'Срок проверки истёк, заказ подтверждён автоматически. Идёт гарантия продавца, срок указан на странице заказа. В этот срок покупатель может открыть спор, деньги до её конца у площадки.'
+          : 'Покупатель подтвердил получение. Идёт гарантия продавца, срок указан на странице заказа. В этот срок покупатель может открыть спор, деньги до её конца у площадки.',
       );
       return updated;
     }
@@ -831,7 +831,7 @@ export class OrdersService {
     await this.sys(
       order.id,
       opts.system
-        ? 'Срок проверки истёк — заказ подтверждён автоматически. Средства переданы продавцу.'
+        ? 'Срок проверки истёк, заказ подтверждён автоматически. Средства переданы продавцу.'
         : 'Покупатель подтвердил получение. Сделка завершена, средства переданы продавцу.',
     );
     await this.settle(updated);
@@ -853,7 +853,7 @@ export class OrdersService {
     });
     if (claimed.count === 0) return;
     await this.notifications.notify(order.sellerId, 'order_completed', { orderId: order.id });
-    await this.sys(order.id, 'Гарантия закончилась — средства переданы продавцу.');
+    await this.sys(order.id, 'Гарантия закончилась, средства переданы продавцу.');
     await this.settle(order);
   }
 
@@ -904,7 +904,7 @@ export class OrdersService {
       throw new ConflictException('Продавец уже взял заказ в работу: отменить можно через спор или попросить продавца вернуть деньги');
     }
     if (!canRefundToOriginal(order)) {
-      throw new BadRequestException('Этот заказ вернуть на карту нельзя — только на баланс');
+      throw new BadRequestException('Этот заказ вернуть на карту нельзя, только на баланс');
     }
     const claimed = await this.prisma.order.updateMany({ where: { id: order.id, status: 'paid' }, data: { status: 'refunded' } });
     if (!claimed.count) throw new ConflictException('Заказ уже выдан или отменён');
@@ -926,7 +926,7 @@ export class OrdersService {
     await this.restock(order);
     await this.notifications.notify(order.buyerId, 'order_refunded', { orderId: order.id, to: 'original' });
     await this.notifications.notify(order.sellerId, 'order_cancelled', { orderId: order.id });
-    await this.sys(order.id, 'Заказ отменён, деньги возвращаются тем же способом оплаты — банк зачислит их за 1–10 дней.');
+    await this.sys(order.id, 'Заказ отменён, деньги возвращаются тем же способом оплаты. Банк зачислит их за 1–10 дней.');
     return this.get(order.id);
   }
 
@@ -1030,7 +1030,7 @@ export class OrdersService {
     });
     await this.sys(
       order.id,
-      'Продавец не выдал товар в срок — заказ отменён автоматически, средства возвращены покупателю.',
+      'Продавец не выдал товар в срок, заказ отменён автоматически, средства возвращены покупателю.',
     );
   }
 
@@ -1044,7 +1044,7 @@ export class OrdersService {
       // Завершённый — в спор только по гарантии продавца (часть 126), пока
       // деньги у площадки, и только покупателем.
       if (!warrantyActive(order) || order.buyerId !== userId) {
-        throw new ConflictException('Заказ завершён, гарантии по нему нет или она закончилась — спор открыть нельзя');
+        throw new ConflictException('Заказ завершён, гарантии по нему нет или она закончилась, спор открыть нельзя');
       }
     } else {
       this.assertTransition(order.status, 'disputed');
@@ -1084,7 +1084,7 @@ export class OrdersService {
           ...(order.warrantyUntil ? { warrantyReleasedAt: new Date() } : {}),
         },
       });
-      await this.sys(order.id, `Спор решён: покупателю возвращено ${refundPct}% суммы, остаток — продавцу.`);
+      await this.sys(order.id, `Спор решён: покупателю возвращено ${refundPct}% суммы, остаток продавцу.`);
       return done;
     }
 
@@ -1179,7 +1179,7 @@ export class OrdersService {
         where: { id: q.before, ...mine },
         select: { id: true, createdAt: true },
       });
-      if (!at) throw new BadRequestException('Список заказов устарел — обновите страницу');
+      if (!at) throw new BadRequestException('Список заказов устарел, обновите страницу');
       where.AND = [
         { OR: [{ createdAt: { lt: at.createdAt } }, { createdAt: at.createdAt, id: { lt: at.id } }] },
       ];

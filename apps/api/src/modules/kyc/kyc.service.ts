@@ -77,7 +77,7 @@ export class KycService {
       k.startsWith(`kyc/${userId}/`) && SAFE_KEY.test(k) && !k.includes('..');
     const files = [...documentKeys, selfieKey];
     if (!files.every(own))
-      throw new BadRequestException('Файлы не из этой заявки — загрузите их заново');
+      throw new BadRequestException('Файлы не из этой заявки, загрузите их заново');
     if (new Set(files).size !== files.length)
       throw new BadRequestException('Одно и то же фото дважды');
     const last = await this.mine(userId);
@@ -97,7 +97,7 @@ export class KycService {
 
   private async scan(key: string) {
     const bytes = await this.storage.getBytes(key).catch(() => null);
-    if (!bytes) throw new BadRequestException('Файл не загрузился — добавьте его ещё раз');
+    if (!bytes) throw new BadRequestException('Файл не загрузился, добавьте его ещё раз');
     const result = await this.scanner.scan(bytes);
     if (!result.clean) {
       await this.storage.remove(key);

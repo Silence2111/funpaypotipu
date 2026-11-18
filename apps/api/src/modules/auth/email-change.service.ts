@@ -117,10 +117,10 @@ export class EmailChangeService {
     const lang = langOf(user.locale);
     await this.mail.send(
       email,
-      say(lang, 'Подтвердите новую почту — GameMarket'),
+      say(lang, 'Подтвердите новую почту · GameMarket'),
       say(
         lang,
-        'Чтобы сделать эту почту почтой аккаунта GameMarket, откройте ссылку (действует сутки): {link}\nЕсли вы ничего не меняли — проигнорируйте письмо.',
+        'Чтобы сделать эту почту почтой аккаунта GameMarket, откройте ссылку (действует сутки): {link}\nЕсли вы ничего не меняли, проигнорируйте письмо.',
         { link: `${this.web()}/email/confirm?token=${encodeURIComponent(token)}` },
       ),
     );
@@ -193,7 +193,7 @@ export class EmailChangeService {
     const change = await this.revertable(token);
     const oldEmail = change.oldEmail!;
     if (await this.busy(oldEmail, change.userId)) {
-      throw new ConflictException('Прежняя почта уже у другого аккаунта — напишите в поддержку');
+      throw new ConflictException('Прежняя почта уже у другого аккаунта, напишите в поддержку');
     }
     const passwordHash = await bcrypt.hash(password, 12);
     const now = new Date();
@@ -293,10 +293,10 @@ export class EmailChangeService {
     const token = this.tokens.signData({ cid: change.id }, 'email_revert', EMAIL_REVERT_TTL);
     await this.mail.send(
       change.oldEmail,
-      say(lang, 'Почта аккаунта изменена — GameMarket'),
+      say(lang, 'Почта аккаунта изменена · GameMarket'),
       say(
         lang,
-        'Почту аккаунта GameMarket сменили на {email}: {device}, IP {ip}. Если это сделали не вы — верните прежнюю почту по ссылке (действует 7 дней): {link}\nВсе устройства выйдут из аккаунта, вход с кодом и входы через сервисы отключатся, пароль нужно будет задать новый.',
+        'Почту аккаунта GameMarket сменили на {email}: {device}, IP {ip}. Если это сделали не вы, верните прежнюю почту по ссылке (действует 7 дней): {link}\nВсе устройства выйдут из аккаунта, вход с кодом и входы через сервисы отключатся, пароль нужно будет задать новый.',
         {
           email: maskEmail(change.newEmail),
           device,

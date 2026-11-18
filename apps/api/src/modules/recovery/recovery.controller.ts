@@ -32,7 +32,7 @@ import { timeCursor } from '../../common/cursor';
 const queueSchema = z.object({
   status: z.enum(RECOVERY_STATUSES).default('pending'),
   q: z.string().trim().max(100).optional(),
-  cursor: timeCursor('Список заявок устарел — обновите страницу'),
+  cursor: timeCursor('Список заявок устарел, обновите страницу'),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 type QueueParams = z.infer<typeof queueSchema>;
@@ -63,7 +63,7 @@ const dealsSchema = tokenSchema.extend({
           .string()
           .trim()
           .min(20, 'Опишите сделку подробнее, от 20 символов')
-          .max(600, 'Описание сделки — до 600 символов'),
+          .max(600, 'Описание сделки до 600 символов'),
       }),
     )
     .min(2, 'Опишите хотя бы две сделки')
@@ -71,7 +71,7 @@ const dealsSchema = tokenSchema.extend({
 });
 const answerSchema = z.object({ answer: z.enum(DEAL_ANSWERS) });
 const rejectSchema = z.object({
-  note: z.string().trim().min(5, 'Причина — от 5 символов').max(1000),
+  note: z.string().trim().min(5, 'Причина от 5 символов').max(1000),
 });
 
 /** «Не могу войти»: заявка без входа, отметка владельца и решение сотрудника. */

@@ -50,19 +50,19 @@ export class TelegramActionsService implements TelegramActions, OnModuleInit {
    */
   async press(user: TgUser, data: string, lang: Lang, thread?: string): Promise<TgAnswer> {
     const [kind, id] = data.split(':', 2);
-    if (!id || !UUID.test(id)) return { text: say(lang, 'Кнопка устарела — откройте сайт.') };
+    if (!id || !UUID.test(id)) return { text: say(lang, 'Кнопка устарела, откройте сайт.') };
     if (kind === 'rp') return this.askReply(user, id, lang);
     if (kind === 'cf' || kind === 'cy' || kind === 'cn') return this.confirm(kind, user, id, lang);
     if (kind === 'dv' || kind === 'dy' || kind === 'dn') return this.deliver(kind, user, id, lang);
     if (kind === 'tl') return this.templates(user, id, lang);
     if (kind === 'tu' && thread) return this.useTemplate(user, id, thread, lang);
-    return { text: say(lang, 'Кнопка устарела — откройте сайт.') };
+    return { text: say(lang, 'Кнопка устарела, откройте сайт.') };
   }
 
   /** Ответ в Telegram на сообщение из чата — в этот диалог на сайте. */
   async reply(user: TgUser, conversationId: string, text: string, lang: Lang): Promise<TgAnswer> {
     if (text.length > MAX_TEXT) {
-      return { text: say(lang, 'Сообщение длинное — до 4000 символов.') };
+      return { text: say(lang, 'Сообщение длинное, допустимо до 4000 символов.') };
     }
     try {
       await this.chat.sendMessage(conversationId, user.id, text);
@@ -97,7 +97,7 @@ export class TelegramActionsService implements TelegramActions, OnModuleInit {
       return {
         text: say(
           lang,
-          'Подтвердить получение по заказу {number}? Деньги уйдут продавцу, отменить это будет нельзя. Если с товаром что-то не так — откройте спор на сайте: {link}',
+          'Подтвердить получение по заказу {number}? Деньги уйдут продавцу, отменить это будет нельзя. Если с товаром что-то не так, откройте спор на сайте: {link}',
           vars,
         ),
         buttons: [
@@ -187,7 +187,7 @@ export class TelegramActionsService implements TelegramActions, OnModuleInit {
       return {
         text: say(
           lang,
-          'Заготовок пока нет — их создают в «Инструментах продавца» на сайте: {link}',
+          'Заготовок пока нет. Их создают в «Инструментах продавца» на сайте: {link}',
           { link: `${this.web()}/cabinet/tools` },
         ),
       };
@@ -206,7 +206,7 @@ export class TelegramActionsService implements TelegramActions, OnModuleInit {
       select: { userId: true, title: true, body: true },
     });
     if (!template || template.userId !== user.id) {
-      return { replace: true, text: say(lang, 'Заготовка не найдена — возможно, её удалили.') };
+      return { replace: true, text: say(lang, 'Заготовка не найдена, возможно, её удалили.') };
     }
     const other = await this.otherUsername(user.id, conversationId);
     try {
@@ -229,7 +229,7 @@ export class TelegramActionsService implements TelegramActions, OnModuleInit {
     }
     const name = await this.otherName(user.id, conversationId);
     return {
-      text: say(lang, 'Напишите ответ для {name} — он уйдёт в чат на сайте.', { name }),
+      text: say(lang, 'Напишите ответ для {name}, он уйдёт в чат на сайте.', { name }),
       forceReply: true,
       thread: conversationId,
     };
@@ -274,7 +274,7 @@ export class TelegramActionsService implements TelegramActions, OnModuleInit {
     } else {
       this.logger.error(`Действие из Telegram: ${(e as Error).message}`);
     }
-    return say(lang, 'Не получилось — откройте сайт.');
+    return say(lang, 'Не получилось, откройте сайт.');
   }
 
   private web() {

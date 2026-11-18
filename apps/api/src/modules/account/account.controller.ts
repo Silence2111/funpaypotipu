@@ -35,8 +35,8 @@ const pushSchema = z.object({
 const localeSchema = z.object({ locale: z.enum(['ru', 'en']) });
 
 const profileSchema = z.object({
-  displayName: z.string().trim().min(2, 'Имя — от 2 символов').max(40, 'Имя — до 40 символов').optional(),
-  bio: z.string().trim().max(500, 'О себе — до 500 символов').nullable().optional(),
+  displayName: z.string().trim().min(2, 'Имя от 2 символов').max(40, 'Имя до 40 символов').optional(),
+  bio: z.string().trim().max(500, 'О себе до 500 символов').nullable().optional(),
 });
 
 const deletionSchema = z.object({
@@ -52,7 +52,7 @@ const steamTradeSchema = z.object({
     .string()
     .trim()
     .max(100)
-    .refine((v) => v === '' || isSteamTradeUrl(v), 'Ссылка на обмен Steam — вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=…')
+    .refine((v) => v === '' || isSteamTradeUrl(v), 'Ссылка на обмен Steam вида https://steamcommunity.com/tradeoffer/new/?partner=…&token=…')
     .transform((v) => v || null)
     .nullable(),
 });

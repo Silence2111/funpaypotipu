@@ -320,7 +320,7 @@ describe('вход запоминает язык сайта', () => {
     );
     expect(mail.send).toHaveBeenCalledWith(
       'o@e.test',
-      'Подтвердите e-mail — GameMarket',
+      'Подтвердите e-mail · GameMarket',
       expect.stringMatching(/^Здравствуйте, olga\./),
     );
     expect(prisma.user.updateMany).not.toHaveBeenCalled();

@@ -105,7 +105,7 @@ export class ReconciliationService {
 
   /** Прогон за `hours` часов до «сейчас минус запас». Одновременно — один. */
   async run(opts: { trigger: 'auto' | 'manual'; hours?: number; by?: string | null; now?: Date }) {
-    if (this.running) throw new BadRequestException('Сверка уже идёт — подождите минуту');
+    if (this.running) throw new BadRequestException('Сверка уже идёт, подождите минуту');
     this.running = true;
     const now = opts.now ?? new Date();
     const to = new Date(now.getTime() - lagMs());
@@ -167,7 +167,7 @@ export class ReconciliationService {
           .join('; ');
         await this.alerts.alert(
           'reconcile',
-          `Сверка с ЮKassa: новых расхождений — ${fresh} (${kinds}). Консоль → «Сверка и сбои».`,
+          `Сверка с ЮKassa: новых расхождений ${fresh} (${kinds}). Консоль → «Сверка и сбои».`,
         );
       }
       return done;
@@ -207,7 +207,7 @@ export class ReconciliationService {
         return {
           found,
           checked,
-          skipped: 'ЮKassa не подключена — сверять не с чем',
+          skipped: 'ЮKassa не подключена, сверять не с чем',
           partial: null,
         };
       throw new Error('платежи ЮKassa есть, а ключей магазина нет');

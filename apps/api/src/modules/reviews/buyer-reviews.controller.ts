@@ -16,7 +16,7 @@ import { BuyerReviewsService } from './buyer-reviews.service';
 
 const rateSchema = z.object({
   good: z.boolean(),
-  comment: z.string().max(300, 'Комментарий — до 300 знаков').nullable().optional(),
+  comment: z.string().max(300, 'Комментарий до 300 знаков').nullable().optional(),
 });
 
 /** Оценка покупателя в заказе: продавец ставит, обе стороны видят. */

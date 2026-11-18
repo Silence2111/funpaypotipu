@@ -33,7 +33,7 @@ export class ApiKeysService {
   async create(userId: string, name: string) {
     const active = await this.prisma.apiKey.count({ where: { userId, revokedAt: null } });
     if (active >= API_KEYS_MAX) {
-      throw new BadRequestException(`Не больше ${API_KEYS_MAX} ключей — отзовите ненужный`);
+      throw new BadRequestException(`Не больше ${API_KEYS_MAX} ключей. Отзовите ненужный`);
     }
     const key = `${API_KEY_PREFIX}${randomBytes(32).toString('base64url')}`;
     const row = await this.prisma.apiKey.create({

@@ -44,7 +44,7 @@ export class SellerPromosService {
     if (err) throw new BadRequestException(err);
     const count = await this.prisma.sellerPromo.count({ where: { sellerId } });
     if (count >= MAX_SELLER_PROMOS) {
-      throw new BadRequestException(`Не больше ${MAX_SELLER_PROMOS} промокодов — удалите ненужные`);
+      throw new BadRequestException(`Не больше ${MAX_SELLER_PROMOS} промокодов. Удалите ненужные`);
     }
     const taken = await this.prisma.sellerPromo.findUnique({
       where: { sellerId_code: { sellerId, code } },
@@ -120,7 +120,7 @@ export class SellerPromosService {
           where: { buyerId, sellerId: listing.sellerId, status: 'completed' },
         });
         if (!before) {
-          throw new BadRequestException('Промокод — для тех, кто уже покупал у этого продавца');
+          throw new BadRequestException('Промокод для тех, кто уже покупал у этого продавца');
         }
       }
     }

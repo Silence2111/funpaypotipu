@@ -137,7 +137,7 @@ describe('ошибки API переведены', () => {
     expect(found.map((f) => f.text)).toContain('Введите код из приложения-аутентификатора');
     expect(found.map((f) => f.text)).toContain('Этот ник занят');
     // Проверка zod в контроллере
-    expect(found.map((f) => f.text)).toContain('Тема — от 3 символов');
+    expect(found.map((f) => f.text)).toContain('Тема от 3 символов');
   });
 
   it('у каждого текста есть английский', () => {
@@ -158,7 +158,7 @@ describe('ошибки API переведены', () => {
 
   it('подставленное значение переводится, русские данные в кавычках остаются', () => {
     expect(toEnglish('Поднять можно через 12 мин')).toBe('You can raise it again in 12 min');
-    expect(toEnglish('Минимальная сумма вывода для «СБП» — 300 ₽')).toBe(
+    expect(toEnglish('Минимальная сумма вывода для «СБП»: 300 ₽')).toBe(
       'The minimum withdrawal for “SBP (Faster Payments)” is 300 ₽',
     );
     expect(toEnglish('Файл не прошёл антивирус-проверку: превышен лимит 20 МБ')).toBe(
@@ -224,7 +224,7 @@ describe('I18nExceptionFilter', () => {
           },
           400,
         ),
-      () => new BadRequestException({ subject: ['Тема — от 3 символов'] }),
+      () => new BadRequestException({ subject: ['Тема от 3 символов'] }),
       () => new HttpException('Пустое сообщение', 400),
     ];
     for (const make of cases) {
@@ -243,7 +243,7 @@ describe('I18nExceptionFilter', () => {
       new HttpException(
         {
           statusCode: 400,
-          message: 'Выберите ник — по нему вас найдут покупатели и продавцы',
+          message: 'Выберите ник, по нему вас найдут покупатели и продавцы',
           error: 'username_required',
           suggested: 'anna_smirnova',
           name: 'Анна Смирнова',
@@ -280,7 +280,7 @@ describe('I18nExceptionFilter', () => {
     expect(
       reply(
         filter(),
-        new BadRequestException({ subject: ['Тема — от 3 символов'], body: ['Required'] }),
+        new BadRequestException({ subject: ['Тема от 3 символов'], body: ['Required'] }),
         'en',
       ).body,
     ).toEqual({

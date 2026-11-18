@@ -310,7 +310,7 @@ describe('действия из Telegram', () => {
   it('ответ — в чат от имени участника; не участнику — «Диалог не найден»; длинный — отказ', async () => {
     const { svc, chat } = actions(null);
     await expect(svc.press(buyer, `rp:${CONV}`, 'ru')).resolves.toEqual({
-      text: 'Напишите ответ для @seller — он уйдёт в чат на сайте.',
+      text: 'Напишите ответ для @seller, он уйдёт в чат на сайте.',
       forceReply: true,
       thread: CONV,
     });
@@ -419,7 +419,7 @@ describe('действия из Telegram', () => {
   it('заготовок нет — подсказка, где их создать', async () => {
     const { svc } = actions(null);
     await expect(svc.press(seller, `tl:${CONV}`, 'ru')).resolves.toEqual({
-      text: 'Заготовок пока нет — их создают в «Инструментах продавца» на сайте: https://gm.test/cabinet/tools',
+      text: 'Заготовок пока нет. Их создают в «Инструментах продавца» на сайте: https://gm.test/cabinet/tools',
     });
   });
 });

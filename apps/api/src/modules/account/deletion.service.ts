@@ -108,7 +108,7 @@ export class DeletionService {
     });
     if (!user?.profile || user.deletedAt) throw new UnauthorizedException('Пользователь не найден');
     if (input.username.trim().toLowerCase() !== user.profile.username.toLowerCase()) {
-      throw new BadRequestException('Ник не совпадает — впишите свой ник, чтобы подтвердить удаление');
+      throw new BadRequestException('Ник не совпадает. Впишите свой ник, чтобы подтвердить удаление');
     }
     if (user.passwordHash && !(input.password && (await bcrypt.compare(input.password, user.passwordHash)))) {
       throw new UnauthorizedException('Пароль не подошёл');
@@ -120,7 +120,7 @@ export class DeletionService {
     if (hasBlockers(blockers)) {
       throw new ConflictException({
         statusCode: 409,
-        message: 'Сначала доведите сделки и споры и выведите деньги — тогда аккаунт можно удалить',
+        message: 'Сначала доведите сделки и споры и выведите деньги, тогда аккаунт можно удалить',
         error: DELETION_BLOCKED,
         blockers,
       });
@@ -129,7 +129,7 @@ export class DeletionService {
     if (left > 0n && !input.forfeit) {
       throw new ConflictException({
         statusCode: 409,
-        message: 'На балансе остаток меньше минимального вывода — подтвердите, что он сгорит',
+        message: 'На балансе остаток меньше минимального вывода. Подтвердите, что он сгорит',
         error: 'deletion_forfeit',
         forfeit: left.toString(),
       });

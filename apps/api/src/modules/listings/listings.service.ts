@@ -239,7 +239,7 @@ export class ListingsService {
     const cost = promoCost(PROMO_DAY_PRICE, days);
     const balance = await this.ledger.balanceOf(sellerId, listing.currency);
     if (balance < cost) {
-      throw new BadRequestException(`На балансе не хватает ${((Number(cost - balance)) / 100).toLocaleString('ru-RU')} ₽ — пополните баланс`);
+      throw new BadRequestException(`На балансе не хватает ${((Number(cost - balance)) / 100).toLocaleString('ru-RU')} ₽, пополните баланс`);
     }
     const until = promoUntil(listing.promotedUntil, days);
     await this.prisma.$transaction(async (tx) => {
@@ -743,10 +743,10 @@ export class ListingsService {
       throw new BadRequestException('Скидку можно дать лоту в продаже');
     }
     if (listing.topupMarkupBps != null) {
-      throw new BadRequestException('У пополнения скидка — это наценка: измените её в лоте');
+      throw new BadRequestException('У пополнения скидкой служит наценка, измените её в лоте');
     }
     if (listing.saleUntil) {
-      throw new BadRequestException('Скидка уже идёт — завершите её, чтобы начать новую');
+      throw new BadRequestException('Скидка уже идёт. Завершите её, чтобы начать новую');
     }
     const price = salePrice(listing.price, pct);
     if (price < SALE_MIN_PRICE) throw new BadRequestException('Со скидкой цена меньше 1 ₽');
@@ -758,7 +758,7 @@ export class ListingsService {
     if (shown < SALE_MIN_PCT) {
       const rub = `${(Number(ref) / 100).toLocaleString('ru-RU')} ₽`;
       throw new BadRequestException(
-        `За ${SALE_REF_DAYS} дней до скидки цена была ${rub} — от неё скидка ${shown}%, а нужно от ${SALE_MIN_PCT}%. Дайте скидку больше или подождите неделю после повышения цены`,
+        `За ${SALE_REF_DAYS} дней до скидки цена была ${rub}. От неё скидка ${shown}%, а нужно от ${SALE_MIN_PCT}%. Дайте скидку больше или подождите неделю после повышения цены`,
       );
     }
     const saleUntil = new Date(Date.now() + days * 24 * 3600_000);
@@ -772,7 +772,7 @@ export class ListingsService {
         saleStartedAt: new Date(),
       },
     });
-    if (!r.count) throw new BadRequestException('Лот только что изменился — обновите страницу');
+    if (!r.count) throw new BadRequestException('Лот только что изменился, обновите страницу');
     await this.search.indexListing(id);
     return {
       price: price.toString(),
@@ -1087,7 +1087,7 @@ export class ListingsService {
     if (!category) throw new NotFoundException('Категория не найдена для указанной игры');
     if (category.salesClosed) throw sectionClosedError(category.closedReason);
     if (category.fulfillmentType !== 'manual' || category.unitName) {
-      throw new BadRequestException('В этот раздел лоты выставляются по одному: из таблицы — аккаунты, предметы и услуги');
+      throw new BadRequestException('В этот раздел лоты выставляются по одному. Из таблицы выставляются аккаунты, предметы и услуги');
     }
     return (
       await this.prisma.attribute.findMany({
@@ -1192,7 +1192,7 @@ export class ListingsService {
     if (!current || current.sellerId !== sellerId || current.status === 'archived') {
       throw new NotFoundException('Лот не найден');
     }
-    if (current.categoryId !== categoryId) throw new BadRequestException('Этот лот — из другого раздела');
+    if (current.categoryId !== categoryId) throw new BadRequestException('Этот лот из другого раздела');
     if (current.unitName || current.fulfillmentType !== 'manual') {
       throw new BadRequestException('Поштучный лот и лот с автовыдачей меняются в форме лота');
     }
@@ -1229,7 +1229,7 @@ export class ListingsService {
     if (category.fulfillmentType !== 'manual') return category.fulfillmentType;
     if (autoDelivery === undefined) return current;
     if (autoDelivery && sectionPack(category)) {
-      throw new BadRequestException('Валюту продают количеством — автовыдача со склада здесь не подходит');
+      throw new BadRequestException('Валюту продают количеством, автовыдача со склада здесь не подходит');
     }
     return autoDelivery ? 'auto_key' : 'manual';
   }
@@ -1276,7 +1276,7 @@ export class ListingsService {
   private serviceTerm(category: { segment: string }, fulfillment: FulfillmentType, hours: number | null | undefined) {
     if (hours == null) return null;
     if (category.segment !== 'service') throw new BadRequestException('Срок выполнения задают только у услуг');
-    if (fulfillment !== 'manual') throw new BadRequestException('Срок выполнения — у услуг, которые выполняют вручную');
+    if (fulfillment !== 'manual') throw new BadRequestException('Срок выполнения задают у услуг, которые выполняют вручную');
     return hours;
   }
 
@@ -1287,7 +1287,7 @@ export class ListingsService {
   private warranty(category: { segment: string }, fulfillment: FulfillmentType, days: number | null | undefined) {
     if (days == null) return null;
     if ((NO_WARRANTY_SEGMENTS as readonly string[]).includes(category.segment) || fulfillment === 'provider') {
-      throw new BadRequestException('Гарантию дают на ключи, предметы и услуги — у валюты и пополнений её нет');
+      throw new BadRequestException('Гарантию дают на ключи, предметы и услуги, у валюты и пополнений её нет');
     }
     return days;
   }
@@ -1315,7 +1315,7 @@ export class ListingsService {
     const unitName = raw.unitName?.trim() || null;
     if (!unitName) return { unitName: null, pricePerUnits: 1, minQty: 1, stock: raw.stock };
     if (fulfillmentType === 'provider') {
-      throw new BadRequestException('У пополнений количество не задаётся — выберите сумму на выбор покупателя');
+      throw new BadRequestException('У пополнений количество не задаётся, выберите сумму на выбор покупателя');
     }
     const terms = {
       unitName,
@@ -1340,7 +1340,7 @@ export class ListingsService {
   ): Prisma.InputJsonValue | typeof Prisma.DbNull {
     if (!raw?.length) return Prisma.DbNull;
     if (!terms.unitName) {
-      throw new BadRequestException('Скидка за количество — у лотов, которые продают количеством');
+      throw new BadRequestException('Скидка за количество бывает у лотов, которые продают количеством');
     }
     const tiers = [...raw].sort((a, b) => a.from - b.from).map((t) => ({ from: t.from, pct: t.pct }));
     const error = qtyTiersError(tiers, terms.minQty);
@@ -1385,7 +1385,7 @@ export class ListingsService {
       ((input.price !== undefined && BigInt(input.price) !== current.price) ||
         (input.pricePerUnits !== undefined && input.pricePerUnits !== current.pricePerUnits))
     ) {
-      throw new BadRequestException('Идёт скидка — завершите её, потом меняйте цену');
+      throw new BadRequestException('Идёт скидка. Завершите её, потом меняйте цену');
     }
     // Характеристики проверялись только при создании: правкой можно было
     // убрать обязательное «Звание» или вписать значение не из списка.
@@ -1523,7 +1523,7 @@ export class ListingsService {
       const stock = data.stock !== undefined ? (data.stock as number | null) : current.stock;
       if (stock === 0) {
         throw new BadRequestException(
-          auto ? 'Склад пуст — загрузите товар, и лот вернётся в продажу' : 'Лот закончился — укажите наличие',
+          auto ? 'Склад пуст. Загрузите товар, и лот вернётся в продажу' : 'Лот закончился, укажите наличие',
         );
       }
     }

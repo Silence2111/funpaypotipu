@@ -89,7 +89,7 @@ export class DisputesService {
     });
     if (mineOpen >= BUYER_OPEN_DISPUTES_MAX) {
       throw new HttpException(
-        { statusCode: 429, error: 'dispute_limit', message: `Открыто ${mineOpen} спора — дождитесь решения по ним, потом открывайте новый.` },
+        { statusCode: 429, error: 'dispute_limit', message: `Открыто ${mineOpen} спора. Дождитесь решения по ним, потом открывайте новый.` },
         429,
       );
     }
@@ -129,7 +129,7 @@ export class DisputesService {
     attachments: DisputeAttachment[] = [],
   ) {
     const { dispute, order, isStaff } = await this.accessible(disputeId, userId);
-    if (isInternal && !isStaff) throw new ForbiddenException('Внутренние заметки — только арбитр');
+    if (isInternal && !isStaff) throw new ForbiddenException('Внутренние заметки пишет только арбитр');
     if (!body.trim() && attachments.length === 0) {
       throw new BadRequestException('Пустое сообщение');
     }
@@ -334,7 +334,7 @@ export class DisputesService {
     if (dispute.status !== 'open') throw new ConflictException('Спор уже в работе или закрыт');
     // Обжалованный спор берёт другой арбитр (часть 135).
     if (dispute.appealedAt && dispute.firstArbiterId === arbiterId) {
-      throw new ForbiddenException('Обжалование решает другой арбитр — не тот, кто вынес первое решение');
+      throw new ForbiddenException('Обжалование решает другой арбитр, не тот, кто вынес первое решение');
     }
     return this.prisma.dispute.update({
       where: { id: disputeId },
@@ -354,7 +354,7 @@ export class DisputesService {
       throw new ConflictException('Спор уже разрешён');
     }
     if (dispute.appealedAt && dispute.firstArbiterId === arbiterId) {
-      throw new ForbiddenException('Обжалование решает другой арбитр — не тот, кто вынес первое решение');
+      throw new ForbiddenException('Обжалование решает другой арбитр, не тот, кто вынес первое решение');
     }
 
     const hours = dispute.appealedAt ? 0 : await this.appealHours();
@@ -461,7 +461,7 @@ export class DisputesService {
     const { dispute, order } = await this.accessible(disputeId, userId);
     if (!order) throw new NotFoundException('Заказ не найден');
     if (dispute.appealedAt) throw new ConflictException('Решение по спору обжалуется один раз');
-    if (!this.pending(dispute)) throw new ConflictException('Решение уже вступило в силу — обжаловать нельзя');
+    if (!this.pending(dispute)) throw new ConflictException('Решение уже вступило в силу, обжаловать нельзя');
     if (this.loserOf(dispute, order) !== userId) {
       throw new ForbiddenException('Обжаловать может сторона, против которой вынесено решение');
     }
@@ -481,7 +481,7 @@ export class DisputesService {
         finalizeAt: null,
       },
     });
-    if (!claimed.count) throw new ConflictException('Решение уже вступило в силу — обжаловать нельзя');
+    if (!claimed.count) throw new ConflictException('Решение уже вступило в силу, обжаловать нельзя');
     await this.note(disputeId, DISPUTE_NOTES.appealed);
     await this.audit.log({ actorId: userId, action: 'dispute.appeal', entityType: 'dispute', entityId: disputeId, after: { text } });
     const other = order.buyerId === userId ? order.sellerId : order.buyerId;
@@ -662,7 +662,7 @@ export class DisputesService {
           })
         : null
       : undefined;
-    if (last === null) throw new BadRequestException('Список споров устарел — обновите страницу');
+    if (last === null) throw new BadRequestException('Список споров устарел, обновите страницу');
 
     let ids: string[];
     let more: boolean;

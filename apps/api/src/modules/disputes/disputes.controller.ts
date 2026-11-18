@@ -11,7 +11,7 @@ import { RateLimit } from '../../common/rate-limit';
 import { timeCursor } from '../../common/cursor';
 
 const openSchema = z.object({ orderId: z.string().uuid(), reason: z.string().min(3).max(2000) });
-const STALE = 'Список споров устарел — обновите страницу';
+const STALE = 'Список споров устарел, обновите страницу';
 // `next` прошлой страницы: «m» или «w» (пропустил ли последний срок) и «время_id».
 const queueCursor = z
   .string()
@@ -51,16 +51,16 @@ const resolveSchema = z.object({
   refundPct: z
     .number()
     .int()
-    .refine((p) => (DISPUTE_REFUND_PCTS as readonly number[]).includes(p), 'Доля возврата — 25, 50, 75 или 100%')
+    .refine((p) => (DISPUTE_REFUND_PCTS as readonly number[]).includes(p), 'Доля возврата: 25, 50, 75 или 100%')
     .optional(),
   rule: z.enum(RULE_IDS as [string, ...string[]]).optional(),
 });
 
 const appealSchema = z.object({
-  text: z.string().trim().min(10, 'Объясните, почему решение неверно, — от 10 знаков').max(2000),
+  text: z.string().trim().min(10, 'Объясните, почему решение неверно, от 10 знаков').max(2000),
 });
 const windowSchema = z.object({
-  hours: z.number().int().min(0, 'Окно обжалования — от 0 до 72 часов').max(DISPUTE_APPEAL_MAX_HOURS, 'Окно обжалования — от 0 до 72 часов'),
+  hours: z.number().int().min(0, 'Окно обжалования от 0 до 72 часов').max(DISPUTE_APPEAL_MAX_HOURS, 'Окно обжалования от 0 до 72 часов'),
 });
 
 @Controller('disputes')

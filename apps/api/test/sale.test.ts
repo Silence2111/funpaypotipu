@@ -53,7 +53,7 @@ describe('скидка на лот', () => {
     };
     // −20% от 1 500 — 1 200 ₽, дороже прежних 1 000: скидки на деле нет.
     await expect(setup(lot(), raised).svc.startSale('s1', 'l1', 20, 3)).rejects.toThrow(
-      /была 1\s000 ₽ — от неё скидка 0%, а нужно от 5%/,
+      /была 1\s000 ₽\. От неё скидка 0%, а нужно от 5%/,
     );
     // −40% — 900 ₽: от честных 1 000 ₽ это −10%, её покупатель и увидит.
     const ok = setup(lot(), raised);
@@ -137,7 +137,7 @@ describe('скидка на лот', () => {
     };
     const { svc } = setup(current);
     await expect(svc.update('s1', 'l1', { price: '130000' } as never)).rejects.toThrow(
-      'Идёт скидка — завершите её, потом меняйте цену',
+      'Идёт скидка. Завершите её, потом меняйте цену',
     );
     await expect(svc.update('s1', 'l1', { pricePerUnits: 10 } as never)).rejects.toThrow(
       /Идёт скидка/,

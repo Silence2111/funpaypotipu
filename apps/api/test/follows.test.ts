@@ -118,8 +118,8 @@ describe('проход по подпискам', () => {
       String((c[2] as Row).preview).replace(/\s/g, ' '),
     ]);
     expect(sent).toEqual([
-      ['u1', 'seller_new_lots', 'seller1: «Лот l2» — 900 ₽ и ещё 1'],
-      ['u1', 'seller_sale', 'seller1: «Лот l0» — 900 ₽ вместо 1 000 ₽'],
+      ['u1', 'seller_new_lots', 'seller1: «Лот l2»: 900 ₽ и ещё 1'],
+      ['u1', 'seller_sale', 'seller1: «Лот l0»: 900 ₽ вместо 1 000 ₽'],
       ['u2', 'seller_new_lots', 'seller1: «Лот l2» — 900 ₽'],
     ]);
     // Один лот — ссылка на него; скидка l0 у u2 — до его отметки, не пришла.

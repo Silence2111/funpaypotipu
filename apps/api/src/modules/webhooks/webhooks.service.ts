@@ -51,16 +51,16 @@ export class WebhooksService {
     try {
       url = new URL(raw.trim());
     } catch {
-      throw new BadRequestException('Адрес вебхука — полный URL, например https://example.com/gamemarket');
+      throw new BadRequestException('Адрес вебхука: полный URL, например https://example.com/gamemarket');
     }
     const prod = process.env.NODE_ENV === 'production';
     if (url.protocol !== 'https:' && (prod || url.protocol !== 'http:')) {
-      throw new BadRequestException('Адрес вебхука — только https');
+      throw new BadRequestException('Адрес вебхука только https');
     }
     if (prod && privateHost(url.hostname)) {
-      throw new BadRequestException('Адрес вебхука — публичный: на локальные и внутренние адреса не отправляем');
+      throw new BadRequestException('Адрес вебхука должен быть публичным: на локальные и внутренние адреса не отправляем');
     }
-    if (url.username || url.password) throw new BadRequestException('Адрес вебхука — без логина и пароля в ссылке');
+    if (url.username || url.password) throw new BadRequestException('Адрес вебхука без логина и пароля в ссылке');
     return url.toString();
   }
 

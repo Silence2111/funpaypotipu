@@ -119,7 +119,7 @@ export class AntifraudService {
     const perHour = newbie ? s.newbiePaymentsPerHour : s.paymentsPerHour;
     if (tries >= perHour) {
       await this.signal(userId, 'velocity', 10, { what: 'payments_per_hour', tries, limit: perHour, newbie });
-      throw antifraudError(429, 'payments_too_often', `Слишком много попыток оплаты за час — не больше ${perHour}. Попробуйте позже или напишите в поддержку.`);
+      throw antifraudError(429, 'payments_too_often', `Слишком много попыток оплаты за час, не больше ${perHour}. Попробуйте позже или напишите в поддержку.`);
     }
     if (!newbie) return;
     const dayAgo = new Date(Date.now() - 86_400_000);
@@ -134,7 +134,7 @@ export class AntifraudService {
       throw antifraudError(
         403,
         'newbie_pay_limit',
-        `Новым аккаунтам — до ${rub} ₽ оплат картой и по СБП за сутки. Ограничение снимется после первой завершённой сделки или через 3 дня после регистрации.`,
+        `Новые аккаунты оплачивают картой и по СБП до ${rub} ₽ за сутки. Ограничение снимется после первой завершённой сделки или через 3 дня после регистрации.`,
       );
     }
   }
@@ -150,7 +150,7 @@ export class AntifraudService {
       throw antifraudError(
         429,
         'newbie_lot_limit',
-        `Новым продавцам — до ${s.newbieLotsPerDay} лотов за сутки. Ограничение снимется после первой завершённой сделки или через 3 дня после регистрации.`,
+        `Новые продавцы выставляют до ${s.newbieLotsPerDay} лотов за сутки. Ограничение снимется после первой завершённой сделки или через 3 дня после регистрации.`,
       );
     }
   }
@@ -170,7 +170,7 @@ export class AntifraudService {
     throw antifraudError(
       409,
       'linked_accounts',
-      'Покупка недоступна: аккаунты покупателя и продавца связаны — общий браузер или реквизиты вывода. Если это ошибка, напишите в поддержку.',
+      'Покупка недоступна: аккаунты покупателя и продавца связаны общим браузером или реквизитами вывода. Если это ошибка, напишите в поддержку.',
     );
   }
 

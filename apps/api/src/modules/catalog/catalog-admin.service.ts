@@ -168,7 +168,7 @@ export class CatalogAdminService {
     if (!this.storage.enabled) throw new NotFoundException('Хранилище недоступно');
     if (!file?.buffer?.length) throw new BadRequestException('Пустой файл');
     const ext = COVER_TYPES[file.mimetype];
-    if (!ext) throw new BadRequestException('Обложка — PNG, JPEG или WebP');
+    if (!ext) throw new BadRequestException('Обложка: PNG, JPEG или WebP');
     if (file.size > COVER_MAX) throw new BadRequestException('Обложка больше 2 МБ');
     // games/ — среди публичных папок /api/assets: обложку видят все.
     const key = `games/${id}/${randomUUID()}.${ext}`;
@@ -236,7 +236,7 @@ export class CatalogAdminService {
       (input.segment && input.segment !== before.segment) ||
       (input.fulfillmentType && input.fulfillmentType !== before.fulfillmentType);
     if (kindChanged && (await this.prisma.listing.count({ where: { categoryId: id } }))) {
-      throw new BadRequestException('В разделе уже есть лоты — тип товара и способ выдачи не меняются');
+      throw new BadRequestException('В разделе уже есть лоты, тип товара и способ выдачи не меняются');
     }
     const category = await this.prisma.category.update({ where: { id }, data: { ...input, editedAt: new Date() } });
     await this.audit.log({
@@ -333,7 +333,7 @@ export class CatalogAdminService {
   /** Порядок разделов игры: ровно её разделы, каждый — один раз. */
   async orderCategories(actorId: string, gameId: string, ids: string[]) {
     const current = await this.prisma.category.findMany({ where: { gameId }, select: { id: true, sortOrder: true } });
-    this.assertSameSet(current.map((c) => c.id), ids, 'Список разделов устарел — обновите страницу');
+    this.assertSameSet(current.map((c) => c.id), ids, 'Список разделов устарел, обновите страницу');
     await this.prisma.$transaction(
       ids.map((cid, i) => this.prisma.category.update({ where: { id: cid }, data: { sortOrder: i + 1, editedAt: new Date() } })),
     );
@@ -432,7 +432,7 @@ export class CatalogAdminService {
 
   async orderAttributes(actorId: string, categoryId: string, ids: string[]) {
     const current = await this.prisma.attribute.findMany({ where: { categoryId }, select: { id: true, sortOrder: true } });
-    this.assertSameSet(current.map((a) => a.id), ids, 'Список полей устарел — обновите страницу');
+    this.assertSameSet(current.map((a) => a.id), ids, 'Список полей устарел, обновите страницу');
     await this.prisma.$transaction(
       ids.map((aid, i) => this.prisma.attribute.update({ where: { id: aid }, data: { sortOrder: i + 1, editedAt: new Date() } })),
     );
@@ -460,7 +460,7 @@ export class CatalogAdminService {
     if (type !== 'enum') return;
     const list = (options ?? []).map((o) => o.trim());
     if (list.length < 2 || list.some((o) => !o) || new Set(list).size !== list.length) {
-      throw new BadRequestException('У выбора из списка — от двух разных вариантов');
+      throw new BadRequestException('У выбора из списка должно быть от двух разных вариантов');
     }
   }
 }

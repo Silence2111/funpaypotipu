@@ -300,7 +300,7 @@ export class NotificationsService {
             select: { id: true, createdAt: true },
           })
         : null;
-      if (!last) throw new BadRequestException('Список уведомлений устарел — обновите страницу');
+      if (!last) throw new BadRequestException('Список уведомлений устарел, обновите страницу');
       after = {
         OR: [
           { createdAt: { lt: last.createdAt } },
@@ -349,7 +349,7 @@ export class NotificationsService {
   /** «Вернуть» после «Убрать прочитанные»: свои уведомления, скрытые в момент `at`. */
   async restore(userId: string, at: string | undefined) {
     if (!at || !ISO_MS.test(at))
-      throw new BadRequestException('Нечего вернуть — обновите страницу');
+      throw new BadRequestException('Нечего вернуть, обновите страницу');
     const r = await this.prisma.notification.updateMany({
       where: { userId, hiddenAt: new Date(at) },
       data: { hiddenAt: null },

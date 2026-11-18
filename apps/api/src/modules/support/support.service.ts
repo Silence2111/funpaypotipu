@@ -48,7 +48,7 @@ export class SupportService {
     }
     // Пять открытых обращений — потолок: дальше это спам в очередь, а не вопросы.
     const open = await this.prisma.supportTicket.count({ where: { userId, status: { not: 'closed' } } });
-    if (open >= 5) throw new BadRequestException('У вас уже пять открытых обращений — дождитесь ответа по ним');
+    if (open >= 5) throw new BadRequestException('У вас уже пять открытых обращений. Дождитесь ответа по ним');
 
     return this.prisma.supportTicket.create({
       data: {
@@ -192,7 +192,7 @@ export class SupportService {
       return this.prisma.supportTemplate.update({ where: { id }, data: input, select: { id: true, title: true, body: true } });
     }
     const count = await this.prisma.supportTemplate.count();
-    if (count >= 100) throw new BadRequestException('Заготовок не больше 100 — удалите ненужные');
+    if (count >= 100) throw new BadRequestException('Заготовок не больше 100. Удалите ненужные');
     return this.prisma.supportTemplate.create({ data: { ...input, createdBy: staffId }, select: { id: true, title: true, body: true } });
   }
 

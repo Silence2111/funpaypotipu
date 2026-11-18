@@ -13,14 +13,14 @@ const uploadSchema = z.object({ mime: z.string().min(3).max(100) });
 const queueSchema = z.object({
   status: z.enum(KYC_QUEUE_STATUSES).default('pending'),
   q: z.string().trim().max(100).optional(),
-  cursor: timeCursor('Список заявок устарел — обновите страницу'),
+  cursor: timeCursor('Список заявок устарел, обновите страницу'),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 type QueueParams = z.infer<typeof queueSchema>;
 const key = z.string().min(3).max(200);
 // Документ — разворот и, если нужно, второе фото; селфи — с документом в руке.
 const submitSchema = z.object({
-  documentKeys: z.array(key).min(1, 'Добавьте фото документа').max(2, 'Документ — до двух фото'),
+  documentKeys: z.array(key).min(1, 'Добавьте фото документа').max(2, 'Документ: до двух фото'),
   selfieKey: key,
 });
 const reviewSchema = z.object({

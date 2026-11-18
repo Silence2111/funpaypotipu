@@ -152,7 +152,7 @@ export class AccountService {
     if (!this.storage.enabled) throw new NotFoundException('Хранилище картинок на стенде не подключено');
     if (!file?.buffer?.length) throw new BadRequestException('Пустой файл');
     const ext = AVATAR_TYPES[file.mimetype];
-    if (!ext) throw new BadRequestException('Аватар — PNG, JPG, WebP или GIF');
+    if (!ext) throw new BadRequestException('Аватар: PNG, JPG, WebP или GIF');
     if (file.size > AVATAR_MAX) throw new BadRequestException('Аватар больше 2 МБ');
     const key = `avatars/${userId}/${randomUUID()}.${ext}`;
     await this.storage.put(key, file.buffer, file.mimetype);
