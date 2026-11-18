@@ -174,10 +174,10 @@ export const AUTH: Record<string, string> = {
   'Готово: блокировка 1 ₽ снята. Сотрудник сверит карту и ответит на эту почту не раньше чем через 3 дня после заявки.':
     'Done: the 1 ₽ hold has been released. Staff will check the card and reply to this email no sooner than 3 days after the request.',
   'Ждём ответа банка…': 'Waiting for the bank…',
-  'Заплатите 1 ₽ картой, которой вы платили на GameMarket или на которую выводили деньги. Сумма только заблокируется на карте и сразу вернётся, а мы сверим первые 6 и последние 4 цифры с прошлыми оплатами.':
-    'Pay 1 ₽ with a card you’ve paid with on GameMarket or withdrawn money to. The amount is only put on hold and released right away, and we’ll compare the first 6 and last 4 digits with your past payments.',
-  'Оплата не прошла. Попробуйте ещё раз той же картой или другой, которой платили на GameMarket.':
-    'The payment didn’t go through. Try again — with the same card or another one you’ve paid with on GameMarket.',
+  'Заплатите 1 ₽ картой, которой вы платили на Lutli или на которую выводили деньги. Сумма только заблокируется на карте и сразу вернётся, а мы сверим первые 6 и последние 4 цифры с прошлыми оплатами.':
+    'Pay 1 ₽ with a card you’ve paid with on Lutli or withdrawn money to. The amount is only put on hold and released right away, and we’ll compare the first 6 and last 4 digits with your past payments.',
+  'Оплата не прошла. Попробуйте ещё раз той же картой или другой, которой платили на Lutli.':
+    'The payment didn’t go through. Try again — with the same card or another one you’ve paid with on Lutli.',
   'Заплатить 1 ₽ картой': 'Pay 1 ₽ by card',
   'Номер карты вводится на странице ЮKassa, площадка его не видит и не хранит.':
     'You enter the card number on the YooKassa page — the marketplace neither sees nor stores it.',

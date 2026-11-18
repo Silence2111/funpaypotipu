@@ -19,7 +19,7 @@ export async function SiteHeader() {
           <Link href="/" className="brand ph__brand">
             {/* eslint-disable-next-line @next/next/no-img-element -- объёмный знак, свой рендер (дизайн/3d) */}
             <img className="brand-3d" src="/3d/logo.webp" alt="" width={44} height={44} />
-            GameMarket
+            Lutli
           </Link>
           <ThemeToggle />
           <div className="ph__search hide-mobile">

@@ -222,7 +222,7 @@ export class TelegramService {
       chatId,
       say(
         lang,
-        'Это бот уведомлений GameMarket. Чтобы подключить его, откройте на сайте Профиль → Уведомления и нажмите «Подключить Telegram».',
+        'Это бот уведомлений Lutli. Чтобы подключить его, откройте на сайте Профиль → Уведомления и нажмите «Подключить Telegram».',
       ),
     );
   }
@@ -252,7 +252,7 @@ export class TelegramService {
     if (!holder) {
       await this.send(
         chatId,
-        say(lang, 'Этот Telegram не подключён к аккаунту GameMarket. Подключить его можно в настройках на сайте.'),
+        say(lang, 'Этот Telegram не подключён к аккаунту Lutli. Подключить его можно в настройках на сайте.'),
       );
       return;
     }
@@ -324,7 +324,7 @@ export class TelegramService {
         chatId,
         say(
           lang,
-          'Этот Telegram уже подключён к другому аккаунту GameMarket. Отключите его там командой /stop или в настройках.',
+          'Этот Telegram уже подключён к другому аккаунту Lutli. Отключите его там командой /stop или в настройках.',
         ),
       );
       return;
@@ -339,7 +339,7 @@ export class TelegramService {
       chatId,
       say(
         langOf(user.locale),
-        'Готово: уведомления GameMarket будут приходить сюда. Отключить можно командой /stop или в настройках на сайте.',
+        'Готово: уведомления Lutli будут приходить сюда. Отключить можно командой /stop или в настройках на сайте.',
       ),
     );
   }

@@ -118,7 +118,7 @@ export class AuthService {
     const link = `${this.webUrl()}/verify-email?token=${encodeURIComponent(token)}`;
     await this.mail.send(
       email,
-      say(lang, 'Подтвердите e-mail · GameMarket'),
+      say(lang, 'Подтвердите e-mail · Lutli'),
       say(lang, 'Здравствуйте, {name}. Подтвердите e-mail: {link}\nПокупки защищены эскроу.', { name: username, link }),
     );
   }
@@ -144,7 +144,7 @@ export class AuthService {
       const link = `${this.webUrl()}/reset?token=${encodeURIComponent(token)}`;
       await this.mail.send(
         user.email,
-        say(lang, 'Восстановление пароля · GameMarket'),
+        say(lang, 'Восстановление пароля · Lutli'),
         say(lang, 'Сброс пароля (ссылка действует 1 час): {link}\nЕсли вы не запрашивали сброс, проигнорируйте письмо.', {
           link,
         }),

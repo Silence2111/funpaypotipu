@@ -88,7 +88,7 @@ export function TwoFactorCard() {
 
   function download(list: string[]) {
     const blob = new Blob(
-      [`${t('Резервные коды GameMarket, каждый работает один раз')}\n\n${list.join('\n')}\n`],
+      [`${t('Резервные коды Lutli, каждый работает один раз')}\n\n${list.join('\n')}\n`],
       {
         type: 'text/plain;charset=utf-8',
       },

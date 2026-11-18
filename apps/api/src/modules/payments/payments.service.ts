@@ -54,7 +54,7 @@ export class PaymentsService {
       amount,
       method,
       currency,
-      description: 'Пополнение баланса GameMarket',
+      description: 'Пополнение баланса Lutli',
       returnUrl: `${webUrl()}/cabinet/wallet?topup=1`,
       customerEmail: user?.email ?? null,
     });
@@ -88,7 +88,7 @@ export class PaymentsService {
       amount: order.amount,
       method,
       currency: order.currency,
-      description: `Заказ ${order.publicNumber} на GameMarket`,
+      description: `Заказ ${order.publicNumber} на Lutli`,
       // Со страницы шлюза — обратно на заказ: там видно, дошла ли оплата.
       returnUrl: `${webUrl()}/orders/${orderId}?paid=1`,
       customerEmail: order.buyer?.email ?? null,

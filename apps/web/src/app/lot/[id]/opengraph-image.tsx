@@ -12,7 +12,7 @@ import { getT } from '@/lib/i18n/server';
  */
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
-export const alt = 'GameMarket';
+export const alt = 'Lutli';
 
 // Шрифт с кириллицей и знаком ₽: встроенный в next/og — только латиница.
 const FONTS = join(process.cwd(), 'node_modules/@fontsource/inter/files');
@@ -48,7 +48,7 @@ export default async function LotImage({ params }: { params: Promise<{ id: strin
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: '#f4f5f8', padding: 64, fontFamily: 'Inter, InterExt', color: '#0b0c0f' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 30, fontWeight: 700 }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: '#2563eb', display: 'flex' }} />
-          GameMarket
+          Lutli
         </div>
         {listing ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

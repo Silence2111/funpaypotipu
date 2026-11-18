@@ -20,7 +20,7 @@ curl -sf "$URL/api/health/ready" >/dev/null || fail "API не готов: $URL/a
 ok "API и база"
 
 curl -sf "$URL/" -o "$TMP/home.html" || fail "главная не открывается"
-grep -q 'GameMarket' "$TMP/home.html" || fail "главная без названия"
+grep -q 'Lutli' "$TMP/home.html" || fail "главная без названия"
 # Каталог собран на сервере: игры из сида — прямо в HTML, а не после загрузки в браузере.
 grep -q 'Counter-Strike' "$TMP/home.html" || fail "в HTML главной нет игр каталога"
 ok "главная с каталогом — с сервера"

@@ -158,7 +158,7 @@ describe('настоящий шлюз', () => {
     const dep = await svc.createDeposit('o1', 'u1', 'sbp');
     expect(dep).toMatchObject({ redirect: true, url: 'https://pay.example/x', amount: '100000' });
     expect(realProvider.createDeposit).toHaveBeenLastCalledWith(
-      expect.objectContaining({ description: 'Заказ GM-1 на GameMarket', returnUrl: expect.stringMatching(/\/orders\/o1\?paid=1$/) }),
+      expect.objectContaining({ description: 'Заказ GM-1 на Lutli', returnUrl: expect.stringMatching(/\/orders\/o1\?paid=1$/) }),
     );
     expect(state.payment.externalId).toBe('ext-1');
   });

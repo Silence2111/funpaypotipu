@@ -76,7 +76,7 @@ export const LOT: Record<string, string> = {
   // Профиль и карточка продавца
   'Продавец не найден': 'Seller not found',
   'Рейтинг {r}, {reviews}.': 'Rating {r}, {reviews}.',
-  '{name}, продавец на GameMarket': '{name} — seller on GameMarket',
+  '{name}, продавец на Lutli': '{name} — seller on Lutli',
   Продавец: 'Seller',
   'в отпуске': 'on vacation',
   'не в сети': 'offline',
@@ -255,8 +255,8 @@ export const LOT: Record<string, string> = {
     'Where to find it: Steam → Inventory → Trade Offers → “Who can send me trade offers?”. We’ll remember it for next orders.',
   // 289-ФЗ ст. 7 (часть 145)
   'продавец': 'the seller',
-  'Продаёт {seller}. GameMarket проводит оплату и разбирает споры.':
-    'GameMarket is a marketplace, not the seller: {seller} sells, the marketplace handles payment and settles disputes.',
+  'Продаёт {seller}. Lutli проводит оплату и разбирает споры.':
+    'Lutli is a marketplace, not the seller: {seller} sells, the marketplace handles payment and settles disputes.',
   // Бонусы (часть 146)
   'Списать бонусы: −{sum}': 'Use bonuses: −{sum}',
   'С промокодом площадки бонусы спишутся в пределах оставшейся скидки.': 'With a marketplace promo code, bonuses apply within the remaining discount.',

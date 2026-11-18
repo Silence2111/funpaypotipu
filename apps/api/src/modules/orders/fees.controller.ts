@@ -25,7 +25,7 @@ import { SafeDealService } from '../safe-deal/safe-deal.service';
 
 const LEVEL_DISCOUNTS = Object.values(SELLER_LEVELS).map((l) => l.feeDiscountBps);
 
-/** Калькулятор «Продавать на GameMarket»: раздел и цена в копейках, от 1 ₽ до 10 млн ₽. */
+/** Калькулятор «Продавать на Lutli»: раздел и цена в копейках, от 1 ₽ до 10 млн ₽. */
 const estimateSchema = z.object({
   categoryId: z.string().uuid(),
   price: z.coerce.number().int().min(100).max(1_000_000_000),
@@ -109,7 +109,7 @@ export class FeesController {
   }
 
   /**
-   * «Сколько вы получите» — без входа, для страницы «Продавать на GameMarket».
+   * «Сколько вы получите» — без входа, для страницы «Продавать на Lutli».
    * Наша комиссия — по тому же правилу раздела, что и настоящая сделка
    * (для нового продавца, без скидки уровня), вывод — на СБП; FunPay и
    * Playerok — по их опубликованным ставкам. Раньше «сколько на руки» было

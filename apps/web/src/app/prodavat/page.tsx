@@ -15,7 +15,7 @@ const START = { game: 'cs2', price: 1000 };
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return {
-    title: t('Продавать на GameMarket'),
+    title: t('Продавать на Lutli'),
     description: t(
       'Сколько вы получите с продажи скина, ключа или валюты: комиссия, вывод и сумма на руки до регистрации, рядом со ставками FunPay и Playerok.',
     ),
@@ -32,7 +32,7 @@ const pctOf = (t: T) => (v: number) => {
 
 
 /**
- * «Продавать на GameMarket» по образцу страницы продавца Playerok (18.11.2026): баннер с предметами
+ * «Продавать на Lutli» по образцу страницы продавца Playerok (18.11.2026): баннер с предметами
  * и кнопкой, калькулятор «Сколько вы получите» на плите (сумма на руки до регистрации), ставки рядом
  * с FunPay и Playerok (переехали с главной), тёмная плита «Ваши продажи под защитой» и перенос лотов.
  */
@@ -104,7 +104,7 @@ export default async function SellPage() {
       <section className="sp-hero">
         <div className="sp-hero__text">
           <span className="pb__kicker">{t('Продавцам')}</span>
-          <h1 className="sp-hero__h1">{t('Продавать на GameMarket')}</h1>
+          <h1 className="sp-hero__h1">{t('Продавать на Lutli')}</h1>
           <p className="sp-hero__lead">
             {t('Посчитайте, сколько получите с продажи, ещё до регистрации. Комиссия берётся только с проданного, выставлять лоты бесплатно.')}
           </p>
@@ -235,7 +235,7 @@ function PricingTable({
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border)' }}>
             <th style={{ textAlign: 'left', padding: '10px 12px 10px 0', fontWeight: 500 }} />
-            <th style={{ textAlign: 'left', padding: '10px 12px 10px 0', fontWeight: 600 }}>GameMarket</th>
+            <th style={{ textAlign: 'left', padding: '10px 12px 10px 0', fontWeight: 600 }}>Lutli</th>
             <th style={{ textAlign: 'left', padding: '10px 12px 10px 0', fontWeight: 500, color: 'var(--fg-muted)' }}>FunPay</th>
             <th style={{ textAlign: 'left', padding: '10px 0', fontWeight: 500, color: 'var(--fg-muted)' }}>Playerok</th>
           </tr>

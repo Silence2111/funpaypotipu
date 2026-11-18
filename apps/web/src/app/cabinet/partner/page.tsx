@@ -66,7 +66,7 @@ export default function PartnerPage() {
         </h1>
         <p className="muted" style={{ margin: '8px 0 0', maxWidth: '62ch' }}>
           {t(
-            'Приводите покупателей и продавцов на GameMarket и получайте долю с их сделок на баланс.',
+            'Приводите покупателей и продавцов на Lutli и получайте долю с их сделок на баланс.',
           )}
         </p>
         <div style={{ marginTop: 16 }}>

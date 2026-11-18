@@ -210,7 +210,7 @@ export class NotificationsService {
     return {
       title: from
         ? say(lang, 'Сообщение от {name}', { name: from })
-        : (notifyLabel(lang, type) ?? 'GameMarket'),
+        : (notifyLabel(lang, type) ?? 'Lutli'),
       body: body ? shown(lang, body) : '',
       url,
       ...(TAGGED.test(url) ? { tag: url } : {}),
@@ -230,7 +230,7 @@ export class NotificationsService {
     data: Record<string, unknown>,
     link: string,
   ): { text: string; buttons?: TgButton[][]; thread?: string } {
-    const title = notifyLabel(lang, type) ?? say(lang, 'Уведомление GameMarket');
+    const title = notifyLabel(lang, type) ?? say(lang, 'Уведомление Lutli');
     const quote = lang === 'en' ? ['“', '”'] : ['«', '»'];
     const preview =
       typeof data.preview === 'string' && data.preview

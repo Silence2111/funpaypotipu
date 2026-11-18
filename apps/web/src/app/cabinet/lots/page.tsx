@@ -412,7 +412,7 @@ function MyLots() {
           <div className="skeleton" style={{ height: 120 }} />
         </div>
       ) : rows.length === 0 ? (
-        <div className="card flat row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div className="card flat row empty-state empty-state--plus" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <span className="muted">{t('Лотов пока нет. Выставить первый можно за пару минут.')}</span>
           <Link href="/cabinet/new" className="btn secondary">
             {t('Создать лот')}

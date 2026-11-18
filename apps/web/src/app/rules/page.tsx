@@ -8,7 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return {
     title: t('Правила и гарантии'),
-    description: t('Гарантии сделки, комиссии, ответственность продавца и порядок споров на GameMarket.'),
+    description: t('Гарантии сделки, комиссии, ответственность продавца и порядок споров на Lutli.'),
   };
 }
 

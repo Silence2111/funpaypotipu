@@ -16,7 +16,7 @@ const INPUT = {
   orderId: 'o1',
   providerRef: 'ref-1',
   method: 'card' as const,
-  description: 'Заказ GM-1 на GameMarket',
+  description: 'Заказ GM-1 на Lutli',
   returnUrl: 'https://gm.test/orders/o1?paid=1',
   customerEmail: 'buyer@e.test',
 };

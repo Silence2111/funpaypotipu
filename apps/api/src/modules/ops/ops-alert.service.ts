@@ -51,7 +51,7 @@ export class OpsAlertService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: chat,
-          text: `GameMarket ${site}: ${text}`.slice(0, 4000),
+          text: `Lutli ${site}: ${text}`.slice(0, 4000),
           disable_web_page_preview: true,
         }),
         signal: AbortSignal.timeout(10_000),

@@ -110,7 +110,7 @@ export class WebhooksService {
   }
 
   async test(userId: string) {
-    const id = await this.enqueue(userId, 'ping', { message: 'Проверка вебхука GameMarket', id: randomUUID() });
+    const id = await this.enqueue(userId, 'ping', { message: 'Проверка вебхука Lutli', id: randomUUID() });
     if (!id) throw new NotFoundException('Сначала задайте адрес вебхука');
     return { deliveryId: id };
   }
@@ -128,7 +128,7 @@ export class WebhooksService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'GameMarket-Webhook/1',
+          'User-Agent': 'Lutli-Webhook/1',
           'X-GM-Event': d.event,
           'X-GM-Delivery': d.id,
           'X-GM-Signature': webhookSignature(secret, body),

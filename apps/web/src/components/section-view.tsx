@@ -314,7 +314,7 @@ async function ClosedSection({ game, section }: { game: GameWithCategories; sect
           </div>
         )}
         <Link href="/rules#zapreshcheno" className="faint" style={{ fontSize: 14 }}>
-          {t('Что нельзя продавать на GameMarket')}
+          {t('Что нельзя продавать на Lutli')}
         </Link>
       </section>
     </div>

@@ -1,8 +1,8 @@
 {
   "packageId": "ru.gamemarket.app",
   "host": "gamemarket.example",
-  "name": "GameMarket — игровые ценности с защитой сделки",
-  "launcherName": "GameMarket",
+  "name": "Lutli: игровые ценности с защитой сделки",
+  "launcherName": "Lutli",
   "display": "standalone",
   "orientation": "default",
   "themeColor": "#FFFFFF",
