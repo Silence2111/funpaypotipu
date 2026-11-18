@@ -5627,6 +5627,7 @@ a.my-lot-title:hover {
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
 
 /* Значок игры или сервиса (components/game-icon.tsx): главная, форма пополнения, указатель игр.
  * Знаки — Simple Icons (CC0) маской цвета марки на её бледном оттенке. */
