@@ -67,7 +67,7 @@ export default function PartnerPage() {
         </h1>
         <p className="muted" style={{ margin: '8px 0 0', maxWidth: '62ch' }}>
           {t(
-            'Приводите покупателей и продавцов на GameMarket — получайте долю с их сделок на баланс.',
+            'Приводите покупателей и продавцов на GameMarket и получайте долю с их сделок на баланс.',
           )}
         </p>
         <div style={{ marginTop: 16 }}>
@@ -103,7 +103,7 @@ export default function PartnerPage() {
             <div className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
               <p style={{ margin: 0 }}>
                 {t(
-                  'С каждой завершённой сделки приглашённого — покупки или продажи — вам {share}% того, что площадка на ней заработала. Считаются сделки за {days} дней после его регистрации.',
+                  'С каждой завершённой сделки приглашённого, покупки или продажи, вам {share}% того, что площадка на ней заработала. Считаются сделки за {days} дней после его регистрации.',
                   { share: me.shareBps / 100, days: me.termDays },
                 )}
               </p>
@@ -128,7 +128,7 @@ export default function PartnerPage() {
                 </div>
               </div>
               <div className="field">
-                <span className="label">{t('Код партнёра — для поля при регистрации')}</span>
+                <span className="label">{t('Код партнёра для поля при регистрации')}</span>
                 <div className="row" style={{ gap: 8, alignItems: 'center' }}>
                   <span className="request-budget" style={{ fontSize: 20 }}>
                     {me.code}
@@ -191,7 +191,7 @@ export default function PartnerPage() {
 
           <p className="hint" style={{ maxWidth: '64ch' }}>
             {t(
-              'Начисления — на баланс, вывести их можно из кошелька, как деньги за продажи. Не считаются: сделки с вами самим, спорные сделки и аккаунты, созданные с того же устройства или адреса, что и ваш.',
+              'Начисления приходят на баланс, вывести их можно из кошелька, как деньги за продажи. Не считаются сделки с вами самим, спорные сделки и аккаунты, созданные с того же устройства или адреса, что и ваш.',
             )}{' '}
             <Link href="/cabinet/wallet" style={{ color: 'var(--accent)' }}>
               {t('Кошелёк')}

@@ -86,7 +86,7 @@ export function OrderReview({ orderId, role }: { orderId: string; role: 'buyer' 
             rows={2}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder={t('Что понравилось, что нет — необязательно')}
+            placeholder={t('Что понравилось, что нет, необязательно')}
             style={{ resize: 'vertical', marginTop: 10 }}
           />
           <ReviewPhotoPicker value={photos} onChange={setPhotos} />

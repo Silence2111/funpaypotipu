@@ -145,7 +145,7 @@ function Ticket() {
               </button>
             ))}
           </div>
-          <input className="input" maxLength={1000} placeholder={t('Что можно сделать лучше — необязательно')} value={comment}
+          <input className="input" maxLength={1000} placeholder={t('Что можно сделать лучше, необязательно')} value={comment}
             onChange={(e) => setComment(e.target.value)} aria-label={t('Комментарий к оценке')} />
         </div>
       )}
@@ -167,7 +167,7 @@ function Ticket() {
           </select>
         )}
         <textarea className="input" rows={3} maxLength={4000} value={draft} aria-label={t('Сообщение')}
-          placeholder={ticket.status === 'closed' ? t('Обращение закрыто — сообщение откроет его снова') : t('Сообщение…')}
+          placeholder={ticket.status === 'closed' ? t('Обращение закрыто, сообщение откроет его снова') : t('Сообщение…')}
           onChange={(e) => setDraft(e.target.value)} style={{ resize: 'vertical' }} />
         <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
           <button className="btn" type="submit" disabled={busy || !draft.trim()}>{t('Отправить')}</button>

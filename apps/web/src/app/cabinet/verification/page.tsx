@@ -119,7 +119,7 @@ export default function VerificationPage() {
               <p style={{ margin: 0, fontWeight: 700 }}>{t('Документы проверены')}</p>
               <p className="muted" style={{ margin: '4px 0 0', fontSize: 15 }}>
                 {t(
-                  '{date}. Вывод — без ограничения суммы, в профиле и на ваших лотах — «Документы проверены».',
+                  '{date}. Вывод без ограничения суммы, в профиле и на ваших лотах пометка «Документы проверены».',
                   {
                     date: when(t, kyc.reviewedAt),
                   },
@@ -153,7 +153,7 @@ export default function VerificationPage() {
             <ul className="kyc-perks">
               <li>
                 <Check size={16} strokeWidth={1.75} aria-hidden />{' '}
-                {t('Вывод без ограничения суммы — без проверки за раз можно вывести до {limit}', {
+                {t('Вывод без ограничения суммы. Без проверки за раз можно вывести до {limit}', {
                   limit,
                 })}
               </li>
@@ -163,7 +163,7 @@ export default function VerificationPage() {
               </li>
               <li>
                 <Check size={16} strokeWidth={1.75} aria-hidden />{' '}
-                {t('Уровень Pro — когда хватит продаж и оценок')}
+                {t('Уровень Pro, когда хватит продаж и оценок')}
               </li>
             </ul>
           </>
@@ -190,14 +190,14 @@ export default function VerificationPage() {
           <FilePick
             id="kyc-selfie"
             label={t('Селфи с документом')}
-            hint={t('Лицо и раскрытый документ в одном кадре — так видно, что документ ваш.')}
+            hint={t('Лицо и раскрытый документ в одном кадре, так видно, что документ ваш.')}
             max={1}
             files={selfie}
             onChange={setSelfie}
           />
           <p className="hint" style={{ margin: 0 }}>
             {t(
-              'Фото или PDF до 15 МБ. Документы видит только сотрудник проверки — другим пользователям они недоступны.',
+              'Фото или PDF до 15 МБ. Документы видит только сотрудник проверки, другим пользователям они недоступны.',
             )}
           </p>
           {err && (

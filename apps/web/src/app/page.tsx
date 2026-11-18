@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { ShieldCheck, MessagesSquare, Zap, Info } from 'lucide-react';
-import { browseListings, getGameIndex, getPublicPricing, getTopupOffers, SEGMENTS } from '@/lib/api';
+import { Info } from 'lucide-react';
+import { browseListings, getGame, getGameIndex, getPublicPricing, getTopupOffers, SEGMENTS } from '@/lib/api';
 import { GameTopupForm } from '@/components/game-topup-form';
 import { GameSearch } from '@/components/game-search';
 import { GameDirectory } from '@/components/game-directory';
+import { formatPrice, offersCount } from '@/lib/format';
 import { GameIcon } from '@/components/game-icon';
 import { LotCard } from '@/components/lot-card';
 import { gameIcon } from '@/lib/game-icons';
@@ -45,21 +46,24 @@ export default async function HomePage({
   // Проценты берём из API, а не пишем в разметке. Не ответил — не обещаем.
   // 2,5% — не «3%»: округление до целого на витрине завышало ставку вывода
   const pct = pctOf(t);
-  const feeRange =
-    pricing && pricing.sellerFeeMinPct > 0
-      ? pricing.sellerFeeMinPct === pricing.sellerFeeMaxPct
-        ? pct(pricing.sellerFeeMinPct)
-        : `${pct(pricing.sellerFeeMinPct)}–${pct(pricing.sellerFeeMaxPct)}`
-      : null;
-  const payoutFee = pricing?.withdrawal.find((w) => w.key === 'sbp')?.feePct ?? null;
 
   // Ряд значков сверху, как у Playerok и GGSel: игры и сервисы с настоящим знаком, по популярности каталога
   const iconRow = games
     .filter((g) => gameIcon(g.slug))
     .sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title))
     .slice(0, 18);
-  // Облако знаков в плите первого экрана: самые популярные, разного размера
-  const cloud = iconRow.slice(0, 7);
+  // Быстрые покупки в первом экране: самые частые разделы ниши, с настоящей ценой «от» и числом предложений.
+  // Пустые разделы не показываем — плитка без предложений на старте читается как «здесь мёртво».
+  const QUICK: Array<[string, string]> = [
+    ['steam', 'topup'], ['roblox', 'currency'], ['telegram', 'stars'],
+    ['cs2', 'skins'], ['pubg-mobile', 'donate'], ['playstation', 'cards'],
+  ];
+  const quickGames = await Promise.all(QUICK.map(([g]) => getGame(g)));
+  const quick = QUICK.flatMap(([, c], i) => {
+    const game = quickGames[i];
+    const sec = game?.categories.find((x) => x.slug === c);
+    return game && sec && (sec.listingCount ?? 0) > 0 ? [{ game, sec }] : [];
+  });
 
   const deletedUntil = /^\d{4}-\d{2}-\d{2}$/.test(query.deleted ?? '') ? new Date(`${query.deleted}T00:00:00Z`) : null;
 
@@ -87,15 +91,6 @@ export default async function HomePage({
 
       <section className={topup ? 'gm-hero' : 'gm-hero gm-hero--solo'}>
         <div className="gm-hero__panel">
-          {cloud.length >= 5 && (
-            <div className="gm-cloud" aria-hidden>
-              {cloud.map((g, i) => (
-                <span key={g.id} className={`gm-cloud__i gm-cloud__i--${i}`}>
-                  <GameIcon slug={g.slug} title={g.title} size={[84, 64, 72, 52, 60, 48, 56][i] ?? 52} />
-                </span>
-              ))}
-            </div>
-          )}
           <h1 className="gm-hero__h1">{t('Игровые товары с гарантией сделки')}</h1>
           <p className="gm-hero__lead">
             {games.length > 0
@@ -104,30 +99,22 @@ export default async function HomePage({
             {t('Деньги лежат у площадки, пока вы не подтвердите, что получили товар.')}
           </p>
           <GameSearch index={games} size="lg" />
-          <nav className="type-chips" aria-label={t('Типы товаров')}>
-            {SEGMENTS.map(([key, label]) => (
-              <Link key={key} href={`/catalog?segment=${key}`} className="chip">
-                {t(label)}
-              </Link>
-            ))}
-          </nav>
-          <ul className="gm-hero__pluses">
-            <li>
-              <ShieldCheck size={16} strokeWidth={2} aria-hidden /> {t('Покупателю — без комиссии.')}
-            </li>
-            {feeRange && (
-              <li>
-                <Zap size={16} strokeWidth={2} aria-hidden />{' '}
-                {t('Продавцу — {fee}, вывод от {payout}.', {
-                  fee: feeRange,
-                  payout: payoutFee != null ? pct(payoutFee) : '—',
-                })}{' '}
-                <Link href="/cabinet/new" className="inline-link">
-                  {t('Продать свой лот')}
+          {quick.length >= 3 && (
+            <div className="gm-quick">
+              {quick.map(({ game, sec }) => (
+                <Link key={sec.id} href={`/igra/${game.slug}/${sec.slug}`} className="gm-quick__i">
+                  <GameIcon slug={game.slug} title={game.title} size={44} />
+                  <b>{t.d(sec.title)}</b>
+                  <small>{t.d(game.title)}</small>
+                  <span className="gm-quick__p">
+                    {sec.minPrice
+                      ? t('от {price}', { price: formatPrice(sec.minPrice, 'RUB', t) })
+                      : offersCount(sec.listingCount ?? 0, t)}
+                  </span>
                 </Link>
-              </li>
-            )}
-          </ul>
+              ))}
+            </div>
+          )}
         </div>
 
         {topup && (
@@ -148,7 +135,7 @@ export default async function HomePage({
           <Info size={18} strokeWidth={1.75} />
           <span>
             {t(
-              'Это демо-стенд. Лоты с пометкой «Пример» — демонстрационные, а оплата проходит без списания денег: платёжный провайдер ещё не подключён.',
+              'Это демо-стенд. Лоты с пометкой «Пример» демонстрационные, оплата проходит без списания денег.',
             )}
           </span>
         </div>
@@ -191,7 +178,7 @@ export default async function HomePage({
         <div className="trust-row gm-trust">
           <div>
             <h3>
-              <ShieldCheck size={18} strokeWidth={1.75} aria-hidden /> {t('Деньги у площадки')}
+              {t('Деньги у площадки')}
             </h3>
             <p>
               {pricing?.autoConfirmHours
@@ -203,17 +190,17 @@ export default async function HomePage({
           </div>
           <div>
             <h3>
-              <MessagesSquare size={18} strokeWidth={1.75} aria-hidden /> {t('Спор с арбитром')}
+              {t('Спор с арбитром')}
             </h3>
-            <p>{t('Не получили или товар не как в описании — открываете спор, деньги замораживаются до решения.')}</p>
+            <p>{t('Не получили товар или он не как в описании? Откройте спор, деньги заморозятся до решения.')}</p>
           </div>
           <div>
             <h3>
-              <Zap size={18} strokeWidth={1.75} aria-hidden /> {t('Ключи сразу')}
+              {t('Ключи сразу')}
             </h3>
             <p>
               {pricing && pricing.cashbackPct > 0
-                ? t('Ключи и пополнения выдаются автоматически после оплаты, а с каждой покупки — {pct} кэшбэка на баланс.', {
+                ? t('Ключи и пополнения выдаются автоматически после оплаты. С каждой покупки {pct} кэшбэка на баланс.', {
                     pct: pct(pricing.cashbackPct),
                   })
                 : t('Ключи и пополнения выдаются автоматически после оплаты.')}
@@ -240,7 +227,7 @@ export default async function HomePage({
           <PricingTable pricing={pricing} t={t} />
           <p className="faint" style={{ fontSize: 13, marginTop: 14 }}>
             {t(
-              'Комиссия продавца снижается за продажи, рейтинг и подтверждённые документы — до {n} процентных пунктов. Покупатель комиссию площадки не платит.',
+              'Комиссия продавца снижается за продажи, рейтинг и подтверждённые документы, до {n} процентных пунктов. Покупатель комиссию площадки не платит.',
               { n: pricing.levelDiscountMaxPp },
             )}
           </p>

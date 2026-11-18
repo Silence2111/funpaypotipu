@@ -85,7 +85,7 @@ export default function SearchesPage() {
         </h1>
         <p className="muted" style={{ margin: '8px 0 0', maxWidth: '60ch' }}>
           {t(
-            'Условия, сохранённые в разделах. Когда выставят подходящий лот, придёт уведомление — о каждом лоте один раз.',
+            'Условия, сохранённые в разделах. Когда выставят подходящий лот, придёт уведомление, о каждом лоте один раз.',
           )}
         </p>
         <div style={{ marginTop: 16 }}>
@@ -108,7 +108,7 @@ export default function SearchesPage() {
         <div className="card flat empty-state">
           <p className="muted" style={{ maxWidth: '60ch' }}>
             {t(
-              'Сохранённых поисков нет. Откройте раздел игры, выберите фильтры и нажмите «Сохранить поиск» — новые предложения придут уведомлением.',
+              'Сохранённых поисков нет. Откройте раздел игры, выберите фильтры и нажмите «Сохранить поиск», и новые предложения придут уведомлением.',
             )}
           </p>
           <Link href="/igry" className="btn secondary">
@@ -137,7 +137,7 @@ export default function SearchesPage() {
                 </div>
                 {s.lastHitAt && (
                   <div className="hint">
-                    {t('Последний новый лот — {date}', {
+                    {t('Последний новый лот: {date}', {
                       date: new Date(s.lastHitAt).toLocaleString(t.locale, {
                         day: 'numeric',
                         month: 'long',

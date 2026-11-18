@@ -66,7 +66,7 @@ function UserBar({ user }: { user: SessionUser }) {
       </Link>
       <NotificationsBell />
       {sum && (
-        <Link href="/cabinet/wallet" className="chip hide-mobile balance-chip" title={t('Баланс — пополнить и вывести в кошельке')}>
+        <Link href="/cabinet/wallet" className="chip hide-mobile balance-chip" title={t('Баланс: пополнить и вывести в кошельке')}>
           {formatPrice(sum.balance.available, sum.balance.currency, t)}
         </Link>
       )}

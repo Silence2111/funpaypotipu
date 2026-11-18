@@ -82,11 +82,11 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
       ? null
       : username.trim().length >= 3
         ? null
-        : t('Имя в профиле — от 3 символов, его увидят продавцы и покупатели'),
+        : t('Имя в профиле от 3 символов, его увидят продавцы и покупатели'),
     password: !password
       ? isRegister ? t('Придумайте пароль') : t('Введите пароль')
       : isRegister && password.length < 8
-        ? t('Пароль — не короче 8 символов')
+        ? t('Пароль не короче 8 символов')
         : null,
     agreed: isRegister && !agreed ? t('Без согласия с правилами аккаунт не создать') : null,
     pdConsent: isRegister && !pdConsent ? t('Без согласия на обработку персональных данных аккаунт не создать') : null,
@@ -107,7 +107,7 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
     setTouched({ email: true, username: true, password: true, agreed: true, pdConsent: true });
     if (Object.values(errors).some(Boolean)) return;
     if (isRegister && refCode.trim() && !normalizePartnerCode(refCode)) {
-      setError(t('Код партнёра — 6–12 латинских букв и цифр'));
+      setError(t('Код партнёра: 6–12 латинских букв и цифр'));
       return;
     }
     // Привяжет после входа общий компонент сайта — как и код из ссылки.
@@ -166,7 +166,7 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
         {isRegister
           ? seller
             ? t('Один аккаунт и для покупок, и для продаж. После регистрации сразу откроется форма лота.')
-            : t('Бесплатно. Один аккаунт — и покупать, и продавать.')
+            : t('Бесплатно. Один аккаунт, чтобы покупать и продавать.')
           : t('Войдите, чтобы купить, продать или открыть заказ.')}
       </p>
       <form onSubmit={submit} className="card stack-form" style={{ gap: 16, padding: 24 }} noValidate>
@@ -184,7 +184,7 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
                 ? t('Каждый резервный код работает один раз.')
                 : t('Шесть цифр из Google Authenticator, 1Password или похожего.')}{' '}
               <button type="button" className="link-button" onClick={() => { setRecovery(!recovery); setCode(''); }}>
-                {recovery ? t('Ввести код из приложения') : t('Нет телефона — ввести резервный код')}
+                {recovery ? t('Ввести код из приложения') : t('Нет телефона? Введите резервный код')}
               </button>
             </p>
           </div>
@@ -222,7 +222,7 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
               <label className="label" htmlFor="partner-code">{t('Код партнёра')}</label>
               <input id="partner-code" className="input" autoCapitalize="characters" spellCheck={false}
                 value={refCode} onChange={(e) => setRefCode(e.target.value.toUpperCase())} />
-              <p className="hint">{t('Если вас пригласили — необязательно')}</p>
+              <p className="hint">{t('Если вас пригласили, необязательно')}</p>
             </div>
           ) : (
             <button type="button" className="btn ghost" style={{ justifySelf: 'start', paddingInline: 0 }} onClick={() => setRefOpen(true)}>
@@ -265,7 +265,7 @@ function AuthFormInner({ mode }: { mode: 'login' | 'register' }) {
           <div className="alert" role="status" style={{ display: 'grid', gap: 10 }}>
             <span>
               {deletedUntil
-                ? t('Аккаунт удалён. До {date} его можно вернуть — лоты останутся в архиве.', {
+                ? t('Аккаунт удалён. До {date} его можно вернуть, лоты останутся в архиве.', {
                     date: new Date(deletedUntil).toLocaleDateString(t.locale),
                   })
                 : t('Аккаунт удалён. Его можно вернуть в течение 30 дней после удаления.')}

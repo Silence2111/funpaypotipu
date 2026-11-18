@@ -95,7 +95,7 @@ export function GameChat({ slug, title }: { slug: string; title: string }) {
       stick.current = true;
       setItems((prev) => [...(prev ?? []).filter((m) => m.id !== sent.id), sent]);
       setText('');
-      if (sent.masked) setMsg({ ok: true, text: t('Контакты и ссылки скрыты: договариваться и платить — только через лоты.') });
+      if (sent.masked) setMsg({ ok: true, text: t('Контакты и ссылки скрыты. Договариваться и платить можно только через лоты.') });
     } catch (err) {
       const b = errorBody(err) as { error?: string; until?: string; reason?: string | null } | null;
       if (b?.error === 'chat_muted' && b.until) {
@@ -134,7 +134,7 @@ export function GameChat({ slug, title }: { slug: string; title: string }) {
         <MessagesSquare size={20} strokeWidth={1.75} aria-hidden /> {t('Чат игры {game}', { game: t.d(title) })}
       </h2>
       <p className="hint" style={{ margin: '4px 0 12px' }}>
-        {t('Общий чат: ищут и предлагают. Контакты и ссылки скрываются — сделки только через лоты, иначе защиты сделки нет.')}
+        {t('Общий чат игры. Контакты и ссылки скрываются, сделки проходят только через лоты.')}
       </p>
 
       <div

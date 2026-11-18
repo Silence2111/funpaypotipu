@@ -3,11 +3,20 @@ import { Star, Zap } from 'lucide-react';
 import { isDemoSeller } from '@gamemarket/shared';
 import { lotTitle } from '@/lib/lot-text';
 import type { ListingCard } from '@/lib/api';
-import { gameIcon } from '@/lib/game-icons';
+import { gameIcon, monogram, monogramColor } from '@/lib/game-icons';
 import { formatListingPrice } from '@/lib/format';
 import { RU, type T } from '@/lib/i18n/lang';
 import { GameIcon } from './game-icon';
 import { SaleMark } from './sale-mark';
+
+/** Количество из названия для обложки, как на обложках Playerok и GGSel: «1800 UC», «1000 TL», «12 месяцев». */
+export function coverAmount(title: string): string | null {
+  const m = title.match(
+    // i18n-ignore — единицы из названий лотов, не текст интерфейса
+    /(\d[\d\s]{0,8}\d|\d)\s*(UC|TL|USD|\$|₽|руб\S*|алмаз\S*|зв[её]зд\S*|robux|робукс\S*|месяц\S*|мес\b|гем\S*|кристалл\S*|золот\S*|V-?bucks|months?|diamonds?|stars|gems|crystals|gold)/iu, // i18n-ignore
+  );
+  return m ? `${m[1].replace(/\s+/g, ' ').trim()} ${m[2].replace(/[,.]$/, '')}` : null;
+}
 
 /**
  * Карточка лота плиткой, как в выдаче Playerok и GGSel: сверху игра и раздел, обложка
@@ -19,7 +28,11 @@ export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
   const demo = isDemoSeller(l.seller.profile?.username);
   const seller = l.seller.profile;
   const reviews = seller?.ratingCount ?? 0;
-  const tint = gameIcon(l.game.slug)?.color;
+  // Обложка без фото — цвет игры и крупно количество из названия, как обложки продавцов в нише
+  const icon = gameIcon(l.game.slug);
+  const coverBg = icon?.bg ?? monogramColor(l.game.title);
+  const coverInk = icon?.glyph ?? '#ffffff';
+  const amount = coverAmount(lotTitle(l, t.lang));
   return (
     <Link href={`/lot/${l.id}`} className="lc">
       <span className="lc__game">
@@ -29,12 +42,22 @@ export function LotCard({ l, t = RU }: { l: ListingCard; t?: T }) {
           <small>{t.d(l.category.title)}</small>
         </span>
       </span>
-      <span className="lc__cover" style={tint ? { ['--lc-tint' as string]: tint } : undefined}>
+      <span className="lc__cover" style={{ background: coverBg, color: coverInk }}>
         {l.images?.[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img className="lc__photo" src={l.images[0]} alt="" loading="lazy" />
         ) : (
-          <GameIcon slug={l.game.slug} title={l.game.title} size={76} />
+          <span className="lc__art">
+            {icon ? (
+              <span
+                className="lc__glyph"
+                style={{ background: coverInk, WebkitMaskImage: `url(${icon.src})`, maskImage: `url(${icon.src})` }}
+              />
+            ) : (
+              <span className="lc__letters">{monogram(l.game.title)}</span>
+            )}
+            {amount && <span className="lc__amount">{amount}</span>}
+          </span>
         )}
         <span className="lc__badges">
           {instant && (

@@ -52,11 +52,11 @@ export function PriceHistory({
     return (
       <p className="muted" style={{ margin: 0 }}>
         {since - t0 > DAY
-          ? t('Цена не менялась с {date} — {price}.', {
+          ? t('Цена {price} не менялась с {date}.', {
               date: dayMonth(since, t),
               price: price(summary.current),
             })
-          : t('Цена не менялась последние {n} дней — {price}.', {
+          : t('Цена {price} не менялась последние {n} дней.', {
               n: days,
               price: price(summary.current),
             })}
@@ -147,7 +147,7 @@ export function PriceHistory({
                         from: dayMonth(hover.at, t),
                         to: dayMonth(segments[active + 1]!.at, t),
                       })
-                    : t('с {from} — сейчас', { from: dayMonth(hover.at, t) })}
+                    : t('с {from} по сегодня', { from: dayMonth(hover.at, t) })}
                 </span>
               </div>
             )}

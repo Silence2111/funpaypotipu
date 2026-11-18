@@ -129,7 +129,7 @@ export function LotChat({
           ) : (
             <form className="lot-chat-start" onSubmit={start}>
               <p className="hint" style={{ margin: 0 }}>
-                {t('Спросите до покупки — ответ придёт сюда и в «Сообщения».')}
+                {t('Спросите до покупки. Ответ придёт сюда и в «Сообщения».')}
               </p>
               <div className="lot-chat-quick">
                 {quick.map((q) => (

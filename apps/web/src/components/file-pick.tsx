@@ -56,7 +56,7 @@ export function FilePick({
         continue;
       }
       if (file.size > MAX_BYTES) {
-        setErr(t('Файл больше 15 МБ — сфотографируйте заново или сожмите'));
+        setErr(t('Файл больше 15 МБ, сфотографируйте заново или сожмите'));
         continue;
       }
       picked.push({

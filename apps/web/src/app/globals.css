@@ -5629,15 +5629,12 @@ a.my-lot-title:hover {
   text-underline-offset: 2px;
 }
 
-/* Значок игры или сервиса (components/game-icon.tsx): главная, форма пополнения, указатель игр.
- * Знаки — Simple Icons (CC0) маской цвета марки на её бледном оттенке. */
-.gicon { display: inline-grid; place-items: center; flex-shrink: 0; overflow: hidden; background: var(--bg);
-  box-shadow: inset 0 0 0 1px var(--border); transition: transform 0.25s ease; }
-.gicon--brand { background: color-mix(in srgb, var(--brand) 12%, var(--bg)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 14%, transparent); }
-.gicon--neutral { background: var(--bg-subtle); }
-.gicon__g { display: block; background: var(--brand, var(--fg)); -webkit-mask-size: contain; mask-size: contain;
-  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
-.gicon--neutral .gicon__g { background: var(--fg); }
+/* Значок игры или сервиса (components/game-icon.tsx) — как значок приложения: фирменный цвет и знак
+ * (Simple Icons, CC0, CSS-маской) или две буквы на своём цвете. Бледные плитки владелец назвал слопом. */
+.gicon { display: inline-grid; place-items: center; flex-shrink: 0; overflow: hidden; color: #fff; font-weight: 800;
+  letter-spacing: -0.02em; line-height: 1; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); transition: transform 0.25s ease; }
+.gicon__g { display: block; -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center; }
 
 .dir-title:has(.gicon) { display: inline-flex; align-items: center; gap: 9px; }
 
@@ -5651,10 +5648,57 @@ a.my-lot-title:hover {
 .game-hero .section-top { align-items: center; }
 .game-hero__id { display: flex; align-items: center; gap: 16px; min-width: 0; }
 .game-hero__id .h1 { margin: 0; }
-.game-hero__id .gicon { box-shadow: 0 12px 26px -16px color-mix(in srgb, var(--brand, var(--fg)) 70%, transparent), inset 0 0 0 1px var(--border); background: var(--bg); }
 .game-hero .tabs { margin-top: 18px !important; border-bottom: 0; }
 @media (max-width: 640px) {
   .game-hero { padding: 18px 16px 0; border-radius: 20px; }
   .game-hero__id { gap: 12px; }
   .game-hero__id .gicon { width: 48px !important; height: 48px !important; }
 }
+
+/* Раздел игры: фильтры, поиск и сортировка одним рядом на широком экране */
+@media (min-width: 1100px) {
+  .filters { flex-wrap: nowrap; }
+  .filters-inline { flex: 0 0 auto; flex-wrap: nowrap; }
+  .filters-side { flex: 1 1 0; min-width: 0; flex-wrap: nowrap; }
+  .filter-search { flex: 1 1 auto; min-width: 150px; max-width: none; }
+  .filters .chip, .filters .filter-select { white-space: nowrap; }
+}
+/* «Не нашли нужное?» — тихая строка под списком */
+.save-search-row--after { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 16px; }
+/* Чат игры свёрнут в строку */
+.game-chat-fold { margin-top: 28px; border-radius: var(--radius); background: var(--bg); box-shadow: inset 0 0 0 1px var(--border); }
+.game-chat-fold > summary { cursor: pointer; list-style: none; padding: 16px 20px; font-weight: 600; display: flex; justify-content: space-between; }
+.game-chat-fold > summary::-webkit-details-marker { display: none; }
+.game-chat-fold > summary::after { content: '+'; color: var(--fg-faint); font-weight: 400; font-size: 20px; line-height: 1; }
+.game-chat-fold[open] > summary::after { content: '−'; }
+.game-chat-fold > .card { margin-top: 0 !important; box-shadow: none; background: transparent; border: 0; padding-top: 0 !important; }
+.game-chat-fold > .card > h2 { display: none !important; }
+
+/* Подвал колонками */
+.site-footer { margin-top: 72px; background: var(--bg); border-top: 1px solid var(--border); padding: 44px 0 28px; }
+.site-footer__grid { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); gap: 28px; }
+.site-footer__brand p { margin: 12px 0 0; max-width: 340px; font-size: 14px; line-height: 1.55; color: var(--fg-faint); }
+.site-footer nav { display: flex; flex-direction: column; gap: 9px; font-size: 14px; }
+.site-footer nav b { font-size: 14px; font-weight: 600; color: var(--fg); margin-bottom: 3px; }
+.site-footer nav a { color: var(--fg-muted); text-decoration: none; }
+.site-footer nav a:hover { color: var(--accent); }
+.site-footer__bottom { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+  padding-top: 18px; border-top: 1px solid var(--border); }
+.site-footer__bottom p { margin: 0; font-size: 13px; color: var(--fg-faint); }
+.site-footer__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+@media (max-width: 860px) { .site-footer__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .site-footer__brand { grid-column: 1 / -1; } }
+@media (max-width: 640px) { .site-footer { padding-bottom: 96px; } }
+
+/* «Продавать»: первый экран в две колонки, карточки «Как устроена продажа» */
+.sell-page { padding-top: 28px; }
+.sell-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 520px); gap: 20px; align-items: stretch; }
+.sell-hero__text { border-radius: 28px; padding: 44px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, var(--bg)) 0%, color-mix(in srgb, var(--accent) 3%, var(--bg)) 100%); }
+.sell-hero__text .h1 { font-size: clamp(30px, 3.2vw, 44px); margin: 0 0 12px; letter-spacing: -0.03em; }
+.sell-hero__text .lead { margin: 0 0 22px; max-width: 46ch; }
+.sell-hero > .card { margin: 0; }
+.sell-how { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
+.sell-how > div { background: var(--bg); border-radius: 20px; padding: 20px; box-shadow: inset 0 0 0 1px var(--border); }
+.sell-how h3 { margin: 0 0 8px; font-size: 16px; }
+.sell-how p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--fg-muted); }
+@media (max-width: 900px) { .sell-hero { grid-template-columns: minmax(0, 1fr); } .sell-hero__text { padding: 28px 20px; } }

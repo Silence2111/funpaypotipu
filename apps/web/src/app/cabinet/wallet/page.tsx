@@ -112,7 +112,7 @@ function WalletInner() {
                 <dt>{t('В сделках')}</dt>
                 <dd>{money(wallet.inDeals.amount)}</dd>
                 <span className="hint">
-                  {t('{n} — зачислим, когда покупатели подтвердят получение, а с гарантией — когда она закончится', {
+                  {t('{n} зачислим, когда покупатели подтвердят получение, а с гарантией, когда она закончится', {
                     n: t.n(wallet.inDeals.count, 'продажа', 'продажи', 'продаж'),
                   })}
                 </span>
@@ -133,7 +133,7 @@ function WalletInner() {
                 <dt>{t('На выводе')}</dt>
                 <dd>{money(wallet.withdrawing.amount)}</dd>
                 <span className="hint">
-                  {t('{n} — уже не на балансе', {
+                  {t('{n} уже не на балансе', {
                     n: t.n(wallet.withdrawing.count, 'заявка', 'заявки', 'заявок'),
                   })}
                 </span>
@@ -154,7 +154,7 @@ function WalletInner() {
       {topupBack && (
         <div className="alert" role="status">
           {t(
-            'Пополнение зачислится, как только банк подтвердит оплату, — обычно за несколько секунд.',
+            'Пополнение зачислится, как только банк подтвердит оплату, обычно за несколько секунд.',
           )}
         </div>
       )}

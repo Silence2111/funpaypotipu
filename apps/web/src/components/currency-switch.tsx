@@ -26,7 +26,7 @@ export function CurrencySwitch({ className, label }: { className?: string; label
     <select
       className={`chip ${className ?? ''}`}
       aria-label={t('Валюта цен')}
-      title={t('Валюта показа цен. Оплата — в рублях.')}
+      title={t('Валюта показа цен. Оплата в рублях.')}
       value={value}
       onChange={(e) => setCurrency(e.target.value as DisplayCurrency)}
       style={{ paddingRight: 10, appearance: 'auto' }}

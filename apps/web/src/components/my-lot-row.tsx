@@ -116,7 +116,7 @@ export function MyLotRow({
   function remove() {
     if (
       !window.confirm(
-        t('Удалить «{title}»? Если по лоту были заказы, он уйдёт в архив — история сделок сохранится.', {
+        t('Удалить «{title}»? Если по лоту были заказы, он уйдёт в архив, история сделок сохранится.', {
           title: lot.title,
         }),
       )
@@ -179,7 +179,7 @@ export function MyLotRow({
           {closed && <span className="badge">{t('раздел закрыт для продажи')}</span>}
           {active && lot.dupOf && (
             <span className="badge warning" title={t('В разделе виден самый дешёвый из одинаковых лотов, этот выйдет, когда тот купят. Проще держать один лот с наличием.')}>
-              {t('повтор — в разделе виден другой')}
+              {t('повтор, в разделе виден другой')}
             </span>
           )}
           {counted && !soldOut && <span>{t('в наличии {qty}', { qty: formatQty(lot.stock!, lot.unitName, t) })}</span>}
@@ -250,8 +250,8 @@ export function MyLotRow({
             type="button"
             className="icon-btn"
             aria-expanded={discounting}
-            aria-label={onSale ? t('Скидка идёт — завершить') : t('Скидка')}
-            title={onSale ? t('Скидка идёт — завершить') : t('Скидка')}
+            aria-label={onSale ? t('Скидка идёт, завершить') : t('Скидка')}
+            title={onSale ? t('Скидка идёт, завершить') : t('Скидка')}
             data-on={onSale ? 'true' : undefined}
             onClick={() => setDiscounting((d) => !d)}
           >
@@ -342,7 +342,7 @@ function PriceCell({
 
   if (lot.topupMarkupBps != null) {
     return (
-      <div className="my-lot-price" title={t('Цена следует из наценки — меняется в форме лота')}>
+      <div className="my-lot-price" title={t('Цена следует из наценки, меняется в форме лота')}>
         <span className="my-lot-amount">{formatListingPrice(lot, t)}</span>
       </div>
     );
@@ -350,7 +350,7 @@ function PriceCell({
   // Во время скидки цена не правится: прежняя вернётся по сроку.
   if (lot.saleListPrice && lot.saleUntil) {
     return (
-      <div className="my-lot-price" title={t('Идёт скидка — цена вернётся по окончании срока')}>
+      <div className="my-lot-price" title={t('Идёт скидка, цена вернётся по окончании срока')}>
         <span className="my-lot-amount">{formatPrice(lot.price, lot.currency, t)}</span>
         <SaleMark listPrice={lot.saleRefPrice ?? lot.saleListPrice} price={lot.price} currency={lot.currency} t={t} />
       </div>
@@ -376,7 +376,7 @@ function PriceCell({
           type="button"
           className="price-edit"
           disabled={disabled}
-          aria-label={t('Цена {price} — изменить', {
+          aria-label={t('Цена {price}, изменить', {
             price: `${formatPrice(lot.price, lot.currency, t)}${pack ? ` ${pack}` : ''}`,
           })}
           onClick={() => {
@@ -419,7 +419,7 @@ function PriceCell({
       )}
       {draft !== null && bad ? (
         <span className="my-lot-pack field-error" role="alert">
-          {t('Цена — число больше нуля')}
+          {t('Цена должна быть числом больше нуля')}
         </span>
       ) : (
         pack && <span className="my-lot-pack">{pack}</span>

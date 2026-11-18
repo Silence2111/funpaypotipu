@@ -151,7 +151,7 @@ function Dispute() {
         outcome === 'buyer'
           ? refundPct === 100
             ? t('Решение: вернуть деньги покупателю. Сторона, против которой оно, сможет один раз обжаловать до вступления в силу.')
-            : t('Вернуть покупателю {pct}%, остаток — продавцу?', { pct: refundPct })
+            : t('Вернуть покупателю {pct}%, остаток продавцу?', { pct: refundPct })
           : t('Решение: отдать деньги продавцу. Сторона, против которой оно, сможет один раз обжаловать до вступления в силу.'),
       hint: t('Комментарий для сторон:'),
       withRule: outcome === 'buyer',
@@ -284,13 +284,13 @@ function Dispute() {
           <div className="row" style={{ gap: 8 }}>
             <Clock size={16} strokeWidth={1.75} aria-hidden />
             <b style={{ fontSize: 15 }}>
-              {dispute.status === 'resolved_buyer' ? t('Решение — в пользу покупателя.') : t('Решение — в пользу продавца.')}{' '}
+              {dispute.status === 'resolved_buyer' ? t('Решение в пользу покупателя.') : t('Решение в пользу продавца.')}{' '}
               {t('Вступит в силу {date}.', { date: when(dispute.finalizeAt!) })}
             </b>
           </div>
           {view.canAppeal && !appealing && (
             <p className="hint" style={{ margin: 0 }}>
-              {t('Не согласны — обжалуйте один раз: спор пересмотрит другой арбитр, его решение окончательное. Согласны — примите, и решение исполнится сразу.')}
+              {t('Если не согласны, обжалуйте один раз: спор пересмотрит другой арбитр, его решение окончательное. Если согласны, примите, и решение исполнится сразу.')}
             </p>
           )}
           {appealing ? (
@@ -324,19 +324,19 @@ function Dispute() {
           {dispute.appealText && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>«{dispute.appealText}»</p>}
           {dispute.firstOutcome && (
             <span className="faint">
-              {dispute.firstOutcome === 'buyer' ? t('Первое решение — в пользу покупателя') : t('Первое решение — в пользу продавца')}
+              {dispute.firstOutcome === 'buyer' ? t('Первое решение в пользу покупателя') : t('Первое решение в пользу продавца')}
               {view.firstArbiter?.username ? ` · ${t('арбитр {name}', { name: view.firstArbiter.username })}` : ''}
               {dispute.firstNote ? ` · «${dispute.firstNote}»` : ''}
             </span>
           )}
-          {open && <span className="hint">{t('Пересматривает другой арбитр — его решение окончательное.')}</span>}
+          {open && <span className="hint">{t('Пересматривает другой арбитр, его решение окончательное.')}</span>}
         </div>
       )}
 
       {journal.length > 0 && (
         <div className="card" style={{ marginTop: 12, padding: 16 }}>
           <div className="label" style={{ marginBottom: 6 }}>{t('Журнал выдачи')}</div>
-          <p className="hint" style={{ margin: '0 0 8px' }}>{t('Из системы площадки — не со слов сторон.')}</p>
+          <p className="hint" style={{ margin: '0 0 8px' }}>{t('Из системы площадки, не со слов сторон.')}</p>
           <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 4, fontSize: 14 }}>
             {journal.map((e, i) => (
               <li key={i} className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
@@ -364,7 +364,7 @@ function Dispute() {
               </ul>
             </div>
           ))}
-          <p className="hint" style={{ margin: 0 }}>{t('Файлы — скрепкой под перепиской. Чем точнее доказательства, тем быстрее решение.')}</p>
+          <p className="hint" style={{ margin: 0 }}>{t('Файлы прикрепляйте скрепкой под перепиской. Чем точнее доказательства, тем быстрее решение.')}</p>
         </div>
       )}
 
@@ -384,8 +384,8 @@ function Dispute() {
           <Clock size={16} strokeWidth={1.75} aria-hidden />
           <span>
             {dispute.missedBy === 'seller'
-              ? t('Продавец не ответил в срок — арбитр учтёт это при решении.')
-              : t('Покупатель не ответил в срок — арбитр учтёт это при решении.')}
+              ? t('Продавец не ответил в срок. Арбитр учтёт это при решении.')
+              : t('Покупатель не ответил в срок. Арбитр учтёт это при решении.')}
           </span>
         </div>
       )}
@@ -395,12 +395,12 @@ function Dispute() {
           <div className="label" style={{ marginBottom: 6 }}>{t('Договорились сами?')}</div>
           <p className="hint" style={{ margin: '0 0 10px' }}>
             {view.side === 'buyer'
-              ? t('Если товар в порядке, закройте спор — деньги уйдут продавцу, арбитр не понадобится.')
-              : t('Если покупатель прав, верните деньги — спор закроется без арбитра.')}
+              ? t('Если товар в порядке, закройте спор. Деньги уйдут продавцу, арбитр не понадобится.')
+              : t('Если покупатель прав, верните деньги, и спор закроется без арбитра.')}
           </p>
           {view.side === 'buyer' ? (
             <button type="button" className="chip" disabled={busy} onClick={withdraw}>
-              {t('Претензий нет — завершить сделку')}
+              {t('Претензий нет, завершить сделку')}
             </button>
           ) : (
             <button type="button" className="chip" disabled={busy} onClick={() => refund(order.id)}>
@@ -433,7 +433,7 @@ function Dispute() {
               {t('Отдать деньги продавцу')}
             </button>
           </div>
-          <p className="hint" style={{ marginTop: 8 }}>{t('Решение вступит в силу после окна обжалования, стороны получат уведомление. Частичный возврат — когда товар не совпал с описанием лишь отчасти (пункт 2.2).')}</p>
+          <p className="hint" style={{ marginTop: 8 }}>{t('Решение вступит в силу после окна обжалования, стороны получат уведомление. Частичный возврат делают, когда товар не совпал с описанием лишь отчасти (пункт 2.2).')}</p>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
             <span className="hint" style={{ alignSelf: 'center' }}>{t('Запросить пояснения:')}</span>
             <button type="button" className="chip" disabled={busy} onClick={() => ask('buyer')}>
@@ -492,7 +492,7 @@ function Dispute() {
             <label className="row hint" style={{ gap: 8, marginTop: 8, cursor: 'pointer' }}>
               <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)}
                 style={{ width: 16, height: 16, accentColor: 'var(--accent)' }} />
-              {t('Заметка для сотрудников — стороны её не увидят')}
+              {t('Заметка для сотрудников, стороны её не увидят')}
             </label>
           )}
         </form>

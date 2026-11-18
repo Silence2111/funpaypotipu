@@ -82,7 +82,7 @@ export function SellerApi() {
     <section className="card tools-card" aria-labelledby="api-title">
       <h2 className="h2 tools-title" id="api-title">{t('API')}</h2>
       <p className="muted tools-text">
-        {t('Свой бот или склад: цены и наличие лотов, загрузка товара для автовыдачи, заказы и отметка выдачи — по ключу, без пароля от аккаунта.')}{' '}
+        {t('Свой бот или склад: цены и наличие лотов, загрузка товара для автовыдачи, заказы и отметка выдачи по ключу API. Пароль от аккаунта не нужен.')}{' '}
         <Link href="/prodavat/api" style={{ color: 'var(--accent)' }}>{t('Документация')}</Link>
       </p>
 
@@ -155,7 +155,7 @@ export function SellerApi() {
           <button type="button" className="chip" disabled={busy}
             onClick={() => void run(async () => {
               await apiFetch('/account/api/webhook/test', { method: 'POST' });
-              setMsg({ ok: true, text: t('Проверочное событие отправлено — результат ниже через несколько секунд.') });
+              setMsg({ ok: true, text: t('Проверочное событие отправлено, результат появится ниже через несколько секунд.') });
             }, t('Не удалось отправить проверку.'))}>
             {t('Проверить')}
           </button>

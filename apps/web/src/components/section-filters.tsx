@@ -134,7 +134,7 @@ export function SectionFilters({
         type="button"
         className="chip"
         aria-pressed={values.drop === '1'}
-        title={t('Идёт скидка или цена — самая низкая у лота за {n} дней', { n: PRICE_LOW_DAYS })}
+        title={t('Идёт скидка или цена самая низкая у лота за {n} дней', { n: PRICE_LOW_DAYS })}
         onClick={() => go({ drop: values.drop === '1' ? undefined : '1' })}
       >
         <TrendingDown size={14} strokeWidth={1.75} aria-hidden />

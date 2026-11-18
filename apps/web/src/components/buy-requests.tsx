@@ -49,12 +49,12 @@ export function RequestForm({
     e.preventDefault();
     const what = text.trim();
     if (what.length < BUY_REQUEST_TEXT_MIN) {
-      setErr(t('Опишите, что ищете, — от 10 символов'));
+      setErr(t('Опишите, что ищете, от 10 символов'));
       return;
     }
     const rub = price.trim() ? Number(price.replace(/\s/g, '')) : null;
     if (rub !== null && !(Number.isInteger(rub) && rub > 0)) {
-      setErr(t('Цена — целым числом рублей больше нуля.'));
+      setErr(t('Цена целым числом рублей больше нуля.'));
       return;
     }
     setBusy(true);
@@ -80,7 +80,7 @@ export function RequestForm({
     return (
       <Link href="/cabinet/requests?tab=mine" className="chip save-search-done">
         <Check size={16} strokeWidth={1.75} aria-hidden />
-        {t('Запрос отправлен продавцам раздела — ответы в «Запросах»')}
+        {t('Запрос отправлен продавцам раздела, ответы будут в «Запросах»')}
       </Link>
     );
   }
@@ -103,7 +103,7 @@ export function RequestForm({
       <div className="save-search-title">{t('Что вы ищете?')}</div>
       <p className="hint" style={{ margin: 0 }}>
         {t(
-          'Продавцы раздела получат уведомление и предложат свои лоты. Запрос виден {days} дней; контакты в тексте скрываются — договориться можно в чате лота.',
+          'Продавцы раздела получат уведомление и предложат свои лоты. Запрос виден {days} дней. Контакты в тексте скрываются, договориться можно в чате лота.',
           { days: BUY_REQUEST_DAYS },
         )}
       </p>
@@ -120,7 +120,7 @@ export function RequestForm({
         />
       </label>
       <label className="field">
-        <span className="label">{t('До какой цены, ₽ — необязательно')}</span>
+        <span className="label">{t('До какой цены, ₽, необязательно')}</span>
         <input
           className="input save-search-price"
           inputMode="numeric"
@@ -223,7 +223,7 @@ export function OfferLot({
             }
           : l,
       );
-      setMsg({ ok: true, text: t('Лот отправлен покупателю — ему пришла ссылка.') });
+      setMsg({ ok: true, text: t('Лот отправлен покупателю, ему пришла ссылка.') });
       setPick(null);
     } catch (e) {
       setMsg({ ok: false, text: apiErrorMessage(e, t('Не удалось предложить лот.')) });
@@ -252,7 +252,7 @@ export function OfferLot({
       {list && list.items.length === 0 && (
         <p className="muted" style={{ margin: 0 }}>
           {t(
-            'У вас нет лотов в продаже в этом разделе. Выставьте лот — он сразу уйдёт покупателю.',
+            'У вас нет лотов в продаже в этом разделе. Выставьте лот, и он сразу уйдёт покупателю.',
           )}
         </p>
       )}

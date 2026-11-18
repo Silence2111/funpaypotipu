@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       ? `${t('Рейтинг {r}, {reviews}.', { r: s.ratingAvg.toFixed(1), reviews: reviewsCount(s.ratingCount, t) })} `
       : '';
   return {
-    title: t('{name} — продавец на GameMarket', { name: s.displayName }),
+    title: t('{name}, продавец на GameMarket', { name: s.displayName }),
     description: `${rating}${t('Продаж: {n}', { n: t.num(s.salesCount) })}. ${offersCount(s.activeListings, t)}.`,
   };
 }
@@ -171,7 +171,7 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
           {total > 0
             ? offersCount(total, t)
             : seller.away
-              ? t('Продавец в отпуске — предложения вернутся вместе с ним.')
+              ? t('Продавец в отпуске. Предложения вернутся вместе с ним.')
               : t('Сейчас у продавца нет активных предложений.')}
           {total > items.length ? ` · ${t('показаны первые {n}', { n: items.length })}` : ''}
         </p>

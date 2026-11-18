@@ -78,7 +78,7 @@ function CardInner() {
         </div>
       ) : state === 'done' ? (
         <p role="status" style={{ margin: 0 }}>
-          {t('Готово: блокировка 1 ₽ снята. Сотрудник сверит карту и ответит на эту почту — не раньше чем через 3 дня после заявки.')}
+          {t('Готово: блокировка 1 ₽ снята. Сотрудник сверит карту и ответит на эту почту не раньше чем через 3 дня после заявки.')}
         </p>
       ) : state === 'waiting' ? (
         <p role="status" className="muted" style={{ margin: 0 }} aria-busy="true">
@@ -91,7 +91,7 @@ function CardInner() {
           </p>
           {failed && (
             <p role="alert" style={{ color: 'var(--danger)', fontSize: 14, margin: 0 }}>
-              {t('Оплата не прошла. Попробуйте ещё раз — той же картой или другой, которой платили на GameMarket.')}
+              {t('Оплата не прошла. Попробуйте ещё раз той же картой или другой, которой платили на GameMarket.')}
             </p>
           )}
           {err && <p role="alert" style={{ color: 'var(--danger)', fontSize: 14, margin: 0 }}>{err}</p>}
@@ -99,7 +99,7 @@ function CardInner() {
             <CreditCard size={18} strokeWidth={1.75} aria-hidden /> {busy ? '…' : t('Заплатить 1 ₽ картой')}
           </button>
           <p className="hint" style={{ margin: 0 }}>
-            {t('Номер карты вводится на странице ЮKassa — площадка его не видит и не хранит.')}
+            {t('Номер карты вводится на странице ЮKassa, площадка его не видит и не хранит.')}
           </p>
         </div>
       )}

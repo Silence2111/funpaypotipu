@@ -12,7 +12,7 @@ const createSchema = z.object({
   text: z
     .string()
     .trim()
-    .min(BUY_REQUEST_TEXT_MIN, 'Опишите, что ищете, — от 10 символов')
+    .min(BUY_REQUEST_TEXT_MIN, 'Опишите, что ищете, от 10 символов')
     .max(BUY_REQUEST_TEXT_MAX, 'Запрос — до 300 символов'),
   /** Копейки, до 10 млн ₽ — как цена лота. */
   maxPrice: z.number().int().positive('Цена — больше нуля').max(1_000_000_000, 'Цена — до 10 млн ₽').nullish(),

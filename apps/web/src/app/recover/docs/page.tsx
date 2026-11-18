@@ -93,13 +93,13 @@ function DocsInner() {
             <FilePick
               id="rc-selfie"
               label={t('Селфи с документом')}
-              hint={t('Лицо и раскрытый документ в одном кадре — так видно, что документ ваш.')}
+              hint={t('Лицо и раскрытый документ в одном кадре, так видно, что документ ваш.')}
               max={1}
               files={selfie}
               onChange={setSelfie}
             />
             <p className="hint" style={{ margin: 0 }}>
-              {t('Фото или PDF до 15 МБ. Документы видит только сотрудник проверки — другим пользователям они недоступны.')}
+              {t('Фото или PDF до 15 МБ. Документы видит только сотрудник проверки, другим пользователям они недоступны.')}
             </p>
             {err && <p role="alert" style={{ color: 'var(--danger)', fontSize: 14, margin: 0 }}>{err}</p>}
             <button className="btn" type="submit" disabled={busy || !doc.length || !selfie.length} style={{ width: '100%' }}>

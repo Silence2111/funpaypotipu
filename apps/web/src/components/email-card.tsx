@@ -42,7 +42,7 @@ export function EmailCard({ email, hasPassword }: { email: string | null; hasPas
           ...(twoFactor ? { code } : {}),
         }),
       });
-      setMsg({ ok: true, text: t('Письмо со ссылкой ушло на {email}. Откройте его, чтобы подтвердить, — ссылка действует сутки.', { email: to }) });
+      setMsg({ ok: true, text: t('Письмо со ссылкой ушло на {email}. Откройте его, чтобы подтвердить, ссылка действует сутки.', { email: to }) });
       setOpen(false);
       setNext('');
       setPassword('');
@@ -60,7 +60,7 @@ export function EmailCard({ email, hasPassword }: { email: string | null; hasPas
         <Mail size={18} strokeWidth={1.75} /> {t('Почта')}
       </h2>
       <p style={{ margin: '12px 0 0' }}>
-        {email ? <span style={{ fontWeight: 600 }}>{email}</span> : <span className="muted">{t('Почты у аккаунта нет — добавьте её, чтобы письма о сделках и входе приходили на неё.')}</span>}
+        {email ? <span style={{ fontWeight: 600 }}>{email}</span> : <span className="muted">{t('Почты у аккаунта нет. Добавьте её, чтобы письма о сделках и входе приходили на неё.')}</span>}
       </p>
       {msg && (
         <p role={msg.ok ? 'status' : 'alert'} style={{ margin: '12px 0 0', fontSize: 14, color: msg.ok ? undefined : 'var(--danger)' }}>
@@ -91,7 +91,7 @@ export function EmailCard({ email, hasPassword }: { email: string | null; hasPas
           )}
           <p className="hint" style={{ margin: 0 }}>
             {email
-              ? t('На новую почту придёт ссылка для подтверждения, на прежнюю — письмо со ссылкой «Это не я»: 7 дней её можно вернуть.')
+              ? t('На новую почту придёт ссылка для подтверждения, на прежнюю письмо со ссылкой «Это не я»: 7 дней её можно вернуть.')
               : t('На почту придёт ссылка для подтверждения. С почтой можно входить по паролю и восстановить доступ.')}
           </p>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>

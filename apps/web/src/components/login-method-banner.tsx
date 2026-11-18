@@ -36,7 +36,7 @@ export function LoginMethodBanner() {
         <KeyRound size={18} strokeWidth={1.75} aria-hidden />
         <span>
           {t(
-            'Вход через Telegram отключён по закону. Добавьте почту и пароль, пока вы в аккаунте, — иначе после выхода войти будет нечем.',
+            'Вход через Telegram отключён по закону. Добавьте почту и пароль, пока вы в аккаунте, иначе после выхода войти будет нечем.',
           )}
         </span>
         <Link href="/cabinet/security" className="btn">

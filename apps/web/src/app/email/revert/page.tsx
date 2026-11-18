@@ -36,7 +36,7 @@ function RevertInner() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (password.length < 8) return setErr(t('Новый пароль — от 8 символов'));
+    if (password.length < 8) return setErr(t('Новый пароль от 8 символов'));
     setBusy(true);
     setErr(null);
     try {
@@ -69,7 +69,7 @@ function RevertInner() {
         <div className="stack-form">
           <p role="alert" style={{ margin: 0 }}>{t('Ссылка недействительна или истекла')}</p>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
-            {t('Вернуть почту можно 7 дней после смены и только до следующей смены. Если доступа к аккаунту нет — «Не могу войти».')}
+            {t('Вернуть почту можно 7 дней после смены и только до следующей смены. Если доступа к аккаунту нет, нажмите «Не могу войти».')}
           </p>
           <Link href="/recover">{t('Не могу войти')}</Link>
         </div>
@@ -78,7 +78,7 @@ function RevertInner() {
       ) : (
         <>
           <p className="muted" style={{ fontSize: 14, margin: '0 0 24px' }}>
-            {t('Почту аккаунта сменили на {email}. Если это сделали не вы — верните прежнюю до {until}: задайте новый пароль, все устройства выйдут, вход с кодом и входы через сервисы отключатся.', {
+            {t('Почту аккаунта сменили на {email}. Если это сделали не вы, верните прежнюю до {until}: задайте новый пароль, все устройства выйдут, вход с кодом и входы через сервисы отключатся.', {
               email: status.email,
               until,
             })}

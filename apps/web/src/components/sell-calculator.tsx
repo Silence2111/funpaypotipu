@@ -113,7 +113,7 @@ export function SellCalculator({
             aria-invalid={!valid} />
         </label>
       </div>
-      {!valid && <p className="field-error" role="alert">{t('Цена — от 1 до 10 000 000 ₽.')}</p>}
+      {!valid && <p className="field-error" role="alert">{t('Цена от 1 до 10 000 000 ₽.')}</p>}
       {err && <p className="field-error" role="alert">{err}</p>}
 
       {est && (
@@ -156,7 +156,7 @@ export function SellCalculator({
           </ul>
           <p className="faint" style={{ fontSize: 13, margin: '10px 0 0' }}>
             {t(
-              'Ставки FunPay и Playerok сверены {date} по их справке и прайсам. У FunPay ставка зависит от раздела: в среднем 9%, во многих разделах от 3%. Наша комиссия снижается за продажи, рейтинг и проверенные документы — до {pp} процентных пунктов.',
+              'Ставки FunPay и Playerok сверены {date} по их справке и прайсам. У FunPay ставка зависит от раздела: в среднем 9%, во многих разделах от 3%. Наша комиссия снижается за продажи, рейтинг и проверенные документы, до {pp} процентных пунктов.',
               {
                 date: new Date(est.ratesCheckedAt).toLocaleDateString(t.locale, { day: 'numeric', month: 'long', year: 'numeric' }),
                 pp: est.levelDiscountMaxPp,

@@ -69,7 +69,7 @@ export function SaveSearch({
     e.preventDefault();
     const rub = price.trim() ? Number(price.replace(/\s/g, '')) : null;
     if (rub !== null && !(Number.isInteger(rub) && rub > 0)) {
-      setErr(t('Цена — целым числом рублей больше нуля.'));
+      setErr(t('Цена целым числом рублей больше нуля.'));
       return;
     }
     setBusy(true);
@@ -147,7 +147,7 @@ export function SaveSearch({
       </button>
       <p className="hint" style={{ margin: 0 }}>
         {t(
-          'Новый подходящий лот придёт уведомлением — на сайте, в Telegram или пушем, как настроено в уведомлениях. О каждом лоте — один раз.',
+          'Новый подходящий лот придёт уведомлением на сайте, в Telegram или пушем, как настроено в уведомлениях. О каждом лоте один раз.',
         )}
       </p>
       {err && <p className="field-error">{err}</p>}

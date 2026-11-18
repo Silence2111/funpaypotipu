@@ -20,7 +20,7 @@ import { msg } from '@/lib/i18n/lang';
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return {
-    title: t('Все предложения — поиск игровых товаров'),
+    title: t('Все предложения: поиск игровых товаров'),
     description: t(
       'Поиск по предложениям продавцов: аккаунты, валюта, предметы, ключи, донат и услуги во всех играх.',
     ),
@@ -180,7 +180,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
                 href={qs({ drop: sp.drop === '1' ? undefined : '1' })}
                 className="chip"
                 aria-pressed={sp.drop === '1'}
-                title={t('Идёт скидка или цена — самая низкая у лота за {n} дней', {
+                title={t('Идёт скидка или цена самая низкая у лота за {n} дней', {
                   n: PRICE_LOW_DAYS,
                 })}
               >
@@ -234,18 +234,18 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
               </h2>
               <p className="muted">
                 {t(
-                  'Площадка только открылась — выставьте лот первым: покупатели увидят его сразу.',
+                  'Площадка только открылась. Выставьте лот первым, покупатели увидят его сразу.',
                 )}
               </p>
               {hits.length > 0 && (
                 <p className="muted">
-                  {t('Покупаете? Откройте игру и сохраните поиск — сообщим о первом предложении.')}
+                  {t('Откройте игру и сохраните поиск, и мы сообщим о первом предложении.')}
                 </p>
               )}
             </>
           ) : hits.length ? (
             <p className="muted">
-              {t('По запросу «{q}» предложений нет — загляните в раздел игры:', { q: sp.q! })}
+              {t('По запросу «{q}» предложений нет. Загляните в раздел игры:', { q: sp.q! })}
             </p>
           ) : (
             <p className="muted">

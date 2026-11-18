@@ -30,7 +30,7 @@ export default async function GamesIndexPage({ searchParams }: { searchParams: P
         {kind ? t(KIND_LABELS[kind]) : t('Все игры')}
       </h1>
       <p className="muted" style={{ marginTop: 8 }}>
-        {t('{n} — от А до Я, с разделами.', { n: games.length })}
+        {t('{n} от А до Я, с разделами.', { n: games.length })}
       </p>
 
       <div style={{ marginTop: 24, maxWidth: 640 }}>

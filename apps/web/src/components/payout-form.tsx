@@ -144,7 +144,7 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
     }
     if (fresh && sbpAuto && !bankId) { setMsg(t('Выберите банк для перевода по СБП')); return; }
     if (belowMin) {
-      setMsg(t('Минимум для «{method}» — {sum}', { method: t.d(method.label), sum: formatPrice(method.minAmount, 'RUB', t) }));
+      setMsg(t('Минимум для «{method}»: {sum}', { method: t.d(method.label), sum: formatPrice(method.minAmount, 'RUB', t) }));
       return;
     }
     setBusy(true); setMsg(null);
@@ -251,7 +251,7 @@ export function PayoutForm({ onDone }: { onDone: () => void }) {
       )}
       {needsKyc && (
         <p className="hint" style={{ marginTop: 8 }}>
-          {t('Больше {sum} за раз — после проверки личности.', { sum: formatPrice(String(kycAbove), 'RUB', t) })}{' '}
+          {t('Больше {sum} за раз можно после проверки личности.', { sum: formatPrice(String(kycAbove), 'RUB', t) })}{' '}
           <Link href="/cabinet/verification" className="inline-link">{t('Пройти проверку')}</Link>
         </p>
       )}

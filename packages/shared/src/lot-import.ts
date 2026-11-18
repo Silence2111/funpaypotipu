@@ -169,10 +169,10 @@ export function lotImportError(lot: ImportLot, attrs: ImportAttr[]): string | nu
   if (!lot.description.trim() && !lot.id) return 'Нет описания';
   if (lot.description.length > 10_000) return 'Описание — до 10 000 знаков';
   if (!/^\d+$/.test(lot.price) || BigInt(lot.price) <= 0n)
-    return 'Цена — число больше нуля, например 490';
+    return 'Цена должна быть числом больше нуля, например 490';
   if (lot.titleEn) {
     if (lot.titleEn.length < 3 || lot.titleEn.length > 120) return 'Название на английском — от 3 до 120 знаков';
-    if (/[\u0400-\u04FF]/.test(lot.titleEn)) return 'Название на английском — латиницей';
+    if (/[\u0400-\u04FF]/.test(lot.titleEn)) return 'Название на английском латиницей';
   }
   if (lot.descriptionEn && lot.descriptionEn.length > 10_000) return 'Описание на английском — до 10 000 знаков';
   if (
@@ -277,7 +277,7 @@ export function readImport(table: string[][], attrs: ImportAttr[]): ImportRead {
       else if (c.field === 'price') {
         const p = importPrice(raw);
         if (p) lot.price = p;
-        else problem = 'Цена — число больше нуля, например 490';
+        else problem = 'Цена должна быть числом больше нуля, например 490';
       } else if (c.field === 'stock' && raw) {
         if (/^\d{1,7}$/.test(raw.replace(/[\s ]/g, '')))
           lot.stock = Number(raw.replace(/[\s ]/g, ''));

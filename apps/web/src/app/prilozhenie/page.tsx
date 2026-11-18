@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return {
     title: t('Приложение GameMarket'),
-    description: t('GameMarket на телефоне: Android — Google Play и RuStore, iPhone — с экрана «Домой». Уведомления о заказах и сообщениях.'),
+    description: t('GameMarket на телефоне: на Android из Google Play и RuStore, на iPhone с экрана «Домой». Уведомления о заказах и сообщениях.'),
     alternates: { canonical: `${SITE}/prilozhenie` },
   };
 }
@@ -28,7 +28,7 @@ export default async function AppPage() {
     <div className="container stack-lg" style={{ paddingTop: 48, maxWidth: 720 }}>
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>{t('Приложение GameMarket')}</h1>
-        <p className="lead">{t('Заказы, сообщения и уведомления — с иконки на телефоне, без адресной строки.')}</p>
+        <p className="lead">{t('Заказы, сообщения и уведомления с иконки на телефоне, без адресной строки.')}</p>
       </div>
 
       <section className="card" style={{ padding: 24, display: 'grid', gap: 12 }}>
@@ -40,7 +40,7 @@ export default async function AppPage() {
           </div>
         ) : (
           <p className="muted" style={{ margin: 0 }}>
-            {t('Скоро в Google Play и RuStore. Пока — установите с сайта: откройте GameMarket в Chrome и нажмите «Установить приложение» внизу страницы или в меню браузера.')}
+            {t('Скоро в Google Play и RuStore. Пока установите с сайта: откройте GameMarket в Chrome и нажмите «Установить приложение» внизу страницы или в меню браузера.')}
           </p>
         )}
       </section>
@@ -49,7 +49,7 @@ export default async function AppPage() {
         <h2 className="h2" style={{ fontSize: 20, margin: 0 }}>iPhone</h2>
         <IosInstallSteps />
         <p className="hint" style={{ margin: 0 }}>
-          {t('iPhone присылает уведомления только сайтам с экрана «Домой» — без установки пушей не будет.')}{' '}
+          {t('iPhone присылает уведомления только сайтам с экрана «Домой», без установки пушей не будет.')}{' '}
           <Link href="/cabinet/settings" style={{ color: 'var(--accent)' }}>{t('Настройки уведомлений')}</Link>
         </p>
       </section>

@@ -52,7 +52,7 @@ export function BuyerFilterCard({ initial }: { initial: BuyerFilter | undefined 
         </select>
       </div>
       <div className="field">
-        <label className="label" htmlFor="bf-lost">{t('Проигранных споров за 90 дней — не больше')}</label>
+        <label className="label" htmlFor="bf-lost">{t('Проигранных споров за 90 дней, не больше')}</label>
         <select id="bf-lost" className="input" disabled={busy} value={f.maxLostDisputes ?? ''}
           onChange={(e) => void save({ ...f, maxLostDisputes: e.target.value === '' ? null : Number(e.target.value) })}>
           <option value="">{t('Не важно')}</option>

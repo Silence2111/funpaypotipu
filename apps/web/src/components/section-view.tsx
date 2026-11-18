@@ -114,8 +114,8 @@ export async function SectionView({
     const s = p.toString();
     return s ? `${base}?${s}` : base;
   };
-  // цвет марки игры для шапки раздела; у чёрных марок и игр без знака — цвет площадки
-  const brand = gameIcon(game.slug)?.color ?? undefined;
+  // цвет марки игры для шапки раздела; у игр без знака — цвет площадки
+  const brand = gameIcon(game.slug)?.bg;
   const sellHref = `/cabinet/new?game=${encodeURIComponent(game.slug)}&category=${encodeURIComponent(section.slug)}`;
   const people = section.sellers;
 
@@ -214,26 +214,6 @@ export async function SectionView({
             }
           />
         )}
-        <div className="save-search-row">
-          {/* В пустом разделе «Оставить запрос» — у карточки ниже, крупной кнопкой. */}
-          {!empty && <RequestForm categoryId={section.id} />}
-          <SaveSearch
-            categoryId={section.id}
-            attrs={attrs}
-            q={q || null}
-            maxRub={maxRub}
-            summary={[
-              ...filterable
-                .filter((a) => a.key in attrs)
-                .map((a) =>
-                  attrs[a.key] === true
-                    ? t.d(a.label)
-                    : `${t.d(a.label)}: ${t.d(String(attrs[a.key]))}`,
-                ),
-              ...(q ? [t('«{q}»', { q })] : []),
-            ]}
-          />
-        </div>
       </div>
 
       <section
@@ -258,7 +238,7 @@ export async function SectionView({
                 </h2>
                 <p className="muted">
                   {t(
-                    'В разделе «{category}» ещё никто не продаёт. Выставьте лот первым — покупатели раздела увидят его сразу. Покупаете? Оставьте запрос — продавцы предложат лоты, или сохраните поиск.',
+                    'В разделе «{category}» ещё никто не продаёт. Выставьте лот первым, покупатели раздела увидят его сразу. Если покупаете, оставьте запрос или сохраните поиск, и продавцы предложат лоты.',
                     {
                       category: t.d(section.title),
                     },
@@ -275,6 +255,33 @@ export async function SectionView({
           </div>
         )}
       </section>
+
+      {/* Конец списка */}
+      <div>
+        {/* Под списком, как у FunPay: не нашли нужное — запрос продавцам или сохранённый поиск.
+            Над списком эти кнопки спорили с фильтрами за внимание. */}
+        <div className="save-search-row save-search-row--after">
+          <span className="muted">{t('Не нашли нужное?')}</span>
+          {/* В пустом разделе «Оставить запрос» — у карточки ниже, крупной кнопкой. */}
+          {!empty && <RequestForm categoryId={section.id} />}
+          <SaveSearch
+            categoryId={section.id}
+            attrs={attrs}
+            q={q || null}
+            maxRub={maxRub}
+            summary={[
+              ...filterable
+                .filter((a) => a.key in attrs)
+                .map((a) =>
+                  attrs[a.key] === true
+                    ? t.d(a.label)
+                    : `${t.d(a.label)}: ${t.d(String(attrs[a.key]))}`,
+                ),
+              ...(q ? [t('«{q}»', { q })] : []),
+            ]}
+          />
+        </div>
+      </div>
 
       {pages > 1 && (
         <nav
@@ -304,8 +311,12 @@ export async function SectionView({
         sellHref={sellHref}
       />
 
-      {/* Общий чат игры (часть 133): один на все разделы игры. */}
-      <GameChat slug={game.slug} title={game.title} />
+      {/* Общий чат игры (часть 133): один на все разделы игры. Свёрнут в строку: пустой блок
+          «Пока тихо, напишите первым» под каждым разделом был заглушкой, а не пользой. */}
+      <details className="game-chat-fold">
+        <summary>{t('Чат игры {game}', { game: t.d(game.title) })}</summary>
+        <GameChat slug={game.slug} title={game.title} />
+      </details>
     </div>
   );
 }

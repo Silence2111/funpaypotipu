@@ -56,17 +56,17 @@ const inFilter = (l: MyLot, f: Filter) =>
 function bulkNote(action: 'pause' | 'activate' | 'bump', r: BulkResult, t: T): string {
   if (action === 'bump') {
     const parts = [t('Подняли: {n}', { n: r.done })];
-    if (r.waiting && r.nextInMinutes != null) parts.push(t('остальные — через {n} мин', { n: r.nextInMinutes }));
+    if (r.waiting && r.nextInMinutes != null) parts.push(t('остальные через {n} мин', { n: r.nextInMinutes }));
     if (r.skipped) parts.push(t('не в продаже: {n}', { n: r.skipped }));
     return `${parts.join(', ')}.`;
   }
   if (action === 'pause') {
     const done = t('Сняли с продажи: {n}.', { n: r.done });
-    return r.skipped ? `${done} ${t('Пропустили {n} — уже сняты или закончились.', { n: r.skipped })}` : done;
+    return r.skipped ? `${done} ${t('Пропустили {n}: уже сняты или закончились.', { n: r.skipped })}` : done;
   }
   const done = t('Вернули в продажу: {n}.', { n: r.done });
   return r.skipped
-    ? `${done} ${t('Пропустили {n} — уже в продаже, без наличия или заблокированы.', { n: r.skipped })}`
+    ? `${done} ${t('Пропустили {n}: уже в продаже, без наличия или заблокированы.', { n: r.skipped })}`
     : done;
 }
 
@@ -277,7 +277,7 @@ function MyLots() {
       on &&
       !window.confirm(
         t(
-          'Снять с продажи все лоты в продаже ({n})? Вернуть их можно одной кнопкой. Открытые заказы отпуск не отменяет — их нужно довести.',
+          'Снять с продажи все лоты в продаже ({n})? Вернуть их можно одной кнопкой. Открытые заказы отпуск не отменяет, их нужно довести.',
           { n: counts.active },
         ),
       )
@@ -315,7 +315,7 @@ function MyLots() {
       });
       const parts: string[] = [];
       if (r.bumped) parts.push(t('поднято: {n}', { n: r.bumped }));
-      if (r.waiting && r.nextInMinutes != null) parts.push(t('остальные — через {n} мин', { n: r.nextInMinutes }));
+      if (r.waiting && r.nextInMinutes != null) parts.push(t('остальные через {n} мин', { n: r.nextInMinutes }));
       setNotes((n) => ({ ...n, [categoryId]: parts.join(', ') || t('нечего поднимать') }));
       await load();
     } catch (e) {
@@ -357,7 +357,7 @@ function MyLots() {
         <div className="alert" role="status">
           <span>
             {t(
-              'Лот на проверке у модератора: в тексте есть слова о передаче аккаунта, а продавать аккаунты и доступ к ним на площадке нельзя. Если это ошибка — модератор вернёт лот в продажу, обычно в течение дня.',
+              'Лот на проверке у модератора: в тексте есть слова о передаче аккаунта, а продавать аккаунты и доступ к ним на площадке нельзя. Если это ошибка, модератор вернёт лот в продажу, обычно в течение дня.',
             )}{' '}
             <Link href="/rules#zapreshcheno">{t('Что нельзя продавать')}</Link>
           </span>
@@ -415,7 +415,7 @@ function MyLots() {
         </div>
       ) : rows.length === 0 ? (
         <div className="card flat row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <span className="muted">{t('Лотов пока нет. Выставить первый — пара минут.')}</span>
+          <span className="muted">{t('Лотов пока нет. Выставить первый можно за пару минут.')}</span>
           <Link href="/cabinet/new" className="btn secondary">
             {t('Создать лот')}
           </Link>

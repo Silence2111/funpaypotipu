@@ -227,7 +227,7 @@ function NotificationsInner() {
           {t('Уведомления')}
         </h1>
         <p className="muted" style={{ margin: '8px 0 0', maxWidth: '60ch' }}>
-          {t('Всё, что происходило со сделками, спорами и аккаунтом. Сообщения — в «Сообщениях».')}{' '}
+          {t('Всё, что происходило со сделками, спорами и аккаунтом. Переписка в разделе «Сообщения».')}{' '}
           <Link href="/cabinet/settings#notifications">{t('Настроить уведомления')}</Link>
         </p>
         <div style={{ marginTop: 16 }}>

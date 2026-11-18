@@ -40,7 +40,7 @@ export function PhoneCard() {
 
   async function send(e?: FormEvent) {
     e?.preventDefault();
-    if (!normalizeRuPhone(phone)) return setNote({ ok: false, text: t('Номер — российский мобильный: +7 9XX XXX-XX-XX') });
+    if (!normalizeRuPhone(phone)) return setNote({ ok: false, text: t('Нужен российский мобильный номер: +7 9XX XXX-XX-XX') });
     setBusy(true);
     setNote(null);
     try {
@@ -72,7 +72,7 @@ export function PhoneCard() {
       setEditing(false);
       setSentTo(null);
       setCode('');
-      setNote({ ok: true, text: t('Номер привязан — теперь по нему можно войти.') });
+      setNote({ ok: true, text: t('Номер привязан, теперь по нему можно войти.') });
     } catch (err) {
       setNote({ ok: false, text: apiErrorMessage(err, t('Код не подошёл')) });
     } finally {
@@ -102,7 +102,7 @@ export function PhoneCard() {
         <Smartphone size={18} strokeWidth={1.75} /> {t('Номер телефона')}
       </h2>
       <p className="muted" style={{ margin: '6px 0 12px', fontSize: 14 }}>
-        {t('Ещё один способ войти и вернуть доступ: забыли пароль — войдите по номеру, код придёт в SMS.')}
+        {t('Ещё один способ войти и вернуть доступ: если забыли пароль, войдите по номеру, код придёт в SMS.')}
       </p>
       <div style={{ display: 'grid', gap: 12 }}>
         <p style={{ margin: 0 }}>
@@ -122,7 +122,7 @@ export function PhoneCard() {
                   inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456" autoFocus />
                 <p className="hint">
                   {wait > 0 ? (
-                    t('Новый код — через {n} сек.', { n: wait })
+                    t('Новый код через {n} сек.', { n: wait })
                   ) : (
                     <button type="button" className="link-button" disabled={busy} onClick={() => void send()}>
                       {t('Отправить код ещё раз')}

@@ -44,7 +44,7 @@ const requestSchema = z.object({
     .array(z.string().trim().max(40))
     .max(3, 'Не больше трёх номеров заказов')
     .default([]),
-  details: z.string().trim().min(10, 'Опишите, что случилось, — от 10 символов').max(2000),
+  details: z.string().trim().min(10, 'Опишите, что случилось, от 10 символов').max(2000),
   // Нет доступа и к почте аккаунта — куда ответить.
   newEmail: z.string().trim().email().max(200).optional(),
 });
@@ -62,7 +62,7 @@ const dealsSchema = tokenSchema.extend({
         text: z
           .string()
           .trim()
-          .min(20, 'Опишите сделку подробнее — от 20 символов')
+          .min(20, 'Опишите сделку подробнее, от 20 символов')
           .max(600, 'Описание сделки — до 600 символов'),
       }),
     )

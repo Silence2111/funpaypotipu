@@ -10,7 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return {
     title: t('API для продавцов'),
-    description: t('Лоты, наличие, склад автовыдачи, заказы и вебхук «новый заказ» — по ключу, без пароля от аккаунта.'),
+    description: t('Лоты, наличие, склад автовыдачи, заказы и вебхук «новый заказ» по ключу API, пароль от аккаунта не нужен.'),
     alternates: { canonical: `${SITE}/prodavat/api` },
   };
 }
@@ -40,7 +40,7 @@ export default async function SellerApiDocs() {
       <div>
         <h1 className="h1" style={{ fontSize: 32 }}>{t('API для продавцов')}</h1>
         <p className="lead">
-          {t('Свой бот или склад: цены и наличие, загрузка товара для автовыдачи, заказы и отметка выдачи — по ключу, без пароля от аккаунта.')}
+          {t('Свой бот или склад: цены и наличие, загрузка товара для автовыдачи, заказы и отметка выдачи по ключу API. Пароль от аккаунта не нужен.')}
         </p>
       </div>
 
@@ -48,19 +48,19 @@ export default async function SellerApiDocs() {
         <h2 className="h2" style={{ fontSize: 20 }}>{t('Ключ')}</h2>
         <p className="muted" style={{ margin: 0 }}>
           {t('Выпустите ключ в')} <Link href="/cabinet/tools" style={{ color: 'var(--accent)' }}>{t('«Инструментах»')}</Link>{' '}
-          {t('и передавайте его в заголовке. Ключ показывается один раз; утёк — отзовите, он перестанет работать сразу. До 5 ключей.')}
+          {t('и передавайте его в заголовке. Ключ показывается один раз. Если он утёк, отзовите его, и он сразу перестанет работать. До 5 ключей.')}
         </p>
         <pre style={pre}>{`curl ${API}/api/v1/me \\
   -H "Authorization: Bearer gm_live_…"`}</pre>
         <p className="hint" style={{ margin: 0 }}>
-          {t('Не больше {n} запросов в минуту на ключ, сверх — ответ 429 и заголовок Retry-After. Каждый запрос — в журнале «Инструментов» 30 дней.', { n: API_RATE_PER_MIN })}
+          {t('Не больше {n} запросов в минуту на ключ, сверх лимита ответ 429 и заголовок Retry-After. Каждый запрос 30 дней хранится в журнале «Инструментов».', { n: API_RATE_PER_MIN })}
         </p>
       </section>
 
       <section className="stack-form" style={{ gap: 10 }}>
         <h2 className="h2" style={{ fontSize: 20 }}>{t('Лоты')}</h2>
         <Endpoint method="GET" path="/api/v1/listings?status=active&limit=50&cursor=…">
-          {t('Свои лоты: цена (копейки строкой), наличие, статус, игра и раздел. Дальше — по next.')}
+          {t('Свои лоты: цена (копейки строкой), наличие, статус, игра и раздел. Следующая страница по next.')}
         </Endpoint>
         <Endpoint method="PATCH" path="/api/v1/listings/{id}">
           {t('Поменять цену, наличие или снять и вернуть: {"price": "49000", "stock": 3, "status": "paused"}. Правила те же, что на сайте.')}
@@ -76,17 +76,17 @@ export default async function SellerApiDocs() {
           {t('Свои продажи: номер, статус, сумма и сколько придёт вам, ник покупателя и его ответы на поля лота.')}
         </Endpoint>
         <Endpoint method="POST" path="/api/v1/orders/{id}/start">
-          {t('«Взять в работу»: покупатель увидит отметку в заказе. У услуг со сроком в заказе есть serviceDueAt — выполнить до.')}
+          {t('«Взять в работу»: покупатель увидит отметку в заказе. У услуг со сроком в заказе есть serviceDueAt, срок выполнения.')}
         </Endpoint>
         <Endpoint method="POST" path="/api/v1/orders/{id}/deliver">
-          {t('Отметить выдачу. С {"message": "…"} — сообщение покупателю в чат заказа (контакты скрываются, как в чате).')}
+          {t('Отметить выдачу. С {"message": "…"} покупатель получит сообщение в чат заказа (контакты скрываются, как в чате).')}
         </Endpoint>
       </section>
 
       <section className="stack-form" style={{ gap: 10 }}>
         <h2 className="h2" style={{ fontSize: 20 }}>{t('Вебхук «оплачен новый заказ»')}</h2>
         <p className="muted" style={{ margin: 0 }}>
-          {t('Задайте адрес (https) в «Инструментах» — получите секрет. На каждый оплаченный заказ придёт POST с JSON и заголовками:')}
+          {t('Задайте адрес (https) в «Инструментах» и получите секрет. На каждый оплаченный заказ придёт POST с JSON и заголовками:')}
         </p>
         <pre style={pre}>{`X-GM-Event: order.paid
 X-GM-Delivery: <delivery-id>
@@ -96,7 +96,7 @@ X-GM-Signature: sha256=<hmac_sha256(body, secret)>
  "listingId":"…","title":"…","qty":1,"amount":"49000","sellerPayout":"44100",
  "currency":"RUB","buyerData":[{"label":"Nick","value":"…"}],"autoDelivery":false}}`}</pre>
         <p className="hint" style={{ margin: 0 }}>
-          {t('Проверяйте подпись: HMAC-SHA256 тела вашим секретом. Ответ не 2xx или тишина 5 секунд — повторим через {delays} мин.', {
+          {t('Проверяйте подпись: HMAC-SHA256 тела вашим секретом. Если ответ не 2xx или его нет 5 секунд, повторим через {delays} мин.', {
             delays: WEBHOOK_RETRY_MINUTES.join(', '),
           })}
         </p>

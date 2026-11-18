@@ -9,7 +9,7 @@ export default async function NotFound() {
       <Gamepad2 size={48} strokeWidth={1.75} className="faint" style={{ marginBottom: 12 }} aria-hidden />
       <h1 className="h1" style={{ fontSize: 34, marginBottom: 8 }}>{t('Страница не найдена')}</h1>
       <p className="lead" style={{ margin: '0 auto 28px', maxWidth: 440 }}>
-        {t('Похоже, этот лот уже купили, а страницу — телепортировали. Но в каталоге ещё много всего.')}
+        {t('Такой страницы нет. Возможно, лот уже купили. Посмотрите похожие в каталоге.')}
       </p>
       <div className="row" style={{ gap: 10, justifyContent: 'center' }}>
         <Link href="/catalog" className="btn">{t('В каталог')}</Link>

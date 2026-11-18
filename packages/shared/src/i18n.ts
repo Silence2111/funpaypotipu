@@ -145,9 +145,9 @@ export const EN_SHARED: Phrasebook = {
   // Сообщения площадки в споре
   'Арбитр ждёт пояснений от продавца.': 'The arbiter is waiting for the seller’s explanation.',
   'Арбитр ждёт пояснений от покупателя.': 'The arbiter is waiting for the buyer’s explanation.',
-  'Продавец не ответил в срок — арбитр учтёт это при решении.':
+  'Продавец не ответил в срок. Арбитр учтёт это при решении.':
     'The seller didn’t reply in time — the arbiter will take this into account.',
-  'Покупатель не ответил в срок — арбитр учтёт это при решении.':
+  'Покупатель не ответил в срок. Арбитр учтёт это при решении.':
     'The buyer didn’t reply in time — the arbiter will take this into account.',
   'Покупатель закрыл спор: претензий нет. Деньги переданы продавцу.':
     'The buyer closed the dispute with no claims. The money went to the seller.',
@@ -229,8 +229,8 @@ export const EN_SHARED: Phrasebook = {
   'Нарушения по пунктам: санкция и доля возврата покупателю у каждого пункта; обжалование решений модерации.':
     'Violations by clause: a sanction and the buyer’s refund share for each clause; appeals against moderation decisions.',
   // Лот на английском (часть 144)
-  'Название на английском — от 3 знаков': 'The English title must be at least 3 characters',
-  'Название на английском — латиницей': 'Write the English title in Latin letters',
+  'Название на английском от 3 знаков': 'The English title must be at least 3 characters',
+  'Название на английском латиницей': 'Write the English title in Latin letters',
   'Название на английском — от 3 до 120 знаков': 'The English title must be 3 to 120 characters',
   'Описание на английском — до 10 000 знаков': 'The English description must be up to 10,000 characters',
   // Название лота (часть 143)
@@ -244,7 +244,7 @@ export const EN_SHARED: Phrasebook = {
   'только строчные латинские буквы, цифры и _': 'only lowercase Latin letters, digits and _',
   'Это имя занято': 'This name is taken',
   'ожидается целое число минорных единиц': 'expected a whole number of minor units',
-  'Название поля — от 2 символов': 'Field name must be at least 2 characters',
+  'Название поля от 2 символов': 'Field name must be at least 2 characters',
   'Не больше трёх полей': 'No more than three fields',
   'Названия полей не должны повторяться': 'Field names must not repeat',
   'Сообщение — до 2000 знаков': 'Message must be up to 2,000 characters',
@@ -370,7 +370,7 @@ export const EN_SHARED: Phrasebook = {
   'Блокировка лота снята': 'Listing unblocked',
   'Лот прошёл проверку и вернулся в продажу': 'Your listing passed review and is back on sale',
   'Номер телефона для входа изменён': 'The sign-in phone number has changed',
-  'Номер — российский мобильный: +7 9XX XXX-XX-XX': 'The number must be a Russian mobile: +7 9XX XXX-XX-XX',
+  'Нужен российский мобильный номер: +7 9XX XXX-XX-XX': 'The number must be a Russian mobile: +7 9XX XXX-XX-XX',
   'Аккаунт удалён — данные уничтожим через 30 дней, до этого его можно восстановить входом':
     'Account deleted — we’ll erase your data in 30 days; until then you can restore it by signing in',
   'Раздел закрыт для продажи — ваши лоты сняты с витрины': 'The section is closed for sales — your listings are hidden',
@@ -460,7 +460,7 @@ export const EN_SHARED: Phrasebook = {
   'Название — от 3 до 120 знаков': 'The title must be 3 to 120 characters',
   'Нет описания': 'No description',
   'Описание — до 10 000 знаков': 'The description must be up to 10,000 characters',
-  'Цена — число больше нуля, например 490': 'The price must be a number above zero, for example 490',
+  'Цена должна быть числом больше нуля, например 490': 'The price must be a number above zero, for example 490',
   'Наличие — целое число или пусто': 'Stock must be a whole number or empty',
   'Укажите характеристику «{label}»': 'Fill in “{label}”',
   'Недопустимое значение «{label}»': 'Invalid value for “{label}”',

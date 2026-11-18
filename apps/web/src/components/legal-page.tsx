@@ -15,7 +15,7 @@ export async function LegalPage({ title, children }: { title: string; children: 
       {t.lang === 'en' && (
         <div className="alert" style={{ marginBottom: 20 }} lang="en">
           <Languages size={18} strokeWidth={1.75} />
-          <span>{t('Этот документ — только на русском. Действует русская версия.')}</span>
+          <span>{t('Этот документ только на русском. Действует русская версия.')}</span>
         </div>
       )}
       <h1 className="h1" style={{ fontSize: 32 }} lang="ru">{title}</h1>
@@ -23,7 +23,7 @@ export async function LegalPage({ title, children }: { title: string; children: 
         <Info size={18} strokeWidth={1.75} />
         {t.lang === 'en' ? (
           <span>
-            {t('Черновик до регистрации юрлица. Места с пометкой «[заполнить]» — реквизиты, которых пока нет.')}
+            {t('Черновик до регистрации юрлица. Места с пометкой «[заполнить]» ждут реквизитов, которых пока нет.')}
           </span>
         ) : (
           <span>

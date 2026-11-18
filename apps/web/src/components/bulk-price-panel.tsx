@@ -32,11 +32,11 @@ function resultNote(r: PriceResult, t: T): string {
   if (!r.skipped.length) return done;
   const by = (reason: Reason) => r.skipped.filter((s) => s.reason === reason).length;
   const why = [
-    by('sale') && t('идёт скидка — {n}', { n: by('sale') }),
-    by('topup') && t('пополнение — {n}', { n: by('topup') }),
-    by('min') && t('меньше 1 ₽ — {n}', { n: by('min') }),
-    by('same') && t('без изменений — {n}', { n: by('same') }),
-    by('unavailable') && t('недоступны — {n}', { n: by('unavailable') }),
+    by('sale') && t('идёт скидка: {n}', { n: by('sale') }),
+    by('topup') && t('пополнение: {n}', { n: by('topup') }),
+    by('min') && t('меньше 1 ₽: {n}', { n: by('min') }),
+    by('same') && t('без изменений: {n}', { n: by('same') }),
+    by('unavailable') && t('недоступны: {n}', { n: by('unavailable') }),
   ]
     .filter(Boolean)
     .join(', ');
@@ -131,7 +131,7 @@ export function BulkPricePanel({
         </ul>
       ) : (
         <p className="hint" style={{ margin: 0 }}>
-          {t('Цена в целых рублях останется в рублях: 999 ₽ +7% — 1 069 ₽.')}
+          {t('Цена в целых рублях останется в рублях: 999 ₽ +7% будет 1 069 ₽.')}
         </p>
       )}
       {skip > 0 && (

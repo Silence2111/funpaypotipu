@@ -82,7 +82,7 @@ function Complete() {
           case 'username_taken':
             setMsg(
               body.suggested
-                ? t('Ник занят — например, свободен {name}', { name: body.suggested })
+                ? t('Ник занят. Свободен, например, {name}', { name: body.suggested })
                 : t('Ник занят'),
             );
             break;
@@ -116,7 +116,7 @@ function Complete() {
     e.preventDefault();
     const u = username.trim().toLowerCase();
     if (!USERNAME_RE.test(u))
-      return setMsg(t('Ник — строчные латинские буквы, цифры и _, от 3 символов'));
+      return setMsg(t('Ник: строчные латинские буквы, цифры и _, от 3 символов'));
     if (!agreed) return setMsg(t('Без согласия с правилами аккаунт не создать'));
     if (!pdConsent) return setMsg(t('Без согласия на обработку персональных данных аккаунт не создать'));
     void send({ username: u, pdConsent: true });
@@ -158,7 +158,7 @@ function Complete() {
               ? t('{name}, вы входите через {via} впервые.', { name, via })
               : t('Вы входите через {via} впервые.', { via })}{' '}
             {t(
-              'Выберите ник — по нему вас найдут покупатели и продавцы, сменить его потом нельзя.',
+              'Выберите ник. По нему вас найдут покупатели и продавцы, сменить его потом нельзя.',
             )}
           </p>
           <div className="field">
@@ -278,7 +278,7 @@ function Complete() {
             />
             <p className="hint">
               {t(
-                'У аккаунта включена двухфакторная защита — она действует и при входе через сервис.',
+                'У аккаунта включена двухфакторная защита, она действует и при входе через сервис.',
               )}{' '}
               <button
                 type="button"
@@ -290,7 +290,7 @@ function Complete() {
               >
                 {recovery
                   ? t('Ввести код из приложения')
-                  : t('Нет телефона — ввести резервный код')}
+                  : t('Нет телефона? Введите резервный код')}
               </button>
             </p>
           </div>
@@ -309,7 +309,7 @@ function Complete() {
         <div className="card stack-form" style={{ gap: 16, padding: 24, marginTop: 20 }}>
           <p style={{ margin: 0 }}>
             {eraseAt
-              ? t('Аккаунт удалён. До {date} его можно вернуть — лоты останутся в архиве.', {
+              ? t('Аккаунт удалён. До {date} его можно вернуть, лоты останутся в архиве.', {
                   date: new Date(eraseAt).toLocaleDateString(t.locale),
                 })
               : t('Аккаунт удалён. Его можно вернуть в течение 30 дней после удаления.')}

@@ -52,12 +52,12 @@ export const EN_API: Phrasebook = {
   'Этот номер уже привязан к другому аккаунту': 'This number is already linked to another account',
   'Это единственный способ входа — сначала задайте почту и пароль':
     'This is your only way to sign in — set an email and password first',
-  'Новый код — через {n} сек.': 'New code in {n} s',
+  'Новый код через {n} сек.': 'New code in {n} s',
   'Слишком много кодов на этот номер — попробуйте позже': 'Too many codes for this number — try again later',
   'Код устарел — запросите новый': 'The code has expired — request a new one',
   'Слишком много неверных кодов — запросите новый': 'Too many wrong codes — request a new one',
   'Код не подошёл': 'Wrong code',
-  'Вход по номеру устарел — запросите код заново': 'Phone sign-in has expired — request a code again',
+  'Вход по номеру устарел, запросите код заново': 'Phone sign-in has expired — request a code again',
 
   // Удаление аккаунта (часть 124)
   'Впишите свой ник': 'Type your username',
@@ -110,7 +110,7 @@ export const EN_API: Phrasebook = {
     'You can’t remove your own admin role — ask another administrator',
 
   // Вход, регистрация, сеансы
-  'Новый пароль — от 8 символов': 'New password must be at least 8 characters',
+  'Новый пароль от 8 символов': 'New password must be at least 8 characters',
   'Пользователь с таким email или username уже есть':
     'A user with this email or username already exists',
   'Ссылка недействительна или истекла': 'The link is invalid or has expired',
@@ -123,7 +123,7 @@ export const EN_API: Phrasebook = {
     'This isn’t the password the account had when the sign-in code was turned on',
   // «Не могу войти»: заявка на восстановление доступа
   'Не больше трёх номеров заказов': 'No more than three order numbers',
-  'Опишите, что случилось, — от 10 символов': 'Describe what happened — at least 10 characters',
+  'Опишите, что случилось, от 10 символов': 'Describe what happened — at least 10 characters',
   'Причина — от 5 символов': 'The reason must be at least 5 characters',
   'По заявке уже решено': 'This request has already been decided',
   'Решить можно через 3 дня после заявки: владелец должен успеть её увидеть':
@@ -144,7 +144,7 @@ export const EN_API: Phrasebook = {
   'Описания сделок по ссылке ещё не присланы': 'The deal descriptions from the link haven’t been sent yet',
   'Каждая сделка — с другим продавцом или покупателем': 'Each deal must be with a different seller or buyer',
   'Укажите ник продавца или покупателя': 'Enter the seller’s or buyer’s username',
-  'Опишите сделку подробнее — от 20 символов': 'Describe the deal in more detail — at least 20 characters',
+  'Опишите сделку подробнее, от 20 символов': 'Describe the deal in more detail — at least 20 characters',
   'Описание сделки — до 600 символов': 'The deal description must be at most 600 characters',
   'Опишите хотя бы две сделки': 'Describe at least two deals',
   'Не больше трёх сделок': 'No more than three deals',
@@ -545,7 +545,7 @@ export const EN_API: Phrasebook = {
   'Обращение не найдено': 'Request not found',
   'Это не ваше обращение': 'This isn’t your request',
   // Запросы покупателей «Хочу купить»
-  'Опишите, что ищете, — от 10 символов': 'Describe what you are looking for — at least 10 characters',
+  'Опишите, что ищете, от 10 символов': 'Describe what you are looking for — at least 10 characters',
   'Запрос — до 300 символов': 'A request can be up to 300 characters',
   'Не больше {n} открытых запросов — закройте найденные':
     'No more than {n} open requests — close the ones you have found',

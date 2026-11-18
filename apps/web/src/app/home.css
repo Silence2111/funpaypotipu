@@ -1,14 +1,13 @@
-/* Главная v2 (18.11.2026): гибрид Playerok и GGSel поверх системы globals.css, лёгкий вид
- * («фиолетовый, только легче»): бледные плитки знаков, светлая плита, без чёрных вкладок.
- * Ряд значков игр сверху, цветная плита с поиском и пополнение Steam рядом, лоты плитками с вкладками.
- * Цвет бренда массой — только плита первого экрана и обложки без фото (оттенок цвета игры). */
+/* Главная v2 (18.11.2026): гибрид Playerok и GGSel поверх системы globals.css.
+ * Ряд значков игр сверху, светлая плита с поиском и быстрыми покупками рядом с пополнением Steam,
+ * лоты плитками с вкладками. Значки и обложки — полноцветные, как в нише (бледные плитки со значками,
+ * парящие повёрнутые значки и иконки в кружках владелец назвал слопом — не возвращать). */
 
 .home2 {
   /* оттенок акцента из самого акцента и фона: верен и в светлой, и в тёмной теме */
   --accent-tint: color-mix(in srgb, var(--accent) 14%, var(--bg));
-  /* плита первого экрана: цвет бренда, разбавленный фоном карточек, — работает и в тёмной теме */
-  --hero-bg: radial-gradient(70% 90% at 92% 0%, color-mix(in srgb, var(--accent) 12%, var(--bg)) 0%, transparent 70%),
-    linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, var(--bg)) 0%, color-mix(in srgb, var(--bg) 92%, #f3f0ff) 100%);
+  /* плита первого экрана: лёгкий фиолетовый, разбавленный фоном карточек, — работает и в тёмной теме */
+  --hero-bg: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, var(--bg)) 0%, color-mix(in srgb, var(--accent) 3%, var(--bg)) 100%);
   padding-top: 20px;
 }
 
@@ -19,37 +18,26 @@
 .gm-icons__item { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--fg); text-decoration: none; font-size: 12.5px;
   line-height: 1.2; text-align: center; }
 .gm-icons__item span:last-child { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 76px; }
-.gm-icons__item:hover .gicon { transform: translateY(-3px); }
+.gm-icons__item:hover .gicon { transform: translateY(-2px); }
 
-/* Первый экран: плита и пополнение Steam */
+/* Первый экран: плита (заголовок, поиск, быстрые покупки) и пополнение Steam */
 .home2 > .gm-hero { margin-top: 20px; }
 .gm-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 20px; align-items: stretch; }
 .gm-hero--solo { grid-template-columns: minmax(0, 1fr); }
-.gm-hero__panel { position: relative; overflow: hidden; background: var(--hero-bg); border-radius: 28px; padding: 44px 48px 36px;
-  display: flex; flex-direction: column; justify-content: flex-end; min-height: 520px; }
-.gm-hero__panel > :not(.gm-cloud) { position: relative; z-index: 1; }
-
-/* Облако настоящих знаков игр в верхней части плиты: лёгкий наклон и медленное парение */
-.gm-cloud { position: absolute; top: 0; right: 0; width: 62%; height: 46%; pointer-events: none; }
-.gm-cloud__i { position: absolute; display: block; animation: gm-float 7s ease-in-out infinite; }
-.gm-cloud__i .gicon { background: var(--bg); box-shadow: 0 16px 32px -18px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 0 0 1px var(--border); }
-.gm-cloud__i--0 { top: 34%; right: 14%; transform: rotate(-8deg); }
-.gm-cloud__i--1 { top: 14%; right: 38%; transform: rotate(7deg); animation-delay: -1.2s; }
-.gm-cloud__i--2 { top: 12%; right: 4%; transform: rotate(10deg); animation-delay: -2.4s; }
-.gm-cloud__i--3 { top: 46%; right: 46%; transform: rotate(-12deg); animation-delay: -3.1s; }
-.gm-cloud__i--4 { top: 64%; right: 2%; transform: rotate(-4deg); animation-delay: -4s; }
-.gm-cloud__i--5 { top: 6%; right: 62%; transform: rotate(-6deg); animation-delay: -5.2s; }
-.gm-cloud__i--6 { top: 70%; right: 30%; transform: rotate(9deg); animation-delay: -0.6s; }
-@keyframes gm-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
-@media (prefers-reduced-motion: reduce) { .gm-cloud__i { animation: none; } }
-.gm-hero__h1 { font-size: clamp(32px, 3.5vw, 48px); line-height: 1.08; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 14px; max-width: 13em; }
+.gm-hero__panel { background: var(--hero-bg); border-radius: 28px; padding: 44px 44px 32px; display: flex; flex-direction: column; }
+.gm-hero__h1 { font-size: clamp(32px, 3.5vw, 46px); line-height: 1.08; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 14px; max-width: 13em; }
 .gm-hero__lead { color: var(--fg-muted); font-size: 17px; line-height: 1.5; max-width: 54ch; margin: 0 0 24px; }
-.gm-hero__panel .type-chips .chip { background: var(--bg); border-color: transparent; }
-.gm-hero__panel .type-chips .chip:hover { color: var(--accent); }
-.gm-hero__pluses { list-style: none; padding: 0; margin: 22px 0 0; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 14px; color: var(--fg-muted); }
-.gm-hero__pluses li { display: inline-flex; align-items: center; gap: 6px; }
-.gm-hero__pluses svg { color: var(--accent); flex-shrink: 0; }
 .home2 > .gm-demo { max-width: none; margin-top: 16px; }
+
+/* Быстрые покупки: настоящие разделы с ценой «от», заполняют плиту под поиском */
+.gm-quick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 10px; margin-top: 28px; flex: 1; }
+.gm-quick__i { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 16px; border-radius: 18px; background: var(--bg);
+  color: var(--fg); text-decoration: none; box-shadow: inset 0 0 0 1px var(--border); transition: box-shadow 0.15s ease; min-width: 0; }
+.gm-quick__i:hover { box-shadow: inset 0 0 0 1px var(--accent); }
+.gm-quick__i .gicon { margin-bottom: 10px; }
+.gm-quick__i b { font-size: 15px; font-weight: 600; line-height: 1.25; }
+.gm-quick__i small { font-size: 13px; color: var(--fg-faint); }
+.gm-quick__p { margin-top: auto; padding-top: 10px; font-size: 15px; font-weight: 700; }
 
 /* Вкладки разделов над лотами */
 .gm-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 0 18px; }
@@ -59,23 +47,27 @@
 .gm-tabs a:hover { color: var(--accent); }
 .gm-tabs a.gm-tabs__on { background: var(--accent-tint); color: var(--accent); font-weight: 600; }
 
-/* Лоты плитками */
+/* Лоты плитками: обложка — цвет игры, крупно количество из названия, как обложки продавцов в нише */
 .gm-lots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 26px 16px; }
 .lc { display: flex; flex-direction: column; gap: 8px; color: var(--fg); text-decoration: none; min-width: 0; }
 .lc__game { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .lc__game > span:last-child { min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
 .lc__game b { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lc__game small { font-size: 12.5px; color: var(--fg-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lc__cover { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 3; border-radius: 18px; overflow: hidden;
-  background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--lc-tint, var(--fg-faint)) 14%, var(--bg)) 0%,
-    color-mix(in srgb, var(--lc-tint, var(--fg-faint)) 5%, var(--bg)) 72%); }
-.lc__cover .gicon { background: var(--bg); box-shadow: 0 14px 28px -16px color-mix(in srgb, var(--lc-tint, var(--fg)) 55%, transparent), inset 0 0 0 1px var(--border); }
-.lc:hover .lc__cover .gicon { transform: scale(1.07) rotate(-3deg); }
+.lc__cover { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden; }
+.lc__art { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 0 12px; text-align: center; transition: transform 0.25s ease; }
+.lc:hover .lc__art { transform: scale(1.04); }
+.lc__glyph { display: block; width: 52px; height: 52px; -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center; }
+.lc__letters { font-size: 40px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.lc__amount { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
+.lc__art:has(.lc__amount) .lc__glyph { width: 34px; height: 34px; }
+.lc__art:has(.lc__amount) .lc__letters { font-size: 26px; }
 .lc__photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .lc__badges { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
-.lc__badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 999px; background: color-mix(in srgb, var(--bg) 92%, transparent);
-  color: var(--fg); font-size: 12px; font-weight: 600; line-height: 1.2; }
-.lc__badge--fast { color: var(--accent); }
+.lc__badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.94);
+  color: #15171c; font-size: 12px; font-weight: 600; line-height: 1.2; }
+.lc__badge--fast { color: #5b3fd6; }
 .lc__price { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
 .lc__title { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .lc:hover .lc__title { color: var(--accent); }
@@ -83,11 +75,9 @@
 .lc__seller .star { color: #f5a524; }
 .lc__name { margin-left: auto; color: var(--fg-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 8px; }
 
-/* Как защищена сделка: три карточки с значком в круге цвета акцента */
+/* Как защищена сделка: три карточки, текст без значков */
 .gm-trust { gap: 14px; }
 .gm-trust > div { background: var(--bg); border-radius: 20px; padding: 22px 22px 18px; box-shadow: inset 0 0 0 1px var(--border); }
-.gm-trust h3 { display: flex; align-items: center; gap: 10px; }
-.gm-trust h3 svg { box-sizing: content-box; padding: 8px; border-radius: 50%; background: var(--accent-tint); color: var(--accent); flex-shrink: 0; }
 
 /* Сколько это стоит: таблица в карточке, колонка GameMarket выделена */
 .gm-price { background: var(--bg); border-radius: 20px; padding: 6px 20px; box-shadow: inset 0 0 0 1px var(--border); }
@@ -95,30 +85,27 @@
 .gm-price thead tr > :nth-child(2) { border-radius: 10px 10px 0 0; }
 .gm-price tbody tr:last-child { border-bottom: 0 !important; }
 
-/* Указатель игр: значок рядом с названием */
-
 @media (max-width: 1100px) {
   .gm-lots { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .gm-quick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
   .gm-hero { grid-template-columns: minmax(0, 1fr); }
-  .gm-hero__panel { min-height: 0; padding-top: 190px; }
-  .gm-cloud { width: 100%; height: 190px; }
   .gm-lots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
   .home2 { padding-top: 12px; }
   .gm-icons { grid-auto-columns: 66px; gap: 8px; }
-  .gm-icons .gicon { width: 52px !important; height: 52px !important; border-radius: 14px !important; }
-  .gm-icons .gicon__g { width: 28px !important; height: 28px !important; }
-  .gm-hero__panel { border-radius: 22px; padding: 150px 18px 22px; min-height: 0; }
-  .gm-cloud { width: 100%; height: 150px; }
-  .gm-cloud .gicon { width: 48px !important; height: 48px !important; border-radius: 13px !important; }
-  .gm-cloud .gicon__g { width: 26px !important; height: 26px !important; }
+  .gm-icons .gicon { width: 52px !important; height: 52px !important; border-radius: 13px !important; }
+  .gm-icons .gicon__g { width: 29px !important; height: 29px !important; }
+  .gm-hero__panel { border-radius: 22px; padding: 26px 16px 16px; }
   .gm-hero__h1 { font-size: 30px; }
   .gm-hero__lead { font-size: 15.5px; margin-bottom: 18px; }
+  .gm-quick { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 18px; }
+  .gm-quick__i { padding: 12px; }
   .gm-lots { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 12px; }
   .lc__cover { border-radius: 14px; }
+  .lc__amount { font-size: 19px; }
   .lc__price { font-size: 16px; }
   .lc__name { display: none; }
 }

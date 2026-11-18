@@ -4797,7 +4797,7 @@ async function scenarioImport(rnd) {
       JSON.stringify(res.body.failed) === JSON.stringify([
         { line: 4, message: 'Укажите характеристику «Редкость»' },
         { line: 5, message: 'Недопустимое значение «Редкость»' },
-        { line: 6, message: 'Цена — число больше нуля, например 490' },
+        { line: 6, message: 'Цена должна быть числом больше нуля, например 490' },
       ]) && mine.length === 2 && third?.stock === 2 && mine.every((l) => l.status === 'active'),
     JSON.stringify({ status: res.status, body: res.body, mine: mine.map((l) => [l.title, l.stock, l.status]) }),
   );

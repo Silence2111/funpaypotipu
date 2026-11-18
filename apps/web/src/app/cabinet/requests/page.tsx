@@ -87,7 +87,7 @@ function RequestsPage() {
     try {
       const next = await apiFetch<MyBuyRequest>(`/buy-requests/${r.id}/close`, { method: 'POST' });
       setMine((l) => l?.map((x) => (x.id === next.id ? next : x)) ?? null);
-      setNote({ ok: true, text: t('Запрос закрыт — продавцы его больше не видят.') });
+      setNote({ ok: true, text: t('Запрос закрыт, продавцы его больше не видят.') });
     } catch (e) {
       setNote({ ok: false, text: apiErrorMessage(e, t('Не удалось закрыть запрос.')) });
     } finally {
@@ -163,7 +163,7 @@ function RequestsPage() {
             </div>
             {seller?.scope === 'all' && seller.sellingIn === 0 && (
               <p className="hint">
-                {t('У вас пока нет лотов в продаже — показываем запросы всех разделов.')}
+                {t('У вас пока нет лотов в продаже, поэтому показываем запросы всех разделов.')}
               </p>
             )}
             {seller === null ? (
@@ -232,7 +232,7 @@ function RequestsPage() {
           <div className="card flat empty-state">
             <p className="muted" style={{ maxWidth: '60ch' }}>
               {t(
-                'Запросов нет. Не нашли нужное? Откройте раздел игры и нажмите «Оставить запрос» — продавцы предложат свои лоты.',
+                'Запросов нет. Откройте раздел игры и нажмите «Оставить запрос», и продавцы предложат свои лоты.',
               )}
             </p>
             <Link href="/igry" className="btn secondary">
@@ -301,7 +301,7 @@ function RequestsPage() {
                 ) : (
                   r.state === 'open' && (
                     <p className="hint">
-                      {t('Продавцы ещё не ответили — ответ придёт уведомлением.')}
+                      {t('Продавцы ещё не ответили. Ответ придёт уведомлением.')}
                     </p>
                   )
                 )}
