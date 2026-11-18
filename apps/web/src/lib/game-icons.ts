@@ -1,36 +1,49 @@
 /**
- * Знаки игр и сервисов для плиток (главная, карточки лотов). Глифы — Simple Icons (CC0, simpleicons.org),
- * лежат в public/igry/<slug>.svg и рисуются CSS-маской: цвет знака — фирменный, плитка — его бледный оттенок
- * (лёгкий вид, выбор владельца 18.11.2026). У чёрных и серых марок (Steam, CS2, Roblox…) color = null:
- * знак цветом текста темы, чтобы в тёмной теме не пропадал. Только точные знаки: игры без своего знака
- * в наборе (Genshin, Minecraft, Standoff 2…) показываются буквенной плиткой, не чужим логотипом.
- * Без персонажей и ключевых артов — только эмблемы (правило владельца: без людей и животных на картинках).
+ * Знаки игр и сервисов — как настоящие значки приложений: фирменный цвет плитки и знак белым
+ * (на светлых марках — тёмным). Глифы — Simple Icons (CC0, simpleicons.org), public/igry/<slug>.svg,
+ * рисуются CSS-маской. Владелец 18.11: бледные плитки со значком — «слоп», нужен полноцветный вид.
+ * Только точные знаки: игры без своего знака в наборе (Genshin, Minecraft, Standoff 2…) — буквенная
+ * плитка своего цвета, не чужой логотип. Без персонажей и ключевых артов (правило владельца).
  */
-export const GAME_ICONS: Record<string, { color: string | null }> = {
-  'cs2': { color: null },
-  'dota2': { color: "#bf2e1a" },
-  'steam': { color: null },
-  'roblox': { color: null },
-  'telegram': { color: "#229ed9" },
-  'fortnite': { color: null },
-  'valorant': { color: "#fa4454" },
-  'gta5': { color: "#b07a10" },
-  'pubg-mobile': { color: "#aa812e" },
-  'pubg': { color: "#aa812e" },
-  'discord': { color: "#5865f2" },
-  'apple': { color: null },
-  'battlenet': { color: "#4381c3" },
-  'ea': { color: null },
-  'epic': { color: null },
-  'faceit': { color: "#ff5500" },
-  'google-play': { color: null },
-  'lol': { color: "#b8862a" },
-  'playstation': { color: "#0070d1" },
-  'spotify': { color: "#159643" },
-  'tiktok': { color: null },
-  'ubisoft': { color: null },
-  'youtube': { color: "#ff0000" },
+export const GAME_ICONS: Record<string, { bg: string; glyph: string }> = {
+  'cs2': { bg: '#1b1f24', glyph: '#ffffff' },
+  'dota2': { bg: '#bf2e1a', glyph: '#ffffff' },
+  'steam': { bg: '#171a21', glyph: '#ffffff' },
+  'roblox': { bg: '#15171c', glyph: '#ffffff' },
+  'telegram': { bg: '#26a5e4', glyph: '#ffffff' },
+  'fortnite': { bg: '#15171c', glyph: '#ffffff' },
+  'valorant': { bg: '#fa4454', glyph: '#ffffff' },
+  'gta5': { bg: '#fcaf17', glyph: '#15171c' },
+  'pubg-mobile': { bg: '#f4b942', glyph: '#15171c' },
+  'pubg': { bg: '#f4b942', glyph: '#15171c' },
+  'discord': { bg: '#5865f2', glyph: '#ffffff' },
+  'apple': { bg: '#15171c', glyph: '#ffffff' },
+  'battlenet': { bg: '#4381c3', glyph: '#ffffff' },
+  'ea': { bg: '#15171c', glyph: '#ffffff' },
+  'epic': { bg: '#313131', glyph: '#ffffff' },
+  'faceit': { bg: '#ff5500', glyph: '#ffffff' },
+  'google-play': { bg: '#414141', glyph: '#ffffff' },
+  'lol': { bg: '#c28f2c', glyph: '#ffffff' },
+  'playstation': { bg: '#0070d1', glyph: '#ffffff' },
+  'spotify': { bg: '#1ed760', glyph: '#15171c' },
+  'tiktok': { bg: '#15171c', glyph: '#ffffff' },
+  'ubisoft': { bg: '#15171c', glyph: '#ffffff' },
+  'youtube': { bg: '#ff0000', glyph: '#ffffff' },
 };
 
 export const gameIcon = (slug: string) =>
-  GAME_ICONS[slug] ? { src: `/igry/${slug}.svg`, color: GAME_ICONS[slug].color } : null;
+  GAME_ICONS[slug] ? { src: `/igry/${slug}.svg`, ...GAME_ICONS[slug] } : null;
+
+/** Цвет буквенной плитки для игры без знака: постоянный по названию, насыщенный, под белые буквы. */
+export function monogramColor(title: string): string {
+  let h = 0;
+  for (const ch of title) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return `hsl(${h % 360} 52% 42%)`;
+}
+
+/** Две буквы для плитки без знака: «Genshin Impact» → GI, «Minecraft» → MI. */
+export function monogram(title: string): string {
+  const words = title.replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return (words[0] ?? '?').slice(0, 2).toUpperCase();
+}

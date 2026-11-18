@@ -114,8 +114,8 @@ export async function SectionView({
     const s = p.toString();
     return s ? `${base}?${s}` : base;
   };
-  // цвет марки игры для шапки раздела; у чёрных марок и игр без знака — цвет площадки
-  const brand = gameIcon(game.slug)?.color ?? undefined;
+  // цвет марки игры для шапки раздела; у игр без знака — цвет площадки
+  const brand = gameIcon(game.slug)?.bg;
   const sellHref = `/cabinet/new?game=${encodeURIComponent(game.slug)}&category=${encodeURIComponent(section.slug)}`;
   const people = section.sellers;
 
