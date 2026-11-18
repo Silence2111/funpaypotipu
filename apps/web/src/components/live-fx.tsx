@@ -9,6 +9,15 @@ import { usePathname } from 'next/navigation';
  */
 export function LiveFx() {
   const path = usePathname();
+  // Шапка стеклянная: пока страница наверху — прозрачная, после прокрутки под ней матовая полоса,
+  // чтобы баннер и значки не просвечивали над плитой шапки
+  useEffect(() => {
+    const root = document.documentElement;
+    const sync = () => root.classList.toggle('is-scrolled', window.scrollY > 8);
+    sync();
+    window.addEventListener('scroll', sync, { passive: true });
+    return () => window.removeEventListener('scroll', sync);
+  }, []);
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       document.querySelectorAll('.reveal').forEach((el) => el.classList.add('is-in'));

@@ -154,7 +154,8 @@ export function GameTopupForm({
     const back = pay && cashbackPct > 0 ? (pay * BigInt(Math.round(cashbackPct * 10000))) / 10000n / 100n * 100n : 0n;
     return (
       <form id="topup" onSubmit={onSubmit} noValidate className="qb2__form">
-        <div className="qb2__fields">
+        {/* компактно (владелец: «уменьши раза в два»): логин, сумма и кнопка — одной строкой, суммы и плашки — второй */}
+        <div className="qb2__row">
           <label className="qb2__f">
             <span>{t.d(spec.label)}</span>
             <input
@@ -169,10 +170,10 @@ export function GameTopupForm({
               onChange={(e) => setAccount(e.target.value)}
               onBlur={() => setTouched((prev) => ({ ...prev, account: true }))}
             />
-            {showAccountError ? <em role="alert">{showAccountError}</em> : <small>{t.d(spec.hint)}</small>}
+            {showAccountError && <em role="alert">{showAccountError}</em>}
           </label>
-          <label className="qb2__f">
-            <span>{t('Сумма')}</span>
+          <label className="qb2__f qb2__f--sum">
+            <span>{t('Сумма')}{range && <i> · {rub(range.min)} – {rub(range.max)}</i>}</span>
             <span className="qb2__in">
               <input
                 id={ids.amount}
@@ -185,40 +186,36 @@ export function GameTopupForm({
               />
               <b aria-hidden>₽</b>
             </span>
-            {showAmountError ? (
-              <em role="alert">{showAmountError}</em>
-            ) : (
-              range && <small>{rub(range.min)} – {rub(range.max)}</small>
-            )}
+            {showAmountError && <em role="alert">{showAmountError}</em>}
           </label>
+          <button className="qb2__pay" type="submit" disabled={busy}>
+            {back > 0n && <span className="qb2__bonus">{t('+{sum} кэшбэк', { sum: rub(back) })}</span>}
+            {busy ? t('Оформляем…') : pay ? t('Оплатить {sum}', { sum: rub(pay) }) : t('Оплатить')}
+          </button>
         </div>
-        {presets.length > 0 && (
-          <div className="qb2__chips" role="group" aria-label={t('Быстрый выбор суммы')}>
-            {presets.map((p) => (
-              <button
-                key={p}
-                type="button"
-                aria-pressed={amount === String(p)}
-                onClick={() => {
-                  setAmount(String(p));
-                  setTouched((prev) => ({ ...prev, amount: true }));
-                }}
-              >
-                {rub(BigInt(p * 100))}
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="qb2__bottom">
+        <div className="qb2__row2">
+          {presets.length > 0 && (
+            <div className="qb2__chips" role="group" aria-label={t('Быстрый выбор суммы')}>
+              {presets.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  aria-pressed={amount === String(p)}
+                  onClick={() => {
+                    setAmount(String(p));
+                    setTouched((prev) => ({ ...prev, amount: true }));
+                  }}
+                >
+                  {rub(BigInt(p * 100))}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="qb2__tags">
             <span className="qb2__tag qb2__tag--fast">{t('Автовыдача')}</span>
             <span className="qb2__tag">{t('Гарантия сделки')}</span>
             {offer && quote && <span className="qb2__note">{t('наценка продавца {markup}', { markup: pctText(markupLabel(offer.markupBps)) })}</span>}
           </div>
-          <button className="qb2__pay" type="submit" disabled={busy}>
-            {back > 0n && <span className="qb2__bonus">{t('+{sum} кэшбэк', { sum: rub(back) })}</span>}
-            {busy ? t('Оформляем…') : pay ? t('Оплатить {sum}', { sum: rub(pay) }) : t('Оплатить')}
-          </button>
         </div>
         {err && (
           <p className="field-error" role="alert" style={{ margin: 0 }}>

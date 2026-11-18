@@ -49,7 +49,7 @@ export function QuickBuy({ steam, tabs }: { steam: QuickSteam | null; tabs: Quic
             onClick={() => setOn(x.key)}
             title={t.d(x.title)}
           >
-            <GameIcon slug={x.slug} title={x.title} size={40} />
+            <GameIcon slug={x.slug} title={x.title} size={32} />
           </button>
         ))}
       </div>
@@ -64,8 +64,9 @@ export function QuickBuy({ steam, tabs }: { steam: QuickSteam | null; tabs: Quic
         <div className="qb2__body">
           {steam && (
             <div hidden={on !== 'steam'}>
-              <h2 className="qb2__h">{steam.title}</h2>
-              <p className="qb2__sub">{steam.sub}</p>
+              <h2 className="qb2__h">
+                {steam.title} <small>{steam.sub}</small>
+              </h2>
               {steam.form}
             </div>
           )}
@@ -74,9 +75,9 @@ export function QuickBuy({ steam, tabs }: { steam: QuickSteam | null; tabs: Quic
               <h2 className="qb2__h">
                 {t('{section} {game}', { section: t.d(cur.section), game: t.d(cur.title) })}
                 {cur.from && <span className="qb2__from">{t('от {price}', { price: cur.from })}</span>}
+                <small>{t('Самые дешёвые предложения сейчас, с гарантией сделки')}</small>
               </h2>
-              <p className="qb2__sub">{t('Самые дешёвые предложения сейчас, с гарантией сделки')}</p>
-              <div className="qb2__fields qb2__fields--one">
+              <div className="qb2__row qb2__row--sel">
                 <label className="qb2__f qb2__f--sel">
                   <span>{t('Что купить')}</span>
                   <select value={chosen.id} onChange={(e) => setPick((p) => ({ ...p, [cur.key]: e.target.value }))}>
@@ -87,24 +88,24 @@ export function QuickBuy({ steam, tabs }: { steam: QuickSteam | null; tabs: Quic
                     ))}
                   </select>
                 </label>
+                <Link href={`/lot/${chosen.id}`} className="qb2__pay">
+                  {t('Купить за {price}', { price: chosen.price })}
+                </Link>
               </div>
-              <div className="qb2__chips">
-                {cur.offers.map((o) => (
-                  <button key={o.id} type="button" aria-pressed={o.id === chosen.id} onClick={() => setPick((p) => ({ ...p, [cur.key]: o.id }))}>
-                    {o.price}
-                  </button>
-                ))}
-              </div>
-              <div className="qb2__bottom">
+              <div className="qb2__row2">
+                <div className="qb2__chips">
+                  {cur.offers.map((o) => (
+                    <button key={o.id} type="button" aria-pressed={o.id === chosen.id} onClick={() => setPick((p) => ({ ...p, [cur.key]: o.id }))}>
+                      {o.price}
+                    </button>
+                  ))}
+                </div>
                 <div className="qb2__tags">
                   <span className="qb2__tag">{t('Гарантия сделки')}</span>
                   <Link href={cur.href} className="qb2__note">
                     {t('Все предложения')} →
                   </Link>
                 </div>
-                <Link href={`/lot/${chosen.id}`} className="qb2__pay">
-                  {t('Купить за {price}', { price: chosen.price })}
-                </Link>
               </div>
             </div>
           )}

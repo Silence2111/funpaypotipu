@@ -200,7 +200,7 @@ export default async function HomePage({
         <nav className="pk-icons" aria-label={t('Популярные игры и сервисы')}>
           {iconRow.map((g) => (
             <Link key={g.id} href={`/igra/${g.slug}`} className="pk-icons__i">
-              <GameIcon slug={g.slug} title={g.title} size={80} />
+              <GameIcon slug={g.slug} title={g.title} size={68} />
               <span>{t.d(g.title)}</span>
             </Link>
           ))}
@@ -273,7 +273,7 @@ export default async function HomePage({
           <div className="pk-svc__grid">
             {svcTiles.map(({ g, n, min, first }) => (
               <Link key={g.id} href={first ? `/igra/${g.slug}/${first}` : `/igra/${g.slug}`} className="pk-svc__i">
-                <GameIcon slug={g.slug} title={g.title} size={56} />
+                <GameIcon slug={g.slug} title={g.title} size={44} />
                 <b>{t.d(g.title)}</b>
                 <span>{min ? t('от {price}', { price: formatPrice(min.toString(), 'RUB', t) }) : offersCount(n, t)}</span>
               </Link>
