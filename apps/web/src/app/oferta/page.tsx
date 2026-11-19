@@ -1,11 +1,14 @@
 import type { Metadata } from 'next';
 import { LegalPage, Fill } from '@/components/legal-page';
 import { getPublicPricing } from '@/lib/api';
+import { connection } from 'next/server';
 import { OFFER_EDITIONS } from '@gamemarket/shared/rules';
 
 export const metadata: Metadata = { title: 'Оферта' };
 
 export default async function OfertaPage() {
+  // рендер на каждый запрос: иначе Next собрал бы страницу при сборке образа без API (см. sitemap.ts)
+  await connection();
   const p = await getPublicPricing();
   const pct = (v: number) => `${String(+(v * 100).toFixed(1)).replace('.', ',')}%`;
   return (

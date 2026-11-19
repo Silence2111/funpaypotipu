@@ -7,6 +7,7 @@ import { SellCalculator, type SellEstimate } from '@/components/sell-calculator'
 import { MoveLots } from '@/components/move-lots';
 import { GameIcon } from '@/components/game-icon';
 import { gameIcon } from '@/lib/game-icons';
+import { connection } from 'next/server';
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 /** С чего калькулятор начинает: скины CS2 за 1 000 ₽ (аккаунты закрыты, часть 122). */
@@ -37,6 +38,9 @@ const pctOf = (t: T) => (v: number) => {
  * с FunPay и Playerok (переехали с главной), тёмная плита «Ваши продажи под защитой» и перенос лотов.
  */
 export default async function SellPage() {
+  // Запросы к API на сервере кэшируются (lib/api.ts), и без этого вызова Next собрал бы страницу заранее, при сборке
+  // образа, когда API ещё не запущен (так 19.11 sitemap вышел без игр). connection() — рендер на каждый запрос.
+  await connection();
   const t = await getT();
   const [index, pricing] = await Promise.all([getGameIndex(), getPublicPricing()]);
   // Закрытые для продажи разделы (часть 122) в калькуляторе не предлагаем.
