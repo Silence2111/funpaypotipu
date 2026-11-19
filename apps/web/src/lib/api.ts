@@ -5,9 +5,16 @@ import { msg } from './i18n/lang';
 const API_URL =
   process.env.API_URL_INTERNAL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
+// На сервере (RSC) публичные ответы держим в кэше 30 секунд. С 19.11.2026 сайт работает во Франкфурте, а база — в
+// Москве: главная собиралась примерно из 25 запросов к API по 0,1–0,4 с, ответ — 2–3 с на сервере и 6–8 с у людей.
+// apiGet ходит без cookies и токена, поэтому отдаёт только публичное (каталог, лоты, цены) — общий кэш безопасен;
+// цена и наличие всё равно проверяются при покупке. В браузере кэша нет.
+const SERVER_CACHE: RequestInit =
+  typeof window === 'undefined' ? ({ next: { revalidate: 30 } } as RequestInit) : { cache: 'no-store' };
+
 /** Тонкий клиент к API. На сервере (RSC) и клиенте используется одинаково. */
 export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}/api${path}`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/api${path}`, SERVER_CACHE);
   if (!res.ok) throw new Error(`API ${path} -> ${res.status}`);
   return res.json() as Promise<T>;
 }

@@ -1,0 +1,159 @@
+# Lutli на gb1 (Франкфурт), рядом с Мерпи — 19.11.2026, решение владельца: «на действующие сервера».
+#   база   — в России: ru-db на REG.RU (Москва), с gb1 через туннель ru-db-tunnel (слушает :5441 на хосте);
+#   https  — nginx lerti (вход из РФ, свой сертификат) → nginx gb1 (сертификат lutli.ru) → контейнеры на 127.0.0.1;
+#   юрдокументы и форма обращения — общий _система/юр на lerti (include в nginx lerti), своего Caddy нет.
+# Запуск на gb1:  C="docker compose -f infra/compose.gb1.yaml --env-file infra/.env.gb1"; $C up -d --build
+# Отличия от compose.prod.yaml: нет postgres и caddy, DATABASE_URL на туннель, порты наружу только на 127.0.0.1.
+name: lutli
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+x-host: &host
+  extra_hosts: ["host.docker.internal:host-gateway"]
+
+x-app-env: &app-env
+  NODE_ENV: production
+  SKIP_DOTENV: "1"
+  DATABASE_URL: postgresql://lutli:${DB_PASSWORD:?задайте DB_PASSWORD}@host.docker.internal:5441/lutli?schema=public
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?задайте JWT_ACCESS_SECRET}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?задайте JWT_REFRESH_SECRET}
+  DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?задайте DATA_ENCRYPTION_KEY}
+  STORAGE_SIGNING_SECRET: ${STORAGE_SIGNING_SECRET:-}
+  WEB_URL: ${PUBLIC_URL:?задайте PUBLIC_URL}
+  API_URL: ${PUBLIC_URL}
+  API_PUBLIC_URL: ${PUBLIC_URL}
+  PUBLIC_ASSET_BASE: ${PUBLIC_URL}
+  CORS_ORIGINS: ${CORS_ORIGINS:-}
+  STORAGE_DIR: /data/uploads
+  PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-yookassa}
+  YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID:-}
+  YOOKASSA_SECRET_KEY: ${YOOKASSA_SECRET_KEY:-}
+  YOOKASSA_RECEIPTS: ${YOOKASSA_RECEIPTS:-}
+  YOOKASSA_VAT_CODE: ${YOOKASSA_VAT_CODE:-}
+  YOOKASSA_PAYMENT_SUBJECT: ${YOOKASSA_PAYMENT_SUBJECT:-}
+  YOOKASSA_DEAL_RECEIPT: ${YOOKASSA_DEAL_RECEIPT:-}
+  PAYOUT_PROVIDER: ${PAYOUT_PROVIDER:-}
+  YOOKASSA_PAYOUT_AGENT_ID: ${YOOKASSA_PAYOUT_AGENT_ID:-}
+  YOOKASSA_PAYOUT_SECRET_KEY: ${YOOKASSA_PAYOUT_SECRET_KEY:-}
+  YOOKASSA_PAYOUT_CARDS: ${YOOKASSA_PAYOUT_CARDS:-}
+  YOOKASSA_PAYOUT_WIDGET_URL: ${YOOKASSA_PAYOUT_WIDGET_URL:-}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-465}
+  SMTP_SECURE: ${SMTP_SECURE:-true}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASS: ${SMTP_PASS:-}
+  SMTP_FROM: ${SMTP_FROM:-}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+  TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+  YANDEX_CLIENT_ID: ${YANDEX_CLIENT_ID:-}
+  YANDEX_CLIENT_SECRET: ${YANDEX_CLIENT_SECRET:-}
+  VK_CLIENT_ID: ${VK_CLIENT_ID:-}
+  VK_CLIENT_SECRET: ${VK_CLIENT_SECRET:-}
+  SMS_PROVIDER: ${SMS_PROVIDER:-mock}
+  VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+  VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+  VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+
+services:
+  migrate:
+    <<: *host
+    image: lutli-api:${IMAGE_TAG:-local}
+    build: { context: .., dockerfile: apps/api/Dockerfile }
+    working_dir: /app/packages/db
+    environment: *app-env
+    command: sh -c "node_modules/.bin/prisma migrate deploy && node_modules/.bin/tsx prisma/seed.ts"
+    restart: "no"
+    logging: *logging
+
+  api:
+    <<: *host
+    image: lutli-api:${IMAGE_TAG:-local}
+    environment:
+      <<: *app-env
+      API_PORT: 4000
+      ALERT_BOT_TOKEN: ${ALERT_BOT_TOKEN:-}
+      ALERT_CHAT_ID: ${ALERT_CHAT_ID:-}
+      PUBLIC_URL: ${PUBLIC_URL}
+    ports: ["127.0.0.1:4100:4000"]
+    volumes: [uploads:/data/uploads]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    mem_limit: 512m
+    restart: unless-stopped
+    logging: *logging
+
+  web:
+    image: lutli-web:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_URL}
+        NEXT_PUBLIC_SITE_URL: ${PUBLIC_URL}
+    environment:
+      NODE_ENV: production
+      API_URL_INTERNAL: http://api:4000
+    ports: ["127.0.0.1:3100:3000"]
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+    mem_limit: 512m
+    restart: unless-stopped
+    logging: *logging
+
+  # Дамп базы (через туннель) и архив файлов — каждую ночь в 03:00 МСК в infra/backups; база ещё и в копиях ru-db.
+  backup:
+    <<: *host
+    image: postgres:16-alpine
+    environment:
+      PGHOST: host.docker.internal
+      PGPORT: "5441"
+      PGUSER: lutli
+      PGDATABASE: lutli
+      PGPASSWORD: ${DB_PASSWORD}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      TZ: Europe/Moscow
+    volumes:
+      - ./ops:/ops:ro
+      - uploads:/data/uploads
+      - ${BACKUP_DIR:-./backups}:/backups
+    entrypoint: ["/bin/sh", "-c", "echo '0 3 * * * /ops/backup.sh' | crontab - && exec crond -f -l 6"]
+    mem_limit: 128m
+    restart: unless-stopped
+    logging: *logging
+
+  healthwatch:
+    image: alpine:3.20
+    environment:
+      ALERT_BOT_TOKEN: ${ALERT_BOT_TOKEN:-}
+      ALERT_CHAT_ID: ${ALERT_CHAT_ID:-}
+      PUBLIC_URL: ${PUBLIC_URL}
+      HEALTH_INTERVAL: ${HEALTH_INTERVAL:-60}
+      BACKUP_MAX_AGE_H: ${BACKUP_MAX_AGE_H:-26}
+    volumes:
+      - ./ops:/ops:ro
+      - ${BACKUP_DIR:-./backups}:/backups:ro
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache curl >/dev/null && exec /ops/healthwatch.sh"]
+    depends_on: [api, web]
+    mem_limit: 64m
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  uploads:
