@@ -1,10 +1,14 @@
 import type { MetadataRoute } from 'next';
 import { getGameIndex, browseListings } from '@/lib/api';
 import { HELP_ARTICLES } from '@/lib/help';
+import { connection } from 'next/server';
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Запросы к API на сервере кэшируются (lib/api.ts), и без этого вызова Next собрал бы страницу заранее, при сборке
+  // образа, когда API ещё не запущен (так 19.11 sitemap вышел без игр). connection() — рендер на каждый запрос.
+  await connection();
   const base: MetadataRoute.Sitemap = [
     { url: SITE, changeFrequency: 'daily', priority: 1 },
     { url: `${SITE}/igry`, changeFrequency: 'daily', priority: 0.7 },
